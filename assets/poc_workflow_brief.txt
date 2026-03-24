@@ -1,0 +1,124 @@
+AI for BN PoC — Brief Workflow
+================================
+
+Project goal
+------------
+Build a fast, demoable AI-first BN PoC (software-only, no lab), centered on:
+1) public data ingestion,
+2) BN slice extraction,
+3) property prediction,
+4) candidate screening,
+5) interactive demo UI.
+
+Freeze scope (MVP)
+------------------
+- Primary dataset: 2DMatPedia via JARVIS-Tools
+- Primary task: property prediction + candidate screening
+- Primary target: band gap
+- Model path: composition features + sklearn baseline
+- Demo UI: Streamlit
+- Extensions: keep as empty stubs only
+  - literature_mining/
+  - stm_image_analysis/
+  - structure_generation/
+  - surrogate_potentials/
+
+Why this is enough to start coding
+----------------------------------
+We already have enough to define the first vertical slice:
+- data source
+- task type
+- first target
+- baseline model family
+- demo form
+
+What remains uncertain (non-blocking for MVP)
+--------------------------------------------
+- exact secondary targets (optional later)
+- stronger model choices (CrabNet / GNN later)
+- deeper chemistry validity constraints for candidate generation
+- evaluation rigor beyond MVP split strategy
+
+These are extension questions, not blockers for the first working demo.
+
+Implementation phases
+---------------------
+Phase 1. Scaffold
+- create repo structure
+- add requirements / config / artifact folders
+- add empty future-direction folders with README stubs
+
+Phase 2. Data adapter
+- implement 2DMatPedia loader via JARVIS-Tools
+- cache raw data
+- normalize to a clean table
+- save processed parquet/json manifest
+
+Phase 3. BN filter + candidate generator
+- filter entries containing B and N
+- create simple BN-related candidate generator
+- save BN subset and candidate list
+
+Phase 4. Features + baseline model
+- build composition-based features
+- train sklearn baseline
+- first model family:
+  - HistGradientBoostingRegressor OR RandomForestRegressor
+
+Phase 5. Evaluation
+- train/val/test split with fixed seed
+- report:
+  - MAE
+  - RMSE
+  - R^2
+- also report BN-slice metrics separately
+
+Phase 6. Inference layer
+- input: formula or candidate list
+- output: predicted property table
+- keep this as a plain Python inference layer for now
+
+Phase 7. Streamlit demo
+- tab 1: overview
+- tab 2: predict from formula
+- tab 3: BN candidate screener
+- tab 4: diagnostics
+
+Top-level deliverables
+----------------------
+1) runnable repo scaffold
+2) processed BN-ready dataset
+3) trained baseline model
+4) metrics + plots
+5) Streamlit demo
+
+Key parameters (initial defaults)
+---------------------------------
+- target: band_gap
+- split: 80 / 10 / 10
+- random seed: 42
+- baseline model options:
+  - HistGradientBoostingRegressor
+  - RandomForestRegressor(n_estimators=500)
+- metrics:
+  - MAE
+  - RMSE
+  - R^2
+
+Out of scope for the first coding round
+---------------------------------------
+- publishable chemistry claims
+- experimental validation
+- GNN / generative models / surrogate potentials implementation
+- multi-dataset benchmark suite
+- full FastAPI service
+
+Decision rule
+-------------
+Start coding if we agree on:
+- dataset = 2DMatPedia
+- target = band gap
+- baseline = sklearn
+- demo = Streamlit
+
+If any of the above 4 must change now, then we should pause and request one more deep-research round.

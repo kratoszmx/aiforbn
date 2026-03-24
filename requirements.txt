@@ -1,0 +1,12 @@
+pandas>=2.2
+numpy>=1.26
+scikit-learn>=1.5
+pyyaml>=6.0
+pydantic>=2.8
+matplotlib>=3.9
+streamlit>=1.38
+jarvis-tools>=2024.10.30
+matminer>=0.9.2
+pymatgen>=2024.8.9
+pyarrow>=17.0
+pytest>=8.3

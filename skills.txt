@@ -1,0 +1,7 @@
+本项目是python项目,coding要额外遵守以下规则:
+
+1. 终端使用zsh打开后的默认quant环境调试代码, 缺包的话直接在这个环境里装,禁止使用其他python环境
+2. 每次git push前都必须跑一遍test和main, 都通过了才可以git push
+3. 建议使用我的终端zsh运行程序,保持环境一致
+4. test 的默认命令是: pytest -q
+5. main 的默认命令是: python main.py

@@ -1,0 +1,13 @@
+record_id,source,formula,target,elements
+74,twod_matpd,BN3,1.2638999999999998,"['B', 'N']"
+295,twod_matpd,BN5,0.0,"['B', 'N']"
+997,twod_matpd,BN,4.9935,"['B', 'N']"
+2710,twod_matpd,B13N2,0.0,"['B', 'N']"
+3010,twod_matpd,BC2N,0.8133000000000004,"['B', 'C', 'N']"
+3923,twod_matpd,B3C10N3,0.8140000000000001,"['B', 'C', 'N']"
+4198,twod_matpd,BN,4.097700000000001,"['B', 'N']"
+4784,twod_matpd,B2(CN2)3,2.6229,"['B', 'C', 'N']"
+4980,twod_matpd,BN,4.6628,"['B', 'N']"
+5425,twod_matpd,CuB2(CN)8,0.8841999999999999,"['Cu', 'B', 'C', 'N']"
+5833,twod_matpd,ZnB2(CN)8,5.220599999999999,"['Zn', 'B', 'C', 'N']"
+5977,twod_matpd,Si2BN,0.022399999999999753,"['Si', 'B', 'N']"
