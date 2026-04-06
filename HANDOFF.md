@@ -28,7 +28,7 @@
 
 ## 当前目录重点
 - `main.py`：主入口
-- `configs/default.yaml`：配置
+- `configs/default.py`：配置
 - `src/core/io_utils.py`：配置读取、目录初始化、缓存清理
 - `src/core/schema.py`：基础 schema
 - `src/pipeline/data.py`：数据集加载与规范化

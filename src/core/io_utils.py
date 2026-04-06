@@ -1,9 +1,8 @@
 from __future__ import annotations
 
+import importlib.util
 from pathlib import Path
 import sys
-
-import yaml
 
 _MYUTILS_DIR = Path(__file__).resolve().parents[3] / 'myutils'
 if str(_MYUTILS_DIR) not in sys.path:
@@ -19,8 +18,19 @@ RUNTIME_DIR_KEYS = (
 )
 
 
-def load_yaml(path: str | Path) -> dict:
-    return yaml.safe_load(Path(path).read_text(encoding='utf-8'))
+def load_config(path: str | Path) -> dict:
+    path = Path(path)
+    spec = importlib.util.spec_from_file_location(path.stem, path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f'Unable to load config module from: {path}')
+
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    cfg = getattr(module, 'CONFIG', None)
+    if not isinstance(cfg, dict):
+        raise TypeError(f'{path} must define CONFIG as a dict')
+    return cfg
 
 
 def ensure_runtime_dirs(cfg: dict) -> None:

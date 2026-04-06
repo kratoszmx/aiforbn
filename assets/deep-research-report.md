@@ -234,7 +234,7 @@ bn-ai-poc/
   README.md                                # CORE: how to run the PoC
   pyproject.toml                           # CORE: pinned deps (or requirements/)
   configs/
-    default.yaml                           # CORE: dataset/model/target settings
+    default.py                             # CORE: dataset/model/target settings
   data/
     .gitkeep
     raw/                                   # CORE (gitignored): cached downloads

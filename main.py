@@ -6,7 +6,7 @@ SRC_DIR = ROOT / 'src'
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from core.io_utils import clear_project_cache, ensure_runtime_dirs, load_yaml
+from core.io_utils import clear_project_cache, ensure_runtime_dirs, load_config
 from pipeline.data import load_or_build_dataset
 from pipeline.features import (
     build_feature_table,
@@ -23,8 +23,8 @@ from pipeline.reporting import save_basic_plots, save_metrics_and_predictions
 def main() -> None:
     clear_project_cache('.')
 
-    config_path = Path('configs/default.yaml')
-    cfg = load_yaml(config_path)
+    config_path = Path('configs/default.py')
+    cfg = load_config(config_path)
 
     ensure_runtime_dirs(cfg)
 

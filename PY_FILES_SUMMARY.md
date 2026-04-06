@@ -37,8 +37,8 @@
 
 **文件用途**：配置读取、运行目录初始化、缓存清理。
 
-### `load_yaml(path)`
-- 功能：读取 YAML 配置文件并解析为字典。
+### `load_config(path)`
+- 功能：读取 Python 配置文件并解析其中的 `CONFIG` 字典。
 
 ### `ensure_runtime_dirs(cfg)`
 - 功能：根据配置准备运行所需目录。
