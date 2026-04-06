@@ -1,18 +1,27 @@
 from pathlib import Path
+import sys
 
-from bnai.utils.io import delete_cache, ensure_runtime_dirs, load_yaml
-from bnai.adapters.jarvis_twod_matpd import load_or_build_dataset
-from bnai.preprocess.bn_filters import filter_bn, generate_bn_candidates
-from bnai.preprocess.featurize import build_feature_table
-from bnai.preprocess.splits import make_split_masks
-from bnai.train.train import train_baseline_model
-from bnai.train.evaluate import evaluate_predictions, save_metrics_and_predictions
-from bnai.infer.predict import screen_candidates
-from bnai.viz.plots import save_basic_plots
+ROOT = Path(__file__).resolve().parent
+SRC_DIR = ROOT / 'src'
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
+
+from core.io_utils import clear_project_cache, ensure_runtime_dirs, load_yaml
+from pipeline.data import load_or_build_dataset
+from pipeline.features import (
+    build_feature_table,
+    evaluate_predictions,
+    filter_bn,
+    generate_bn_candidates,
+    make_split_masks,
+    screen_candidates,
+    train_baseline_model,
+)
+from pipeline.reporting import save_basic_plots, save_metrics_and_predictions
 
 
 def main() -> None:
-    delete_cache('.')
+    clear_project_cache('.')
 
     config_path = Path('configs/default.yaml')
     cfg = load_yaml(config_path)
@@ -26,10 +35,10 @@ def main() -> None:
     feature_df = build_feature_table(dataset_df, formula_col=cfg['data']['formula_column'])
     split_masks = make_split_masks(feature_df, cfg)
 
-    model_bundle = train_baseline_model(feature_df, split_masks, cfg)
-    metrics, prediction_df = evaluate_predictions(feature_df, split_masks, model_bundle, cfg)
+    model, feature_columns = train_baseline_model(feature_df, split_masks, cfg)
+    metrics, prediction_df = evaluate_predictions(feature_df, split_masks, model, feature_columns)
 
-    screened_df = screen_candidates(candidate_df, model_bundle, cfg)
+    screened_df = screen_candidates(candidate_df, model, feature_columns, cfg)
 
     save_metrics_and_predictions(metrics, prediction_df, bn_df, screened_df, manifest, cfg)
     save_basic_plots(prediction_df, cfg)

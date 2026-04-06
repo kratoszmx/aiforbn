@@ -1,5 +1,6 @@
-from bnai.preprocess.bn_filters import extract_elements, filter_bn
 import pandas as pd
+
+from pipeline.features import extract_elements, filter_bn
 
 
 def test_extract_elements():

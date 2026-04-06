@@ -1,4 +1,4 @@
-from bnai.schema import DatasetManifest
+from core.schema import DatasetManifest
 
 
 def test_manifest():

@@ -1,12 +1,18 @@
 import json
 from pathlib import Path
+import sys
 
 import pandas as pd
 import streamlit as st
 
-from bnai.utils.io import delete_cache
+ROOT = Path(__file__).resolve().parents[1]
+SRC_DIR = ROOT / 'src'
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
 
-delete_cache('.')
+from core.io_utils import clear_project_cache
+
+clear_project_cache('.')
 
 st.set_page_config(page_title='BN Explorer', layout='wide')
 st.title('BN Explorer')

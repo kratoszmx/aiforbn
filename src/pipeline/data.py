@@ -3,9 +3,10 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 import json
+
 import pandas as pd
 
-from bnai.schema import DatasetManifest
+from core.schema import DatasetManifest
 
 
 def _basic_formula_from_entry(entry: dict) -> str:
@@ -36,26 +37,28 @@ def _basic_formula_from_entry(entry: dict) -> str:
     return 'UNKNOWN'
 
 
-def _extract_target(entry: dict, target_col: str) -> float | None:
-    value = entry.get(target_col)
-    if value is not None:
-        return _safe_float(value)
-    nested = entry.get('atoms')
-    if isinstance(nested, dict):
-        nested_val = nested.get(target_col)
-        if nested_val is not None:
-            return _safe_float(nested_val)
-    for key in ('bandgap', 'gap pbe', 'gap tbmbj', 'optb88vdw_bandgap'):
-        if target_col == 'band_gap' and key in entry:
-            return _safe_float(entry.get(key))
-    return None
-
-
 def _safe_float(value):
     try:
         return float(value)
     except Exception:
         return None
+
+
+def _extract_target(entry: dict, target_col: str) -> float | None:
+    value = entry.get(target_col)
+    if value is not None:
+        return _safe_float(value)
+
+    nested = entry.get('atoms')
+    if isinstance(nested, dict):
+        nested_val = nested.get(target_col)
+        if nested_val is not None:
+            return _safe_float(nested_val)
+
+    for key in ('bandgap', 'gap pbe', 'gap tbmbj', 'optb88vdw_bandgap'):
+        if target_col == 'band_gap' and key in entry:
+            return _safe_float(entry.get(key))
+    return None
 
 
 def _normalize(raw: list[dict], target_col: str) -> pd.DataFrame:
@@ -85,9 +88,9 @@ def load_or_build_dataset(cfg: dict) -> tuple[pd.DataFrame, dict]:
     if processed_path.exists() and manifest_path.exists():
         return pd.read_parquet(processed_path), json.loads(manifest_path.read_text())
 
-    from jarvis.db.figshare import data
+    from jarvis.db.figshare import data as jarvis_data
 
-    raw = data(cfg['data']['dataset'])
+    raw = jarvis_data(cfg['data']['dataset'])
     if cfg['data'].get('cache_raw_json', True):
         raw_path.write_text(json.dumps(raw))
 
@@ -98,7 +101,7 @@ def load_or_build_dataset(cfg: dict) -> tuple[pd.DataFrame, dict]:
         name=cfg['data']['dataset'],
         source='jarvis-tools/figshare',
         retrieved_at=datetime.now(timezone.utc).isoformat(),
-        version_hint='runtime download'
+        version_hint='runtime download',
     ).model_dump()
     manifest_path.write_text(json.dumps(manifest, indent=2))
     return df, manifest
