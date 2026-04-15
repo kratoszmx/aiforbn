@@ -1,2 +1,3 @@
 1. 本项目专注于 AI for BN 的演示型 PoC；通用复用规则优先参考 `skill.txt`，本文件只保留 ai_for_bn 专属约束。
 2. `main.py` 必须尽量保持线性、可读、可快速迁移到 notebook，不要把它重构成过度抽象的启动器。
+3. assets/deep-research-report.md是深度研究GPT對於如何做本項目的研究。而poc_workflow_brief是其他agent根據這個report製作的poc coding計劃，妳允許在coding過程中隨時更改這個poc_workflow_brief
