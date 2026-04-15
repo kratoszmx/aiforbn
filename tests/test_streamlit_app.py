@@ -1,0 +1,57 @@
+from __future__ import annotations
+
+from importlib.util import module_from_spec, spec_from_file_location
+from pathlib import Path
+import json
+import sys
+import types
+
+
+class FakeStreamlit(types.ModuleType):
+    def __init__(self):
+        super().__init__('streamlit')
+        self.calls: list[tuple[str, object]] = []
+
+    def set_page_config(self, **kwargs):
+        self.calls.append(('set_page_config', kwargs))
+
+    def title(self, value):
+        self.calls.append(('title', value))
+
+    def write(self, value):
+        self.calls.append(('write', value))
+
+    def subheader(self, value):
+        self.calls.append(('subheader', value))
+
+    def json(self, value):
+        self.calls.append(('json', value))
+
+    def info(self, value):
+        self.calls.append(('info', value))
+
+    def dataframe(self, value, **kwargs):
+        self.calls.append(('dataframe', getattr(value, 'shape', None)))
+
+
+def test_streamlit_app_reads_generated_artifacts(tmp_path, monkeypatch):
+    artifact_dir = tmp_path / 'artifacts'
+    artifact_dir.mkdir()
+    (artifact_dir / 'metrics.json').write_text(json.dumps({'mae': 1.0}), encoding='utf-8')
+    (artifact_dir / 'predictions.csv').write_text('formula,target,prediction\nBN,5.0,4.8\n', encoding='utf-8')
+    (artifact_dir / 'screened_candidates.csv').write_text('formula,prediction\nBN,4.8\n', encoding='utf-8')
+
+    fake_streamlit = FakeStreamlit()
+    monkeypatch.setitem(sys.modules, 'streamlit', fake_streamlit)
+    monkeypatch.chdir(tmp_path)
+
+    app_path = Path(__file__).resolve().parents[1] / 'apps' / 'streamlit_app.py'
+    spec = spec_from_file_location('streamlit_app_test', app_path)
+    module = module_from_spec(spec)
+    assert spec is not None and spec.loader is not None
+    spec.loader.exec_module(module)
+
+    assert ('title', 'BN Explorer') in fake_streamlit.calls
+    assert ('subheader', 'Metrics') in fake_streamlit.calls
+    assert ('subheader', 'Prediction samples') in fake_streamlit.calls
+    assert ('subheader', 'Top screened BN-related candidates') in fake_streamlit.calls

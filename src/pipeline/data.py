@@ -10,7 +10,7 @@ from core.schema import DatasetManifest
 
 
 def _basic_formula_from_entry(entry: dict) -> str:
-    for key in ('formula', 'full_formula', 'reduced_formula', 'jid'):
+    for key in ('formula', 'full_formula', 'reduced_formula'):
         value = entry.get(key)
         if isinstance(value, str) and value.strip():
             return value.strip()
@@ -33,6 +33,10 @@ def _basic_formula_from_entry(entry: dict) -> str:
                 return Composition(formula_dict).reduced_formula
             except Exception:
                 return ''.join(str(x) for x in elements)
+
+    jid = entry.get('jid')
+    if isinstance(jid, str) and jid.strip():
+        return jid.strip()
 
     return 'UNKNOWN'
 
