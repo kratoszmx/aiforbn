@@ -1,0 +1,174 @@
+{
+  "dataset": {
+    "dataset_name": "twod_matpd",
+    "target_column": "band_gap",
+    "rows": 6351,
+    "target_non_null_rows": 6351,
+    "unique_formulas": 4381,
+    "bn_rows": 12,
+    "bn_unique_formulas": 10
+  },
+  "features": {
+    "feature_family": "composition_only",
+    "configured_default_feature_set": "basic_formula_composition",
+    "candidate_feature_sets": [
+      "basic_formula_composition",
+      "matminer_composition"
+    ],
+    "selected_feature_set": "matminer_composition",
+    "selected_feature_count": 19,
+    "feature_set_results": [
+      {
+        "feature_set": "basic_formula_composition",
+        "feature_family": "composition_only",
+        "feature_note": "Hand-written control baseline from formula tokens and a small atomic-number lookup.",
+        "n_features": 7,
+        "status": "ok",
+        "selection_eligible": true,
+        "failed_formula_count": 0,
+        "failed_formula_examples": [],
+        "failed_error_examples": []
+      },
+      {
+        "feature_set": "matminer_composition",
+        "feature_family": "composition_only",
+        "feature_note": "Curated matminer composition descriptors from pymatgen Composition objects using Stoichiometry plus selected Magpie elemental-property statistics.",
+        "n_features": 19,
+        "status": "ok",
+        "selection_eligible": true,
+        "failed_formula_count": 0,
+        "failed_formula_examples": [],
+        "failed_error_examples": []
+      }
+    ]
+  },
+  "split": {
+    "method": "group_by_formula",
+    "group_column": "formula",
+    "ratios": {
+      "train": 0.8,
+      "val": 0.1,
+      "test": 0.1
+    },
+    "row_counts": {
+      "train": 5101,
+      "val": 618,
+      "test": 632
+    },
+    "group_counts": {
+      "train": 3505,
+      "val": 438,
+      "test": 438
+    },
+    "group_overlap_counts": {
+      "train_val": 0,
+      "train_test": 0,
+      "val_test": 0
+    }
+  },
+  "feature_model_selection": {
+    "selection_space": "feature_set_and_model_type",
+    "selection_scope": "composition_only",
+    "candidate_feature_sets": [
+      "basic_formula_composition",
+      "matminer_composition"
+    ],
+    "candidate_model_types": [
+      "hist_gradient_boosting",
+      "linear_regression"
+    ],
+    "selection_metric": "mae",
+    "used_validation_selection": true,
+    "selected_feature_set": "matminer_composition",
+    "selected_model_type": "hist_gradient_boosting",
+    "selected_feature_count": 19,
+    "feature_set_results": [
+      {
+        "feature_set": "basic_formula_composition",
+        "feature_family": "composition_only",
+        "feature_note": "Hand-written control baseline from formula tokens and a small atomic-number lookup.",
+        "n_features": 7,
+        "status": "ok",
+        "selection_eligible": true,
+        "failed_formula_count": 0,
+        "failed_formula_examples": [],
+        "failed_error_examples": []
+      },
+      {
+        "feature_set": "matminer_composition",
+        "feature_family": "composition_only",
+        "feature_note": "Curated matminer composition descriptors from pymatgen Composition objects using Stoichiometry plus selected Magpie elemental-property statistics.",
+        "n_features": 19,
+        "status": "ok",
+        "selection_eligible": true,
+        "failed_formula_count": 0,
+        "failed_formula_examples": [],
+        "failed_error_examples": []
+      }
+    ],
+    "validation_results": [
+      {
+        "feature_set": "basic_formula_composition",
+        "model_type": "hist_gradient_boosting",
+        "n_features": 7,
+        "status": "ok",
+        "note": "",
+        "mae": 0.957863262470087,
+        "rmse": 1.176709365685352,
+        "r2": 0.11077278881164199
+      },
+      {
+        "feature_set": "basic_formula_composition",
+        "model_type": "linear_regression",
+        "n_features": 7,
+        "status": "ok",
+        "note": "",
+        "mae": 0.9975839812777326,
+        "rmse": 1.201829276576335,
+        "r2": 0.07240183191766958
+      },
+      {
+        "feature_set": "matminer_composition",
+        "model_type": "hist_gradient_boosting",
+        "n_features": 19,
+        "status": "ok",
+        "note": "",
+        "mae": 0.6006124004002872,
+        "rmse": 0.8838328447215212,
+        "r2": 0.4983340819706462
+      },
+      {
+        "feature_set": "matminer_composition",
+        "model_type": "linear_regression",
+        "n_features": 19,
+        "status": "ok",
+        "note": "",
+        "mae": 0.8302785106000387,
+        "rmse": 1.0760150824269683,
+        "r2": 0.2564485215059962
+      }
+    ]
+  },
+  "benchmarking": {
+    "benchmark_artifact": "benchmark_results.csv",
+    "candidate_model_types": [
+      "hist_gradient_boosting",
+      "linear_regression"
+    ],
+    "dummy_baselines": [
+      "dummy_mean"
+    ]
+  },
+  "screening": {
+    "candidate_space_name": "toy_iii_v_demo_grid",
+    "candidate_space_kind": "toy_demo",
+    "candidate_space_note": "Formula-only Group 13/15 demo grid without stability, structure, or synthesis constraints.",
+    "candidate_rows": 25,
+    "top_k": 20,
+    "ranking_artifact": "demo_candidate_ranking.csv",
+    "ranking_basis": "composition_only_predicted_band_gap",
+    "ranking_note": "Composition-only ranking from formula-derived features; not structure-aware.",
+    "ranking_feature_set": "matminer_composition",
+    "ranking_model_type": "hist_gradient_boosting"
+  }
+}

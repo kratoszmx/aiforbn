@@ -14,16 +14,24 @@ CONFIG = {
         'bn_required_elements': ['B', 'N'],
     },
     'split': {
+        'method': 'group_by_formula',
+        'group_column': 'formula',
         'train_ratio': 0.8,
         'val_ratio': 0.1,
         'test_ratio': 0.1,
     },
     'features': {
-        'use_matminer': True,
-        'fallback_basic_features': True,
+        'feature_set': 'basic_formula_composition',
+        'candidate_sets': ['basic_formula_composition', 'matminer_composition'],
+        'feature_family': 'composition_only',
     },
     'model': {
         'type': 'hist_gradient_boosting',
+        'candidate_types': ['linear_regression', 'hist_gradient_boosting'],
+        'benchmark_baselines': ['dummy_mean'],
+        'use_validation_selection': True,
+        'selection_metric': 'mae',
+        'linear_regression': {},
         'random_forest': {
             'n_estimators': 500,
             'random_state': 42,
@@ -32,15 +40,26 @@ CONFIG = {
         'hist_gradient_boosting': {
             'max_depth': 6,
             'learning_rate': 0.05,
-            'max_iter': 500,
+            'max_iter': 100,
             'min_samples_leaf': 20,
+            'early_stopping': True,
+            'validation_fraction': 0.1,
+            'n_iter_no_change': 10,
             'random_state': 42,
+        },
+        'dummy_mean': {
+            'strategy': 'mean',
         },
     },
     'screening': {
         'enabled': True,
         'top_k': 20,
-        'candidate_strategy': 'simple_bn_substitutions',
+        'candidate_space_name': 'toy_iii_v_demo_grid',
+        'candidate_space_kind': 'toy_demo',
+        'candidate_space_note': (
+            'Formula-only Group 13/15 demo grid without stability, structure, or synthesis constraints.'
+        ),
+        'ranking_label': 'demo_candidate_ranking',
     },
     'llm': {
         'enabled': False,

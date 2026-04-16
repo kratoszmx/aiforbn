@@ -15,5 +15,10 @@ def test_default_config_has_expected_poc_defaults():
     cfg = module.CONFIG
     assert cfg['data']['dataset'] == 'twod_matpd'
     assert cfg['data']['target_column'] == 'band_gap'
-    assert cfg['screening']['candidate_strategy'] == 'simple_bn_substitutions'
+    assert cfg['split']['method'] == 'group_by_formula'
+    assert cfg['features']['feature_set'] == 'basic_formula_composition'
+    assert cfg['features']['candidate_sets'] == ['basic_formula_composition', 'matminer_composition']
+    assert cfg['features']['feature_family'] == 'composition_only'
+    assert cfg['model']['candidate_types'] == ['linear_regression', 'hist_gradient_boosting']
+    assert cfg['screening']['candidate_space_name'] == 'toy_iii_v_demo_grid'
     assert cfg['ui']['streamlit_enabled'] is True

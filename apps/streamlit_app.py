@@ -19,10 +19,12 @@ st.title('BN Explorer')
 
 artifact_dir = Path('artifacts')
 metrics_path = artifact_dir / 'metrics.json'
+summary_path = artifact_dir / 'experiment_summary.json'
+benchmark_path = artifact_dir / 'benchmark_results.csv'
 pred_path = artifact_dir / 'predictions.csv'
-screen_path = artifact_dir / 'screened_candidates.csv'
+screen_path = artifact_dir / 'demo_candidate_ranking.csv'
 
-st.write('Minimal PoC UI for BN property prediction and candidate screening.')
+st.write('Minimal PoC UI for BN property prediction, grouped evaluation, and demo candidate ranking.')
 
 if metrics_path.exists():
     st.subheader('Metrics')
@@ -30,10 +32,18 @@ if metrics_path.exists():
 else:
     st.info('Run `python main.py` first to generate artifacts.')
 
+if summary_path.exists():
+    st.subheader('Experiment summary')
+    st.json(json.loads(summary_path.read_text()))
+
+if benchmark_path.exists():
+    st.subheader('Benchmark results')
+    st.dataframe(pd.read_csv(benchmark_path), use_container_width=True)
+
 if pred_path.exists():
     st.subheader('Prediction samples')
     st.dataframe(pd.read_csv(pred_path).head(30), use_container_width=True)
 
 if screen_path.exists():
-    st.subheader('Top screened BN-related candidates')
+    st.subheader('Top demo candidate ranking')
     st.dataframe(pd.read_csv(screen_path).head(30), use_container_width=True)

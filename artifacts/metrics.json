@@ -1,5 +1,11 @@
 {
-  "mae": 0.9752490635938119,
-  "rmse": 1.3370596135896187,
-  "r2": 0.15892105776952326
+  "mae": 0.5821782613786209,
+  "rmse": 0.8611475071062787,
+  "r2": 0.5939056531991489,
+  "selected_feature_set": "matminer_composition",
+  "selected_model_type": "hist_gradient_boosting",
+  "evaluation_split": "test",
+  "training_scope": "train_plus_val",
+  "split_method": "group_by_formula",
+  "feature_family": "composition_only"
 }

@@ -38,8 +38,10 @@ def test_streamlit_app_reads_generated_artifacts(tmp_path, monkeypatch):
     artifact_dir = tmp_path / 'artifacts'
     artifact_dir.mkdir()
     (artifact_dir / 'metrics.json').write_text(json.dumps({'mae': 1.0}), encoding='utf-8')
+    (artifact_dir / 'experiment_summary.json').write_text(json.dumps({'dataset': {'rows': 1}}), encoding='utf-8')
+    (artifact_dir / 'benchmark_results.csv').write_text('model_type,mae\nlinear_regression,1.0\n', encoding='utf-8')
     (artifact_dir / 'predictions.csv').write_text('formula,target,prediction\nBN,5.0,4.8\n', encoding='utf-8')
-    (artifact_dir / 'screened_candidates.csv').write_text('formula,prediction\nBN,4.8\n', encoding='utf-8')
+    (artifact_dir / 'demo_candidate_ranking.csv').write_text('formula,predicted_band_gap\nBN,4.8\n', encoding='utf-8')
 
     fake_streamlit = FakeStreamlit()
     monkeypatch.setitem(sys.modules, 'streamlit', fake_streamlit)
@@ -53,5 +55,7 @@ def test_streamlit_app_reads_generated_artifacts(tmp_path, monkeypatch):
 
     assert ('title', 'BN Explorer') in fake_streamlit.calls
     assert ('subheader', 'Metrics') in fake_streamlit.calls
+    assert ('subheader', 'Experiment summary') in fake_streamlit.calls
+    assert ('subheader', 'Benchmark results') in fake_streamlit.calls
     assert ('subheader', 'Prediction samples') in fake_streamlit.calls
-    assert ('subheader', 'Top screened BN-related candidates') in fake_streamlit.calls
+    assert ('subheader', 'Top demo candidate ranking') in fake_streamlit.calls

@@ -19,24 +19,104 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
     dataset_df = pd.DataFrame({'formula': ['BN', 'AlN'], 'target': [5.0, 2.0]})
     bn_df = pd.DataFrame({'formula': ['BN']})
     candidate_df = pd.DataFrame({'formula': ['BN']})
-    feature_df = dataset_df.assign(n_elements=[2, 2], sum_z=[12, 20], contains_B=[1, 0], contains_N=[1, 1])
+    feature_df = pd.DataFrame({
+        'formula': ['BN', 'AlN'],
+        'target': [5.0, 2.0],
+        'matminer_2_norm': [0.7, 0.7],
+        'feature_generation_failed': [False, False],
+        'feature_generation_error': [None, None],
+        'feature_set': ['matminer_composition', 'matminer_composition'],
+    })
+    feature_tables = {'matminer_composition': feature_df}
     prediction_df = pd.DataFrame({'formula': ['BN'], 'target': [5.0], 'prediction': [4.9]})
-    screened_df = pd.DataFrame({'formula': ['BN'], 'prediction': [4.9]})
+    ranked_candidate_df = pd.DataFrame({'formula': ['BN'], 'predicted_band_gap': [4.9]})
+    benchmark_df = pd.DataFrame({
+        'feature_set': ['matminer_composition'],
+        'model_type': ['linear_regression'],
+        'mae': [0.1],
+    })
     metrics = {'mae': 0.1, 'rmse': 0.1, 'r2': 0.9}
     manifest = {'name': 'twod_matpd'}
+    selection_summary = {
+        'selected_feature_set': 'matminer_composition',
+        'selected_model_type': 'linear_regression',
+    }
+    experiment_summary = {'dataset': {'rows': 2}}
 
     monkeypatch.setattr(main_module, 'clear_project_cache', lambda path: calls.append('clear_project_cache'))
-    monkeypatch.setattr(main_module, 'load_config', lambda path: calls.append('load_config') or {'data': {'formula_column': 'formula'}})
+    monkeypatch.setattr(
+        main_module,
+        'load_config',
+        lambda path: calls.append('load_config') or {
+            'data': {'formula_column': 'formula'},
+            'features': {
+                'feature_set': 'basic_formula_composition',
+                'feature_family': 'composition_only',
+            },
+        },
+    )
     monkeypatch.setattr(main_module, 'ensure_runtime_dirs', lambda cfg: calls.append('ensure_runtime_dirs'))
-    monkeypatch.setattr(main_module, 'load_or_build_dataset', lambda cfg: calls.append('load_or_build_dataset') or (dataset_df, manifest))
+    monkeypatch.setattr(
+        main_module,
+        'load_or_build_dataset',
+        lambda cfg: calls.append('load_or_build_dataset') or (dataset_df, manifest),
+    )
     monkeypatch.setattr(main_module, 'filter_bn', lambda df, formula_col='formula': calls.append('filter_bn') or bn_df)
-    monkeypatch.setattr(main_module, 'generate_bn_candidates', lambda: calls.append('generate_bn_candidates') or candidate_df)
-    monkeypatch.setattr(main_module, 'build_feature_table', lambda df, formula_col='formula': calls.append('build_feature_table') or feature_df)
-    monkeypatch.setattr(main_module, 'make_split_masks', lambda df, cfg: calls.append('make_split_masks') or {'train': [True, False], 'val': [False, False], 'test': [False, True]})
-    monkeypatch.setattr(main_module, 'train_baseline_model', lambda df, split_masks, cfg: calls.append('train_baseline_model') or ('model', ['n_elements']))
-    monkeypatch.setattr(main_module, 'evaluate_predictions', lambda df, split_masks, model, feature_columns: calls.append('evaluate_predictions') or (metrics, prediction_df))
-    monkeypatch.setattr(main_module, 'screen_candidates', lambda candidate_df, model, feature_columns, cfg: calls.append('screen_candidates') or screened_df)
-    monkeypatch.setattr(main_module, 'save_metrics_and_predictions', lambda metrics, prediction_df, bn_df, screened_df, manifest, cfg: calls.append('save_metrics_and_predictions'))
+    monkeypatch.setattr(
+        main_module,
+        'generate_bn_candidates',
+        lambda cfg: calls.append('generate_bn_candidates') or candidate_df,
+    )
+    monkeypatch.setattr(
+        main_module,
+        'make_split_masks',
+        lambda df, cfg: calls.append('make_split_masks') or {
+            'train': [True, False],
+            'val': [False, False],
+            'test': [False, True],
+            'metadata': {'method': 'group_by_formula'},
+        },
+    )
+    monkeypatch.setattr(
+        main_module,
+        'build_feature_tables',
+        lambda df, cfg, formula_col='formula': calls.append('build_feature_tables') or feature_tables,
+    )
+    monkeypatch.setattr(
+        main_module,
+        'select_feature_model_combo',
+        lambda feature_tables, split_masks, cfg: calls.append('select_feature_model_combo') or selection_summary,
+    )
+    monkeypatch.setattr(
+        main_module,
+        'train_baseline_model',
+        lambda df, split_masks, cfg, model_type=None, include_validation=False: calls.append('train_baseline_model') or ('model', ['matminer_2_norm']),
+    )
+    monkeypatch.setattr(
+        main_module,
+        'evaluate_predictions',
+        lambda df, split_masks, model, feature_columns: calls.append('evaluate_predictions') or (metrics, prediction_df),
+    )
+    monkeypatch.setattr(
+        main_module,
+        'benchmark_regressors',
+        lambda feature_tables, split_masks, cfg, selected_feature_set, selected_model_type: calls.append('benchmark_regressors') or benchmark_df,
+    )
+    monkeypatch.setattr(
+        main_module,
+        'screen_candidates',
+        lambda candidate_df, model, feature_columns, cfg, feature_set, model_type: calls.append('screen_candidates') or ranked_candidate_df,
+    )
+    monkeypatch.setattr(
+        main_module,
+        'build_experiment_summary',
+        lambda dataset_df, bn_df, candidate_df, split_masks, selection_summary, cfg: calls.append('build_experiment_summary') or experiment_summary,
+    )
+    monkeypatch.setattr(
+        main_module,
+        'save_metrics_and_predictions',
+        lambda metrics, prediction_df, bn_df, screened_df, benchmark_df, experiment_summary, manifest, cfg: calls.append('save_metrics_and_predictions'),
+    )
     monkeypatch.setattr(main_module, 'save_basic_plots', lambda prediction_df, cfg: calls.append('save_basic_plots'))
 
     main_module.main()
@@ -48,15 +128,21 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
         'load_or_build_dataset',
         'filter_bn',
         'generate_bn_candidates',
-        'build_feature_table',
         'make_split_masks',
+        'build_feature_tables',
+        'select_feature_model_combo',
         'train_baseline_model',
         'evaluate_predictions',
+        'benchmark_regressors',
         'screen_candidates',
+        'build_experiment_summary',
         'save_metrics_and_predictions',
         'save_basic_plots',
     ]
 
     out = capsys.readouterr().out
     assert 'BN AI PoC pipeline completed' in out
-    assert "dataset rows: 2" in out
+    assert 'dataset rows: 2' in out
+    assert 'split method: group_by_formula' in out
+    assert 'selected feature set: matminer_composition' in out
+    assert 'selected model: linear_regression' in out
