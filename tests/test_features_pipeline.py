@@ -2,11 +2,15 @@ from __future__ import annotations
 
 import copy
 
+import numpy as np
 import pandas as pd
 import pytest
 
+from pipeline.data import STRUCTURE_SUMMARY_COLUMNS
 from pipeline.features import (
+    STRUCTURE_AWARE_FEATURE_SET,
     benchmark_regressors,
+    build_candidate_prediction_ensemble,
     build_feature_table,
     build_feature_tables,
     evaluate_predictions,
@@ -31,8 +35,12 @@ CFG = {
     },
     'features': {
         'feature_set': 'basic_formula_composition',
-        'candidate_sets': ['basic_formula_composition', 'matminer_composition'],
-        'feature_family': 'composition_only',
+        'candidate_sets': [
+            'basic_formula_composition',
+            'matminer_composition',
+            'matminer_composition_plus_structure_summary',
+        ],
+        'feature_family': 'mixed_formula_and_structure',
     },
     'model': {
         'type': 'hist_gradient_boosting',
@@ -57,6 +65,25 @@ CFG = {
         'candidate_space_kind': 'toy_demo',
         'candidate_space_note': 'demo note',
         'ranking_label': 'demo_candidate_ranking',
+        'use_model_disagreement': True,
+        'uncertainty_method': 'small_feature_model_disagreement',
+        'uncertainty_penalty': 0.5,
+        'domain_support': {
+            'enabled': True,
+            'method': 'train_plus_val_knn_feature_space_support',
+            'distance_metric': 'z_scored_euclidean_rms',
+            'k_neighbors': 5,
+            'ranking_penalty_enabled': True,
+            'ranking_penalty_weight': 0.15,
+            'penalize_below_percentile': 25.0,
+            'note': 'demo domain-support note',
+        },
+        'chemical_plausibility': {
+            'enabled': True,
+            'method': 'pymatgen_common_oxidation_state_balance',
+            'selection_policy': 'annotate_and_prioritize_passing_candidates',
+            'note': 'demo plausibility note',
+        },
     },
 }
 
@@ -86,6 +113,58 @@ def _stoichiometry_signal_df() -> pd.DataFrame:
     target = (
         matminer_df['matminer_2_norm'] * 6.0
         + matminer_df['matminer_magpiedata_mean_number'] * 0.02
+    )
+    return base_df.assign(target=target)
+
+
+def _structure_signal_df() -> pd.DataFrame:
+    base_df = pd.DataFrame({
+        'formula': [
+            'BN', 'BN2', 'B2N', 'B2N3', 'B3N2', 'B3N4',
+            'AlN', 'AlN2', 'Al2N', 'Al2N3', 'Al3N2', 'Al3N4',
+            'GaN', 'GaN2', 'Ga2N', 'Ga2N3', 'Ga3N2', 'Ga3N4',
+        ],
+        'source': 'twod_matpd',
+    })
+    n_rows = len(base_df)
+    base_df['structure_n_sites'] = [2 + (idx % 4) for idx in range(n_rows)]
+    base_df['structure_lattice_a'] = [2.4 + 0.12 * idx for idx in range(n_rows)]
+    base_df['structure_lattice_b'] = [2.9 + 0.07 * ((idx * 3) % 9) for idx in range(n_rows)]
+    base_df['structure_lattice_c'] = [20.0] * n_rows
+    base_df['structure_lattice_gamma'] = [120.0 if idx % 2 == 0 else 90.0 for idx in range(n_rows)]
+
+    area_values = []
+    thickness_values = []
+    for idx in range(n_rows):
+        gamma = np.deg2rad(base_df.loc[idx, 'structure_lattice_gamma'])
+        area = (
+            base_df.loc[idx, 'structure_lattice_a']
+            * base_df.loc[idx, 'structure_lattice_b']
+            * np.sin(gamma)
+        )
+        thickness = 1.2 + 0.35 * ((idx * 5) % 7)
+        area_values.append(area)
+        thickness_values.append(thickness)
+
+    base_df['structure_inplane_area'] = area_values
+    base_df['structure_cell_height'] = [20.0] * n_rows
+    base_df['structure_thickness'] = thickness_values
+    base_df['structure_vacuum'] = base_df['structure_cell_height'] - base_df['structure_thickness']
+    base_df['structure_areal_number_density'] = (
+        base_df['structure_n_sites'] / base_df['structure_inplane_area']
+    )
+    base_df['structure_thickness_fraction'] = (
+        base_df['structure_thickness'] / base_df['structure_cell_height']
+    )
+
+    structure_feature_df = build_feature_table(
+        base_df,
+        feature_set=STRUCTURE_AWARE_FEATURE_SET,
+    )
+    target = (
+        structure_feature_df['matminer_2_norm'] * 4.0
+        + structure_feature_df['structure_thickness'] * 1.8
+        + structure_feature_df['structure_areal_number_density'] * 6.0
     )
     return base_df.assign(target=target)
 
@@ -126,6 +205,43 @@ def test_build_feature_table_with_matminer_marks_failed_formula_rows():
     assert summary['failed_formula_examples'] == ['??']
 
 
+def test_build_feature_table_with_structure_summary_features_requires_structure_columns():
+    feature_df = build_feature_table(
+        pd.DataFrame({'formula': ['BN'], 'target': [5.0], 'source': ['twod_matpd']}),
+        feature_set=STRUCTURE_AWARE_FEATURE_SET,
+    )
+    summary = summarize_feature_table(feature_df, feature_set=STRUCTURE_AWARE_FEATURE_SET)
+
+    assert set(STRUCTURE_SUMMARY_COLUMNS).issubset(feature_df.columns)
+    assert bool(feature_df.loc[0, 'feature_generation_failed']) is True
+    assert 'missing structure summary values' in feature_df.loc[0, 'feature_generation_error']
+    assert summary['feature_family'] == 'structure_aware'
+    assert summary['candidate_compatible'] is False
+
+
+def test_generate_bn_candidates_adds_chemical_plausibility_annotations():
+    candidate_df = generate_bn_candidates(CFG)
+
+    assert len(candidate_df) == 25
+    assert candidate_df['chemical_plausibility_enabled'].eq(True).all()
+    assert candidate_df['chemical_plausibility_method'].eq(
+        'pymatgen_common_oxidation_state_balance'
+    ).all()
+    assert candidate_df['chemical_plausibility_guess_count'].ge(0).all()
+    assert candidate_df.loc[candidate_df['formula'] == 'BN', 'chemical_plausibility_pass'].iloc[0]
+    assert (
+        candidate_df.loc[candidate_df['formula'] == 'BN', 'chemical_plausibility_primary_oxidation_state_guess']
+        .iloc[0]
+        == 'B(+3), N(-3)'
+    )
+    assert bool(
+        candidate_df.loc[candidate_df['formula'] == 'AlBi', 'chemical_plausibility_pass'].iloc[0]
+    ) is False
+    assert 'No charge-balanced common oxidation-state assignment' in (
+        candidate_df.loc[candidate_df['formula'] == 'AlBi', 'chemical_plausibility_note'].iloc[0]
+    )
+
+
 def test_select_feature_model_combo_can_choose_matminer_representation():
     selection_cfg = copy.deepcopy(CFG)
     dataset_df = _stoichiometry_signal_df()
@@ -146,6 +262,28 @@ def test_select_feature_model_combo_can_choose_matminer_representation():
         ('matminer_composition', 'hist_gradient_boosting'),
         ('matminer_composition', 'linear_regression'),
     }
+    assert summary['screening_selected_feature_set'] in {
+        'basic_formula_composition',
+        'matminer_composition',
+    }
+
+
+def test_select_feature_model_combo_separates_structure_aware_evaluation_from_formula_only_screening():
+    selection_cfg = copy.deepcopy(CFG)
+    dataset_df = _structure_signal_df()
+    feature_tables = build_feature_tables(dataset_df, selection_cfg)
+    split_masks = make_split_masks(dataset_df, selection_cfg)
+    summary = select_feature_model_combo(feature_tables, split_masks, selection_cfg)
+
+    assert summary['selected_feature_set'] == STRUCTURE_AWARE_FEATURE_SET
+    assert summary['selected_feature_family'] == 'structure_aware'
+    assert summary['screening_selected_feature_set'] in {
+        'basic_formula_composition',
+        'matminer_composition',
+    }
+    assert summary['screening_selected_feature_set'] != summary['selected_feature_set']
+    assert summary['screening_selection_matches_overall'] is False
+    assert 'falls back to the best candidate-compatible validation combo' in summary['screening_selection_note']
 
 
 def test_feature_pipeline_can_train_evaluate_benchmark_and_rank_demo_candidates():
@@ -171,6 +309,12 @@ def test_feature_pipeline_can_train_evaluate_benchmark_and_rank_demo_candidates(
         selected_feature_set=selection_summary['selected_feature_set'],
         selected_model_type=selection_summary['selected_model_type'],
     )
+    candidate_ensemble_df = build_candidate_prediction_ensemble(
+        candidates,
+        feature_tables,
+        split_masks,
+        CFG,
+    )
     screened_df = screen_candidates(
         candidates,
         model,
@@ -178,27 +322,130 @@ def test_feature_pipeline_can_train_evaluate_benchmark_and_rank_demo_candidates(
         CFG,
         feature_set=selection_summary['selected_feature_set'],
         model_type=selection_summary['selected_model_type'],
+        dataset_df=dataset_df,
+        split_masks=split_masks,
+        ensemble_prediction_df=candidate_ensemble_df,
     )
 
     assert len(candidates) == 25
     assert {'BN', 'TlBi'}.issubset(set(candidates['formula']))
     assert candidates['candidate_space_kind'].eq('toy_demo').all()
+    assert candidates['chemical_plausibility_pass'].sum() == 21
+    assert set(candidates.loc[~candidates['chemical_plausibility_pass'], 'formula']) == {
+        'AlBi',
+        'GaBi',
+        'InBi',
+        'TlBi',
+    }
     assert set(metrics) == {'mae', 'rmse', 'r2'}
     assert not prediction_df.empty
-    assert len(benchmark_df) == 5
+    assert len(benchmark_df) == 7
     assert set(benchmark_df['feature_set']) == {
         'basic_formula_composition',
         'matminer_composition',
+        STRUCTURE_AWARE_FEATURE_SET,
         'feature_agnostic_dummy',
     }
+    structure_rows = benchmark_df[benchmark_df['feature_set'] == STRUCTURE_AWARE_FEATURE_SET]
+    assert structure_rows['benchmark_status'].eq('skipped_featurization_failure').all()
     assert benchmark_df['selected_by_validation'].sum() == 1
     assert 'dummy_baseline' in set(benchmark_df['benchmark_role'])
-    assert len(screened_df) == CFG['screening']['top_k']
-    assert screened_df['predicted_band_gap'].is_monotonic_decreasing
+    assert len(screened_df) == len(candidates)
+    assert int(screened_df['screening_selected_for_top_k'].sum()) == CFG['screening']['top_k']
+    assert screened_df.loc[screened_df['chemical_plausibility_pass'], 'ranking_score'].is_monotonic_decreasing
     assert screened_df['ranking_label'].eq('demo_candidate_ranking').all()
-    assert screened_df['ranking_basis'].eq('composition_only_predicted_band_gap').all()
+    assert screened_df['ranking_basis'].eq(
+        'composition_only_mean_band_gap_minus_model_disagreement_and_low_support_penalties'
+    ).all()
     assert screened_df['ranking_feature_set'].eq(selection_summary['selected_feature_set']).all()
     assert screened_df['ranking_model_type'].eq(selection_summary['selected_model_type']).all()
+    assert screened_df['ranking_uncertainty_method'].eq('small_feature_model_disagreement').all()
+    assert screened_df['ranking_feature_family'].eq('composition_only').all()
+    assert screened_df['ensemble_member_count'].eq(4).all()
+    assert screened_df['domain_support_enabled'].eq(True).all()
+    assert screened_df['domain_support_method'].eq(
+        'train_plus_val_knn_feature_space_support'
+    ).all()
+    assert screened_df['domain_support_distance_metric'].eq('z_scored_euclidean_rms').all()
+    assert screened_df['domain_support_reference_split'].eq('train_plus_val_unique_formulas').all()
+    expected_reference_formula_count = int(
+        dataset_df.loc[
+            np.asarray(split_masks['train']) | np.asarray(split_masks['val']),
+            'formula',
+        ]
+        .astype(str)
+        .nunique()
+    )
+    assert screened_df['domain_support_reference_formula_count'].eq(
+        expected_reference_formula_count
+    ).all()
+    assert screened_df['domain_support_k_neighbors'].eq(5).all()
+    assert (screened_df['ranking_score_before_domain_support_penalty'] >= screened_df['ranking_score']).all()
+    assert screened_df['domain_support_penalty'].ge(0.0).all()
+    assert (screened_df['domain_support_penalty'] > 0.0).any()
+    assert screened_df['ranking_rank'].tolist() == list(range(1, len(screened_df) + 1))
+    assert screened_df['chemical_plausibility_pass'].head(CFG['screening']['top_k']).all()
+    assert screened_df.loc[
+        ~screened_df['chemical_plausibility_pass'],
+        'screening_selection_decision',
+    ].eq('failed_chemical_plausibility').all()
+    bn_row = screened_df.loc[screened_df['formula'] == 'BN'].iloc[0]
+    bbi_row = screened_df.loc[screened_df['formula'] == 'BBi'].iloc[0]
+    assert bn_row['domain_support_nearest_formula'] == 'BN'
+    assert bn_row['domain_support_nearest_distance'] == pytest.approx(0.0)
+    assert bn_row['domain_support_percentile'] == pytest.approx(100.0)
+    assert bn_row['domain_support_penalty'] == pytest.approx(0.0)
+    assert bbi_row['domain_support_nearest_distance'] > 0.0
+    assert bn_row['domain_support_percentile'] >= bbi_row['domain_support_percentile']
+    assert 'train+val feature-space domain-support layer' in screened_df['ranking_note'].iloc[0]
+    assert 'Novelty is tracked only at the formula level' in screened_df['ranking_note'].iloc[0]
+    assert bool(screened_df.loc[screened_df['formula'] == 'BN', 'seen_in_dataset'].iloc[0]) is True
+    assert bool(screened_df.loc[screened_df['formula'] == 'BN', 'seen_in_train_plus_val'].iloc[0]) is True
+    assert screened_df['dataset_formula_row_count'].ge(0).all()
+    assert screened_df['train_plus_val_formula_row_count'].ge(0).all()
+    assert screened_df['candidate_is_seen_in_dataset'].equals(screened_df['seen_in_dataset'])
+    assert screened_df['candidate_is_seen_in_train_plus_val'].equals(screened_df['seen_in_train_plus_val'])
+    assert (
+        screened_df['candidate_is_formula_level_extrapolation']
+        .eq(~screened_df['seen_in_dataset'])
+        .all()
+    )
+    assert set(screened_df['candidate_novelty_bucket']) == {
+        'train_plus_val_rediscovery',
+        'held_out_known_formula',
+        'formula_level_extrapolation',
+    }
+    assert set(screened_df['candidate_novelty_priority']) == {1, 2, 3}
+    assert screened_df['novelty_rank_within_bucket'].ge(1).all()
+    assert screened_df.loc[
+        screened_df['candidate_is_formula_level_extrapolation'],
+        'novel_formula_rank',
+    ].notna().all()
+    assert screened_df.loc[
+        ~screened_df['candidate_is_formula_level_extrapolation'],
+        'novel_formula_rank',
+    ].isna().all()
+    assert 'rediscovery / in-domain replay' in (
+        screened_df.loc[
+            screened_df['candidate_novelty_bucket'] == 'train_plus_val_rediscovery',
+            'candidate_novelty_note',
+        ]
+        .iloc[0]
+    )
+    assert 'held-out-known formula' in (
+        screened_df.loc[
+            screened_df['candidate_novelty_bucket'] == 'held_out_known_formula',
+            'candidate_novelty_note',
+        ]
+        .iloc[0]
+    )
+    assert 'formula-level extrapolation' in (
+        screened_df.loc[
+            screened_df['candidate_novelty_bucket'] == 'formula_level_extrapolation',
+            'candidate_novelty_note',
+        ]
+        .iloc[0]
+    )
 
 
 def test_make_model_rejects_unknown_model_type():

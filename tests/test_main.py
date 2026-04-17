@@ -29,7 +29,13 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
     })
     feature_tables = {'matminer_composition': feature_df}
     prediction_df = pd.DataFrame({'formula': ['BN'], 'target': [5.0], 'prediction': [4.9]})
-    ranked_candidate_df = pd.DataFrame({'formula': ['BN'], 'predicted_band_gap': [4.9]})
+    candidate_ensemble_df = pd.DataFrame({
+        'formula': ['BN'],
+        'ensemble_predicted_band_gap_mean': [4.85],
+        'ensemble_predicted_band_gap_std': [0.1],
+        'ensemble_member_count': [4],
+    })
+    ranked_candidate_df = pd.DataFrame({'formula': ['BN'], 'predicted_band_gap': [4.9], 'ranking_score': [4.8]})
     benchmark_df = pd.DataFrame({
         'feature_set': ['matminer_composition'],
         'model_type': ['linear_regression'],
@@ -40,6 +46,13 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
     selection_summary = {
         'selected_feature_set': 'matminer_composition',
         'selected_model_type': 'linear_regression',
+        'selected_feature_family': 'composition_only',
+        'screening_selected_feature_set': 'matminer_composition',
+        'screening_selected_model_type': 'linear_regression',
+        'screening_selected_feature_family': 'composition_only',
+        'screening_candidate_feature_sets': ['basic_formula_composition', 'matminer_composition'],
+        'screening_selection_matches_overall': True,
+        'screening_selection_note': 'Best overall validation combo is candidate-compatible, so screening reuses it.',
     }
     experiment_summary = {'dataset': {'rows': 2}}
 
@@ -104,8 +117,13 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
     )
     monkeypatch.setattr(
         main_module,
+        'build_candidate_prediction_ensemble',
+        lambda candidate_df, feature_tables, split_masks, cfg, candidate_feature_sets=None: calls.append('build_candidate_prediction_ensemble') or candidate_ensemble_df,
+    )
+    monkeypatch.setattr(
+        main_module,
         'screen_candidates',
-        lambda candidate_df, model, feature_columns, cfg, feature_set, model_type: calls.append('screen_candidates') or ranked_candidate_df,
+        lambda candidate_df, model, feature_columns, cfg, feature_set, model_type, best_overall_feature_set=None, best_overall_model_type=None, screening_selection_note=None, dataset_df=None, split_masks=None, ensemble_prediction_df=None, reference_feature_df=None: calls.append('screen_candidates') or ranked_candidate_df,
     )
     monkeypatch.setattr(
         main_module,
@@ -134,6 +152,7 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
         'train_baseline_model',
         'evaluate_predictions',
         'benchmark_regressors',
+        'build_candidate_prediction_ensemble',
         'screen_candidates',
         'build_experiment_summary',
         'save_metrics_and_predictions',
@@ -146,3 +165,5 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
     assert 'split method: group_by_formula' in out
     assert 'selected feature set: matminer_composition' in out
     assert 'selected model: linear_regression' in out
+    assert 'ranking feature set: matminer_composition' in out
+    assert 'ranking model: linear_regression' in out

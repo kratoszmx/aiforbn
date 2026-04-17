@@ -1,6 +1,8 @@
-feature_set,feature_family,n_features,model_type,benchmark_role,selected_by_validation,training_scope,evaluation_split,benchmark_status,benchmark_note,mae,rmse,r2
-matminer_composition,composition_only,19,hist_gradient_boosting,selected_model,True,train_plus_val,test,ok,,0.5821782613786209,0.8611475071062787,0.5939056531991489
-basic_formula_composition,composition_only,7,hist_gradient_boosting,candidate_model,False,train_plus_val,test,ok,,0.9218973764577351,1.1923525374333057,0.22145950503346823
-basic_formula_composition,composition_only,7,linear_regression,candidate_model,False,train_plus_val,test,ok,,1.005617148341164,1.2660280743564223,0.12227489776267664
-matminer_composition,composition_only,19,linear_regression,candidate_model,False,train_plus_val,test,ok,,0.8555068829666634,1.1062689455188945,0.32981718246671043
-feature_agnostic_dummy,feature_agnostic_baseline,19,dummy_mean,dummy_baseline,False,train_plus_val,test,ok,Dummy regressor baseline that ignores composition features.,1.1118450647242923,1.3530816141975992,-0.0025818357811173698
+feature_set,feature_family,candidate_compatible,n_features,model_type,benchmark_role,selected_by_validation,training_scope,evaluation_split,benchmark_status,benchmark_note,mae,rmse,r2
+matminer_composition_plus_structure_summary,structure_aware,False,30,hist_gradient_boosting,selected_model,True,train_plus_val,test,ok,,0.5567971413034372,0.821790344934154,0.6301770016209349
+basic_formula_composition,composition_only,True,7,hist_gradient_boosting,candidate_model,False,train_plus_val,test,ok,,0.9218973764577351,1.1923525374333057,0.22145950503346823
+basic_formula_composition,composition_only,True,7,linear_regression,candidate_model,False,train_plus_val,test,ok,,1.005617148341164,1.2660280743564223,0.12227489776267664
+matminer_composition,composition_only,True,19,hist_gradient_boosting,candidate_model,False,train_plus_val,test,ok,,0.5821782613786209,0.8611475071062787,0.5939056531991489
+matminer_composition,composition_only,True,19,linear_regression,candidate_model,False,train_plus_val,test,ok,,0.8555068829666634,1.1062689455188945,0.32981718246671043
+matminer_composition_plus_structure_summary,structure_aware,False,30,linear_regression,candidate_model,False,train_plus_val,test,ok,,0.8198328004577302,1.0701416794817575,0.37287458041809185
+feature_agnostic_dummy,feature_agnostic_baseline,False,30,dummy_mean,dummy_baseline,False,train_plus_val,test,ok,Dummy regressor baseline that ignores composition features.,1.1118450647242923,1.3530816141975992,-0.0025818357811173698

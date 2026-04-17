@@ -5,16 +5,24 @@ import os
 import re
 
 os.environ.setdefault('LOKY_MAX_CPU_COUNT', '1')
+os.environ.setdefault('OMP_NUM_THREADS', '1')
+os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
+os.environ.setdefault('MKL_NUM_THREADS', '1')
+os.environ.setdefault('VECLIB_MAXIMUM_THREADS', '1')
+os.environ.setdefault('NUMEXPR_NUM_THREADS', '1')
 
 import numpy as np
 import pandas as pd
 from matminer.featurizers.base import MultipleFeaturizer
 from matminer.featurizers.composition import ElementProperty, Stoichiometry
-from pymatgen.core import Composition
+from pymatgen.core import Composition, Element
 from sklearn.dummy import DummyRegressor
 from sklearn.ensemble import HistGradientBoostingRegressor, RandomForestRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.neighbors import NearestNeighbors
+
+from pipeline.data import STRUCTURE_SUMMARY_COLUMNS
 
 
 ATOMIC_NUMBERS = {
@@ -26,21 +34,113 @@ DEFAULT_CANDIDATE_SPACE_KIND = 'toy_demo'
 DEFAULT_CANDIDATE_SPACE_NOTE = (
     'Formula-only Group 13/15 enumeration without stability, structure, or synthesis constraints.'
 )
+DEFAULT_CHEMICAL_PLAUSIBILITY_METHOD = 'pymatgen_common_oxidation_state_balance'
+DEFAULT_CHEMICAL_PLAUSIBILITY_NOTE = (
+    'Formula-level plausibility annotation using pymatgen oxidation-state guesses. This is not a '
+    'structure, thermodynamic stability, phonon stability, or synthesis feasibility filter.'
+)
+DEFAULT_DOMAIN_SUPPORT_METHOD = 'train_plus_val_knn_feature_space_support'
+DEFAULT_DOMAIN_SUPPORT_DISTANCE_METRIC = 'z_scored_euclidean_rms'
+DEFAULT_DOMAIN_SUPPORT_NOTE = (
+    'Support is measured in the selected formula-only screening feature space using z-scored '
+    'distances to unique train+val formulas. This is a lightweight transparency heuristic, not '
+    'a calibrated discovery confidence, uncertainty, or stability estimate.'
+)
+DOMAIN_SUPPORT_REFERENCE_SPLIT = 'train_plus_val_unique_formulas'
 BASIC_FEATURE_SET = 'basic_formula_composition'
 MATMINER_FEATURE_SET = 'matminer_composition'
-FEATURE_FAMILY = 'composition_only'
+STRUCTURE_AWARE_FEATURE_SET = 'matminer_composition_plus_structure_summary'
+COMPOSITION_ONLY_FAMILY = 'composition_only'
+STRUCTURE_AWARE_FAMILY = 'structure_aware'
 DUMMY_FEATURE_SET = 'feature_agnostic_dummy'
-RANKING_BASIS = 'composition_only_predicted_band_gap'
-RANKING_NOTE = 'Composition-only ranking from formula-derived features; not structure-aware.'
-FEATURE_SET_NOTES = {
+FORMULA_ONLY_SCREENING_SCOPE = 'candidate_compatible_formula_only'
+SELECTED_MODEL_RANKING_BASIS = 'composition_only_selected_model_band_gap'
+SELECTED_MODEL_RANKING_NOTE = (
+    'Composition-only ranking from the selected formula-based model; not structure-aware.'
+)
+DISAGREEMENT_RANKING_BASIS = 'composition_only_mean_band_gap_minus_model_disagreement_penalty'
+DISAGREEMENT_RANKING_NOTE = (
+    'Composition-only demo ranking using a tiny feature/model candidate pool. The score is the '
+    'ensemble mean band gap minus a small model-disagreement penalty; disagreement is heuristic '
+    'and not calibrated physical uncertainty.'
+)
+SELECTED_MODEL_WITH_DOMAIN_SUPPORT_PENALTY_RANKING_BASIS = (
+    'composition_only_selected_model_band_gap_minus_low_support_penalty'
+)
+SELECTED_MODEL_WITH_DOMAIN_SUPPORT_PENALTY_RANKING_NOTE = (
+    'Composition-only ranking from the selected formula-based model with a mild low-support '
+    'penalty in the selected screening feature space; this remains a formula-only heuristic and '
+    'not a structure-aware stability estimate.'
+)
+DISAGREEMENT_WITH_DOMAIN_SUPPORT_PENALTY_RANKING_BASIS = (
+    'composition_only_mean_band_gap_minus_model_disagreement_and_low_support_penalties'
+)
+DISAGREEMENT_WITH_DOMAIN_SUPPORT_PENALTY_RANKING_NOTE = (
+    'Composition-only demo ranking using a tiny feature/model candidate pool. The score is the '
+    'ensemble mean band gap minus a small model-disagreement penalty and a mild low-support '
+    'penalty in the selected screening feature space; both terms are heuristic and not calibrated '
+    'physical uncertainty or stability estimates.'
+)
+DOMAIN_SUPPORT_RANKING_NOTE = (
+    'Candidates are also annotated with a train+val feature-space domain-support layer: support '
+    'comes from z-scored distances to nearby known formulas in the selected screening feature '
+    'space, contextualized by the leave-one-out train+val neighborhood-distance distribution.'
+)
+CHEMICAL_PLAUSIBILITY_SCREENING_NOTE = (
+    'A lightweight formula-level chemical plausibility screen is applied first using pymatgen '
+    'oxidation-state guesses; candidates that pass are prioritized ahead of candidates without a '
+    'charge-balanced common oxidation-state assignment.'
+)
+NOVELTY_BUCKET_TRAIN_PLUS_VAL_REDISCOVERY = 'train_plus_val_rediscovery'
+NOVELTY_BUCKET_HELD_OUT_KNOWN_FORMULA = 'held_out_known_formula'
+NOVELTY_BUCKET_FORMULA_LEVEL_EXTRAPOLATION = 'formula_level_extrapolation'
+NOVELTY_BUCKET_PRIORITY = {
+    NOVELTY_BUCKET_TRAIN_PLUS_VAL_REDISCOVERY: 1,
+    NOVELTY_BUCKET_HELD_OUT_KNOWN_FORMULA: 2,
+    NOVELTY_BUCKET_FORMULA_LEVEL_EXTRAPOLATION: 3,
+}
+NOVELTY_BUCKET_NOTE = {
+    NOVELTY_BUCKET_TRAIN_PLUS_VAL_REDISCOVERY: (
+        'Seen in train+val, so this is rediscovery / in-domain replay rather than formula-level '
+        'extrapolation.'
+    ),
+    NOVELTY_BUCKET_HELD_OUT_KNOWN_FORMULA: (
+        'Seen elsewhere in the dataset but not in train+val, so this is a held-out-known formula '
+        'rather than a new formula-level candidate.'
+    ),
+    NOVELTY_BUCKET_FORMULA_LEVEL_EXTRAPOLATION: (
+        'Unseen in the dataset, so this is formula-level extrapolation within the toy source '
+        'space. This still does not establish real materials discovery.'
+    ),
+}
+NOVELTY_ANNOTATION_RANKING_NOTE = (
+    'Novelty is tracked only at the formula level: use the novelty bucket fields to separate '
+    'train+val rediscovery, held-out-known formulas, and unseen formulas. This transparency layer '
+    'does not turn the toy ranking into validated discovery.'
+)
+FEATURE_SET_METADATA = {
     BASIC_FEATURE_SET: (
-        'Hand-written control baseline from formula tokens and a small atomic-number lookup.'
+        COMPOSITION_ONLY_FAMILY,
+        True,
+        'Hand-written control baseline from formula tokens and a small atomic-number lookup.',
     ),
     MATMINER_FEATURE_SET: (
+        COMPOSITION_ONLY_FAMILY,
+        True,
         'Curated matminer composition descriptors from pymatgen Composition objects using '
-        'Stoichiometry plus selected Magpie elemental-property statistics.'
+        'Stoichiometry plus selected Magpie elemental-property statistics.',
     ),
-    DUMMY_FEATURE_SET: 'Dummy regressor baseline that ignores composition features.',
+    STRUCTURE_AWARE_FEATURE_SET: (
+        STRUCTURE_AWARE_FAMILY,
+        False,
+        'Matminer composition descriptors plus compact lattice/layer summary columns derived '
+        'from cached atoms and lattice information.',
+    ),
+    DUMMY_FEATURE_SET: (
+        'feature_agnostic_baseline',
+        False,
+        'Dummy regressor baseline that ignores composition features.',
+    ),
 }
 BASIC_FEATURE_COLUMNS = (
     'n_elements',
@@ -71,6 +171,17 @@ MATMINER_SELECTED_RAW_LABELS = (
     'MagpieData mean NpValence',
     'MagpieData mean NdValence',
     'MagpieData mean NfValence',
+)
+STRUCTURE_AWARE_REQUIRED_COLUMNS = STRUCTURE_SUMMARY_COLUMNS
+BASE_PASSTHROUGH_COLUMNS = (
+    'record_id',
+    'source',
+    'formula',
+    'target',
+    'candidate_space_name',
+    'candidate_space_kind',
+    'candidate_generation_strategy',
+    'candidate_space_note',
 )
 
 
@@ -103,7 +214,7 @@ def generate_bn_candidates(cfg: dict | None = None) -> pd.DataFrame:
                 'candidate_generation_strategy': 'group13_group15_cartesian_product',
                 'candidate_space_note': candidate_space_note,
             })
-    return pd.DataFrame(rows)
+    return annotate_candidate_chemical_plausibility(pd.DataFrame(rows))
 
 
 def _ordered_values(values: list[str]) -> list[str]:
@@ -114,6 +225,230 @@ def _ordered_values(values: list[str]) -> list[str]:
     return ordered
 
 
+def _chemical_plausibility_config(cfg: dict | None = None) -> dict:
+    screening_cfg = (cfg or {}).get('screening', {})
+    plausibility_cfg = screening_cfg.get('chemical_plausibility', {})
+    return {
+        'enabled': bool(plausibility_cfg.get('enabled', True)),
+        'method': plausibility_cfg.get('method', DEFAULT_CHEMICAL_PLAUSIBILITY_METHOD),
+        'selection_policy': plausibility_cfg.get(
+            'selection_policy',
+            'annotate_and_prioritize_passing_candidates',
+        ),
+        'note': plausibility_cfg.get('note', DEFAULT_CHEMICAL_PLAUSIBILITY_NOTE),
+    }
+
+
+def _domain_support_config(cfg: dict | None = None) -> dict:
+    screening_cfg = (cfg or {}).get('screening', {})
+    support_cfg = screening_cfg.get('domain_support', {})
+    k_neighbors = max(1, int(support_cfg.get('k_neighbors', 5)))
+    ranking_penalty_weight = max(0.0, float(support_cfg.get('ranking_penalty_weight', 0.15)))
+    penalize_below_percentile = float(support_cfg.get('penalize_below_percentile', 25.0))
+    penalize_below_percentile = min(max(penalize_below_percentile, 0.0), 100.0)
+    enabled = bool(support_cfg.get('enabled', True))
+    return {
+        'enabled': enabled,
+        'method': support_cfg.get('method', DEFAULT_DOMAIN_SUPPORT_METHOD),
+        'distance_metric': support_cfg.get(
+            'distance_metric',
+            DEFAULT_DOMAIN_SUPPORT_DISTANCE_METRIC,
+        ),
+        'k_neighbors': k_neighbors,
+        'ranking_penalty_enabled': enabled and bool(
+            support_cfg.get('ranking_penalty_enabled', True)
+        ),
+        'ranking_penalty_weight': ranking_penalty_weight,
+        'penalize_below_percentile': penalize_below_percentile,
+        'note': support_cfg.get('note', DEFAULT_DOMAIN_SUPPORT_NOTE),
+    }
+
+
+def get_screening_ranking_metadata(
+    cfg: dict | None = None,
+    domain_support_penalty_applied: bool | None = None,
+) -> dict[str, object]:
+    screening_cfg = (cfg or {}).get('screening', {})
+    support_cfg = _domain_support_config(cfg)
+    use_model_disagreement = bool(screening_cfg.get('use_model_disagreement', False))
+    domain_support_penalty_enabled = bool(
+        support_cfg['enabled'] and support_cfg['ranking_penalty_enabled']
+    )
+    domain_support_penalty_active = bool(
+        domain_support_penalty_enabled
+        and (
+            True
+            if domain_support_penalty_applied is None
+            else domain_support_penalty_applied
+        )
+    )
+
+    if use_model_disagreement and domain_support_penalty_active:
+        ranking_basis = DISAGREEMENT_WITH_DOMAIN_SUPPORT_PENALTY_RANKING_BASIS
+        ranking_note = DISAGREEMENT_WITH_DOMAIN_SUPPORT_PENALTY_RANKING_NOTE
+    elif use_model_disagreement:
+        ranking_basis = DISAGREEMENT_RANKING_BASIS
+        ranking_note = DISAGREEMENT_RANKING_NOTE
+    elif domain_support_penalty_active:
+        ranking_basis = SELECTED_MODEL_WITH_DOMAIN_SUPPORT_PENALTY_RANKING_BASIS
+        ranking_note = SELECTED_MODEL_WITH_DOMAIN_SUPPORT_PENALTY_RANKING_NOTE
+    else:
+        ranking_basis = SELECTED_MODEL_RANKING_BASIS
+        ranking_note = SELECTED_MODEL_RANKING_NOTE
+
+    return {
+        'ranking_basis': ranking_basis,
+        'ranking_note': ranking_note,
+        'ranking_uncertainty_method': screening_cfg.get('uncertainty_method', 'disabled'),
+        'ranking_uncertainty_penalty': float(screening_cfg.get('uncertainty_penalty', 0.0)),
+        'domain_support_enabled': bool(support_cfg['enabled']),
+        'domain_support_method': support_cfg['method'],
+        'domain_support_distance_metric': support_cfg['distance_metric'],
+        'domain_support_reference_split': DOMAIN_SUPPORT_REFERENCE_SPLIT,
+        'domain_support_k_neighbors': int(support_cfg['k_neighbors']),
+        'domain_support_note': support_cfg['note'],
+        'domain_support_penalty_enabled': domain_support_penalty_enabled,
+        'domain_support_penalty_active': domain_support_penalty_active,
+        'domain_support_penalty_weight': float(support_cfg['ranking_penalty_weight']),
+        'domain_support_penalize_below_percentile': float(support_cfg['penalize_below_percentile']),
+    }
+
+
+def _format_oxidation_state_value(value: float) -> str:
+    numeric_value = float(value)
+    if numeric_value.is_integer():
+        numeric_value = int(numeric_value)
+    if numeric_value > 0:
+        return f'+{numeric_value}'
+    return str(numeric_value)
+
+
+def _format_oxidation_state_guess(guess: dict[str, float], element_order: list[str]) -> str:
+    ordered_symbols = _ordered_values(element_order + sorted(guess))
+    parts = []
+    for symbol in ordered_symbols:
+        if symbol not in guess:
+            continue
+        parts.append(f'{symbol}({_format_oxidation_state_value(guess[symbol])})')
+    return ', '.join(parts)
+
+
+def _chemical_plausibility_row(formula: str, method: str, note: str) -> dict[str, object]:
+    formula_str = str(formula)
+    element_order = _ordered_values(extract_elements(formula_str))
+    try:
+        composition = Composition(formula_str)
+        chemical_system = '-'.join(sorted({element.symbol for element in composition.elements}))
+        reduced_formula = composition.reduced_formula
+        electronegativity_values = [float(Element(symbol).X) for symbol in element_order if Element(symbol).X is not None]
+        electronegativity_spread = (
+            max(electronegativity_values) - min(electronegativity_values)
+            if electronegativity_values
+            else np.nan
+        )
+        oxidation_state_guesses = composition.oxi_state_guesses()
+    except Exception as exc:  # pragma: no cover - candidate formulas are expected to be valid
+        return {
+            'formula': formula_str,
+            'candidate_reduced_formula': formula_str,
+            'candidate_chemical_system': '-'.join(sorted(set(element_order))),
+            'candidate_n_unique_elements': int(len(set(element_order))),
+            'candidate_element_list': '|'.join(element_order),
+            'candidate_max_element_electronegativity_delta': np.nan,
+            'chemical_plausibility_enabled': True,
+            'chemical_plausibility_method': method,
+            'chemical_plausibility_pass': False,
+            'chemical_plausibility_guess_count': 0,
+            'chemical_plausibility_primary_oxidation_state_guess': '',
+            'chemical_plausibility_guess_preview': '',
+            'chemical_plausibility_note': (
+                f'Formula parsing failed before plausibility screening: {type(exc).__name__}: {exc}. {note}'
+            ),
+        }
+
+    guess_count = len(oxidation_state_guesses)
+    primary_guess = (
+        _format_oxidation_state_guess(oxidation_state_guesses[0], element_order)
+        if guess_count
+        else ''
+    )
+    guess_preview = ' | '.join(
+        _format_oxidation_state_guess(guess, element_order)
+        for guess in oxidation_state_guesses[:3]
+    )
+    passes_plausibility = bool(guess_count > 0)
+    if passes_plausibility:
+        plausibility_note = (
+            f'Found {guess_count} charge-balanced oxidation-state guess(es); top guess: {primary_guess}. {note}'
+        )
+    else:
+        plausibility_note = (
+            'No charge-balanced common oxidation-state assignment was found by pymatgen for this '
+            f'formula. {note}'
+        )
+
+    return {
+        'formula': formula_str,
+        'candidate_reduced_formula': reduced_formula,
+        'candidate_chemical_system': chemical_system,
+        'candidate_n_unique_elements': int(len(composition.elements)),
+        'candidate_element_list': '|'.join(element_order),
+        'candidate_max_element_electronegativity_delta': (
+            float(electronegativity_spread)
+            if not pd.isna(electronegativity_spread)
+            else np.nan
+        ),
+        'chemical_plausibility_enabled': True,
+        'chemical_plausibility_method': method,
+        'chemical_plausibility_pass': passes_plausibility,
+        'chemical_plausibility_guess_count': int(guess_count),
+        'chemical_plausibility_primary_oxidation_state_guess': primary_guess,
+        'chemical_plausibility_guess_preview': guess_preview,
+        'chemical_plausibility_note': plausibility_note,
+    }
+
+
+def annotate_candidate_chemical_plausibility(
+    candidate_df: pd.DataFrame,
+    cfg: dict | None = None,
+    formula_col: str = 'formula',
+) -> pd.DataFrame:
+    if formula_col not in candidate_df.columns:
+        raise KeyError(f'Formula column not found: {formula_col}')
+
+    plausibility_cfg = _chemical_plausibility_config(cfg)
+    out = candidate_df.copy()
+    if not plausibility_cfg['enabled']:
+        out['chemical_plausibility_enabled'] = False
+        out['chemical_plausibility_method'] = plausibility_cfg['method']
+        out['chemical_plausibility_pass'] = True
+        out['chemical_plausibility_guess_count'] = 0
+        out['chemical_plausibility_primary_oxidation_state_guess'] = ''
+        out['chemical_plausibility_guess_preview'] = ''
+        out['chemical_plausibility_note'] = 'Chemical plausibility screening disabled in config.'
+        out['candidate_reduced_formula'] = out[formula_col].astype(str)
+        out['candidate_chemical_system'] = out[formula_col].astype(str)
+        out['candidate_n_unique_elements'] = out[formula_col].astype(str).apply(
+            lambda formula: len(set(extract_elements(formula)))
+        )
+        out['candidate_element_list'] = out[formula_col].astype(str).apply(
+            lambda formula: '|'.join(_ordered_values(extract_elements(formula)))
+        )
+        out['candidate_max_element_electronegativity_delta'] = np.nan
+        return out
+
+    annotation_df = pd.DataFrame([
+        _chemical_plausibility_row(
+            formula=formula,
+            method=plausibility_cfg['method'],
+            note=plausibility_cfg['note'],
+        )
+        for formula in out[formula_col].astype(str)
+    ])
+    preserved_columns = [column for column in out.columns if column not in annotation_df.columns or column == formula_col]
+    return out[preserved_columns].merge(annotation_df, on=formula_col, how='left')
+
+
 def get_candidate_feature_sets(cfg: dict) -> list[str]:
     features_cfg = cfg.get('features', {})
     default_feature_set = features_cfg.get('feature_set', BASIC_FEATURE_SET)
@@ -121,11 +456,31 @@ def get_candidate_feature_sets(cfg: dict) -> list[str]:
     return _ordered_values([default_feature_set] + candidate_sets)
 
 
+def get_candidate_screening_feature_sets(cfg: dict) -> list[str]:
+    return [
+        feature_set
+        for feature_set in get_candidate_feature_sets(cfg)
+        if feature_set_supports_formula_only_screening(feature_set)
+    ]
+
+
 def get_candidate_model_types(cfg: dict) -> list[str]:
     model_cfg = cfg.get('model', {})
     default_model_type = model_cfg.get('type', 'hist_gradient_boosting')
     candidate_types = list(model_cfg.get('candidate_types', [default_model_type]))
     return _ordered_values([default_model_type] + candidate_types)
+
+
+def get_feature_family(feature_set: str) -> str:
+    return FEATURE_SET_METADATA.get(feature_set, ('unknown', False, ''))[0]
+
+
+def feature_set_supports_formula_only_screening(feature_set: str) -> bool:
+    return bool(FEATURE_SET_METADATA.get(feature_set, ('unknown', False, ''))[1])
+
+
+def get_feature_note(feature_set: str) -> str:
+    return FEATURE_SET_METADATA.get(feature_set, ('unknown', False, ''))[2]
 
 
 def _basic_features(formula: str) -> tuple[dict[str, float], str | None]:
@@ -199,13 +554,65 @@ def _matminer_features(formula: str) -> tuple[dict[str, float], str | None]:
     return dict(zip(labels, values_array.tolist())), None
 
 
+def _build_base_frame(df: pd.DataFrame, formula_col: str, feature_set: str) -> pd.DataFrame:
+    if formula_col not in df.columns:
+        raise KeyError(f'Formula column not found: {formula_col}')
+
+    base = pd.DataFrame(index=df.index)
+    for column in BASE_PASSTHROUGH_COLUMNS:
+        if column == 'formula':
+            base[column] = df[formula_col].astype(str)
+        elif column in df.columns:
+            base[column] = df[column]
+
+    if feature_set == STRUCTURE_AWARE_FEATURE_SET:
+        for column in STRUCTURE_AWARE_REQUIRED_COLUMNS:
+            if column in df.columns:
+                base[column] = df[column]
+            else:
+                base[column] = np.nan
+
+    return base.reset_index(drop=True)
+
+
+def _validate_structure_summary_features(row: pd.Series) -> str | None:
+    missing_columns = [column for column in STRUCTURE_AWARE_REQUIRED_COLUMNS if column not in row.index]
+    if missing_columns:
+        return f'ValueError: missing structure summary columns: {missing_columns}'
+
+    invalid_columns = []
+    for column in STRUCTURE_AWARE_REQUIRED_COLUMNS:
+        value = row[column]
+        if pd.isna(value):
+            invalid_columns.append(column)
+            continue
+        try:
+            numeric_value = float(value)
+        except Exception:
+            invalid_columns.append(column)
+            continue
+        if not np.isfinite(numeric_value):
+            invalid_columns.append(column)
+
+    if invalid_columns:
+        return f'ValueError: missing structure summary values: {invalid_columns}'
+    return None
+
+
+def _combine_feature_errors(*errors: str | None) -> str | None:
+    messages = [error for error in errors if error]
+    if not messages:
+        return None
+    return '; '.join(messages)
+
+
 def build_feature_table(
     df: pd.DataFrame,
     formula_col: str = 'formula',
     feature_set: str = BASIC_FEATURE_SET,
 ) -> pd.DataFrame:
-    base = df.copy().reset_index(drop=True)
-    formula_series = base[formula_col].astype(str)
+    base = _build_base_frame(df, formula_col=formula_col, feature_set=feature_set)
+    formula_series = df[formula_col].astype(str).reset_index(drop=True)
 
     feature_dicts: list[dict[str, float]] = []
     errors: list[str | None] = []
@@ -220,6 +627,12 @@ def build_feature_table(
             feature_row, error = _matminer_features(formula)
             feature_dicts.append(feature_row)
             errors.append(error)
+    elif feature_set == STRUCTURE_AWARE_FEATURE_SET:
+        for formula, (_, row) in zip(formula_series, base.iterrows(), strict=False):
+            matminer_row, matminer_error = _matminer_features(formula)
+            structure_error = _validate_structure_summary_features(row)
+            feature_dicts.append(matminer_row)
+            errors.append(_combine_feature_errors(matminer_error, structure_error))
     else:
         raise ValueError(f'Unsupported feature set: {feature_set}')
 
@@ -447,8 +860,9 @@ def summarize_feature_table(feature_df: pd.DataFrame, feature_set: str | None = 
 
     return {
         'feature_set': inferred_feature_set,
-        'feature_family': FEATURE_FAMILY,
-        'feature_note': FEATURE_SET_NOTES.get(inferred_feature_set or '', ''),
+        'feature_family': get_feature_family(inferred_feature_set or ''),
+        'feature_note': get_feature_note(inferred_feature_set or ''),
+        'candidate_compatible': feature_set_supports_formula_only_screening(inferred_feature_set or ''),
         'n_features': int(len(feature_columns)),
         'status': status,
         'selection_eligible': bool(status == 'ok'),
@@ -547,6 +961,45 @@ def _metric_key(value):
     return value
 
 
+def _select_best_validation_result(
+    validation_results: list[dict],
+    selection_metric: str,
+    allowed_feature_sets: list[str] | None = None,
+) -> dict | None:
+    allowed = set(allowed_feature_sets) if allowed_feature_sets is not None else None
+    best_result = None
+    for result in validation_results:
+        if result.get('status') != 'ok':
+            continue
+        if allowed is not None and result.get('feature_set') not in allowed:
+            continue
+        if best_result is None:
+            best_result = result
+            continue
+
+        if selection_metric == 'r2':
+            is_better = _metric_key(result.get('r2')) > _metric_key(best_result.get('r2'))
+        else:
+            is_better = _metric_key(result.get(selection_metric)) < _metric_key(best_result.get(selection_metric))
+        if is_better:
+            best_result = result
+    return best_result
+
+
+def _screening_selection_note(
+    selected_feature_set: str,
+    selected_model_type: str,
+    screening_feature_set: str,
+    screening_model_type: str,
+) -> str:
+    if selected_feature_set == screening_feature_set and selected_model_type == screening_model_type:
+        return 'Best overall validation combo is candidate-compatible, so screening reuses it.'
+    return (
+        'Best overall validation combo requires structure-derived inputs, so formula-only candidate '
+        'screening falls back to the best candidate-compatible validation combo.'
+    )
+
+
 def select_feature_model_combo(feature_tables: dict[str, pd.DataFrame], split_masks, cfg: dict) -> dict:
     candidate_feature_sets = [value for value in get_candidate_feature_sets(cfg) if value in feature_tables]
     candidate_model_types = get_candidate_model_types(cfg)
@@ -564,28 +1017,62 @@ def select_feature_model_combo(feature_tables: dict[str, pd.DataFrame], split_ma
         for item in feature_set_results
         if item['selection_eligible']
     ]
+    screening_candidate_feature_sets = [
+        item['feature_set']
+        for item in feature_set_results
+        if item['selection_eligible'] and item['candidate_compatible']
+    ]
 
     if not eligible_feature_sets:
         raise ValueError('No candidate feature set could featurize the full dataset')
+    if not screening_candidate_feature_sets:
+        raise ValueError('No candidate-compatible feature set is available for formula-only screening')
 
     if default_feature_set not in eligible_feature_sets:
         default_feature_set = eligible_feature_sets[0]
+    screening_default_feature_set = (
+        default_feature_set
+        if default_feature_set in screening_candidate_feature_sets
+        else screening_candidate_feature_sets[0]
+    )
 
     summary = {
         'selection_space': 'feature_set_and_model_type',
-        'selection_scope': FEATURE_FAMILY,
+        'selection_scope': 'all_configured_feature_sets',
         'candidate_feature_sets': candidate_feature_sets,
         'candidate_model_types': candidate_model_types,
         'selection_metric': selection_metric,
         'used_validation_selection': False,
         'selected_feature_set': default_feature_set,
         'selected_model_type': default_model_type,
+        'selected_feature_family': get_feature_family(default_feature_set),
         'selected_feature_count': int(
             summarize_feature_table(feature_tables[default_feature_set], feature_set=default_feature_set)['n_features']
+        ),
+        'screening_selection_scope': FORMULA_ONLY_SCREENING_SCOPE,
+        'screening_candidate_feature_sets': screening_candidate_feature_sets,
+        'screening_selected_feature_set': screening_default_feature_set,
+        'screening_selected_model_type': default_model_type,
+        'screening_selected_feature_family': get_feature_family(screening_default_feature_set),
+        'screening_selected_feature_count': int(
+            summarize_feature_table(
+                feature_tables[screening_default_feature_set],
+                feature_set=screening_default_feature_set,
+            )['n_features']
+        ),
+        'screening_selection_matches_overall': bool(
+            screening_default_feature_set == default_feature_set
+            and default_model_type == default_model_type
         ),
         'feature_set_results': feature_set_results,
         'validation_results': [],
     }
+    summary['screening_selection_note'] = _screening_selection_note(
+        selected_feature_set=summary['selected_feature_set'],
+        selected_model_type=summary['selected_model_type'],
+        screening_feature_set=summary['screening_selected_feature_set'],
+        screening_model_type=summary['screening_selected_model_type'],
+    )
 
     if not use_validation_selection or len(candidate_feature_sets) * len(candidate_model_types) == 1:
         return summary
@@ -594,16 +1081,14 @@ def select_feature_model_combo(feature_tables: dict[str, pd.DataFrame], split_ma
         summary['selection_note'] = 'validation_split_empty'
         return summary
 
-    best_metrics = None
-    best_feature_set = default_feature_set
-    best_model_type = default_model_type
-
     for feature_set in candidate_feature_sets:
         feature_df = feature_tables[feature_set]
         feature_info = summarize_feature_table(feature_df, feature_set=feature_set)
         for model_type in candidate_model_types:
             result = {
                 'feature_set': feature_set,
+                'feature_family': feature_info['feature_family'],
+                'candidate_compatible': feature_info['candidate_compatible'],
                 'model_type': model_type,
                 'n_features': feature_info['n_features'],
                 'status': 'ok',
@@ -645,29 +1130,48 @@ def select_feature_model_combo(feature_tables: dict[str, pd.DataFrame], split_ma
             result.update(metrics)
             summary['validation_results'].append(result)
 
-            if selection_metric == 'r2':
-                is_better = (
-                    best_metrics is None
-                    or _metric_key(metrics['r2']) > _metric_key(best_metrics['r2'])
-                )
-            else:
-                is_better = (
-                    best_metrics is None
-                    or _metric_key(metrics[selection_metric]) < _metric_key(best_metrics[selection_metric])
-                )
-            if is_better:
-                best_metrics = metrics
-                best_feature_set = feature_set
-                best_model_type = model_type
-
-    if best_metrics is None:
+    best_result = _select_best_validation_result(
+        summary['validation_results'],
+        selection_metric=selection_metric,
+    )
+    if best_result is None:
         raise ValueError('Validation selection failed for every candidate feature/model combination')
+    best_screening_result = _select_best_validation_result(
+        summary['validation_results'],
+        selection_metric=selection_metric,
+        allowed_feature_sets=screening_candidate_feature_sets,
+    )
+    if best_screening_result is None:
+        raise ValueError('Validation selection failed for every candidate-compatible screening combo')
 
     summary['used_validation_selection'] = True
-    summary['selected_feature_set'] = best_feature_set
-    summary['selected_model_type'] = best_model_type
+    summary['selected_feature_set'] = best_result['feature_set']
+    summary['selected_model_type'] = best_result['model_type']
+    summary['selected_feature_family'] = get_feature_family(best_result['feature_set'])
     summary['selected_feature_count'] = int(
-        summarize_feature_table(feature_tables[best_feature_set], feature_set=best_feature_set)['n_features']
+        summarize_feature_table(
+            feature_tables[best_result['feature_set']],
+            feature_set=best_result['feature_set'],
+        )['n_features']
+    )
+    summary['screening_selected_feature_set'] = best_screening_result['feature_set']
+    summary['screening_selected_model_type'] = best_screening_result['model_type']
+    summary['screening_selected_feature_family'] = get_feature_family(best_screening_result['feature_set'])
+    summary['screening_selected_feature_count'] = int(
+        summarize_feature_table(
+            feature_tables[best_screening_result['feature_set']],
+            feature_set=best_screening_result['feature_set'],
+        )['n_features']
+    )
+    summary['screening_selection_matches_overall'] = bool(
+        summary['selected_feature_set'] == summary['screening_selected_feature_set']
+        and summary['selected_model_type'] == summary['screening_selected_model_type']
+    )
+    summary['screening_selection_note'] = _screening_selection_note(
+        selected_feature_set=summary['selected_feature_set'],
+        selected_model_type=summary['selected_model_type'],
+        screening_feature_set=summary['screening_selected_feature_set'],
+        screening_model_type=summary['screening_selected_model_type'],
     )
     return summary
 
@@ -694,7 +1198,8 @@ def benchmark_regressors(
         for model_type in candidate_model_types:
             row = {
                 'feature_set': feature_set,
-                'feature_family': FEATURE_FAMILY,
+                'feature_family': feature_info['feature_family'],
+                'candidate_compatible': feature_info['candidate_compatible'],
                 'n_features': feature_info['n_features'],
                 'model_type': model_type,
                 'benchmark_role': 'candidate_model',
@@ -758,7 +1263,8 @@ def benchmark_regressors(
         )
         rows.append({
             'feature_set': DUMMY_FEATURE_SET,
-            'feature_family': 'feature_agnostic_baseline',
+            'feature_family': get_feature_family(DUMMY_FEATURE_SET),
+            'candidate_compatible': False,
             'n_features': int(selected_feature_count),
             'model_type': model_type,
             'benchmark_role': 'dummy_baseline',
@@ -766,7 +1272,7 @@ def benchmark_regressors(
             'training_scope': 'train_plus_val',
             'evaluation_split': 'test',
             'benchmark_status': 'ok',
-            'benchmark_note': FEATURE_SET_NOTES[DUMMY_FEATURE_SET],
+            'benchmark_note': get_feature_note(DUMMY_FEATURE_SET),
             **metrics,
         })
 
@@ -777,6 +1283,251 @@ def benchmark_regressors(
     ).reset_index(drop=True)
 
 
+def build_candidate_prediction_ensemble(
+    candidate_df: pd.DataFrame,
+    feature_tables: dict[str, pd.DataFrame],
+    split_masks,
+    cfg: dict,
+    candidate_feature_sets: list[str] | None = None,
+) -> pd.DataFrame:
+    candidate_feature_sets = candidate_feature_sets or [
+        value for value in get_candidate_screening_feature_sets(cfg) if value in feature_tables
+    ]
+    candidate_feature_tables = {
+        feature_set: build_feature_table(candidate_df, formula_col='formula', feature_set=feature_set)
+        for feature_set in candidate_feature_sets
+    }
+    candidate_model_types = get_candidate_model_types(cfg)
+
+    prediction_frames = []
+    for feature_set in candidate_feature_sets:
+        train_feature_df = feature_tables[feature_set]
+        candidate_feature_df = candidate_feature_tables[feature_set]
+        train_feature_info = summarize_feature_table(train_feature_df, feature_set=feature_set)
+        candidate_feature_info = summarize_feature_table(candidate_feature_df, feature_set=feature_set)
+
+        if not train_feature_info['selection_eligible']:
+            continue
+        if not candidate_feature_info['selection_eligible']:
+            raise ValueError(
+                'Candidate uncertainty estimation aborted because the feature set could not '
+                f'featurize candidate formulas: {candidate_feature_info["failed_formula_examples"]}'
+            )
+
+        feature_columns = _feature_columns(train_feature_df)
+        for model_type in candidate_model_types:
+            model, _ = train_baseline_model(
+                df=train_feature_df,
+                split_masks=split_masks,
+                cfg=cfg,
+                model_type=model_type,
+                include_validation=True,
+            )
+            prediction_frames.append(pd.DataFrame({
+                'formula': candidate_feature_df['formula'].astype(str),
+                'feature_set': feature_set,
+                'model_type': model_type,
+                'prediction': model.predict(candidate_feature_df[feature_columns]),
+            }))
+
+    if not prediction_frames:
+        raise ValueError('No candidate feature/model combination was available for uncertainty estimation')
+
+    prediction_df = pd.concat(prediction_frames, ignore_index=True)
+    aggregated = (
+        prediction_df
+        .groupby('formula', as_index=False)
+        .agg(
+            ensemble_predicted_band_gap_mean=('prediction', 'mean'),
+            ensemble_predicted_band_gap_std=('prediction', 'std'),
+            ensemble_member_count=('prediction', 'size'),
+        )
+    )
+    aggregated['ensemble_predicted_band_gap_std'] = (
+        aggregated['ensemble_predicted_band_gap_std'].fillna(0.0)
+    )
+    aggregated['ensemble_member_count'] = aggregated['ensemble_member_count'].astype(int)
+    return aggregated
+
+
+def annotate_candidate_dataset_overlap(
+    candidate_df: pd.DataFrame,
+    dataset_df: pd.DataFrame,
+    split_masks=None,
+    formula_col: str = 'formula',
+) -> pd.DataFrame:
+    dataset_formula_counts = dataset_df[formula_col].astype(str).value_counts()
+    out = pd.DataFrame({'formula': candidate_df['formula'].astype(str)})
+    out['seen_in_dataset'] = out['formula'].map(dataset_formula_counts).fillna(0).astype(int) > 0
+    out['dataset_formula_row_count'] = out['formula'].map(dataset_formula_counts).fillna(0).astype(int)
+
+    if split_masks is not None:
+        train_plus_val_mask = np.asarray(split_masks['train']) | np.asarray(split_masks['val'])
+        train_plus_val_formula_counts = (
+            dataset_df.loc[train_plus_val_mask, formula_col].astype(str).value_counts()
+        )
+        out['seen_in_train_plus_val'] = (
+            out['formula'].map(train_plus_val_formula_counts).fillna(0).astype(int) > 0
+        )
+        out['train_plus_val_formula_row_count'] = (
+            out['formula'].map(train_plus_val_formula_counts).fillna(0).astype(int)
+        )
+    return out
+
+
+def annotate_candidate_novelty(
+    candidate_df: pd.DataFrame,
+    formula_col: str = 'formula',
+) -> pd.DataFrame:
+    required_columns = {formula_col, 'seen_in_dataset', 'seen_in_train_plus_val'}
+    missing_columns = sorted(required_columns.difference(candidate_df.columns))
+    if missing_columns:
+        raise KeyError(f'Candidate novelty annotation requires columns: {missing_columns}')
+
+    out = pd.DataFrame({formula_col: candidate_df[formula_col].astype(str).reset_index(drop=True)})
+    out['candidate_is_seen_in_dataset'] = (
+        candidate_df['seen_in_dataset'].fillna(False).astype(bool).reset_index(drop=True)
+    )
+    out['candidate_is_seen_in_train_plus_val'] = (
+        candidate_df['seen_in_train_plus_val'].fillna(False).astype(bool).reset_index(drop=True)
+    )
+    out['candidate_is_formula_level_extrapolation'] = ~out['candidate_is_seen_in_dataset']
+
+    novelty_bucket = np.select(
+        [
+            out['candidate_is_seen_in_train_plus_val'],
+            out['candidate_is_seen_in_dataset'],
+        ],
+        [
+            NOVELTY_BUCKET_TRAIN_PLUS_VAL_REDISCOVERY,
+            NOVELTY_BUCKET_HELD_OUT_KNOWN_FORMULA,
+        ],
+        default=NOVELTY_BUCKET_FORMULA_LEVEL_EXTRAPOLATION,
+    )
+    novelty_bucket_series = pd.Series(novelty_bucket, index=out.index, dtype='object')
+    out['candidate_novelty_bucket'] = novelty_bucket_series
+    out['candidate_novelty_priority'] = novelty_bucket_series.map(NOVELTY_BUCKET_PRIORITY).astype(int)
+    out['candidate_novelty_note'] = novelty_bucket_series.map(NOVELTY_BUCKET_NOTE)
+    return out
+
+
+def annotate_candidate_domain_support(
+    candidate_feature_df: pd.DataFrame,
+    reference_feature_df: pd.DataFrame,
+    split_masks,
+    feature_columns: list[str],
+    cfg: dict | None = None,
+    formula_col: str = 'formula',
+) -> pd.DataFrame:
+    if formula_col not in candidate_feature_df.columns:
+        raise KeyError(f'Formula column not found in candidate features: {formula_col}')
+    if formula_col not in reference_feature_df.columns:
+        raise KeyError(f'Formula column not found in reference features: {formula_col}')
+
+    support_metadata = get_screening_ranking_metadata(cfg)
+    out = pd.DataFrame({
+        formula_col: candidate_feature_df[formula_col].astype(str).reset_index(drop=True),
+    })
+    out['domain_support_enabled'] = bool(support_metadata['domain_support_enabled'])
+    out['domain_support_method'] = support_metadata['domain_support_method']
+    out['domain_support_distance_metric'] = support_metadata['domain_support_distance_metric']
+    out['domain_support_reference_split'] = support_metadata['domain_support_reference_split']
+    out['domain_support_reference_formula_count'] = 0
+    out['domain_support_k_neighbors'] = int(support_metadata['domain_support_k_neighbors'])
+    out['domain_support_nearest_formula'] = ''
+    out['domain_support_nearest_distance'] = np.nan
+    out['domain_support_mean_k_distance'] = np.nan
+    out['domain_support_percentile'] = np.nan
+    out['domain_support_penalty'] = 0.0
+
+    if not bool(support_metadata['domain_support_enabled']):
+        return out
+    if split_masks is None:
+        raise ValueError('Domain-support annotation requires split masks for the reference dataset')
+
+    train_plus_val_mask = np.asarray(split_masks['train']) | np.asarray(split_masks['val'])
+    if len(train_plus_val_mask) != len(reference_feature_df):
+        raise ValueError('Reference feature table length does not match split masks')
+
+    reference_df = reference_feature_df.loc[train_plus_val_mask].copy()
+    reference_df = reference_df.loc[_feature_valid_mask(reference_df, feature_columns)].copy()
+    reference_df[formula_col] = reference_df[formula_col].astype(str)
+    reference_df = reference_df.drop_duplicates(subset=formula_col, keep='first').reset_index(drop=True)
+    out['domain_support_reference_formula_count'] = int(len(reference_df))
+
+    candidate_valid_mask = _feature_valid_mask(candidate_feature_df, feature_columns)
+    if not bool(candidate_valid_mask.all()):
+        failed_formulas = (
+            candidate_feature_df.loc[~candidate_valid_mask, formula_col]
+            .astype(str)
+            .head(5)
+            .tolist()
+        )
+        raise ValueError(
+            'Domain-support annotation aborted because candidate features were invalid for formulas: '
+            f'{failed_formulas}'
+        )
+    if reference_df.empty:
+        return out
+
+    reference_matrix_raw = reference_df[feature_columns].to_numpy(dtype=float)
+    candidate_matrix_raw = candidate_feature_df[feature_columns].to_numpy(dtype=float)
+    center = reference_matrix_raw.mean(axis=0)
+    spread = reference_matrix_raw.std(axis=0)
+    spread = np.where(np.isfinite(spread) & (spread > 0), spread, 1.0)
+
+    reference_matrix = (reference_matrix_raw - center) / spread
+    candidate_matrix = (candidate_matrix_raw - center) / spread
+    distance_scale = float(np.sqrt(max(len(feature_columns), 1)))
+    effective_k = min(int(support_metadata['domain_support_k_neighbors']), len(reference_df))
+
+    reference_neighbors = NearestNeighbors(metric='euclidean', n_neighbors=effective_k)
+    reference_neighbors.fit(reference_matrix)
+    candidate_distances, candidate_indices = reference_neighbors.kneighbors(
+        candidate_matrix,
+        n_neighbors=effective_k,
+    )
+    candidate_nearest_formulas = (
+        reference_df.iloc[candidate_indices[:, 0]][formula_col]
+        .astype(str)
+        .reset_index(drop=True)
+    )
+    candidate_nearest_distances = candidate_distances[:, 0] / distance_scale
+    candidate_mean_k_distances = candidate_distances.mean(axis=1) / distance_scale
+
+    candidate_percentiles = np.full(len(out), np.nan, dtype=float)
+    if len(reference_df) > 1:
+        reference_effective_k = min(int(support_metadata['domain_support_k_neighbors']), len(reference_df) - 1)
+        reference_distances, _ = reference_neighbors.kneighbors(
+            reference_matrix,
+            n_neighbors=reference_effective_k + 1,
+        )
+        reference_mean_k_distances = reference_distances[:, 1:].mean(axis=1) / distance_scale
+        candidate_percentiles = np.asarray([
+            100.0 * float((reference_mean_k_distances >= value).mean())
+            for value in candidate_mean_k_distances
+        ])
+
+    out['domain_support_nearest_formula'] = candidate_nearest_formulas
+    out['domain_support_nearest_distance'] = candidate_nearest_distances.astype(float)
+    out['domain_support_mean_k_distance'] = candidate_mean_k_distances.astype(float)
+    out['domain_support_percentile'] = candidate_percentiles
+
+    if bool(support_metadata['domain_support_penalty_enabled']):
+        percentile_threshold = float(support_metadata['domain_support_penalize_below_percentile'])
+        safe_threshold = max(percentile_threshold, 1e-12)
+        low_support_gap = np.clip(
+            (percentile_threshold - np.nan_to_num(candidate_percentiles, nan=0.0)) / safe_threshold,
+            a_min=0.0,
+            a_max=None,
+        )
+        out['domain_support_penalty'] = (
+            float(support_metadata['domain_support_penalty_weight']) * low_support_gap
+        ).astype(float)
+
+    return out
+
+
 def screen_candidates(
     candidate_df: pd.DataFrame,
     model,
@@ -784,8 +1535,16 @@ def screen_candidates(
     cfg: dict,
     feature_set: str,
     model_type: str,
+    best_overall_feature_set: str | None = None,
+    best_overall_model_type: str | None = None,
+    screening_selection_note: str | None = None,
+    dataset_df: pd.DataFrame | None = None,
+    split_masks=None,
+    ensemble_prediction_df: pd.DataFrame | None = None,
+    reference_feature_df: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
-    feature_df = build_feature_table(candidate_df, formula_col='formula', feature_set=feature_set)
+    annotated_candidate_df = annotate_candidate_chemical_plausibility(candidate_df, cfg=cfg, formula_col='formula')
+    feature_df = build_feature_table(annotated_candidate_df, formula_col='formula', feature_set=feature_set)
     feature_info = summarize_feature_table(feature_df, feature_set=feature_set)
     if not feature_info['selection_eligible']:
         raise ValueError(
@@ -794,21 +1553,150 @@ def screen_candidates(
         )
 
     pred = model.predict(feature_df[feature_columns])
-    out = feature_df[[
-        'formula',
-        'candidate_space_name',
-        'candidate_space_kind',
-        'candidate_generation_strategy',
-        'candidate_space_note',
-    ]].copy()
+    out = annotated_candidate_df.copy().reset_index(drop=True)
     out['predicted_band_gap'] = pred
+    if ensemble_prediction_df is not None:
+        out = out.merge(ensemble_prediction_df, on='formula', how='left')
+        if out['ensemble_predicted_band_gap_mean'].isna().any():
+            missing_formulas = out.loc[
+                out['ensemble_predicted_band_gap_mean'].isna(), 'formula'
+            ].astype(str).tolist()
+            raise ValueError(
+                'Candidate ranking aborted because ensemble predictions were missing for formulas: '
+                f'{missing_formulas}'
+            )
+    else:
+        out['ensemble_predicted_band_gap_mean'] = out['predicted_band_gap']
+        out['ensemble_predicted_band_gap_std'] = 0.0
+        out['ensemble_member_count'] = 1
+
+    ranking_config_metadata = get_screening_ranking_metadata(cfg)
+    uncertainty_penalty = float(ranking_config_metadata['ranking_uncertainty_penalty'])
+    use_model_disagreement = bool(cfg['screening'].get('use_model_disagreement', False))
+    if use_model_disagreement and ensemble_prediction_df is not None:
+        out['ranking_score'] = (
+            out['ensemble_predicted_band_gap_mean']
+            - uncertainty_penalty * out['ensemble_predicted_band_gap_std']
+        )
+    else:
+        out['ranking_score'] = out['predicted_band_gap']
+    out['ranking_score_before_domain_support_penalty'] = out['ranking_score']
+
+    reference_feature_df = reference_feature_df
+    if bool(ranking_config_metadata['domain_support_enabled']):
+        if reference_feature_df is None:
+            if dataset_df is None:
+                raise ValueError(
+                    'Domain-support annotation requires either reference_feature_df or dataset_df'
+                )
+            reference_feature_df = build_feature_table(
+                dataset_df,
+                formula_col=(cfg.get('data') or {}).get('formula_column', 'formula'),
+                feature_set=feature_set,
+            )
+        domain_support_df = annotate_candidate_domain_support(
+            candidate_feature_df=feature_df,
+            reference_feature_df=reference_feature_df,
+            split_masks=split_masks,
+            feature_columns=feature_columns,
+            cfg=cfg,
+            formula_col='formula',
+        )
+        out = pd.concat(
+            [out.reset_index(drop=True), domain_support_df.drop(columns=['formula'])],
+            axis=1,
+        )
+        if bool(ranking_config_metadata['domain_support_penalty_enabled']):
+            out['ranking_score'] = out['ranking_score'] - out['domain_support_penalty'].fillna(0.0)
+    else:
+        out['domain_support_enabled'] = False
+        out['domain_support_method'] = ranking_config_metadata['domain_support_method']
+        out['domain_support_distance_metric'] = ranking_config_metadata['domain_support_distance_metric']
+        out['domain_support_reference_split'] = ranking_config_metadata['domain_support_reference_split']
+        out['domain_support_reference_formula_count'] = 0
+        out['domain_support_k_neighbors'] = int(ranking_config_metadata['domain_support_k_neighbors'])
+        out['domain_support_nearest_formula'] = ''
+        out['domain_support_nearest_distance'] = np.nan
+        out['domain_support_mean_k_distance'] = np.nan
+        out['domain_support_percentile'] = np.nan
+        out['domain_support_penalty'] = 0.0
+
+    ranking_metadata = get_screening_ranking_metadata(
+        cfg,
+        domain_support_penalty_applied=bool(out['domain_support_penalty'].fillna(0.0).gt(0.0).any()),
+    )
+
+    if dataset_df is not None:
+        out = out.merge(
+            annotate_candidate_dataset_overlap(
+                candidate_df,
+                dataset_df,
+                split_masks=split_masks,
+                formula_col='formula',
+            ),
+            on='formula',
+            how='left',
+        )
+        if split_masks is not None and 'seen_in_train_plus_val' in out.columns:
+            novelty_df = annotate_candidate_novelty(out, formula_col='formula')
+            out = pd.concat(
+                [out.reset_index(drop=True), novelty_df.drop(columns=['formula'])],
+                axis=1,
+            )
+
     out['ranking_label'] = cfg['screening'].get('ranking_label', 'demo_candidate_ranking')
-    out['ranking_basis'] = RANKING_BASIS
-    out['ranking_note'] = RANKING_NOTE
+    out['ranking_basis'] = ranking_metadata['ranking_basis']
+    out['ranking_note'] = ranking_metadata['ranking_note']
     out['ranking_feature_set'] = feature_set
     out['ranking_model_type'] = model_type
-    return (
-        out.sort_values('predicted_band_gap', ascending=False)
-        .head(cfg['screening']['top_k'])
-        .reset_index(drop=True)
+    out['ranking_feature_family'] = get_feature_family(feature_set)
+    out['ranking_uncertainty_method'] = ranking_metadata['ranking_uncertainty_method']
+    out['ranking_uncertainty_penalty'] = uncertainty_penalty
+    out['best_overall_evaluation_feature_set'] = best_overall_feature_set or feature_set
+    out['best_overall_evaluation_model_type'] = best_overall_model_type or model_type
+    out['screening_matches_best_overall_evaluation'] = bool(
+        (best_overall_feature_set or feature_set) == feature_set
+        and (best_overall_model_type or model_type) == model_type
     )
+    out['screening_selection_note'] = screening_selection_note or _screening_selection_note(
+        selected_feature_set=best_overall_feature_set or feature_set,
+        selected_model_type=best_overall_model_type or model_type,
+        screening_feature_set=feature_set,
+        screening_model_type=model_type,
+    )
+    if bool(ranking_metadata['domain_support_enabled']):
+        out['ranking_note'] = out['ranking_note'] + ' ' + DOMAIN_SUPPORT_RANKING_NOTE
+    if 'candidate_novelty_bucket' in out.columns:
+        out['ranking_note'] = out['ranking_note'] + ' ' + NOVELTY_ANNOTATION_RANKING_NOTE
+    chemical_plausibility_enabled = bool(out.get('chemical_plausibility_enabled', True).fillna(True).all())
+    if chemical_plausibility_enabled:
+        out['chemical_plausibility_pass'] = out['chemical_plausibility_pass'].fillna(False).astype(bool)
+        out['chemical_plausibility_rank_priority'] = out['chemical_plausibility_pass'].astype(int)
+        sort_columns = ['chemical_plausibility_rank_priority', 'ranking_score', 'predicted_band_gap']
+        ascending = [False, False, False]
+        out['ranking_note'] = out['ranking_note'] + ' ' + CHEMICAL_PLAUSIBILITY_SCREENING_NOTE
+    else:
+        sort_columns = ['ranking_score', 'predicted_band_gap']
+        ascending = [False, False]
+
+    out = out.sort_values(sort_columns, ascending=ascending).reset_index(drop=True)
+    out['ranking_rank'] = np.arange(1, len(out) + 1, dtype=int)
+    if 'candidate_novelty_bucket' in out.columns:
+        out['novelty_rank_within_bucket'] = (
+            out.groupby('candidate_novelty_bucket').cumcount() + 1
+        ).astype(int)
+        out['novel_formula_rank'] = pd.Series(pd.NA, index=out.index, dtype='Int64')
+        novel_mask = out['candidate_is_formula_level_extrapolation'].fillna(False).astype(bool)
+        out.loc[novel_mask, 'novel_formula_rank'] = (
+            out.loc[novel_mask, 'novelty_rank_within_bucket'].astype(int).to_numpy()
+        )
+    out['screening_selected_for_top_k'] = out['ranking_rank'] <= int(cfg['screening']['top_k'])
+    out['screening_selection_decision'] = 'not_selected_top_k'
+    out.loc[out['screening_selected_for_top_k'], 'screening_selection_decision'] = 'selected_top_k'
+    if chemical_plausibility_enabled:
+        out.loc[
+            ~out['screening_selected_for_top_k'] & ~out['chemical_plausibility_pass'],
+            'screening_selection_decision',
+        ] = 'failed_chemical_plausibility'
+
+    return out

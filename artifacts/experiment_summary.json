@@ -9,19 +9,22 @@
     "bn_unique_formulas": 10
   },
   "features": {
-    "feature_family": "composition_only",
+    "feature_space_family": "mixed_formula_and_structure",
     "configured_default_feature_set": "basic_formula_composition",
     "candidate_feature_sets": [
       "basic_formula_composition",
-      "matminer_composition"
+      "matminer_composition",
+      "matminer_composition_plus_structure_summary"
     ],
-    "selected_feature_set": "matminer_composition",
-    "selected_feature_count": 19,
+    "selected_feature_set": "matminer_composition_plus_structure_summary",
+    "selected_feature_family": "structure_aware",
+    "selected_feature_count": 30,
     "feature_set_results": [
       {
         "feature_set": "basic_formula_composition",
         "feature_family": "composition_only",
         "feature_note": "Hand-written control baseline from formula tokens and a small atomic-number lookup.",
+        "candidate_compatible": true,
         "n_features": 7,
         "status": "ok",
         "selection_eligible": true,
@@ -33,7 +36,20 @@
         "feature_set": "matminer_composition",
         "feature_family": "composition_only",
         "feature_note": "Curated matminer composition descriptors from pymatgen Composition objects using Stoichiometry plus selected Magpie elemental-property statistics.",
+        "candidate_compatible": true,
         "n_features": 19,
+        "status": "ok",
+        "selection_eligible": true,
+        "failed_formula_count": 0,
+        "failed_formula_examples": [],
+        "failed_error_examples": []
+      },
+      {
+        "feature_set": "matminer_composition_plus_structure_summary",
+        "feature_family": "structure_aware",
+        "feature_note": "Matminer composition descriptors plus compact lattice/layer summary columns derived from cached atoms and lattice information.",
+        "candidate_compatible": false,
+        "n_features": 30,
         "status": "ok",
         "selection_eligible": true,
         "failed_formula_count": 0,
@@ -68,10 +84,11 @@
   },
   "feature_model_selection": {
     "selection_space": "feature_set_and_model_type",
-    "selection_scope": "composition_only",
+    "selection_scope": "all_configured_feature_sets",
     "candidate_feature_sets": [
       "basic_formula_composition",
-      "matminer_composition"
+      "matminer_composition",
+      "matminer_composition_plus_structure_summary"
     ],
     "candidate_model_types": [
       "hist_gradient_boosting",
@@ -79,14 +96,26 @@
     ],
     "selection_metric": "mae",
     "used_validation_selection": true,
-    "selected_feature_set": "matminer_composition",
+    "selected_feature_set": "matminer_composition_plus_structure_summary",
     "selected_model_type": "hist_gradient_boosting",
-    "selected_feature_count": 19,
+    "selected_feature_family": "structure_aware",
+    "selected_feature_count": 30,
+    "screening_selection_scope": "candidate_compatible_formula_only",
+    "screening_candidate_feature_sets": [
+      "basic_formula_composition",
+      "matminer_composition"
+    ],
+    "screening_selected_feature_set": "matminer_composition",
+    "screening_selected_model_type": "hist_gradient_boosting",
+    "screening_selected_feature_family": "composition_only",
+    "screening_selected_feature_count": 19,
+    "screening_selection_matches_overall": false,
     "feature_set_results": [
       {
         "feature_set": "basic_formula_composition",
         "feature_family": "composition_only",
         "feature_note": "Hand-written control baseline from formula tokens and a small atomic-number lookup.",
+        "candidate_compatible": true,
         "n_features": 7,
         "status": "ok",
         "selection_eligible": true,
@@ -98,7 +127,20 @@
         "feature_set": "matminer_composition",
         "feature_family": "composition_only",
         "feature_note": "Curated matminer composition descriptors from pymatgen Composition objects using Stoichiometry plus selected Magpie elemental-property statistics.",
+        "candidate_compatible": true,
         "n_features": 19,
+        "status": "ok",
+        "selection_eligible": true,
+        "failed_formula_count": 0,
+        "failed_formula_examples": [],
+        "failed_error_examples": []
+      },
+      {
+        "feature_set": "matminer_composition_plus_structure_summary",
+        "feature_family": "structure_aware",
+        "feature_note": "Matminer composition descriptors plus compact lattice/layer summary columns derived from cached atoms and lattice information.",
+        "candidate_compatible": false,
+        "n_features": 30,
         "status": "ok",
         "selection_eligible": true,
         "failed_formula_count": 0,
@@ -109,6 +151,8 @@
     "validation_results": [
       {
         "feature_set": "basic_formula_composition",
+        "feature_family": "composition_only",
+        "candidate_compatible": true,
         "model_type": "hist_gradient_boosting",
         "n_features": 7,
         "status": "ok",
@@ -119,6 +163,8 @@
       },
       {
         "feature_set": "basic_formula_composition",
+        "feature_family": "composition_only",
+        "candidate_compatible": true,
         "model_type": "linear_regression",
         "n_features": 7,
         "status": "ok",
@@ -129,6 +175,8 @@
       },
       {
         "feature_set": "matminer_composition",
+        "feature_family": "composition_only",
+        "candidate_compatible": true,
         "model_type": "hist_gradient_boosting",
         "n_features": 19,
         "status": "ok",
@@ -139,6 +187,8 @@
       },
       {
         "feature_set": "matminer_composition",
+        "feature_family": "composition_only",
+        "candidate_compatible": true,
         "model_type": "linear_regression",
         "n_features": 19,
         "status": "ok",
@@ -146,8 +196,33 @@
         "mae": 0.8302785106000387,
         "rmse": 1.0760150824269683,
         "r2": 0.2564485215059962
+      },
+      {
+        "feature_set": "matminer_composition_plus_structure_summary",
+        "feature_family": "structure_aware",
+        "candidate_compatible": false,
+        "model_type": "hist_gradient_boosting",
+        "n_features": 30,
+        "status": "ok",
+        "note": "",
+        "mae": 0.5724140839315817,
+        "rmse": 0.8442536891280484,
+        "r2": 0.542258532179435
+      },
+      {
+        "feature_set": "matminer_composition_plus_structure_summary",
+        "feature_family": "structure_aware",
+        "candidate_compatible": false,
+        "model_type": "linear_regression",
+        "n_features": 30,
+        "status": "ok",
+        "note": "",
+        "mae": 0.8150591870871896,
+        "rmse": 1.0541635683939228,
+        "r2": 0.2863416855253804
       }
-    ]
+    ],
+    "screening_selection_note": "Best overall validation combo requires structure-derived inputs, so formula-only candidate screening falls back to the best candidate-compatible validation combo."
   },
   "benchmarking": {
     "benchmark_artifact": "benchmark_results.csv",
@@ -162,13 +237,104 @@
   "screening": {
     "candidate_space_name": "toy_iii_v_demo_grid",
     "candidate_space_kind": "toy_demo",
-    "candidate_space_note": "Formula-only Group 13/15 demo grid without stability, structure, or synthesis constraints.",
+    "candidate_space_note": "Transparent Group 13/15 formula demo grid used as a source space before lightweight formula-level plausibility annotations.",
     "candidate_rows": 25,
+    "candidate_formulas_have_structures": false,
     "top_k": 20,
     "ranking_artifact": "demo_candidate_ranking.csv",
-    "ranking_basis": "composition_only_predicted_band_gap",
-    "ranking_note": "Composition-only ranking from formula-derived features; not structure-aware.",
+    "ranking_basis": "composition_only_mean_band_gap_minus_model_disagreement_penalty",
+    "ranking_note": "Composition-only demo ranking using a tiny feature/model candidate pool. The score is the ensemble mean band gap minus a small model-disagreement penalty; disagreement is heuristic and not calibrated physical uncertainty. Candidates are also annotated with a train+val feature-space domain-support layer: support comes from z-scored distances to nearby known formulas in the selected screening feature space, contextualized by the leave-one-out train+val neighborhood-distance distribution. The best overall validation combo is structure-aware, so formula-only candidate screening falls back to the best candidate-compatible combo. Candidates are also annotated with a lightweight pymatgen oxidation-state plausibility screen, and passing formulas are prioritized ahead of formulas that fail basic charge-balance checks. Novelty is tracked only at the formula level: use the novelty bucket fields to separate train+val rediscovery, held-out-known formulas, and unseen formulas. This transparency layer does not turn the toy ranking into validated discovery.",
     "ranking_feature_set": "matminer_composition",
-    "ranking_model_type": "hist_gradient_boosting"
+    "ranking_feature_family": "composition_only",
+    "ranking_model_type": "hist_gradient_boosting",
+    "domain_support_enabled": true,
+    "domain_support_method": "train_plus_val_knn_feature_space_support",
+    "domain_support_distance_metric": "z_scored_euclidean_rms",
+    "domain_support_reference_split": "train_plus_val_unique_formulas",
+    "domain_support_reference_formula_count": 3943,
+    "domain_support_k_neighbors": 5,
+    "domain_support_note": "Measures support in the selected formula-only screening feature space using z-scored distances to unique train+val formulas. This is a lightweight transparency heuristic, not a calibrated confidence or stability estimate.",
+    "domain_support_penalty_enabled": true,
+    "domain_support_penalty_active": false,
+    "domain_support_penalty_weight": 0.15,
+    "domain_support_penalize_below_percentile": 25.0,
+    "domain_support_penalized_rows": 0,
+    "domain_support_low_support_rows": 0,
+    "chemical_plausibility_enabled": true,
+    "chemical_plausibility_method": "pymatgen_common_oxidation_state_balance",
+    "chemical_plausibility_selection_policy": "annotate_and_prioritize_passing_candidates",
+    "chemical_plausibility_note": "Uses pymatgen oxidation-state guesses as a lightweight formula-level credibility screen. This does not establish structure stability, synthesis feasibility, or experimental realizability.",
+    "chemical_plausibility_passed_rows": 21,
+    "chemical_plausibility_failed_rows": 4,
+    "chemical_plausibility_failed_formulas": [
+      "InBi",
+      "TlBi",
+      "GaBi",
+      "AlBi"
+    ],
+    "novelty_annotation_enabled": true,
+    "novelty_bucket_counts": {
+      "train_plus_val_rediscovery": 23,
+      "held_out_known_formula": 1,
+      "formula_level_extrapolation": 1
+    },
+    "standard_top_k_novelty_bucket_counts": {
+      "train_plus_val_rediscovery": 19,
+      "held_out_known_formula": 1,
+      "formula_level_extrapolation": 0
+    },
+    "formula_level_extrapolation_candidate_count": 1,
+    "formula_level_extrapolation_shortlist": [
+      {
+        "formula": "BBi",
+        "ranking_rank": 21,
+        "novel_formula_rank": 1,
+        "ranking_score": 0.1079104169407828,
+        "chemical_plausibility_pass": true,
+        "screening_selected_for_top_k": false,
+        "screening_selection_decision": "not_selected_top_k"
+      }
+    ],
+    "novelty_interpretation_note": "Standard top-k remains the default ranking output, but novelty should be interpreted separately: train+val rediscovery is in-domain replay, held-out-known formulas are known elsewhere in the dataset, and formula-level extrapolation only means unseen formula compositions inside this toy candidate space.",
+    "screening_selection_scope": "candidate_compatible_formula_only",
+    "screening_candidate_feature_sets": [
+      "basic_formula_composition",
+      "matminer_composition"
+    ],
+    "screening_selection_note": "Best overall validation combo requires structure-derived inputs, so formula-only candidate screening falls back to the best candidate-compatible validation combo.",
+    "ranking_matches_best_overall_evaluation": false,
+    "best_overall_evaluation_feature_set": "matminer_composition_plus_structure_summary",
+    "best_overall_evaluation_feature_family": "structure_aware",
+    "best_overall_evaluation_model_type": "hist_gradient_boosting",
+    "best_overall_evaluation_candidate_compatible": false,
+    "ranking_uncertainty_method": "small_feature_model_disagreement",
+    "ranking_uncertainty_penalty": 0.5,
+    "candidate_annotations": [
+      "domain_support_reference_formula_count",
+      "domain_support_k_neighbors",
+      "domain_support_nearest_formula",
+      "domain_support_nearest_distance",
+      "domain_support_mean_k_distance",
+      "domain_support_percentile",
+      "domain_support_penalty",
+      "chemical_plausibility_pass",
+      "chemical_plausibility_guess_count",
+      "chemical_plausibility_primary_oxidation_state_guess",
+      "chemical_plausibility_note",
+      "seen_in_dataset",
+      "dataset_formula_row_count",
+      "seen_in_train_plus_val",
+      "train_plus_val_formula_row_count",
+      "candidate_is_seen_in_dataset",
+      "candidate_is_seen_in_train_plus_val",
+      "candidate_is_formula_level_extrapolation",
+      "candidate_novelty_bucket",
+      "candidate_novelty_priority",
+      "candidate_novelty_note",
+      "novelty_rank_within_bucket",
+      "novel_formula_rank",
+      "screening_selected_for_top_k",
+      "screening_selection_decision"
+    ]
   }
 }

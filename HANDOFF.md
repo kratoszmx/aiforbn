@@ -4,113 +4,196 @@
 - 名称：AI for BN PoC
 - 路径：`$HOME/projects/ai_for_bn`
 - 目标：构建一个可运行、可展示、方法上尽量诚实的 AI for BN 最小 PoC
-- 当前默认运行环境：zsh 的 `quant` 环境
+- 默认运行环境：zsh 的 `quant` 环境
 
 ## 当前状态
+- 当前工作已恢复到**已重新验证**的节点。
+- 在当前 dirty working tree 上，以下命令已通过：
+  - 清缓存：通过 `src/core/io_utils.py` 的 `clear_project_cache('.')`
+  - `pytest -q` → `19 passed in 3.02s`
+  - `/opt/homebrew/Caskroom/miniforge/base/envs/quant/bin/python main.py` → 运行成功
 - 主任务仍是 `band_gap` 预测与 BN 主题下的候选排序演示。
 - 训练数据仍来自 JARVIS / 2DMatPedia 的 `twod_matpd`。
 - 默认评估协议仍是 **按 `formula` 分组切分**，`train/val/test` 的 formula overlap 为 0。
-- 当前特征路径已升级为 **两条 composition-only 路径并存**：
-  - `basic_formula_composition`：手写基础控制组；
-  - `matminer_composition`：`pymatgen Composition` + matminer 的 19 维精选组成描述符。
-- 当前选择流程不再只是选模型，而是：
-  - 在验证集上对一个很小的 `{feature_set} x {model_type}` 组合空间做选择；
-  - 候选组合默认为：
-    - `basic_formula_composition + hist_gradient_boosting`
-    - `basic_formula_composition + linear_regression`
-    - `matminer_composition + hist_gradient_boosting`
-    - `matminer_composition + linear_regression`
-  - 选中组合后用 `train + val` 重新训练；
-  - 在测试集上输出完整 benchmark，并保留 `dummy_mean` 作为 feature-agnostic baseline。
-- 当前候选空间仍明确标注为 `toy_iii_v_demo_grid`，输出文件仍是 `demo_candidate_ranking.csv`。
-- 候选排序现在会显式写出：
-  - `ranking_basis = composition_only_predicted_band_gap`
+- 当前默认特征搜索空间已经是 **两条 composition-only 控制路径 + 一条 lightweight structure-aware 路径**：
+  - `basic_formula_composition`：7 维手写基础控制组；
+  - `matminer_composition`：19 维 composition-only matminer 描述符；
+  - `matminer_composition_plus_structure_summary`：`matminer_composition` + 11 个由 cached raw JARVIS `atoms` / `lattice` 信息导出的结构摘要列，总计 30 维。
+- 当前选择流程是联合选择 `{feature_set} x {model_type}`，默认候选组合为：
+  - `basic_formula_composition + hist_gradient_boosting`
+  - `basic_formula_composition + linear_regression`
+  - `matminer_composition + hist_gradient_boosting`
+  - `matminer_composition + linear_regression`
+  - `matminer_composition_plus_structure_summary + hist_gradient_boosting`
+  - `matminer_composition_plus_structure_summary + linear_regression`
+- 当前方法学上的关键事实已经变成：
+  - **最佳 overall evaluation 组合可以是 structure-aware；**
+  - **formula-only 候选排序必须退回到最佳 candidate-compatible 组合，不能假装候选也有结构。**
+- 当前 formula-only 候选空间仍保留透明的 Group 13 / Group 15 toy source space，但现在已经有三层诚实性约束：
+  - **轻量 chemical plausibility / candidate credibility screen**：`pymatgen` oxidation-state guesses；
+  - **domain-support annotation**：用 `train+val` 特征空间近邻距离给每个候选写支持度注释；
+  - **novelty / rediscovery annotation**：显式区分 `train_plus_val_rediscovery`、`held_out_known_formula`、`formula_level_extrapolation`。
+- 当前默认策略仍是：**保留完整 source space，标注全部候选，再显式写出 top-k 与未入选原因。**
+
+## 本轮已确认完成
+- `data.py` 已支持优先复用 cached raw JARVIS JSON，并在规范化阶段写入结构摘要列：
+  - `structure_n_sites`
+  - `structure_lattice_a/b/c`
+  - `structure_lattice_gamma`
+  - `structure_inplane_area`
+  - `structure_cell_height`
+  - `structure_thickness`
+  - `structure_vacuum`
+  - `structure_areal_number_density`
+  - `structure_thickness_fraction`
+- `features.py` 已支持三条特征路线，并对结构路径做显式完整性校验。
+- `select_feature_model_combo()` 已能同时输出：
+  - best overall evaluation combo
+  - best formula-only screening combo
+  - 两者是否一致
+  - screening fallback note
+- `benchmark_results.csv` 已能诚实呈现 structure-aware 与 composition-only 路径的 test 对照。
+- `demo_candidate_ranking.csv` 已明确写出：
   - `ranking_feature_set`
   - `ranking_model_type`
-  - `ranking_note`
+  - `best_overall_evaluation_feature_set`
+  - `best_overall_evaluation_model_type`
+  - `screening_matches_best_overall_evaluation`
+  - `screening_selection_note`
+  - disagreement heuristic、dataset overlap、domain-support 与 novelty bucket 标注
+- `generate_bn_candidates()` 现在不只生成 25 个 Group 13 / 15 toy 公式，还会为每个候选写入：
+  - `chemical_plausibility_pass`
+  - `chemical_plausibility_guess_count`
+  - `chemical_plausibility_primary_oxidation_state_guess`
+  - `chemical_plausibility_note`
+  - `candidate_reduced_formula`
+  - `candidate_chemical_system`
+- `screen_candidates()` 现在不再隐式截断成只剩 top-k，而是输出**完整 source-space ranking artifact**，并显式标注：
+  - `ranking_rank`
+  - `screening_selected_for_top_k`
+  - `screening_selection_decision`
+  - `domain_support_nearest_formula`
+  - `domain_support_percentile`
+  - `candidate_novelty_bucket`
+  - `novelty_rank_within_bucket`
+  - `novel_formula_rank`
+- 当前 chemical plausibility screen 的验证结果：
+  - 25 个 toy candidates 中，21 个通过
+  - 4 个失败公式为：`AlBi`, `GaBi`, `InBi`, `TlBi`
+  - 当前 artifact 中这 4 个公式被标成 `failed_chemical_plausibility` 并排在末尾
+- 当前 novelty / rediscovery 分层结果：
+  - `train_plus_val_rediscovery`: `23`
+  - `held_out_known_formula`: `1`，当前是 `AlP`
+  - `formula_level_extrapolation`: `1`，当前是 `BBi`
+  - 标准 top-k 20 中没有真正 `formula_level_extrapolation` 候选；`BBi` 当前 `ranking_rank = 21`
+- 本轮还清理了 repo 内不必要的 Hugging Face secret 暴露：
+  - `ai_for_bn/.env` 实际只是指向 `../myutils/.env` 的 symlink，项目代码并不读取它
+  - 已将 `.env` 加入 `ai_for_bn/.gitignore`
+  - 已执行 `git rm .env`
+- tests 已覆盖：
+  - cached raw JSON 重建数据与结构摘要
+  - structure-aware featurization 成功/失败行为
+  - overall evaluation 与 formula-only screening 分离选择
+  - ranking artifact 的诚实字段
+  - chemical plausibility annotation / selection 行为
+  - novelty bucket / novel formula rank 行为
+  - `main.py` 的线性编排
 
-## 本轮已完成
-- 保留了 `basic_formula_composition` 作为明确控制组，没有把 richer features 偷偷替换成默认唯一特征。
-- 新增 `matminer_composition` 路径，当前实现为：
-  - `Stoichiometry` 的若干 norm 特征；
-  - 选定的 `Magpie` 元素属性统计；
-  - 总计 19 个 composition-only 特征。
-- 新增 `build_feature_tables()` 与 `select_feature_model_combo()`，把验证集选择从“只选模型”升级为“联合选择特征表示与模型”。
-- 对 richer feature path 增加了显式失败处理：
-  - 若某个 feature set 不能完整 featurize 数据，会在元数据里记录并从选择中跳过；
-  - 候选排序若无法完整 featurize 候选公式，会直接报错而不是静默丢行。
-- 扩展了 `benchmark_results.csv`，现在测试集 benchmark 会显式记录：
-  - `feature_set`
-  - `feature_family`
-  - `n_features`
-  - `model_type`
-  - `benchmark_role`
-  - `selected_by_validation`
-- 扩展了 `experiment_summary.json`，现在会记录：
-  - `features.selected_feature_set`
-  - `features.feature_set_results`
-  - `feature_model_selection`
-  - `screening.ranking_feature_set`
-  - `screening.ranking_model_type`
-- 更新了 focused tests，覆盖：
-  - matminer featurization 成功/失败行为；
-  - 联合 feature/model 选择；
-  - benchmark 与 ranking 新元数据；
-  - `main.py` 新编排。
-
-## 最近一次已验证运行
-- 验证命令：`/opt/homebrew/Caskroom/miniforge/base/envs/quant/bin/python main.py`
-- 数据规模：6351 rows，4381 unique formulas。
-- BN 主题切片：12 rows，10 unique BN formulas。
+## 最近一次验证运行
+- 数据规模：
+  - 6351 rows
+  - 4381 unique formulas
+  - BN 主题切片：12 rows / 10 unique BN formulas
 - grouped split：
   - train = 5101 rows / 3505 formulas
   - val = 618 rows / 438 formulas
   - test = 632 rows / 438 formulas
-- 验证集选中的组合：
-  - `matminer_composition + hist_gradient_boosting`
-- 最新验证集 MAE：
+- validation MAE：
   - `basic_formula_composition + hist_gradient_boosting`: `0.9579`
   - `basic_formula_composition + linear_regression`: `0.9976`
   - `matminer_composition + hist_gradient_boosting`: `0.6006`
   - `matminer_composition + linear_regression`: `0.8303`
-- 最新测试集指标：
-  - `MAE = 0.5822`
-  - `RMSE = 0.8611`
-  - `R² = 0.5939`
-- 最新测试集 benchmark：
+  - `matminer_composition_plus_structure_summary + hist_gradient_boosting`: `0.5724`
+  - `matminer_composition_plus_structure_summary + linear_regression`: `0.8151`
+- best overall evaluation combo：
+  - `matminer_composition_plus_structure_summary + hist_gradient_boosting`
+- best formula-only screening combo：
+  - `matminer_composition + hist_gradient_boosting`
+- 两者是否一致：
+  - `False`
+- 当前测试集指标（best overall evaluation combo）：
+  - `MAE = 0.5568`
+  - `RMSE = 0.8218`
+  - `R² = 0.6302`
+- 当前测试集 benchmark：
+  - `matminer_composition_plus_structure_summary + hist_gradient_boosting`: `MAE = 0.5568`
   - `matminer_composition + hist_gradient_boosting`: `MAE = 0.5822`
   - `basic_formula_composition + hist_gradient_boosting`: `MAE = 0.9219`
+  - `matminer_composition_plus_structure_summary + linear_regression`: `MAE = 0.8198`
   - `matminer_composition + linear_regression`: `MAE = 0.8555`
   - `basic_formula_composition + linear_regression`: `MAE = 1.0056`
   - `dummy_mean`: `MAE = 1.1118`
+- 当前结果的准确解读：
+  - structure-aware 路径相对最佳 formula-only 路径的提升是**小幅但一致**的；
+  - test MAE 从 `0.5822` 降到 `0.5568`，绝对改善约 `0.0254`，相对改善约 `4.4%`；
+  - 这足以让 overall evaluation 选到 structure-aware，但还不是巨大跃升。
+- 当前候选排序摘要：
+  - `ranking_basis = composition_only_mean_band_gap_minus_model_disagreement_penalty`
+  - `ranking_feature_set = matminer_composition`
+  - `ranking_model_type = hist_gradient_boosting`
+  - `ranking_uncertainty_method = small_feature_model_disagreement`
+  - `chemical_plausibility_method = pymatgen_common_oxidation_state_balance`
+  - `chemical_plausibility_selection_policy = annotate_and_prioritize_passing_candidates`
+  - `candidate_rows = 25`
+  - `screening_selected_for_top_k = 20`
+  - `chemical_plausibility_passed_rows = 21`
+  - `chemical_plausibility_failed_rows = 4`
+  - `domain_support_enabled = True`
+  - `domain_support_penalized_rows = 0`
+  - `novelty_bucket_counts = {train_plus_val_rediscovery: 23, held_out_known_formula: 1, formula_level_extrapolation: 1}`
+  - `standard_top_k_novelty_bucket_counts = {train_plus_val_rediscovery: 19, held_out_known_formula: 1, formula_level_extrapolation: 0}`
+  - failed formulas：`AlBi`, `GaBi`, `InBi`, `TlBi`
+  - 当前唯一 held-out-known formula 是 `AlP`
+  - 当前唯一 formula-level extrapolation 是 `BBi`，但 `ranking_rank = 21`，未进入 top-k
+  - top rows 仍以 `BN / AlN / GaN / AlP / InN` 等已知或常见体系为主
+  - 当前更适合解读为 sanity-check ranking，而不是新候选发现
+  - 现在可以明确说：toy source grid 仍在，但 output 已不再把所有公式当作同等可信的候选，也不会把 rediscovery 和真正未见公式混为一谈
 
 ## 当前目录重点
 - `main.py`：线性主入口；保持 notebook-friendly。
 - `configs/default.py`：默认 split / feature / model / screening 配置。
-- `src/pipeline/features.py`：特征构造、联合选模、benchmark、demo candidate ranking。
+- `src/pipeline/data.py`：数据规范化、cached raw JSON 复用、结构摘要派生。
+- `src/pipeline/features.py`：特征构造、联合选模、benchmark、候选 chemical plausibility annotation 与 ranking。
 - `src/pipeline/reporting.py`：artifact 输出与实验摘要。
-- `artifacts/metrics.json`：当前被选组合的测试集指标与元数据。
+- `artifacts/metrics.json`：当前 best overall combo 的测试指标与元数据。
 - `artifacts/benchmark_results.csv`：测试集 feature/model benchmark。
-- `artifacts/experiment_summary.json`：数据、特征、联合选择与 ranking 摘要。
-- `artifacts/demo_candidate_ranking.csv`：带 composition-only ranking 元数据的候选排序结果。
-- `给见微的说明.md`：面向见微的项目状态说明。
-- `项目汇报.md`：面向导师/评审的正式汇报稿。
+- `artifacts/experiment_summary.json`：数据、split、选择与 screening 摘要。
+- `artifacts/demo_candidate_ranking.csv`：当前完整 formula-only source-space ranking artifact，含 plausibility pass/fail 与 top-k decision。
+- `PY_FILES_SUMMARY.md`：AI-facing Python summary。
+- `给见微的说明.md`：面向见微的项目说明。
+- `项目汇报.md`：面向导师/评审的汇报稿。
 
 ## 仍然明确的限制
-- 当前虽然比上一轮强，但**仍然只是 composition-only baseline**，不是 structure-aware 模型。
-- 当前 richer path 仍然只看化学式推导出的组成描述符，没有结构、相稳定性、形成能、声子稳定性等信息。
+- 当前已经不是纯 composition-only evaluation，但**也远不是成熟的 structure-aware 材料模型**。
+- 结构路径只用了 cached JARVIS atoms 导出的轻量结构摘要，不是 crystal graph、3D/2D 几何编码、形成能或稳定性建模。
+- formula-only 候选空间虽然新增了基础 oxidation-state / charge-balance plausibility layer，但**仍然没有结构、形成能、热力学稳定性、声子稳定性、合成可行性约束**。
+- 当前 plausibility screen 只是轻量公式级可信度边界，不等于“材料可存在”判断；例如某些边缘氧化态解释仍可能通过。
+- 当前 domain-support 层在这 25 个 toy candidates 上几乎没有触发惩罚，核心原因不是代码无效，而是 candidate space 与 train+val 高度重合。
 - BN slice 仍然很小，当前训练主体仍是全体 2D 数据，不是 BN-only 学习。
-- 候选空间仍然只是 25 个 Group 13/15 组合的 toy demo grid，没有稳定性、结构、合成可行性约束。
-- 还没有 uncertainty-aware ranking，也没有 inference API 解耦。
+- ranking 使用的仍是小模型池 disagreement heuristic，不是校准不确定性。
+- 当前 toy candidate space 中 24/25 公式已在 dataset 中出现，23/25 已在 train+val 中出现，真正 dataset 未见的只有 `BBi` 一个。
+- 仍未做 train / inference API 解耦。
 
-## 交接时重点关注
-- 后续若继续强化方法学，优先级现在应转向：
-  - 从 composition-only 继续往 structure-aware 表示推进
-  - 提升候选空间约束的可信度
-  - 加入不确定性并进一步解耦推理入口
-- 保持 `main.py` 线性，不要把当前简单流程抽象成重启动器。
-- 若继续扩展特征路径，优先保持：
-  - 命名清楚；
-  - 候选空间小而透明；
-  - 失败显式暴露；
-  - docs 与 artifact 同步更新。
+## 恢复工作时的直接起点
+- 不需要重做 wave-3 设计，也不需要回滚当前 dirty tree。
+- 若继续推进，优先从以下方向里选一个：
+  - 更强、真正材料导向的 structure-aware 表示；
+  - 把 candidate source space 从“几乎全是已知公式”推进到包含更多真正 dataset 未见公式；
+  - 在更真实的 candidate space 上加入结构 / 稳定性约束；
+  - 比 disagreement heuristic 更可信的不确定性处理；
+  - train / inference 解耦
+- 保持 `main.py` 线性，不要把当前流程抽象成重启动器。
+- 继续验证时遵守当前顺序：
+  - 先用 `clear_project_cache('.')` 清缓存
+  - 再跑 `pytest -q`
+  - 再跑 `quant` 环境下的 `python main.py`

@@ -22,8 +22,12 @@ CONFIG = {
     },
     'features': {
         'feature_set': 'basic_formula_composition',
-        'candidate_sets': ['basic_formula_composition', 'matminer_composition'],
-        'feature_family': 'composition_only',
+        'candidate_sets': [
+            'basic_formula_composition',
+            'matminer_composition',
+            'matminer_composition_plus_structure_summary',
+        ],
+        'feature_family': 'mixed_formula_and_structure',
     },
     'model': {
         'type': 'hist_gradient_boosting',
@@ -57,9 +61,37 @@ CONFIG = {
         'candidate_space_name': 'toy_iii_v_demo_grid',
         'candidate_space_kind': 'toy_demo',
         'candidate_space_note': (
-            'Formula-only Group 13/15 demo grid without stability, structure, or synthesis constraints.'
+            'Transparent Group 13/15 formula demo grid used as a source space before lightweight '
+            'formula-level plausibility annotations.'
         ),
         'ranking_label': 'demo_candidate_ranking',
+        'use_model_disagreement': True,
+        'uncertainty_method': 'small_feature_model_disagreement',
+        'uncertainty_penalty': 0.5,
+        'domain_support': {
+            'enabled': True,
+            'method': 'train_plus_val_knn_feature_space_support',
+            'distance_metric': 'z_scored_euclidean_rms',
+            'k_neighbors': 5,
+            'ranking_penalty_enabled': True,
+            'ranking_penalty_weight': 0.15,
+            'penalize_below_percentile': 25.0,
+            'note': (
+                'Measures support in the selected formula-only screening feature space using '
+                'z-scored distances to unique train+val formulas. This is a lightweight '
+                'transparency heuristic, not a calibrated confidence or stability estimate.'
+            ),
+        },
+        'chemical_plausibility': {
+            'enabled': True,
+            'method': 'pymatgen_common_oxidation_state_balance',
+            'selection_policy': 'annotate_and_prioritize_passing_candidates',
+            'note': (
+                'Uses pymatgen oxidation-state guesses as a lightweight formula-level credibility '
+                'screen. This does not establish structure stability, synthesis feasibility, or '
+                'experimental realizability.'
+            ),
+        },
     },
     'llm': {
         'enabled': False,

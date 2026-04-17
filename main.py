@@ -10,6 +10,7 @@ from core.io_utils import clear_project_cache, ensure_runtime_dirs, load_config
 from pipeline.data import load_or_build_dataset
 from pipeline.features import (
     benchmark_regressors,
+    build_candidate_prediction_ensemble,
     build_feature_tables,
     evaluate_predictions,
     filter_bn,
@@ -42,45 +43,82 @@ def main() -> None:
     feature_tables = build_feature_tables(dataset_df, cfg, formula_col=cfg['data']['formula_column'])
     selection_summary = select_feature_model_combo(feature_tables, split_masks, cfg)
     selected_feature_set = selection_summary['selected_feature_set']
+    selected_model_type = selection_summary['selected_model_type']
+    ranking_feature_set = selection_summary['screening_selected_feature_set']
+    ranking_model_type = selection_summary['screening_selected_model_type']
     feature_df = feature_tables[selected_feature_set]
 
     model, feature_columns = train_baseline_model(
         feature_df,
         split_masks,
         cfg,
-        model_type=selection_summary['selected_model_type'],
+        model_type=selected_model_type,
         include_validation=True,
     )
     metrics, prediction_df = evaluate_predictions(feature_df, split_masks, model, feature_columns)
     metrics = {
         **metrics,
         'selected_feature_set': selected_feature_set,
-        'selected_model_type': selection_summary['selected_model_type'],
+        'selected_model_type': selected_model_type,
+        'selected_feature_family': selection_summary.get('selected_feature_family'),
+        'screening_feature_set': ranking_feature_set,
+        'screening_model_type': ranking_model_type,
+        'screening_feature_family': selection_summary.get('screening_selected_feature_family'),
+        'screening_matches_best_overall_evaluation': selection_summary.get(
+            'screening_selection_matches_overall',
+            True,
+        ),
         'evaluation_split': 'test',
         'training_scope': 'train_plus_val',
         'split_method': split_masks['metadata']['method'],
-        'feature_family': cfg['features'].get('feature_family', 'composition_only'),
+        'feature_family': selection_summary.get('selected_feature_family'),
     }
     benchmark_df = benchmark_regressors(
         feature_tables,
         split_masks,
         cfg,
         selected_feature_set=selected_feature_set,
-        selected_model_type=selection_summary['selected_model_type'],
+        selected_model_type=selected_model_type,
+    )
+    ranking_feature_df = feature_tables[ranking_feature_set]
+    if ranking_feature_set == selected_feature_set and ranking_model_type == selected_model_type:
+        ranking_model = model
+        ranking_feature_columns = feature_columns
+    else:
+        ranking_model, ranking_feature_columns = train_baseline_model(
+            ranking_feature_df,
+            split_masks,
+            cfg,
+            model_type=ranking_model_type,
+            include_validation=True,
+        )
+    candidate_ensemble_df = build_candidate_prediction_ensemble(
+        candidate_df,
+        feature_tables,
+        split_masks,
+        cfg,
+        candidate_feature_sets=selection_summary.get('screening_candidate_feature_sets'),
     )
 
     ranked_candidate_df = screen_candidates(
         candidate_df,
-        model,
-        feature_columns,
+        ranking_model,
+        ranking_feature_columns,
         cfg,
-        feature_set=selected_feature_set,
-        model_type=selection_summary['selected_model_type'],
+        feature_set=ranking_feature_set,
+        model_type=ranking_model_type,
+        best_overall_feature_set=selected_feature_set,
+        best_overall_model_type=selected_model_type,
+        screening_selection_note=selection_summary.get('screening_selection_note'),
+        dataset_df=dataset_df,
+        split_masks=split_masks,
+        ensemble_prediction_df=candidate_ensemble_df,
+        reference_feature_df=ranking_feature_df,
     )
     experiment_summary = build_experiment_summary(
         dataset_df=dataset_df,
         bn_df=bn_df,
-        candidate_df=candidate_df,
+        candidate_df=ranked_candidate_df,
         split_masks=split_masks,
         selection_summary=selection_summary,
         cfg=cfg,
@@ -104,7 +142,9 @@ def main() -> None:
     print(f"candidate rows: {len(ranked_candidate_df)}")
     print(f"split method: {split_masks['metadata']['method']}")
     print(f"selected feature set: {selected_feature_set}")
-    print(f"selected model: {selection_summary['selected_model_type']}")
+    print(f"selected model: {selected_model_type}")
+    print(f"ranking feature set: {ranking_feature_set}")
+    print(f"ranking model: {ranking_model_type}")
     print(f"metrics: {metrics}")
 
 
