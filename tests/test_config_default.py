@@ -24,7 +24,9 @@ def test_default_config_has_expected_poc_defaults():
     ]
     assert cfg['features']['feature_family'] == 'mixed_formula_and_structure'
     assert cfg['model']['candidate_types'] == ['linear_regression', 'hist_gradient_boosting']
-    assert cfg['screening']['candidate_space_name'] == 'toy_iii_v_demo_grid'
+    assert cfg['screening']['candidate_generation_strategy'] == 'bn_anchored_formula_family_grid'
+    assert cfg['screening']['candidate_space_name'] == 'bn_anchored_formula_family_grid'
+    assert cfg['screening']['candidate_space_kind'] == 'bn_family_demo'
     assert cfg['screening']['use_model_disagreement'] is True
     assert cfg['screening']['uncertainty_method'] == 'small_feature_model_disagreement'
     assert cfg['screening']['uncertainty_penalty'] == 0.5

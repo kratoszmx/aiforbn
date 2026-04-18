@@ -85,9 +85,22 @@ Regex-based element-token extraction from a chemical formula string.
 Returns the BN-themed slice, defined here as formulas containing both `B` and `N`.
 
 ### `generate_bn_candidates(cfg=None)`
-Builds the current toy candidate space.
-Default space is the Group 13 / Group 15 cartesian product used as the transparent demo source space.
-Also adds lightweight formula-level chemical-plausibility annotations, including:
+Builds the current BN-anchored demo candidate space.
+Default space is no longer the plain Group 13 / Group 15 cartesian product. It is now a 25-formula
+BN-containing formula-family grid anchored by:
+- BCN / h-BCN-style ternary motifs
+- BC2N-style ternary motifs
+- Si2BN-like motifs already observed in the dataset
+
+The generator also writes source-space provenance fields such as:
+- `candidate_generation_strategy`
+- `candidate_space_name`
+- `candidate_space_kind`
+- `candidate_family`
+- `candidate_template`
+- `candidate_family_note`
+
+And it adds lightweight formula-level chemical-plausibility annotations, including:
 - `chemical_plausibility_pass`
 - `chemical_plausibility_guess_count`
 - `chemical_plausibility_primary_oxidation_state_guess`
@@ -218,10 +231,11 @@ Adds honesty-oriented candidate annotations such as:
 - `seen_in_train_plus_val`
 - `train_plus_val_formula_row_count`
 
-Use this to distinguish “toy ranking replaying known formulas” from true novelty.
+Use this to distinguish demo-space rediscovery from true formula-level novelty.
 
 ### `annotate_candidate_novelty(candidate_df, formula_col='formula')`
 Builds a simple novelty / rediscovery layer from the overlap fields.
+This is still formula-level novelty inside the current demo candidate space, not validated discovery.
 Adds:
 - `candidate_is_seen_in_dataset`
 - `candidate_is_seen_in_train_plus_val`
@@ -291,6 +305,7 @@ Includes:
 
 Important:
 - preserves the distinction between best overall evaluation combo and formula-only screening combo
+- now also records candidate-space provenance such as `candidate_generation_strategy` and `candidate_family_counts`
 
 ### `save_metrics_and_predictions(metrics, prediction_df, bn_df, screened_df, benchmark_df, experiment_summary, manifest, cfg)`
 Writes the main artifact files under `artifacts/`.

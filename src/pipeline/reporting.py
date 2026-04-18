@@ -82,6 +82,34 @@ def build_experiment_summary(dataset_df, bn_df, candidate_df, split_masks, selec
         cfg,
         domain_support_penalty_applied=bool(domain_support_penalized_rows),
     )
+    candidate_space_name = cfg['screening']['candidate_space_name']
+    candidate_space_kind = cfg['screening']['candidate_space_kind']
+    candidate_space_note = cfg['screening']['candidate_space_note']
+    candidate_generation_strategy = cfg['screening'].get('candidate_generation_strategy')
+    if not candidate_df.empty:
+        for column_name, fallback_value in (
+            ('candidate_space_name', candidate_space_name),
+            ('candidate_space_kind', candidate_space_kind),
+            ('candidate_space_note', candidate_space_note),
+            ('candidate_generation_strategy', candidate_generation_strategy),
+        ):
+            if column_name in candidate_df.columns:
+                non_null_values = candidate_df[column_name].dropna()
+                if not non_null_values.empty:
+                    if column_name == 'candidate_space_name':
+                        candidate_space_name = str(non_null_values.iloc[0])
+                    elif column_name == 'candidate_space_kind':
+                        candidate_space_kind = str(non_null_values.iloc[0])
+                    elif column_name == 'candidate_space_note':
+                        candidate_space_note = str(non_null_values.iloc[0])
+                    elif column_name == 'candidate_generation_strategy':
+                        candidate_generation_strategy = str(non_null_values.iloc[0])
+
+    candidate_family_counts = None
+    if 'candidate_family' in candidate_df.columns:
+        family_counts = candidate_df['candidate_family'].dropna().astype(str).value_counts()
+        candidate_family_counts = {family: int(count) for family, count in family_counts.items()}
+
     ranking_basis = ranking_metadata['ranking_basis']
     ranking_note = ranking_metadata['ranking_note']
     if bool(ranking_metadata['domain_support_enabled']):
@@ -157,7 +185,7 @@ def build_experiment_summary(dataset_df, bn_df, candidate_df, split_masks, selec
             'Standard top-k remains the default ranking output, but novelty should be interpreted '
             'separately: train+val rediscovery is in-domain replay, held-out-known formulas are '
             'known elsewhere in the dataset, and formula-level extrapolation only means unseen '
-            'formula compositions inside this toy candidate space.'
+            'formula compositions inside this demo candidate space.'
         )
         ranking_note = f'{ranking_note} {NOVELTY_ANNOTATION_RANKING_NOTE}'
 
@@ -194,9 +222,11 @@ def build_experiment_summary(dataset_df, bn_df, candidate_df, split_masks, selec
             'dummy_baselines': cfg['model'].get('benchmark_baselines', ['dummy_mean']),
         },
         'screening': {
-            'candidate_space_name': cfg['screening']['candidate_space_name'],
-            'candidate_space_kind': cfg['screening']['candidate_space_kind'],
-            'candidate_space_note': cfg['screening']['candidate_space_note'],
+            'candidate_space_name': candidate_space_name,
+            'candidate_space_kind': candidate_space_kind,
+            'candidate_space_note': candidate_space_note,
+            'candidate_generation_strategy': candidate_generation_strategy,
+            'candidate_family_counts': candidate_family_counts,
             'candidate_rows': int(len(candidate_df)),
             'candidate_formulas_have_structures': False,
             'top_k': int(cfg['screening']['top_k']),
@@ -266,6 +296,9 @@ def build_experiment_summary(dataset_df, bn_df, candidate_df, split_masks, selec
             'ranking_uncertainty_method': ranking_metadata['ranking_uncertainty_method'],
             'ranking_uncertainty_penalty': float(ranking_metadata['ranking_uncertainty_penalty']),
             'candidate_annotations': [
+                'candidate_family',
+                'candidate_template',
+                'candidate_family_note',
                 'domain_support_reference_formula_count',
                 'domain_support_k_neighbors',
                 'domain_support_nearest_formula',

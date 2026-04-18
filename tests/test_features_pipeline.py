@@ -61,9 +61,10 @@ CFG = {
     },
     'screening': {
         'top_k': 5,
-        'candidate_space_name': 'toy_iii_v_demo_grid',
-        'candidate_space_kind': 'toy_demo',
-        'candidate_space_note': 'demo note',
+        'candidate_generation_strategy': 'bn_anchored_formula_family_grid',
+        'candidate_space_name': 'bn_anchored_formula_family_grid',
+        'candidate_space_kind': 'bn_family_demo',
+        'candidate_space_note': 'bn-anchored demo note',
         'ranking_label': 'demo_candidate_ranking',
         'use_model_disagreement': True,
         'uncertainty_method': 'small_feature_model_disagreement',
@@ -219,10 +220,19 @@ def test_build_feature_table_with_structure_summary_features_requires_structure_
     assert summary['candidate_compatible'] is False
 
 
-def test_generate_bn_candidates_adds_chemical_plausibility_annotations():
+def test_generate_bn_candidates_adds_bn_anchored_family_metadata_and_chemical_plausibility_annotations():
     candidate_df = generate_bn_candidates(CFG)
 
     assert len(candidate_df) == 25
+    assert candidate_df['candidate_space_name'].eq('bn_anchored_formula_family_grid').all()
+    assert candidate_df['candidate_space_kind'].eq('bn_family_demo').all()
+    assert candidate_df['candidate_generation_strategy'].eq(
+        'bn_anchored_formula_family_grid'
+    ).all()
+    assert {'BN', 'BC2N', 'Si2BN', 'Ge2BN', 'AlBN2', 'Tl2BN'}.issubset(set(candidate_df['formula']))
+    assert candidate_df['candidate_family'].nunique() >= 4
+    assert candidate_df['candidate_template'].isin({'B1N1', 'B1X1N1', 'B1X2N1', 'B1X1N2', 'X1B1N1', 'X2B1N1', 'X1B1N2'}).all()
+    assert candidate_df['candidate_family_note'].astype(str).str.len().gt(0).all()
     assert candidate_df['chemical_plausibility_enabled'].eq(True).all()
     assert candidate_df['chemical_plausibility_method'].eq(
         'pymatgen_common_oxidation_state_balance'
@@ -235,10 +245,13 @@ def test_generate_bn_candidates_adds_chemical_plausibility_annotations():
         == 'B(+3), N(-3)'
     )
     assert bool(
-        candidate_df.loc[candidate_df['formula'] == 'AlBi', 'chemical_plausibility_pass'].iloc[0]
+        candidate_df.loc[candidate_df['formula'] == 'AlBN', 'chemical_plausibility_pass'].iloc[0]
+    ) is False
+    assert bool(
+        candidate_df.loc[candidate_df['formula'] == 'TlBN', 'chemical_plausibility_pass'].iloc[0]
     ) is False
     assert 'No charge-balanced common oxidation-state assignment' in (
-        candidate_df.loc[candidate_df['formula'] == 'AlBi', 'chemical_plausibility_note'].iloc[0]
+        candidate_df.loc[candidate_df['formula'] == 'AlBN', 'chemical_plausibility_note'].iloc[0]
     )
 
 
@@ -328,14 +341,14 @@ def test_feature_pipeline_can_train_evaluate_benchmark_and_rank_demo_candidates(
     )
 
     assert len(candidates) == 25
-    assert {'BN', 'TlBi'}.issubset(set(candidates['formula']))
-    assert candidates['candidate_space_kind'].eq('toy_demo').all()
-    assert candidates['chemical_plausibility_pass'].sum() == 21
+    assert {'BN', 'BC2N', 'Si2BN', 'Tl2BN'}.issubset(set(candidates['formula']))
+    assert candidates['candidate_space_kind'].eq('bn_family_demo').all()
+    assert candidates['candidate_generation_strategy'].eq('bn_anchored_formula_family_grid').all()
+    assert candidates['candidate_family'].nunique() >= 4
+    assert candidates['chemical_plausibility_pass'].sum() == 23
     assert set(candidates.loc[~candidates['chemical_plausibility_pass'], 'formula']) == {
-        'AlBi',
-        'GaBi',
-        'InBi',
-        'TlBi',
+        'AlBN',
+        'TlBN',
     }
     assert set(metrics) == {'mae', 'rmse', 'r2'}
     assert not prediction_df.empty
@@ -390,13 +403,13 @@ def test_feature_pipeline_can_train_evaluate_benchmark_and_rank_demo_candidates(
         'screening_selection_decision',
     ].eq('failed_chemical_plausibility').all()
     bn_row = screened_df.loc[screened_df['formula'] == 'BN'].iloc[0]
-    bbi_row = screened_df.loc[screened_df['formula'] == 'BBi'].iloc[0]
+    ge2bn_row = screened_df.loc[screened_df['formula'] == 'Ge2BN'].iloc[0]
     assert bn_row['domain_support_nearest_formula'] == 'BN'
     assert bn_row['domain_support_nearest_distance'] == pytest.approx(0.0)
     assert bn_row['domain_support_percentile'] == pytest.approx(100.0)
     assert bn_row['domain_support_penalty'] == pytest.approx(0.0)
-    assert bbi_row['domain_support_nearest_distance'] > 0.0
-    assert bn_row['domain_support_percentile'] >= bbi_row['domain_support_percentile']
+    assert ge2bn_row['domain_support_nearest_distance'] > 0.0
+    assert bn_row['domain_support_percentile'] >= ge2bn_row['domain_support_percentile']
     assert 'train+val feature-space domain-support layer' in screened_df['ranking_note'].iloc[0]
     assert 'Novelty is tracked only at the formula level' in screened_df['ranking_note'].iloc[0]
     assert bool(screened_df.loc[screened_df['formula'] == 'BN', 'seen_in_dataset'].iloc[0]) is True
@@ -410,12 +423,10 @@ def test_feature_pipeline_can_train_evaluate_benchmark_and_rank_demo_candidates(
         .eq(~screened_df['seen_in_dataset'])
         .all()
     )
-    assert set(screened_df['candidate_novelty_bucket']) == {
-        'train_plus_val_rediscovery',
-        'held_out_known_formula',
-        'formula_level_extrapolation',
-    }
-    assert set(screened_df['candidate_novelty_priority']) == {1, 2, 3}
+    assert {'train_plus_val_rediscovery', 'formula_level_extrapolation'}.issubset(
+        set(screened_df['candidate_novelty_bucket'])
+    )
+    assert set(screened_df['candidate_novelty_priority']).issubset({1, 2, 3})
     assert screened_df['novelty_rank_within_bucket'].ge(1).all()
     assert screened_df.loc[
         screened_df['candidate_is_formula_level_extrapolation'],
@@ -432,13 +443,12 @@ def test_feature_pipeline_can_train_evaluate_benchmark_and_rank_demo_candidates(
         ]
         .iloc[0]
     )
-    assert 'held-out-known formula' in (
-        screened_df.loc[
-            screened_df['candidate_novelty_bucket'] == 'held_out_known_formula',
-            'candidate_novelty_note',
-        ]
-        .iloc[0]
-    )
+    held_out_known_notes = screened_df.loc[
+        screened_df['candidate_novelty_bucket'] == 'held_out_known_formula',
+        'candidate_novelty_note',
+    ]
+    if not held_out_known_notes.empty:
+        assert 'held-out-known formula' in held_out_known_notes.iloc[0]
     assert 'formula-level extrapolation' in (
         screened_df.loc[
             screened_df['candidate_novelty_bucket'] == 'formula_level_extrapolation',

@@ -9,8 +9,8 @@
 ## 当前状态
 - 当前工作已恢复到**已重新验证**的节点。
 - 在当前 dirty working tree 上，以下命令已通过：
-  - 清缓存：通过 `src/core/io_utils.py` 的 `clear_project_cache('.')`
-  - `pytest -q` → `19 passed in 3.02s`
+  - 清缓存：通过 `../myutils/file_utils.delete_cache('.')`
+  - `pytest -q` → `19 passed in 3.16s`
   - `/opt/homebrew/Caskroom/miniforge/base/envs/quant/bin/python main.py` → 运行成功
 - 主任务仍是 `band_gap` 预测与 BN 主题下的候选排序演示。
 - 训练数据仍来自 JARVIS / 2DMatPedia 的 `twod_matpd`。
@@ -29,7 +29,11 @@
 - 当前方法学上的关键事实已经变成：
   - **最佳 overall evaluation 组合可以是 structure-aware；**
   - **formula-only 候选排序必须退回到最佳 candidate-compatible 组合，不能假装候选也有结构。**
-- 当前 formula-only 候选空间仍保留透明的 Group 13 / Group 15 toy source space，但现在已经有三层诚实性约束：
+- 当前默认 formula-only 候选空间已经不再是 Group 13 / Group 15 toy grid，而是一个 **BN-anchored 25-formula demo family space**：
+  - 由 `BCN / h-BCN`、`BC2N` 文献母题，以及数据集中真实出现过的 `Si2BN` 母题共同锚定；
+  - 同时保留 `BN` anchor、Group-IV BN ternary families、Group-III BN ternary families；
+  - 仍然只是 formula-only demo source space，不代表结构稳定性、可合成性或真实发现结论。
+- 当前候选空间已经带有三层诚实性约束：
   - **轻量 chemical plausibility / candidate credibility screen**：`pymatgen` oxidation-state guesses；
   - **domain-support annotation**：用 `train+val` 特征空间近邻距离给每个候选写支持度注释；
   - **novelty / rediscovery annotation**：显式区分 `train_plus_val_rediscovery`、`held_out_known_formula`、`formula_level_extrapolation`。
@@ -61,7 +65,13 @@
   - `screening_matches_best_overall_evaluation`
   - `screening_selection_note`
   - disagreement heuristic、dataset overlap、domain-support 与 novelty bucket 标注
-- `generate_bn_candidates()` 现在不只生成 25 个 Group 13 / 15 toy 公式，还会为每个候选写入：
+- `generate_bn_candidates()` 现在生成 25 个 BN-anchored demo 候选公式，并为每个候选写入：
+  - `candidate_generation_strategy`
+  - `candidate_space_name`
+  - `candidate_space_kind`
+  - `candidate_family`
+  - `candidate_template`
+  - `candidate_family_note`
   - `chemical_plausibility_pass`
   - `chemical_plausibility_guess_count`
   - `chemical_plausibility_primary_oxidation_state_guess`
@@ -78,14 +88,14 @@
   - `novelty_rank_within_bucket`
   - `novel_formula_rank`
 - 当前 chemical plausibility screen 的验证结果：
-  - 25 个 toy candidates 中，21 个通过
-  - 4 个失败公式为：`AlBi`, `GaBi`, `InBi`, `TlBi`
-  - 当前 artifact 中这 4 个公式被标成 `failed_chemical_plausibility` 并排在末尾
+  - 25 个 demo candidates 中，23 个通过
+  - 2 个失败公式为：`AlBN`, `TlBN`
+  - 当前 artifact 中这 2 个公式被标成 `failed_chemical_plausibility` 并排在末尾
 - 当前 novelty / rediscovery 分层结果：
-  - `train_plus_val_rediscovery`: `23`
-  - `held_out_known_formula`: `1`，当前是 `AlP`
-  - `formula_level_extrapolation`: `1`，当前是 `BBi`
-  - 标准 top-k 20 中没有真正 `formula_level_extrapolation` 候选；`BBi` 当前 `ranking_rank = 21`
+  - `train_plus_val_rediscovery`: `3`，即 `BN`、`BC2N`、`Si2BN`
+  - `held_out_known_formula`: `0`
+  - `formula_level_extrapolation`: `22`
+  - 标准 top-k 20 中已有 `17` 个 `formula_level_extrapolation` 候选
 - 本轮还清理了 repo 内不必要的 Hugging Face secret 暴露：
   - `ai_for_bn/.env` 实际只是指向 `../myutils/.env` 的 symlink，项目代码并不读取它
   - 已将 `.env` 加入 `ai_for_bn/.gitignore`
@@ -138,26 +148,25 @@
   - test MAE 从 `0.5822` 降到 `0.5568`，绝对改善约 `0.0254`，相对改善约 `4.4%`；
   - 这足以让 overall evaluation 选到 structure-aware，但还不是巨大跃升。
 - 当前候选排序摘要：
-  - `ranking_basis = composition_only_mean_band_gap_minus_model_disagreement_penalty`
+  - `ranking_basis = composition_only_mean_band_gap_minus_model_disagreement_and_low_support_penalties`
   - `ranking_feature_set = matminer_composition`
   - `ranking_model_type = hist_gradient_boosting`
   - `ranking_uncertainty_method = small_feature_model_disagreement`
   - `chemical_plausibility_method = pymatgen_common_oxidation_state_balance`
   - `chemical_plausibility_selection_policy = annotate_and_prioritize_passing_candidates`
+  - `candidate_generation_strategy = bn_anchored_formula_family_grid`
   - `candidate_rows = 25`
   - `screening_selected_for_top_k = 20`
-  - `chemical_plausibility_passed_rows = 21`
-  - `chemical_plausibility_failed_rows = 4`
+  - `chemical_plausibility_passed_rows = 23`
+  - `chemical_plausibility_failed_rows = 2`
   - `domain_support_enabled = True`
-  - `domain_support_penalized_rows = 0`
-  - `novelty_bucket_counts = {train_plus_val_rediscovery: 23, held_out_known_formula: 1, formula_level_extrapolation: 1}`
-  - `standard_top_k_novelty_bucket_counts = {train_plus_val_rediscovery: 19, held_out_known_formula: 1, formula_level_extrapolation: 0}`
-  - failed formulas：`AlBi`, `GaBi`, `InBi`, `TlBi`
-  - 当前唯一 held-out-known formula 是 `AlP`
-  - 当前唯一 formula-level extrapolation 是 `BBi`，但 `ranking_rank = 21`，未进入 top-k
-  - top rows 仍以 `BN / AlN / GaN / AlP / InN` 等已知或常见体系为主
-  - 当前更适合解读为 sanity-check ranking，而不是新候选发现
-  - 现在可以明确说：toy source grid 仍在，但 output 已不再把所有公式当作同等可信的候选，也不会把 rediscovery 和真正未见公式混为一谈
+  - `domain_support_penalized_rows = 12`
+  - `novelty_bucket_counts = {train_plus_val_rediscovery: 3, held_out_known_formula: 0, formula_level_extrapolation: 22}`
+  - `standard_top_k_novelty_bucket_counts = {train_plus_val_rediscovery: 3, held_out_known_formula: 0, formula_level_extrapolation: 17}`
+  - failed formulas：`AlBN`, `TlBN`
+  - top-ranked formula-level extrapolation 候选现在包括：`BCN2`, `BCN`, `AlBN2`, `SiBN2`, `SiBN`
+  - 当前更适合解读为 **BN-anchored formula-family demo ranking**，而不是新候选发现
+  - 现在可以明确说：source space 已不再是几乎全重放的 toy grid，artifact 也不再把 rediscovery 与真正 dataset 未见公式混为一谈
 
 ## 当前目录重点
 - `main.py`：线性主入口；保持 notebook-friendly。
@@ -178,10 +187,10 @@
 - 结构路径只用了 cached JARVIS atoms 导出的轻量结构摘要，不是 crystal graph、3D/2D 几何编码、形成能或稳定性建模。
 - formula-only 候选空间虽然新增了基础 oxidation-state / charge-balance plausibility layer，但**仍然没有结构、形成能、热力学稳定性、声子稳定性、合成可行性约束**。
 - 当前 plausibility screen 只是轻量公式级可信度边界，不等于“材料可存在”判断；例如某些边缘氧化态解释仍可能通过。
-- 当前 domain-support 层在这 25 个 toy candidates 上几乎没有触发惩罚，核心原因不是代码无效，而是 candidate space 与 train+val 高度重合。
+- 当前 domain-support 层在新候选空间上已经开始真正触发惩罚，当前 `domain_support_penalized_rows = 12`，说明它不再只是装饰性注释。
 - BN slice 仍然很小，当前训练主体仍是全体 2D 数据，不是 BN-only 学习。
 - ranking 使用的仍是小模型池 disagreement heuristic，不是校准不确定性。
-- 当前 toy candidate space 中 24/25 公式已在 dataset 中出现，23/25 已在 train+val 中出现，真正 dataset 未见的只有 `BBi` 一个。
+- 当前 BN-anchored candidate space 中只有 `3/25` 公式已在 dataset 中出现，`22/25` 已经是 dataset 未见公式；但这依然只是 formula-level extrapolation，不是结构级 discovery。
 - 仍未做 train / inference API 解耦。
 
 ## 恢复工作时的直接起点

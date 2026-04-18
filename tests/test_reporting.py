@@ -31,9 +31,10 @@ def test_reporting_writes_expected_artifacts(tmp_path):
             'benchmark_baselines': ['dummy_mean'],
         },
         'screening': {
-            'candidate_space_name': 'toy_iii_v_demo_grid',
-            'candidate_space_kind': 'toy_demo',
-            'candidate_space_note': 'demo note',
+            'candidate_generation_strategy': 'bn_anchored_formula_family_grid',
+            'candidate_space_name': 'bn_anchored_formula_family_grid',
+            'candidate_space_kind': 'bn_family_demo',
+            'candidate_space_note': 'bn-anchored demo note',
             'top_k': 5,
             'use_model_disagreement': True,
             'uncertainty_method': 'small_feature_model_disagreement',
@@ -71,13 +72,18 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     prediction_df = pd.DataFrame({'formula': ['BN'], 'target': [5.0], 'prediction': [4.8]})
     bn_df = pd.DataFrame({'formula': ['BN'], 'target': [5.0]})
     candidate_df = pd.DataFrame({
-        'formula': ['BN', 'AlBi'],
-        'candidate_space_name': ['toy_iii_v_demo_grid', 'toy_iii_v_demo_grid'],
+        'formula': ['BN', 'AlBN'],
+        'candidate_space_name': ['bn_anchored_formula_family_grid', 'bn_anchored_formula_family_grid'],
+        'candidate_space_kind': ['bn_family_demo', 'bn_family_demo'],
+        'candidate_generation_strategy': ['bn_anchored_formula_family_grid', 'bn_anchored_formula_family_grid'],
+        'candidate_family': ['bn_binary_anchor', 'group13_bn_111_family'],
+        'candidate_template': ['B1N1', 'X1B1N1'],
+        'candidate_family_note': ['BN anchor', 'Group-III BN ternary extension'],
         'ranking_rank': [1, 2],
         'ranking_score': [4.8, 1.2],
         'domain_support_reference_formula_count': [12, 12],
         'domain_support_k_neighbors': [5, 5],
-        'domain_support_nearest_formula': ['BN', 'AlP'],
+        'domain_support_nearest_formula': ['BN', 'BN'],
         'domain_support_nearest_distance': [0.0, 0.8],
         'domain_support_mean_k_distance': [0.0, 1.1],
         'domain_support_percentile': [100.0, 10.0],
@@ -102,7 +108,7 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         'screening_selection_decision': ['selected_top_k', 'failed_chemical_plausibility'],
     })
     screened_df = pd.DataFrame({
-        'formula': ['BN', 'AlBi'],
+        'formula': ['BN', 'AlBN'],
         'predicted_band_gap': [4.8, 1.2],
         'screening_selected_for_top_k': [True, False],
         'screening_selection_decision': ['selected_top_k', 'failed_chemical_plausibility'],
@@ -195,7 +201,12 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     assert experiment_summary['screening']['chemical_plausibility_enabled'] is True
     assert experiment_summary['screening']['chemical_plausibility_passed_rows'] == 1
     assert experiment_summary['screening']['chemical_plausibility_failed_rows'] == 1
-    assert experiment_summary['screening']['chemical_plausibility_failed_formulas'] == ['AlBi']
+    assert experiment_summary['screening']['candidate_generation_strategy'] == 'bn_anchored_formula_family_grid'
+    assert experiment_summary['screening']['candidate_family_counts'] == {
+        'bn_binary_anchor': 1,
+        'group13_bn_111_family': 1,
+    }
+    assert experiment_summary['screening']['chemical_plausibility_failed_formulas'] == ['AlBN']
     assert experiment_summary['screening']['novelty_annotation_enabled'] is True
     assert experiment_summary['screening']['novelty_bucket_counts'] == {
         'train_plus_val_rediscovery': 1,
@@ -210,7 +221,7 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     assert experiment_summary['screening']['formula_level_extrapolation_candidate_count'] == 1
     assert experiment_summary['screening']['formula_level_extrapolation_shortlist'] == [
         {
-            'formula': 'AlBi',
+            'formula': 'AlBN',
             'ranking_rank': 2,
             'novel_formula_rank': 1,
             'ranking_score': 1.2,
@@ -224,6 +235,9 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     )
     assert 'Novelty is tracked only at the formula level' in experiment_summary['screening']['ranking_note']
     assert experiment_summary['screening']['candidate_annotations'] == [
+        'candidate_family',
+        'candidate_template',
+        'candidate_family_note',
         'domain_support_reference_formula_count',
         'domain_support_k_neighbors',
         'domain_support_nearest_formula',
@@ -279,9 +293,10 @@ def test_experiment_summary_explains_structure_aware_evaluation_vs_formula_only_
             'benchmark_baselines': ['dummy_mean'],
         },
         'screening': {
-            'candidate_space_name': 'toy_iii_v_demo_grid',
-            'candidate_space_kind': 'toy_demo',
-            'candidate_space_note': 'demo note',
+            'candidate_generation_strategy': 'bn_anchored_formula_family_grid',
+            'candidate_space_name': 'bn_anchored_formula_family_grid',
+            'candidate_space_kind': 'bn_family_demo',
+            'candidate_space_note': 'bn-anchored demo note',
             'top_k': 5,
             'use_model_disagreement': True,
             'uncertainty_method': 'small_feature_model_disagreement',
@@ -333,10 +348,16 @@ def test_experiment_summary_explains_structure_aware_evaluation_vs_formula_only_
         dataset_df=pd.DataFrame({'formula': ['BN'], 'target': [5.0]}),
         bn_df=pd.DataFrame({'formula': ['BN'], 'target': [5.0]}),
         candidate_df=pd.DataFrame({
-            'formula': ['BN', 'AlBi'],
+            'formula': ['BN', 'AlBN'],
+            'candidate_space_name': ['bn_anchored_formula_family_grid', 'bn_anchored_formula_family_grid'],
+            'candidate_space_kind': ['bn_family_demo', 'bn_family_demo'],
+            'candidate_generation_strategy': ['bn_anchored_formula_family_grid', 'bn_anchored_formula_family_grid'],
+            'candidate_family': ['bn_binary_anchor', 'group13_bn_111_family'],
+            'candidate_template': ['B1N1', 'X1B1N1'],
+            'candidate_family_note': ['BN anchor', 'Group-III BN ternary extension'],
             'domain_support_reference_formula_count': [12, 12],
             'domain_support_k_neighbors': [5, 5],
-            'domain_support_nearest_formula': ['BN', 'AlP'],
+            'domain_support_nearest_formula': ['BN', 'BN'],
             'domain_support_nearest_distance': [0.0, 0.8],
             'domain_support_mean_k_distance': [0.0, 1.1],
             'domain_support_percentile': [100.0, 10.0],
@@ -361,4 +382,9 @@ def test_experiment_summary_explains_structure_aware_evaluation_vs_formula_only_
     assert 'falls back to the best candidate-compatible combo' in summary['screening']['ranking_note']
     assert 'train+val feature-space domain-support layer' in summary['screening']['ranking_note']
     assert 'lightweight pymatgen oxidation-state plausibility screen' in summary['screening']['ranking_note']
-    assert summary['screening']['chemical_plausibility_failed_formulas'] == ['AlBi']
+    assert summary['screening']['candidate_generation_strategy'] == 'bn_anchored_formula_family_grid'
+    assert summary['screening']['candidate_family_counts'] == {
+        'bn_binary_anchor': 1,
+        'group13_bn_111_family': 1,
+    }
+    assert summary['screening']['chemical_plausibility_failed_formulas'] == ['AlBN']

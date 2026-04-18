@@ -58,11 +58,14 @@ CONFIG = {
     'screening': {
         'enabled': True,
         'top_k': 20,
-        'candidate_space_name': 'toy_iii_v_demo_grid',
-        'candidate_space_kind': 'toy_demo',
+        'candidate_generation_strategy': 'bn_anchored_formula_family_grid',
+        'candidate_space_name': 'bn_anchored_formula_family_grid',
+        'candidate_space_kind': 'bn_family_demo',
         'candidate_space_note': (
-            'Transparent Group 13/15 formula demo grid used as a source space before lightweight '
-            'formula-level plausibility annotations.'
+            'BN-containing formula-family grid anchored by BCN / BC2N-style ternary motifs from '
+            'the literature and by Si2BN-like motifs already present in the dataset. This is still '
+            'a formula-only candidate space and does not establish structure stability, synthesis '
+            'feasibility, or real discovery.'
         ),
         'ranking_label': 'demo_candidate_ranking',
         'use_model_disagreement': True,

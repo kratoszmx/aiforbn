@@ -26,14 +26,31 @@ from pipeline.data import STRUCTURE_SUMMARY_COLUMNS
 
 
 ATOMIC_NUMBERS = {
-    'H': 1, 'B': 5, 'C': 6, 'N': 7, 'O': 8, 'Al': 13, 'P': 15,
-    'Ga': 31, 'As': 33, 'In': 49, 'Sb': 51, 'Tl': 81, 'Bi': 83,
+    'H': 1, 'B': 5, 'C': 6, 'N': 7, 'O': 8, 'Al': 13, 'Si': 14, 'P': 15,
+    'Ga': 31, 'Ge': 32, 'As': 33, 'In': 49, 'Sn': 50, 'Sb': 51, 'Tl': 81, 'Pb': 82, 'Bi': 83,
 }
-DEFAULT_CANDIDATE_SPACE_NAME = 'toy_iii_v_demo_grid'
-DEFAULT_CANDIDATE_SPACE_KIND = 'toy_demo'
-DEFAULT_CANDIDATE_SPACE_NOTE = (
-    'Formula-only Group 13/15 enumeration without stability, structure, or synthesis constraints.'
-)
+TOY_CANDIDATE_GENERATION_STRATEGY = 'toy_iii_v_demo_grid'
+BN_ANCHORED_CANDIDATE_GENERATION_STRATEGY = 'bn_anchored_formula_family_grid'
+DEFAULT_CANDIDATE_GENERATION_STRATEGY = BN_ANCHORED_CANDIDATE_GENERATION_STRATEGY
+CANDIDATE_SPACE_DEFAULTS = {
+    TOY_CANDIDATE_GENERATION_STRATEGY: {
+        'candidate_space_name': 'toy_iii_v_demo_grid',
+        'candidate_space_kind': 'toy_demo',
+        'candidate_space_note': (
+            'Formula-only Group 13/15 enumeration without stability, structure, or synthesis constraints.'
+        ),
+    },
+    BN_ANCHORED_CANDIDATE_GENERATION_STRATEGY: {
+        'candidate_space_name': 'bn_anchored_formula_family_grid',
+        'candidate_space_kind': 'bn_family_demo',
+        'candidate_space_note': (
+            'BN-containing formula-family grid anchored by BCN / BC2N-style ternary motifs from '
+            'the literature and by Si2BN-like motifs observed in the dataset. This is still '
+            'formula-only and does not establish structure stability, synthesis feasibility, or '
+            'real discovery.'
+        ),
+    },
+}
 DEFAULT_CHEMICAL_PLAUSIBILITY_METHOD = 'pymatgen_common_oxidation_state_balance'
 DEFAULT_CHEMICAL_PLAUSIBILITY_NOTE = (
     'Formula-level plausibility annotation using pymatgen oxidation-state guesses. This is not a '
@@ -109,14 +126,14 @@ NOVELTY_BUCKET_NOTE = {
         'rather than a new formula-level candidate.'
     ),
     NOVELTY_BUCKET_FORMULA_LEVEL_EXTRAPOLATION: (
-        'Unseen in the dataset, so this is formula-level extrapolation within the toy source '
-        'space. This still does not establish real materials discovery.'
+        'Unseen in the dataset, so this is formula-level extrapolation within the current demo '
+        'candidate space. This still does not establish real materials discovery.'
     ),
 }
 NOVELTY_ANNOTATION_RANKING_NOTE = (
     'Novelty is tracked only at the formula level: use the novelty bucket fields to separate '
     'train+val rediscovery, held-out-known formulas, and unseen formulas. This transparency layer '
-    'does not turn the toy ranking into validated discovery.'
+    'does not turn the demo ranking into validated discovery.'
 )
 FEATURE_SET_METADATA = {
     BASIC_FEATURE_SET: (
@@ -182,6 +199,9 @@ BASE_PASSTHROUGH_COLUMNS = (
     'candidate_space_kind',
     'candidate_generation_strategy',
     'candidate_space_note',
+    'candidate_family',
+    'candidate_template',
+    'candidate_family_note',
 )
 
 
@@ -196,24 +216,173 @@ def filter_bn(df: pd.DataFrame, formula_col: str = 'formula') -> pd.DataFrame:
     return out
 
 
-def generate_bn_candidates(cfg: dict | None = None) -> pd.DataFrame:
+def _candidate_space_metadata(cfg: dict | None = None) -> dict[str, str]:
     screening_cfg = (cfg or {}).get('screening', {})
-    candidate_space_name = screening_cfg.get('candidate_space_name', DEFAULT_CANDIDATE_SPACE_NAME)
-    candidate_space_kind = screening_cfg.get('candidate_space_kind', DEFAULT_CANDIDATE_SPACE_KIND)
-    candidate_space_note = screening_cfg.get('candidate_space_note', DEFAULT_CANDIDATE_SPACE_NOTE)
+    strategy = screening_cfg.get(
+        'candidate_generation_strategy',
+        DEFAULT_CANDIDATE_GENERATION_STRATEGY,
+    )
+    if strategy not in CANDIDATE_SPACE_DEFAULTS:
+        raise ValueError(f'Unsupported candidate_generation_strategy: {strategy}')
 
+    defaults = CANDIDATE_SPACE_DEFAULTS[strategy]
+    return {
+        'candidate_generation_strategy': strategy,
+        'candidate_space_name': screening_cfg.get(
+            'candidate_space_name', defaults['candidate_space_name']
+        ),
+        'candidate_space_kind': screening_cfg.get(
+            'candidate_space_kind', defaults['candidate_space_kind']
+        ),
+        'candidate_space_note': screening_cfg.get(
+            'candidate_space_note', defaults['candidate_space_note']
+        ),
+    }
+
+
+def _canonical_formula(formula: str) -> str:
+    return Composition(str(formula)).reduced_formula
+
+
+def _candidate_row(
+    formula: str,
+    metadata: dict[str, str],
+    candidate_family: str,
+    candidate_template: str,
+    candidate_family_note: str,
+) -> dict[str, str]:
+    return {
+        'formula': _canonical_formula(formula),
+        'candidate_space_name': metadata['candidate_space_name'],
+        'candidate_space_kind': metadata['candidate_space_kind'],
+        'candidate_generation_strategy': metadata['candidate_generation_strategy'],
+        'candidate_space_note': metadata['candidate_space_note'],
+        'candidate_family': candidate_family,
+        'candidate_template': candidate_template,
+        'candidate_family_note': candidate_family_note,
+    }
+
+
+def _generate_toy_iii_v_candidates(metadata: dict[str, str]) -> list[dict[str, str]]:
     group13 = ['B', 'Al', 'Ga', 'In', 'Tl']
     group15 = ['N', 'P', 'As', 'Sb', 'Bi']
-    rows = []
+    family_note = (
+        'Legacy control grid copied from the 2DMatPedia-style Group 13/15 binary substitution '
+        'idea. Useful as a transparent control candidate space, but weakly aligned with BN as a '
+        'research target.'
+    )
+    rows: list[dict[str, str]] = []
     for left in group13:
         for right in group15:
-            rows.append({
-                'formula': f'{left}{right}',
-                'candidate_space_name': candidate_space_name,
-                'candidate_space_kind': candidate_space_kind,
-                'candidate_generation_strategy': 'group13_group15_cartesian_product',
-                'candidate_space_note': candidate_space_note,
-            })
+            rows.append(
+                _candidate_row(
+                    formula=f'{left}{right}',
+                    metadata=metadata,
+                    candidate_family='group13_group15_binary_analog',
+                    candidate_template='A1B1',
+                    candidate_family_note=family_note,
+                )
+            )
+    return rows
+
+
+def _generate_bn_anchored_candidates(metadata: dict[str, str]) -> list[dict[str, str]]:
+    group14 = ['C', 'Si', 'Ge', 'Sn']
+    group13 = ['Al', 'Ga', 'In', 'Tl']
+    rows: list[dict[str, str]] = [
+        _candidate_row(
+            formula='BN',
+            metadata=metadata,
+            candidate_family='bn_binary_anchor',
+            candidate_template='B1N1',
+            candidate_family_note='Binary BN anchor/control inside the BN-containing candidate grid.',
+        )
+    ]
+
+    group14_families = [
+        (
+            'group14_bn_111_family',
+            'B1X1N1',
+            lambda element: f'B{element}N',
+            'BN-containing Group-IV ternary family anchored by BCN / h-BCN-style literature motifs.',
+        ),
+        (
+            'group14_bn_211_family',
+            'B1X2N1',
+            lambda element: f'B{element}2N',
+            'BN-containing Group-IV ternary family anchored by BC2N-style literature motifs and by Si2BN-like dataset motifs.',
+        ),
+        (
+            'group14_bn_121_family',
+            'B1X1N2',
+            lambda element: f'B{element}N2',
+            'BN-containing Group-IV ternary family that preserves a BN-centered local template while exploring more N-rich stoichiometries.',
+        ),
+    ]
+    for family_name, template, formula_builder, family_note in group14_families:
+        for element in group14:
+            rows.append(
+                _candidate_row(
+                    formula=formula_builder(element),
+                    metadata=metadata,
+                    candidate_family=family_name,
+                    candidate_template=template,
+                    candidate_family_note=family_note,
+                )
+            )
+
+    group13_families = [
+        (
+            'group13_bn_111_family',
+            'X1B1N1',
+            lambda element: f'{element}BN',
+            'BN-containing Group-III ternary family used as a BN-local exploratory extension. Some members fail the lightweight oxidation-state plausibility screen.',
+        ),
+        (
+            'group13_bn_211_family',
+            'X2B1N1',
+            lambda element: f'{element}2BN',
+            'BN-containing Group-III ternary family that keeps B and N explicit while moving to a more cation-rich stoichiometric template.',
+        ),
+        (
+            'group13_bn_121_family',
+            'X1B1N2',
+            lambda element: f'{element}BN2',
+            'BN-containing Group-III ternary family with a simple charge-balanced nitride-like template.',
+        ),
+    ]
+    for family_name, template, formula_builder, family_note in group13_families:
+        for element in group13:
+            rows.append(
+                _candidate_row(
+                    formula=formula_builder(element),
+                    metadata=metadata,
+                    candidate_family=family_name,
+                    candidate_template=template,
+                    candidate_family_note=family_note,
+                )
+            )
+
+    deduped_rows: list[dict[str, str]] = []
+    seen_formulas: set[str] = set()
+    for row in rows:
+        formula = row['formula']
+        if formula in seen_formulas:
+            continue
+        deduped_rows.append(row)
+        seen_formulas.add(formula)
+    return deduped_rows
+
+
+def generate_bn_candidates(cfg: dict | None = None) -> pd.DataFrame:
+    metadata = _candidate_space_metadata(cfg)
+    strategy = metadata['candidate_generation_strategy']
+    if strategy == TOY_CANDIDATE_GENERATION_STRATEGY:
+        rows = _generate_toy_iii_v_candidates(metadata)
+    elif strategy == BN_ANCHORED_CANDIDATE_GENERATION_STRATEGY:
+        rows = _generate_bn_anchored_candidates(metadata)
+    else:  # pragma: no cover
+        raise ValueError(f'Unsupported candidate_generation_strategy: {strategy}')
     return annotate_candidate_chemical_plausibility(pd.DataFrame(rows))
 
 
@@ -812,6 +981,9 @@ def _feature_columns(df: pd.DataFrame) -> list[str]:
         'candidate_space_kind',
         'candidate_generation_strategy',
         'candidate_space_note',
+        'candidate_family',
+        'candidate_template',
+        'candidate_family_note',
         'ranking_label',
         'ranking_basis',
         'ranking_note',

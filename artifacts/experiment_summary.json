@@ -157,9 +157,9 @@
         "n_features": 7,
         "status": "ok",
         "note": "",
-        "mae": 0.957863262470087,
-        "rmse": 1.176709365685352,
-        "r2": 0.11077278881164199
+        "mae": 0.9409628621457549,
+        "rmse": 1.173526717767401,
+        "r2": 0.11557647259340553
       },
       {
         "feature_set": "basic_formula_composition",
@@ -169,9 +169,9 @@
         "n_features": 7,
         "status": "ok",
         "note": "",
-        "mae": 0.9975839812777326,
-        "rmse": 1.201829276576335,
-        "r2": 0.07240183191766958
+        "mae": 0.9986457433473714,
+        "rmse": 1.2012571793647833,
+        "r2": 0.07328473605210883
       },
       {
         "feature_set": "matminer_composition",
@@ -235,15 +235,25 @@
     ]
   },
   "screening": {
-    "candidate_space_name": "toy_iii_v_demo_grid",
-    "candidate_space_kind": "toy_demo",
-    "candidate_space_note": "Transparent Group 13/15 formula demo grid used as a source space before lightweight formula-level plausibility annotations.",
+    "candidate_space_name": "bn_anchored_formula_family_grid",
+    "candidate_space_kind": "bn_family_demo",
+    "candidate_space_note": "BN-containing formula-family grid anchored by BCN / BC2N-style ternary motifs from the literature and by Si2BN-like motifs already present in the dataset. This is still a formula-only candidate space and does not establish structure stability, synthesis feasibility, or real discovery.",
+    "candidate_generation_strategy": "bn_anchored_formula_family_grid",
+    "candidate_family_counts": {
+      "group14_bn_121_family": 4,
+      "group14_bn_111_family": 4,
+      "group13_bn_121_family": 4,
+      "group14_bn_211_family": 4,
+      "group13_bn_211_family": 4,
+      "group13_bn_111_family": 4,
+      "bn_binary_anchor": 1
+    },
     "candidate_rows": 25,
     "candidate_formulas_have_structures": false,
     "top_k": 20,
     "ranking_artifact": "demo_candidate_ranking.csv",
-    "ranking_basis": "composition_only_mean_band_gap_minus_model_disagreement_penalty",
-    "ranking_note": "Composition-only demo ranking using a tiny feature/model candidate pool. The score is the ensemble mean band gap minus a small model-disagreement penalty; disagreement is heuristic and not calibrated physical uncertainty. Candidates are also annotated with a train+val feature-space domain-support layer: support comes from z-scored distances to nearby known formulas in the selected screening feature space, contextualized by the leave-one-out train+val neighborhood-distance distribution. The best overall validation combo is structure-aware, so formula-only candidate screening falls back to the best candidate-compatible combo. Candidates are also annotated with a lightweight pymatgen oxidation-state plausibility screen, and passing formulas are prioritized ahead of formulas that fail basic charge-balance checks. Novelty is tracked only at the formula level: use the novelty bucket fields to separate train+val rediscovery, held-out-known formulas, and unseen formulas. This transparency layer does not turn the toy ranking into validated discovery.",
+    "ranking_basis": "composition_only_mean_band_gap_minus_model_disagreement_and_low_support_penalties",
+    "ranking_note": "Composition-only demo ranking using a tiny feature/model candidate pool. The score is the ensemble mean band gap minus a small model-disagreement penalty and a mild low-support penalty in the selected screening feature space; both terms are heuristic and not calibrated physical uncertainty or stability estimates. Candidates are also annotated with a train+val feature-space domain-support layer: support comes from z-scored distances to nearby known formulas in the selected screening feature space, contextualized by the leave-one-out train+val neighborhood-distance distribution. The best overall validation combo is structure-aware, so formula-only candidate screening falls back to the best candidate-compatible combo. Candidates are also annotated with a lightweight pymatgen oxidation-state plausibility screen, and passing formulas are prioritized ahead of formulas that fail basic charge-balance checks. Novelty is tracked only at the formula level: use the novelty bucket fields to separate train+val rediscovery, held-out-known formulas, and unseen formulas. This transparency layer does not turn the demo ranking into validated discovery.",
     "ranking_feature_set": "matminer_composition",
     "ranking_feature_family": "composition_only",
     "ranking_model_type": "hist_gradient_boosting",
@@ -255,47 +265,81 @@
     "domain_support_k_neighbors": 5,
     "domain_support_note": "Measures support in the selected formula-only screening feature space using z-scored distances to unique train+val formulas. This is a lightweight transparency heuristic, not a calibrated confidence or stability estimate.",
     "domain_support_penalty_enabled": true,
-    "domain_support_penalty_active": false,
+    "domain_support_penalty_active": true,
     "domain_support_penalty_weight": 0.15,
     "domain_support_penalize_below_percentile": 25.0,
-    "domain_support_penalized_rows": 0,
-    "domain_support_low_support_rows": 0,
+    "domain_support_penalized_rows": 12,
+    "domain_support_low_support_rows": 12,
     "chemical_plausibility_enabled": true,
     "chemical_plausibility_method": "pymatgen_common_oxidation_state_balance",
     "chemical_plausibility_selection_policy": "annotate_and_prioritize_passing_candidates",
     "chemical_plausibility_note": "Uses pymatgen oxidation-state guesses as a lightweight formula-level credibility screen. This does not establish structure stability, synthesis feasibility, or experimental realizability.",
-    "chemical_plausibility_passed_rows": 21,
-    "chemical_plausibility_failed_rows": 4,
+    "chemical_plausibility_passed_rows": 23,
+    "chemical_plausibility_failed_rows": 2,
     "chemical_plausibility_failed_formulas": [
-      "InBi",
-      "TlBi",
-      "GaBi",
-      "AlBi"
+      "AlBN",
+      "TlBN"
     ],
     "novelty_annotation_enabled": true,
     "novelty_bucket_counts": {
-      "train_plus_val_rediscovery": 23,
-      "held_out_known_formula": 1,
-      "formula_level_extrapolation": 1
+      "train_plus_val_rediscovery": 3,
+      "held_out_known_formula": 0,
+      "formula_level_extrapolation": 22
     },
     "standard_top_k_novelty_bucket_counts": {
-      "train_plus_val_rediscovery": 19,
-      "held_out_known_formula": 1,
-      "formula_level_extrapolation": 0
+      "train_plus_val_rediscovery": 3,
+      "held_out_known_formula": 0,
+      "formula_level_extrapolation": 17
     },
-    "formula_level_extrapolation_candidate_count": 1,
+    "formula_level_extrapolation_candidate_count": 22,
     "formula_level_extrapolation_shortlist": [
       {
-        "formula": "BBi",
-        "ranking_rank": 21,
+        "formula": "BCN2",
+        "ranking_rank": 1,
         "novel_formula_rank": 1,
-        "ranking_score": 0.1079104169407828,
+        "ranking_score": 1.822046943421133,
         "chemical_plausibility_pass": true,
-        "screening_selected_for_top_k": false,
-        "screening_selection_decision": "not_selected_top_k"
+        "screening_selected_for_top_k": true,
+        "screening_selection_decision": "selected_top_k"
+      },
+      {
+        "formula": "BCN",
+        "ranking_rank": 2,
+        "novel_formula_rank": 2,
+        "ranking_score": 1.8069790308219442,
+        "chemical_plausibility_pass": true,
+        "screening_selected_for_top_k": true,
+        "screening_selection_decision": "selected_top_k"
+      },
+      {
+        "formula": "AlBN2",
+        "ranking_rank": 3,
+        "novel_formula_rank": 3,
+        "ranking_score": 1.779799497116239,
+        "chemical_plausibility_pass": true,
+        "screening_selected_for_top_k": true,
+        "screening_selection_decision": "selected_top_k"
+      },
+      {
+        "formula": "SiBN2",
+        "ranking_rank": 5,
+        "novel_formula_rank": 4,
+        "ranking_score": 1.6622287212629527,
+        "chemical_plausibility_pass": true,
+        "screening_selected_for_top_k": true,
+        "screening_selection_decision": "selected_top_k"
+      },
+      {
+        "formula": "SiBN",
+        "ranking_rank": 6,
+        "novel_formula_rank": 5,
+        "ranking_score": 1.5714286643578366,
+        "chemical_plausibility_pass": true,
+        "screening_selected_for_top_k": true,
+        "screening_selection_decision": "selected_top_k"
       }
     ],
-    "novelty_interpretation_note": "Standard top-k remains the default ranking output, but novelty should be interpreted separately: train+val rediscovery is in-domain replay, held-out-known formulas are known elsewhere in the dataset, and formula-level extrapolation only means unseen formula compositions inside this toy candidate space.",
+    "novelty_interpretation_note": "Standard top-k remains the default ranking output, but novelty should be interpreted separately: train+val rediscovery is in-domain replay, held-out-known formulas are known elsewhere in the dataset, and formula-level extrapolation only means unseen formula compositions inside this demo candidate space.",
     "screening_selection_scope": "candidate_compatible_formula_only",
     "screening_candidate_feature_sets": [
       "basic_formula_composition",
@@ -310,6 +354,9 @@
     "ranking_uncertainty_method": "small_feature_model_disagreement",
     "ranking_uncertainty_penalty": 0.5,
     "candidate_annotations": [
+      "candidate_family",
+      "candidate_template",
+      "candidate_family_note",
       "domain_support_reference_formula_count",
       "domain_support_k_neighbors",
       "domain_support_nearest_formula",
