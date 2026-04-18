@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from pipeline.features import (
+    BN_ANALOG_EVIDENCE_RANKING_NOTE,
+    BN_SUPPORT_RANKING_NOTE,
     DOMAIN_SUPPORT_RANKING_NOTE,
     NOVELTY_ANNOTATION_RANKING_NOTE,
     NOVELTY_BUCKET_FORMULA_LEVEL_EXTRAPOLATION,
@@ -78,9 +80,90 @@ def build_experiment_summary(dataset_df, bn_df, candidate_df, split_masks, selec
             candidate_df['domain_support_percentile'].fillna(100.0).lt(percentile_threshold).sum()
         )
 
+    bn_support_reference_formula_count = None
+    bn_support_penalized_rows = None
+    bn_support_low_support_rows = None
+    if 'bn_support_reference_formula_count' in candidate_df.columns and not candidate_df.empty:
+        bn_support_reference_formula_count = int(
+            candidate_df['bn_support_reference_formula_count'].fillna(0).iloc[0]
+        )
+    if 'bn_support_penalty' in candidate_df.columns:
+        bn_support_penalties = candidate_df['bn_support_penalty'].fillna(0.0)
+        bn_support_penalized_rows = int((bn_support_penalties > 0).sum())
+    if 'bn_support_percentile' in candidate_df.columns:
+        percentile_threshold = float(ranking_config_metadata['bn_support_penalize_below_percentile'])
+        bn_support_low_support_rows = int(
+            candidate_df['bn_support_percentile'].fillna(100.0).lt(percentile_threshold).sum()
+        )
+
+    bn_analog_evidence_enabled = False
+    bn_analog_reference_formula_count = None
+    bn_analog_reference_exfoliation_energy_median = None
+    bn_analog_reference_energy_per_atom_median = None
+    bn_analog_reference_abs_total_magnetization_median = None
+    bn_analog_exfoliation_available_rows = None
+    bn_analog_lower_or_equal_reference_rows = None
+    bn_analog_higher_reference_rows = None
+    bn_analog_reference_like_rows = None
+    bn_analog_mixed_alignment_rows = None
+    bn_analog_reference_divergent_rows = None
+    if 'bn_analog_evidence_enabled' in candidate_df.columns and not candidate_df.empty:
+        bn_analog_evidence_enabled = bool(candidate_df['bn_analog_evidence_enabled'].fillna(False).iloc[0])
+    if 'bn_analog_reference_formula_count' in candidate_df.columns and not candidate_df.empty:
+        bn_analog_reference_formula_count = int(
+            candidate_df['bn_analog_reference_formula_count'].fillna(0).iloc[0]
+        )
+    if 'bn_analog_reference_exfoliation_energy_median' in candidate_df.columns and not candidate_df.empty:
+        median_value = candidate_df['bn_analog_reference_exfoliation_energy_median'].iloc[0]
+        bn_analog_reference_exfoliation_energy_median = (
+            float(median_value) if pd.notna(median_value) else None
+        )
+    if 'bn_analog_reference_energy_per_atom_median' in candidate_df.columns and not candidate_df.empty:
+        median_value = candidate_df['bn_analog_reference_energy_per_atom_median'].iloc[0]
+        bn_analog_reference_energy_per_atom_median = (
+            float(median_value) if pd.notna(median_value) else None
+        )
+    if 'bn_analog_reference_abs_total_magnetization_median' in candidate_df.columns and not candidate_df.empty:
+        median_value = candidate_df['bn_analog_reference_abs_total_magnetization_median'].iloc[0]
+        bn_analog_reference_abs_total_magnetization_median = (
+            float(median_value) if pd.notna(median_value) else None
+        )
+    if 'bn_analog_neighbor_exfoliation_available_formula_count' in candidate_df.columns:
+        bn_analog_exfoliation_available_rows = int(
+            candidate_df['bn_analog_neighbor_exfoliation_available_formula_count'].fillna(0).gt(0).sum()
+        )
+    if 'bn_analog_exfoliation_support_label' in candidate_df.columns:
+        bn_analog_lower_or_equal_reference_rows = int(
+            candidate_df['bn_analog_exfoliation_support_label'].eq(
+                'lower_or_equal_bn_reference_median'
+            ).sum()
+        )
+        bn_analog_higher_reference_rows = int(
+            candidate_df['bn_analog_exfoliation_support_label'].eq(
+                'higher_than_bn_reference_median'
+            ).sum()
+        )
+    if 'bn_analog_validation_label' in candidate_df.columns:
+        bn_analog_reference_like_rows = int(
+            candidate_df['bn_analog_validation_label'].eq(
+                'reference_like_on_available_metrics'
+            ).sum()
+        )
+        bn_analog_mixed_alignment_rows = int(
+            candidate_df['bn_analog_validation_label'].eq(
+                'mixed_reference_alignment'
+            ).sum()
+        )
+        bn_analog_reference_divergent_rows = int(
+            candidate_df['bn_analog_validation_label'].eq(
+                'reference_divergent_on_available_metrics'
+            ).sum()
+        )
+
     ranking_metadata = get_screening_ranking_metadata(
         cfg,
         domain_support_penalty_applied=bool(domain_support_penalized_rows),
+        bn_support_penalty_applied=bool(bn_support_penalized_rows),
     )
     candidate_space_name = cfg['screening']['candidate_space_name']
     candidate_space_kind = cfg['screening']['candidate_space_kind']
@@ -114,6 +197,10 @@ def build_experiment_summary(dataset_df, bn_df, candidate_df, split_masks, selec
     ranking_note = ranking_metadata['ranking_note']
     if bool(ranking_metadata['domain_support_enabled']):
         ranking_note = f'{ranking_note} {DOMAIN_SUPPORT_RANKING_NOTE}'
+    if bool(ranking_metadata['bn_support_enabled']):
+        ranking_note = f'{ranking_note} {BN_SUPPORT_RANKING_NOTE}'
+    if bn_analog_evidence_enabled:
+        ranking_note = f'{ranking_note} {BN_ANALOG_EVIDENCE_RANKING_NOTE}'
     if not screening_matches_overall:
         ranking_note = (
             f'{ranking_note} The best overall validation combo is structure-aware, so formula-only '
@@ -251,6 +338,32 @@ def build_experiment_summary(dataset_df, bn_df, candidate_df, split_masks, selec
             ),
             'domain_support_penalized_rows': domain_support_penalized_rows,
             'domain_support_low_support_rows': domain_support_low_support_rows,
+            'bn_support_enabled': bool(ranking_metadata['bn_support_enabled']),
+            'bn_support_method': ranking_metadata['bn_support_method'],
+            'bn_support_distance_metric': ranking_metadata['bn_support_distance_metric'],
+            'bn_support_reference_split': ranking_metadata['bn_support_reference_split'],
+            'bn_support_reference_formula_count': bn_support_reference_formula_count,
+            'bn_support_k_neighbors': int(ranking_metadata['bn_support_k_neighbors']),
+            'bn_support_note': ranking_metadata['bn_support_note'],
+            'bn_support_penalty_enabled': bool(ranking_metadata['bn_support_penalty_enabled']),
+            'bn_support_penalty_active': bool(ranking_metadata['bn_support_penalty_active']),
+            'bn_support_penalty_weight': float(ranking_metadata['bn_support_penalty_weight']),
+            'bn_support_penalize_below_percentile': float(
+                ranking_metadata['bn_support_penalize_below_percentile']
+            ),
+            'bn_support_penalized_rows': bn_support_penalized_rows,
+            'bn_support_low_support_rows': bn_support_low_support_rows,
+            'bn_analog_evidence_enabled': bn_analog_evidence_enabled,
+            'bn_analog_reference_formula_count': bn_analog_reference_formula_count,
+            'bn_analog_reference_exfoliation_energy_median': bn_analog_reference_exfoliation_energy_median,
+            'bn_analog_reference_energy_per_atom_median': bn_analog_reference_energy_per_atom_median,
+            'bn_analog_reference_abs_total_magnetization_median': bn_analog_reference_abs_total_magnetization_median,
+            'bn_analog_exfoliation_available_rows': bn_analog_exfoliation_available_rows,
+            'bn_analog_lower_or_equal_reference_rows': bn_analog_lower_or_equal_reference_rows,
+            'bn_analog_higher_reference_rows': bn_analog_higher_reference_rows,
+            'bn_analog_reference_like_rows': bn_analog_reference_like_rows,
+            'bn_analog_mixed_alignment_rows': bn_analog_mixed_alignment_rows,
+            'bn_analog_reference_divergent_rows': bn_analog_reference_divergent_rows,
             'chemical_plausibility_enabled': chemical_plausibility_enabled,
             'chemical_plausibility_method': chemical_plausibility_cfg.get(
                 'method',
@@ -306,6 +419,33 @@ def build_experiment_summary(dataset_df, bn_df, candidate_df, split_masks, selec
                 'domain_support_mean_k_distance',
                 'domain_support_percentile',
                 'domain_support_penalty',
+                'bn_support_reference_formula_count',
+                'bn_support_k_neighbors',
+                'bn_support_nearest_formula',
+                'bn_support_neighbor_formulas',
+                'bn_support_neighbor_formula_count',
+                'bn_support_nearest_distance',
+                'bn_support_mean_k_distance',
+                'bn_support_percentile',
+                'bn_support_penalty',
+                'bn_analog_nearest_formula',
+                'bn_analog_neighbor_formulas',
+                'bn_analog_neighbor_formula_count',
+                'bn_analog_nearest_band_gap',
+                'bn_analog_nearest_energy_per_atom',
+                'bn_analog_nearest_exfoliation_energy_per_atom',
+                'bn_analog_nearest_abs_total_magnetization',
+                'bn_analog_neighbor_band_gap_mean',
+                'bn_analog_neighbor_energy_per_atom_mean',
+                'bn_analog_neighbor_exfoliation_energy_per_atom_mean',
+                'bn_analog_neighbor_abs_total_magnetization_mean',
+                'bn_analog_neighbor_exfoliation_available_formula_count',
+                'bn_analog_exfoliation_support_label',
+                'bn_analog_energy_support_label',
+                'bn_analog_abs_total_magnetization_support_label',
+                'bn_analog_support_vote_count',
+                'bn_analog_support_available_metric_count',
+                'bn_analog_validation_label',
                 'chemical_plausibility_pass',
                 'chemical_plausibility_guess_count',
                 'chemical_plausibility_primary_oxidation_state_guess',

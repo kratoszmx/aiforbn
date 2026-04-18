@@ -85,6 +85,32 @@ CONFIG = {
                 'transparency heuristic, not a calibrated confidence or stability estimate.'
             ),
         },
+        'bn_support': {
+            'enabled': True,
+            'method': 'train_plus_val_bn_knn_feature_space_support',
+            'distance_metric': 'z_scored_euclidean_rms',
+            'k_neighbors': 3,
+            'ranking_penalty_enabled': True,
+            'ranking_penalty_weight': 0.1,
+            'penalize_below_percentile': 25.0,
+            'note': (
+                'Measures support relative to known BN-containing train+val formulas in the '
+                'selected formula-only screening feature space. This is a BN-theme alignment '
+                'heuristic, not a calibrated confidence or structure/stability estimate.'
+            ),
+        },
+        'bn_analog_evidence': {
+            'enabled': True,
+            'aggregation': 'mean_over_k_nearest_bn_formulas',
+            'reference_split': 'train_plus_val_bn_unique_formulas',
+            'exfoliation_reference': 'train_plus_val_bn_formula_median',
+            'note': (
+                'Retrieves observed-property evidence from nearby BN-containing train+val formulas, '
+                'including analog band gap, energy-per-atom, exfoliation-energy, and '
+                'magnetization summaries. This is analog evidence, not predicted structure or '
+                'stability validation for unseen candidates.'
+            ),
+        },
         'chemical_plausibility': {
             'enabled': True,
             'method': 'pymatgen_common_oxidation_state_balance',

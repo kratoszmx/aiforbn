@@ -33,9 +33,12 @@
   - 由 `BCN / h-BCN`、`BC2N` 文献母题，以及数据集中真实出现过的 `Si2BN` 母题共同锚定；
   - 同时保留 `BN` anchor、Group-IV BN ternary families、Group-III BN ternary families；
   - 仍然只是 formula-only demo source space，不代表结构稳定性、可合成性或真实发现结论。
-- 当前候选空间已经带有三层诚实性约束：
+- 当前候选空间已经带有六层诚实性约束：
   - **轻量 chemical plausibility / candidate credibility screen**：`pymatgen` oxidation-state guesses；
-  - **domain-support annotation**：用 `train+val` 特征空间近邻距离给每个候选写支持度注释；
+  - **domain-support annotation**：用 `train+val` 全局特征空间近邻距离给每个候选写支持度注释；
+  - **BN-local support annotation**：用 `train+val` 中已知 BN slice 的近邻距离给每个候选写 BN 主题支持度注释；
+  - **BN analog evidence annotation**：把邻近 BN reference formulas 的观测 `band gap / energy_per_atom / exfoliation_energy_per_atom / magnetization` 写进候选解释；
+  - **BN analog validation label**：把 analog `exfoliation / energy / magnetization` 是否更接近 BN 参考区间，汇总成 `reference_like / mixed / reference_divergent`；
   - **novelty / rediscovery annotation**：显式区分 `train_plus_val_rediscovery`、`held_out_known_formula`、`formula_level_extrapolation`。
 - 当前默认策略仍是：**保留完整 source space，标注全部候选，再显式写出 top-k 与未入选原因。**
 
@@ -64,7 +67,7 @@
   - `best_overall_evaluation_model_type`
   - `screening_matches_best_overall_evaluation`
   - `screening_selection_note`
-  - disagreement heuristic、dataset overlap、domain-support 与 novelty bucket 标注
+  - disagreement heuristic、dataset overlap、domain-support、BN-local support、BN analog evidence 与 novelty bucket 标注
 - `generate_bn_candidates()` 现在生成 25 个 BN-anchored demo 候选公式，并为每个候选写入：
   - `candidate_generation_strategy`
   - `candidate_space_name`
@@ -84,6 +87,12 @@
   - `screening_selection_decision`
   - `domain_support_nearest_formula`
   - `domain_support_percentile`
+  - `bn_support_nearest_formula`
+  - `bn_support_percentile`
+  - `bn_analog_nearest_formula`
+  - `bn_analog_neighbor_exfoliation_energy_per_atom_mean`
+  - `bn_analog_exfoliation_support_label`
+  - `bn_analog_validation_label`
   - `candidate_novelty_bucket`
   - `novelty_rank_within_bucket`
   - `novel_formula_rank`
@@ -148,7 +157,7 @@
   - test MAE 从 `0.5822` 降到 `0.5568`，绝对改善约 `0.0254`，相对改善约 `4.4%`；
   - 这足以让 overall evaluation 选到 structure-aware，但还不是巨大跃升。
 - 当前候选排序摘要：
-  - `ranking_basis = composition_only_mean_band_gap_minus_model_disagreement_and_low_support_penalties`
+  - `ranking_basis = composition_only_mean_band_gap_minus_model_disagreement_low_support_and_bn_support_penalties`
   - `ranking_feature_set = matminer_composition`
   - `ranking_model_type = hist_gradient_boosting`
   - `ranking_uncertainty_method = small_feature_model_disagreement`
@@ -161,12 +170,29 @@
   - `chemical_plausibility_failed_rows = 2`
   - `domain_support_enabled = True`
   - `domain_support_penalized_rows = 12`
+  - `bn_support_enabled = True`
+  - `bn_support_reference_formula_count = 10`
+  - `bn_support_penalized_rows = 15`
+  - `bn_analog_evidence_enabled = True`
+  - `bn_analog_reference_formula_count = 10`
+  - `bn_analog_reference_exfoliation_energy_median = 0.07173938218750031`
+  - `bn_analog_reference_energy_per_atom_median = -7.929051850789474`
+  - `bn_analog_reference_abs_total_magnetization_median = 0.0`
+  - `bn_analog_exfoliation_available_rows = 25`
+  - `bn_analog_lower_or_equal_reference_rows = 2`
+  - `bn_analog_higher_reference_rows = 23`
+  - `bn_analog_reference_like_rows = 2`
+  - `bn_analog_mixed_alignment_rows = 2`
+  - `bn_analog_reference_divergent_rows = 21`
   - `novelty_bucket_counts = {train_plus_val_rediscovery: 3, held_out_known_formula: 0, formula_level_extrapolation: 22}`
   - `standard_top_k_novelty_bucket_counts = {train_plus_val_rediscovery: 3, held_out_known_formula: 0, formula_level_extrapolation: 17}`
   - failed formulas：`AlBN`, `TlBN`
   - top-ranked formula-level extrapolation 候选现在包括：`BCN2`, `BCN`, `AlBN2`, `SiBN2`, `SiBN`
-  - 当前更适合解读为 **BN-anchored formula-family demo ranking**，而不是新候选发现
-  - 现在可以明确说：source space 已不再是几乎全重放的 toy grid，artifact 也不再把 rediscovery 与真正 dataset 未见公式混为一谈
+  - BN-local nearest anchors 在当前 artifact 里已经可见，例如 `BCN2 -> B2(CN2)3`、`BCN -> BC2N`、`AlBN2 -> Si2BN`
+  - BN analog evidence 也已可见，例如 `BC2N` 的邻近 BN analog exfoliation mean 低于 BN reference median，而 `BCN2 / BCN / AlBN2` 则高于该 reference median
+  - BN analog validation label 也已可见：当前 `reference_like = 2`、`mixed = 2`、`reference_divergent = 21`，前列候选中 `BC2N` 属于 `reference_like`，`BCN2 / BCN` 属于 `mixed`
+  - 当前更适合解读为 **BN-anchored formula-family demo ranking with BN-local support, BN analog evidence, and a lightweight BN analog-validation layer**，而不是新候选发现
+  - 现在可以明确说：BN 不再只是报表标题，至少已经开始作为 screening 逻辑中的显式参考层、analog-evidence 层和轻量 validation-proxy 层出现
 
 ## 当前目录重点
 - `main.py`：线性主入口；保持 notebook-friendly。
@@ -188,6 +214,8 @@
 - formula-only 候选空间虽然新增了基础 oxidation-state / charge-balance plausibility layer，但**仍然没有结构、形成能、热力学稳定性、声子稳定性、合成可行性约束**。
 - 当前 plausibility screen 只是轻量公式级可信度边界，不等于“材料可存在”判断；例如某些边缘氧化态解释仍可能通过。
 - 当前 domain-support 层在新候选空间上已经开始真正触发惩罚，当前 `domain_support_penalized_rows = 12`，说明它不再只是装饰性注释。
+- 当前 BN-local support 层也已经开始真正触发惩罚，当前 `bn_support_penalized_rows = 15`，说明 BN 现在不仅是题目标签，也开始进入 screening 逻辑。
+- 当前 BN analog evidence / analog validation 层已经接入观测属性，并把它们压缩成更可读的 validation label，但它仍然只是 retrieval-style analog evidence / validation proxy，不是对 unseen candidate 的直接稳定性预测或结构验证。
 - BN slice 仍然很小，当前训练主体仍是全体 2D 数据，不是 BN-only 学习。
 - ranking 使用的仍是小模型池 disagreement heuristic，不是校准不确定性。
 - 当前 BN-anchored candidate space 中只有 `3/25` 公式已在 dataset 中出现，`22/25` 已经是 dataset 未见公式；但这依然只是 formula-level extrapolation，不是结构级 discovery。

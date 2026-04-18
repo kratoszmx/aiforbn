@@ -24,12 +24,19 @@ STRUCTURE_SUMMARY_COLUMNS = (
     'structure_areal_number_density',
     'structure_thickness_fraction',
 )
+REFERENCE_PROPERTY_COLUMNS = (
+    'energy_per_atom',
+    'exfoliation_energy_per_atom',
+    'total_magnetization',
+    'abs_total_magnetization',
+)
 REQUIRED_NORMALIZED_COLUMNS = (
     'record_id',
     'source',
     'formula',
     'target',
     *STRUCTURE_SUMMARY_COLUMNS,
+    *REFERENCE_PROPERTY_COLUMNS,
 )
 
 
@@ -158,11 +165,16 @@ def _normalize(raw: list[dict], target_col: str) -> pd.DataFrame:
     rows = []
     for idx, entry in enumerate(raw):
         formula = _basic_formula_from_entry(entry)
+        total_magnetization = _safe_float(entry.get('total_magnetization'))
         rows.append({
             'record_id': str(entry.get('jid', idx)),
             'source': DATASET_NAME,
             'formula': formula,
             'target': _extract_target(entry, target_col),
+            'energy_per_atom': _safe_float(entry.get('energy_per_atom')),
+            'exfoliation_energy_per_atom': _safe_float(entry.get('exfoliation_energy_per_atom')),
+            'total_magnetization': total_magnetization,
+            'abs_total_magnetization': abs(total_magnetization) if total_magnetization is not None else None,
             **_structure_summary_from_atoms(entry.get('atoms')),
         })
 

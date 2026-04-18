@@ -49,6 +49,23 @@ def test_reporting_writes_expected_artifacts(tmp_path):
                 'penalize_below_percentile': 25.0,
                 'note': 'demo domain-support note',
             },
+            'bn_support': {
+                'enabled': True,
+                'method': 'train_plus_val_bn_knn_feature_space_support',
+                'distance_metric': 'z_scored_euclidean_rms',
+                'k_neighbors': 3,
+                'ranking_penalty_enabled': True,
+                'ranking_penalty_weight': 0.1,
+                'penalize_below_percentile': 25.0,
+                'note': 'demo bn-support note',
+            },
+            'bn_analog_evidence': {
+                'enabled': True,
+                'aggregation': 'mean_over_k_nearest_bn_formulas',
+                'reference_split': 'train_plus_val_bn_unique_formulas',
+                'exfoliation_reference': 'train_plus_val_bn_formula_median',
+                'note': 'demo bn-analog evidence note',
+            },
             'chemical_plausibility': {
                 'enabled': True,
                 'method': 'pymatgen_common_oxidation_state_balance',
@@ -88,6 +105,39 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         'domain_support_mean_k_distance': [0.0, 1.1],
         'domain_support_percentile': [100.0, 10.0],
         'domain_support_penalty': [0.0, 0.09],
+        'bn_support_reference_formula_count': [4, 4],
+        'bn_support_k_neighbors': [3, 3],
+        'bn_support_nearest_formula': ['BN', 'BN'],
+        'bn_support_neighbor_formulas': ['BN', 'BN|Si2BN'],
+        'bn_support_neighbor_formula_count': [1, 2],
+        'bn_support_nearest_distance': [0.0, 0.4],
+        'bn_support_mean_k_distance': [0.0, 0.6],
+        'bn_support_percentile': [100.0, 0.0],
+        'bn_support_penalty': [0.0, 0.1],
+        'bn_analog_evidence_enabled': [True, True],
+        'bn_analog_evidence_aggregation': ['mean_over_k_nearest_bn_formulas', 'mean_over_k_nearest_bn_formulas'],
+        'bn_analog_reference_formula_count': [4, 4],
+        'bn_analog_reference_exfoliation_energy_median': [0.07, 0.07],
+        'bn_analog_reference_energy_per_atom_median': [-8.0, -8.0],
+        'bn_analog_reference_abs_total_magnetization_median': [0.0, 0.0],
+        'bn_analog_nearest_formula': ['BN', 'BN'],
+        'bn_analog_neighbor_formulas': ['BN', 'BN|Si2BN'],
+        'bn_analog_neighbor_formula_count': [1, 2],
+        'bn_analog_nearest_band_gap': [4.8, 4.8],
+        'bn_analog_nearest_energy_per_atom': [-8.3, -8.3],
+        'bn_analog_nearest_exfoliation_energy_per_atom': [0.06, 0.06],
+        'bn_analog_nearest_abs_total_magnetization': [0.0, 0.0],
+        'bn_analog_neighbor_band_gap_mean': [4.8, 2.4],
+        'bn_analog_neighbor_energy_per_atom_mean': [-8.3, -7.3],
+        'bn_analog_neighbor_exfoliation_energy_per_atom_mean': [0.06, 0.06],
+        'bn_analog_neighbor_abs_total_magnetization_mean': [0.0, 0.0],
+        'bn_analog_neighbor_exfoliation_available_formula_count': [1, 1],
+        'bn_analog_exfoliation_support_label': ['lower_or_equal_bn_reference_median', 'lower_or_equal_bn_reference_median'],
+        'bn_analog_energy_support_label': ['lower_or_equal_bn_reference_median', 'higher_than_bn_reference_median'],
+        'bn_analog_abs_total_magnetization_support_label': ['lower_or_equal_bn_reference_median', 'lower_or_equal_bn_reference_median'],
+        'bn_analog_support_vote_count': [3, 2],
+        'bn_analog_support_available_metric_count': [3, 3],
+        'bn_analog_validation_label': ['reference_like_on_available_metrics', 'mixed_reference_alignment'],
         'chemical_plausibility_pass': [True, False],
         'chemical_plausibility_guess_count': [1, 0],
         'chemical_plausibility_primary_oxidation_state_guess': ['B(+3), N(-3)', ''],
@@ -186,7 +236,7 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     assert experiment_summary['features']['selected_feature_family'] == 'composition_only'
     assert experiment_summary['feature_model_selection']['selected_model_type'] == 'linear_regression'
     assert experiment_summary['screening']['ranking_basis'] == (
-        'composition_only_mean_band_gap_minus_model_disagreement_and_low_support_penalties'
+        'composition_only_mean_band_gap_minus_model_disagreement_low_support_and_bn_support_penalties'
     )
     assert experiment_summary['screening']['ranking_feature_family'] == 'composition_only'
     assert experiment_summary['screening']['ranking_matches_best_overall_evaluation'] is True
@@ -198,6 +248,23 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     assert experiment_summary['screening']['domain_support_penalty_enabled'] is True
     assert experiment_summary['screening']['domain_support_penalized_rows'] == 1
     assert experiment_summary['screening']['domain_support_low_support_rows'] == 1
+    assert experiment_summary['screening']['bn_support_enabled'] is True
+    assert experiment_summary['screening']['bn_support_method'] == 'train_plus_val_bn_knn_feature_space_support'
+    assert experiment_summary['screening']['bn_support_reference_formula_count'] == 4
+    assert experiment_summary['screening']['bn_support_penalty_enabled'] is True
+    assert experiment_summary['screening']['bn_support_penalized_rows'] == 1
+    assert experiment_summary['screening']['bn_support_low_support_rows'] == 1
+    assert experiment_summary['screening']['bn_analog_evidence_enabled'] is True
+    assert experiment_summary['screening']['bn_analog_reference_formula_count'] == 4
+    assert experiment_summary['screening']['bn_analog_reference_exfoliation_energy_median'] == 0.07
+    assert experiment_summary['screening']['bn_analog_reference_energy_per_atom_median'] == -8.0
+    assert experiment_summary['screening']['bn_analog_reference_abs_total_magnetization_median'] == 0.0
+    assert experiment_summary['screening']['bn_analog_exfoliation_available_rows'] == 2
+    assert experiment_summary['screening']['bn_analog_lower_or_equal_reference_rows'] == 2
+    assert experiment_summary['screening']['bn_analog_higher_reference_rows'] == 0
+    assert experiment_summary['screening']['bn_analog_reference_like_rows'] == 1
+    assert experiment_summary['screening']['bn_analog_mixed_alignment_rows'] == 1
+    assert experiment_summary['screening']['bn_analog_reference_divergent_rows'] == 0
     assert experiment_summary['screening']['chemical_plausibility_enabled'] is True
     assert experiment_summary['screening']['chemical_plausibility_passed_rows'] == 1
     assert experiment_summary['screening']['chemical_plausibility_failed_rows'] == 1
@@ -234,6 +301,8 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         experiment_summary['screening']['novelty_interpretation_note']
     )
     assert 'Novelty is tracked only at the formula level' in experiment_summary['screening']['ranking_note']
+    assert 'known BN slice' in experiment_summary['screening']['ranking_note']
+    assert 'observed-property evidence from nearby BN-containing train+val formulas' in experiment_summary['screening']['ranking_note']
     assert experiment_summary['screening']['candidate_annotations'] == [
         'candidate_family',
         'candidate_template',
@@ -245,6 +314,33 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         'domain_support_mean_k_distance',
         'domain_support_percentile',
         'domain_support_penalty',
+        'bn_support_reference_formula_count',
+        'bn_support_k_neighbors',
+        'bn_support_nearest_formula',
+        'bn_support_neighbor_formulas',
+        'bn_support_neighbor_formula_count',
+        'bn_support_nearest_distance',
+        'bn_support_mean_k_distance',
+        'bn_support_percentile',
+        'bn_support_penalty',
+        'bn_analog_nearest_formula',
+        'bn_analog_neighbor_formulas',
+        'bn_analog_neighbor_formula_count',
+        'bn_analog_nearest_band_gap',
+        'bn_analog_nearest_energy_per_atom',
+        'bn_analog_nearest_exfoliation_energy_per_atom',
+        'bn_analog_nearest_abs_total_magnetization',
+        'bn_analog_neighbor_band_gap_mean',
+        'bn_analog_neighbor_energy_per_atom_mean',
+        'bn_analog_neighbor_exfoliation_energy_per_atom_mean',
+        'bn_analog_neighbor_abs_total_magnetization_mean',
+        'bn_analog_neighbor_exfoliation_available_formula_count',
+        'bn_analog_exfoliation_support_label',
+        'bn_analog_energy_support_label',
+        'bn_analog_abs_total_magnetization_support_label',
+        'bn_analog_support_vote_count',
+        'bn_analog_support_available_metric_count',
+        'bn_analog_validation_label',
         'chemical_plausibility_pass',
         'chemical_plausibility_guess_count',
         'chemical_plausibility_primary_oxidation_state_guess',
@@ -311,6 +407,23 @@ def test_experiment_summary_explains_structure_aware_evaluation_vs_formula_only_
                 'penalize_below_percentile': 25.0,
                 'note': 'demo domain-support note',
             },
+            'bn_support': {
+                'enabled': True,
+                'method': 'train_plus_val_bn_knn_feature_space_support',
+                'distance_metric': 'z_scored_euclidean_rms',
+                'k_neighbors': 3,
+                'ranking_penalty_enabled': True,
+                'ranking_penalty_weight': 0.1,
+                'penalize_below_percentile': 25.0,
+                'note': 'demo bn-support note',
+            },
+            'bn_analog_evidence': {
+                'enabled': True,
+                'aggregation': 'mean_over_k_nearest_bn_formulas',
+                'reference_split': 'train_plus_val_bn_unique_formulas',
+                'exfoliation_reference': 'train_plus_val_bn_formula_median',
+                'note': 'demo bn-analog evidence note',
+            },
             'chemical_plausibility': {
                 'enabled': True,
                 'method': 'pymatgen_common_oxidation_state_balance',
@@ -362,6 +475,39 @@ def test_experiment_summary_explains_structure_aware_evaluation_vs_formula_only_
             'domain_support_mean_k_distance': [0.0, 1.1],
             'domain_support_percentile': [100.0, 10.0],
             'domain_support_penalty': [0.0, 0.09],
+            'bn_support_reference_formula_count': [4, 4],
+            'bn_support_k_neighbors': [3, 3],
+            'bn_support_nearest_formula': ['BN', 'BN'],
+            'bn_support_neighbor_formulas': ['BN', 'BN|Si2BN'],
+            'bn_support_neighbor_formula_count': [1, 2],
+            'bn_support_nearest_distance': [0.0, 0.4],
+            'bn_support_mean_k_distance': [0.0, 0.6],
+            'bn_support_percentile': [100.0, 0.0],
+            'bn_support_penalty': [0.0, 0.1],
+            'bn_analog_evidence_enabled': [True, True],
+            'bn_analog_evidence_aggregation': ['mean_over_k_nearest_bn_formulas', 'mean_over_k_nearest_bn_formulas'],
+            'bn_analog_reference_formula_count': [4, 4],
+            'bn_analog_reference_exfoliation_energy_median': [0.07, 0.07],
+            'bn_analog_reference_energy_per_atom_median': [-8.0, -8.0],
+            'bn_analog_reference_abs_total_magnetization_median': [0.0, 0.0],
+            'bn_analog_nearest_formula': ['BN', 'BN'],
+            'bn_analog_neighbor_formulas': ['BN', 'BN|Si2BN'],
+            'bn_analog_neighbor_formula_count': [1, 2],
+            'bn_analog_nearest_band_gap': [4.8, 4.8],
+            'bn_analog_nearest_energy_per_atom': [-8.3, -8.3],
+            'bn_analog_nearest_exfoliation_energy_per_atom': [0.06, 0.06],
+            'bn_analog_nearest_abs_total_magnetization': [0.0, 0.0],
+            'bn_analog_neighbor_band_gap_mean': [4.8, 2.4],
+            'bn_analog_neighbor_energy_per_atom_mean': [-8.3, -7.3],
+            'bn_analog_neighbor_exfoliation_energy_per_atom_mean': [0.06, 0.06],
+            'bn_analog_neighbor_abs_total_magnetization_mean': [0.0, 0.0],
+            'bn_analog_neighbor_exfoliation_available_formula_count': [1, 1],
+            'bn_analog_exfoliation_support_label': ['lower_or_equal_bn_reference_median', 'lower_or_equal_bn_reference_median'],
+            'bn_analog_energy_support_label': ['lower_or_equal_bn_reference_median', 'higher_than_bn_reference_median'],
+            'bn_analog_abs_total_magnetization_support_label': ['lower_or_equal_bn_reference_median', 'lower_or_equal_bn_reference_median'],
+            'bn_analog_support_vote_count': [3, 2],
+            'bn_analog_support_available_metric_count': [3, 3],
+            'bn_analog_validation_label': ['reference_like_on_available_metrics', 'mixed_reference_alignment'],
             'chemical_plausibility_pass': [True, False],
             'chemical_plausibility_guess_count': [1, 0],
             'chemical_plausibility_primary_oxidation_state_guess': ['B(+3), N(-3)', ''],
@@ -381,10 +527,22 @@ def test_experiment_summary_explains_structure_aware_evaluation_vs_formula_only_
     )
     assert 'falls back to the best candidate-compatible combo' in summary['screening']['ranking_note']
     assert 'train+val feature-space domain-support layer' in summary['screening']['ranking_note']
+    assert 'known BN slice' in summary['screening']['ranking_note']
+    assert 'observed-property evidence from nearby BN-containing train+val formulas' in summary['screening']['ranking_note']
     assert 'lightweight pymatgen oxidation-state plausibility screen' in summary['screening']['ranking_note']
     assert summary['screening']['candidate_generation_strategy'] == 'bn_anchored_formula_family_grid'
     assert summary['screening']['candidate_family_counts'] == {
         'bn_binary_anchor': 1,
         'group13_bn_111_family': 1,
     }
+    assert summary['screening']['bn_support_reference_formula_count'] == 4
+    assert summary['screening']['bn_support_penalized_rows'] == 1
+    assert summary['screening']['bn_analog_evidence_enabled'] is True
+    assert summary['screening']['bn_analog_reference_formula_count'] == 4
+    assert summary['screening']['bn_analog_reference_energy_per_atom_median'] == -8.0
+    assert summary['screening']['bn_analog_reference_abs_total_magnetization_median'] == 0.0
+    assert summary['screening']['bn_analog_exfoliation_available_rows'] == 2
+    assert summary['screening']['bn_analog_reference_like_rows'] == 1
+    assert summary['screening']['bn_analog_mixed_alignment_rows'] == 1
+    assert summary['screening']['bn_analog_reference_divergent_rows'] == 0
     assert summary['screening']['chemical_plausibility_failed_formulas'] == ['AlBN']

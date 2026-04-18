@@ -79,6 +79,23 @@ CFG = {
             'penalize_below_percentile': 25.0,
             'note': 'demo domain-support note',
         },
+        'bn_support': {
+            'enabled': True,
+            'method': 'train_plus_val_bn_knn_feature_space_support',
+            'distance_metric': 'z_scored_euclidean_rms',
+            'k_neighbors': 3,
+            'ranking_penalty_enabled': True,
+            'ranking_penalty_weight': 0.1,
+            'penalize_below_percentile': 25.0,
+            'note': 'demo bn-support note',
+        },
+        'bn_analog_evidence': {
+            'enabled': True,
+            'aggregation': 'mean_over_k_nearest_bn_formulas',
+            'reference_split': 'train_plus_val_bn_unique_formulas',
+            'exfoliation_reference': 'train_plus_val_bn_formula_median',
+            'note': 'demo bn-analog evidence note',
+        },
         'chemical_plausibility': {
             'enabled': True,
             'method': 'pymatgen_common_oxidation_state_balance',
@@ -98,7 +115,27 @@ def _sample_training_df() -> pd.DataFrame:
         5.0, 5.1, 3.2, 3.1, 3.1, 3.0, 1.8, 1.7, 2.0, 2.1,
         1.5, 1.4, 2.3, 2.4, 2.1, 2.0, 1.2, 1.1, 0.9, 0.8,
     ]
-    return pd.DataFrame({'formula': formulas, 'target': targets, 'source': 'twod_matpd'})
+    energy_per_atom = [
+        -8.30, -8.31, -6.20, -6.18, -5.95, -5.96, -5.40, -5.39, -6.85, -6.83,
+        -6.10, -6.09, -5.90, -5.88, -5.70, -5.72, -5.35, -5.34, -5.15, -5.14,
+    ]
+    exfoliation_energy_per_atom = [
+        0.060, 0.063, 0.120, 0.118, 0.110, 0.112, 0.150, 0.148, 0.090, 0.092,
+        0.085, 0.084, 0.130, 0.128, 0.125, 0.127, 0.145, 0.144, 0.160, 0.158,
+    ]
+    total_magnetization = [
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.1, 0.1, 0.0, 0.0, 0.2, 0.2, 0.0, 0.0, 0.3, 0.3,
+    ]
+    return pd.DataFrame({
+        'formula': formulas,
+        'target': targets,
+        'source': 'twod_matpd',
+        'energy_per_atom': energy_per_atom,
+        'exfoliation_energy_per_atom': exfoliation_energy_per_atom,
+        'total_magnetization': total_magnetization,
+        'abs_total_magnetization': [abs(value) for value in total_magnetization],
+    })
 
 
 def _stoichiometry_signal_df() -> pd.DataFrame:
@@ -368,7 +405,7 @@ def test_feature_pipeline_can_train_evaluate_benchmark_and_rank_demo_candidates(
     assert screened_df.loc[screened_df['chemical_plausibility_pass'], 'ranking_score'].is_monotonic_decreasing
     assert screened_df['ranking_label'].eq('demo_candidate_ranking').all()
     assert screened_df['ranking_basis'].eq(
-        'composition_only_mean_band_gap_minus_model_disagreement_and_low_support_penalties'
+        'composition_only_mean_band_gap_minus_model_disagreement_low_support_and_bn_support_penalties'
     ).all()
     assert screened_df['ranking_feature_set'].eq(selection_summary['selected_feature_set']).all()
     assert screened_df['ranking_model_type'].eq(selection_summary['selected_model_type']).all()
@@ -393,9 +430,52 @@ def test_feature_pipeline_can_train_evaluate_benchmark_and_rank_demo_candidates(
         expected_reference_formula_count
     ).all()
     assert screened_df['domain_support_k_neighbors'].eq(5).all()
-    assert (screened_df['ranking_score_before_domain_support_penalty'] >= screened_df['ranking_score']).all()
+    assert (screened_df['ranking_score_before_domain_support_penalty'] >= screened_df['ranking_score_before_bn_support_penalty']).all()
+    assert (screened_df['ranking_score_before_bn_support_penalty'] >= screened_df['ranking_score']).all()
     assert screened_df['domain_support_penalty'].ge(0.0).all()
     assert (screened_df['domain_support_penalty'] > 0.0).any()
+    assert screened_df['bn_support_enabled'].eq(True).all()
+    assert screened_df['bn_support_method'].eq(
+        'train_plus_val_bn_knn_feature_space_support'
+    ).all()
+    assert screened_df['bn_support_distance_metric'].eq('z_scored_euclidean_rms').all()
+    assert screened_df['bn_support_reference_split'].eq('train_plus_val_bn_unique_formulas').all()
+    expected_bn_reference_formula_count = int(
+        dataset_df.loc[
+            (np.asarray(split_masks['train']) | np.asarray(split_masks['val']))
+            & dataset_df['formula'].astype(str).eq('BN'),
+            'formula',
+        ]
+        .astype(str)
+        .nunique()
+    )
+    assert screened_df['bn_support_reference_formula_count'].eq(
+        expected_bn_reference_formula_count
+    ).all()
+    assert screened_df['bn_support_k_neighbors'].eq(3).all()
+    assert screened_df['bn_support_penalty'].ge(0.0).all()
+    assert (screened_df['bn_support_penalty'] > 0.0).any()
+    assert screened_df['bn_support_neighbor_formulas'].astype(str).str.len().gt(0).all()
+    assert screened_df['bn_support_neighbor_formula_count'].ge(1).all()
+    assert screened_df['bn_analog_evidence_enabled'].eq(True).all()
+    assert screened_df['bn_analog_evidence_aggregation'].eq(
+        'mean_over_k_nearest_bn_formulas'
+    ).all()
+    assert screened_df['bn_analog_reference_formula_count'].eq(
+        expected_bn_reference_formula_count
+    ).all()
+    assert np.allclose(
+        screened_df['bn_analog_reference_exfoliation_energy_median'].to_numpy(dtype=float),
+        0.0615,
+    )
+    assert np.allclose(
+        screened_df['bn_analog_reference_energy_per_atom_median'].to_numpy(dtype=float),
+        -8.305,
+    )
+    assert np.allclose(
+        screened_df['bn_analog_reference_abs_total_magnetization_median'].to_numpy(dtype=float),
+        0.0,
+    )
     assert screened_df['ranking_rank'].tolist() == list(range(1, len(screened_df) + 1))
     assert screened_df['chemical_plausibility_pass'].head(CFG['screening']['top_k']).all()
     assert screened_df.loc[
@@ -408,9 +488,42 @@ def test_feature_pipeline_can_train_evaluate_benchmark_and_rank_demo_candidates(
     assert bn_row['domain_support_nearest_distance'] == pytest.approx(0.0)
     assert bn_row['domain_support_percentile'] == pytest.approx(100.0)
     assert bn_row['domain_support_penalty'] == pytest.approx(0.0)
+    assert bn_row['bn_support_nearest_formula'] == 'BN'
+    assert bn_row['bn_support_neighbor_formulas'] == 'BN'
+    assert bn_row['bn_support_neighbor_formula_count'] == 1
+    assert bn_row['bn_support_nearest_distance'] == pytest.approx(0.0)
+    assert bn_row['bn_support_percentile'] == pytest.approx(100.0)
+    assert bn_row['bn_support_penalty'] == pytest.approx(0.0)
+    assert bn_row['bn_analog_nearest_formula'] == 'BN'
+    assert bn_row['bn_analog_neighbor_formulas'] == 'BN'
+    assert bn_row['bn_analog_neighbor_formula_count'] == 1
+    assert bn_row['bn_analog_nearest_band_gap'] == pytest.approx(5.05)
+    assert bn_row['bn_analog_nearest_energy_per_atom'] == pytest.approx(-8.305)
+    assert bn_row['bn_analog_nearest_exfoliation_energy_per_atom'] == pytest.approx(0.0615)
+    assert bn_row['bn_analog_nearest_abs_total_magnetization'] == pytest.approx(0.0)
+    assert bn_row['bn_analog_neighbor_band_gap_mean'] == pytest.approx(5.05)
+    assert bn_row['bn_analog_neighbor_energy_per_atom_mean'] == pytest.approx(-8.305)
+    assert bn_row['bn_analog_neighbor_exfoliation_energy_per_atom_mean'] == pytest.approx(0.0615)
+    assert bn_row['bn_analog_neighbor_abs_total_magnetization_mean'] == pytest.approx(0.0)
+    assert bn_row['bn_analog_neighbor_exfoliation_available_formula_count'] == 1
+    assert bn_row['bn_analog_exfoliation_support_label'] == 'lower_or_equal_bn_reference_median'
+    assert bn_row['bn_analog_energy_support_label'] == 'lower_or_equal_bn_reference_median'
+    assert bn_row['bn_analog_abs_total_magnetization_support_label'] == 'lower_or_equal_bn_reference_median'
+    assert bn_row['bn_analog_support_vote_count'] == 3
+    assert bn_row['bn_analog_support_available_metric_count'] == 3
+    assert bn_row['bn_analog_validation_label'] == 'reference_like_on_available_metrics'
     assert ge2bn_row['domain_support_nearest_distance'] > 0.0
+    assert ge2bn_row['bn_support_nearest_distance'] > 0.0
     assert bn_row['domain_support_percentile'] >= ge2bn_row['domain_support_percentile']
+    assert bn_row['bn_support_percentile'] >= ge2bn_row['bn_support_percentile']
+    assert ge2bn_row['bn_analog_validation_label'] in {
+        'reference_like_on_available_metrics',
+        'mixed_reference_alignment',
+        'reference_divergent_on_available_metrics',
+    }
     assert 'train+val feature-space domain-support layer' in screened_df['ranking_note'].iloc[0]
+    assert 'known BN slice' in screened_df['ranking_note'].iloc[0]
+    assert 'observed-property evidence from nearby BN-containing train+val formulas' in screened_df['ranking_note'].iloc[0]
     assert 'Novelty is tracked only at the formula level' in screened_df['ranking_note'].iloc[0]
     assert bool(screened_df.loc[screened_df['formula'] == 'BN', 'seen_in_dataset'].iloc[0]) is True
     assert bool(screened_df.loc[screened_df['formula'] == 'BN', 'seen_in_train_plus_val'].iloc[0]) is True

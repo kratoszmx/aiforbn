@@ -62,6 +62,10 @@ Important normalized columns include:
 - `source`
 - `formula`
 - `target`
+- `energy_per_atom`
+- `exfoliation_energy_per_atom`
+- `total_magnetization`
+- `abs_total_magnetization`
 - `structure_n_sites`
 - `structure_lattice_a`
 - `structure_lattice_b`
@@ -258,6 +262,37 @@ Useful fields include:
 - `domain_support_percentile`
 - `domain_support_penalty`
 
+### `annotate_candidate_bn_support(candidate_feature_df, reference_feature_df, split_masks, feature_columns, cfg=None, formula_col='formula')`
+Annotates candidates against the **known BN slice only**.
+This is the new BN-local support layer that tries to make BN part of the screening logic,
+not just part of the report wording.
+Useful fields include:
+- `bn_support_nearest_formula`
+- `bn_support_neighbor_formulas`
+- `bn_support_nearest_distance`
+- `bn_support_mean_k_distance`
+- `bn_support_percentile`
+- `bn_support_penalty`
+
+### `annotate_candidate_bn_analog_evidence(candidate_df, dataset_df, split_masks, cfg=None, formula_col='formula')`
+Adds observed-property evidence from nearby BN-containing train+val formulas.
+This is meant to ground the ranking in **actual BN analog evidence**, not just feature-space distance.
+Useful fields include:
+- `bn_analog_nearest_formula`
+- `bn_analog_neighbor_formulas`
+- `bn_analog_nearest_band_gap`
+- `bn_analog_nearest_energy_per_atom`
+- `bn_analog_nearest_exfoliation_energy_per_atom`
+- `bn_analog_neighbor_band_gap_mean`
+- `bn_analog_neighbor_energy_per_atom_mean`
+- `bn_analog_neighbor_exfoliation_energy_per_atom_mean`
+- `bn_analog_exfoliation_support_label`
+- `bn_analog_energy_support_label`
+- `bn_analog_abs_total_magnetization_support_label`
+- `bn_analog_support_vote_count`
+- `bn_analog_support_available_metric_count`
+- `bn_analog_validation_label`
+
 ### `screen_candidates(candidate_df, model, feature_columns, cfg, feature_set, model_type, best_overall_feature_set=None, best_overall_model_type=None, screening_selection_note=None, dataset_df=None, split_masks=None, ensemble_prediction_df=None, reference_feature_df=None)`
 Builds the final demo ranking dataframe.
 Current behavior:
@@ -269,8 +304,11 @@ Current behavior:
 - merges small-pool disagreement statistics
 - optionally merges dataset-overlap annotations
 - optionally adds train+val feature-space domain-support annotations
+- optionally adds BN-local support annotations against the known BN slice
+- optionally adds BN analog-evidence annotations from observed BN reference properties
+- optionally derives a lightweight BN analog-validation label from analog exfoliation / energy / magnetization alignment
 - adds novelty / rediscovery annotations from the overlap fields
-- computes `ranking_score` and preserves `ranking_score_before_domain_support_penalty`
+- computes `ranking_score` and preserves both `ranking_score_before_domain_support_penalty` and `ranking_score_before_bn_support_penalty`
 - writes explicit honesty fields about whether screening matches the overall best evaluation combo
 - keeps the full ranking artifact and exposes novelty ranks instead of truncating the file to top-k only
 
@@ -280,6 +318,10 @@ Useful output columns include:
 - `ensemble_predicted_band_gap_std`
 - `ranking_score`
 - `domain_support_percentile`
+- `bn_support_percentile`
+- `bn_analog_neighbor_exfoliation_energy_per_atom_mean`
+- `bn_analog_exfoliation_support_label`
+- `bn_analog_validation_label`
 - `candidate_novelty_bucket`
 - `novelty_rank_within_bucket`
 - `novel_formula_rank`
@@ -306,6 +348,9 @@ Includes:
 Important:
 - preserves the distinction between best overall evaluation combo and formula-only screening combo
 - now also records candidate-space provenance such as `candidate_generation_strategy` and `candidate_family_counts`
+- now also summarizes BN-local support metadata so the screening story is not purely global-data driven
+- now also summarizes BN analog-evidence metadata from observed BN reference properties
+- now also summarizes analog-validation label counts derived from BN reference property alignment
 
 ### `save_metrics_and_predictions(metrics, prediction_df, bn_df, screened_df, benchmark_df, experiment_summary, manifest, cfg)`
 Writes the main artifact files under `artifacts/`.

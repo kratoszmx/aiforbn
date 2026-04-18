@@ -7,7 +7,7 @@ import types
 import pandas as pd
 import pytest
 
-from pipeline.data import STRUCTURE_SUMMARY_COLUMNS, load_or_build_dataset
+from pipeline.data import REFERENCE_PROPERTY_COLUMNS, STRUCTURE_SUMMARY_COLUMNS, load_or_build_dataset
 
 
 def _raw_entry(jid: str, formula: str | None, target: float, *, composition: str | None = None) -> dict:
@@ -24,7 +24,13 @@ def _raw_entry(jid: str, formula: str | None, target: float, *, composition: str
         atoms['composition'] = composition
         atoms['band_gap'] = target
 
-    entry = {'jid': jid, 'atoms': atoms}
+    entry = {
+        'jid': jid,
+        'atoms': atoms,
+        'energy_per_atom': -8.0 if (formula or composition) == 'BN' else -6.0,
+        'exfoliation_energy_per_atom': 0.06 if (formula or composition) == 'BN' else 0.12,
+        'total_magnetization': 0.0,
+    }
     if formula is not None:
         entry['formula'] = formula
         entry['bandgap'] = target
@@ -70,6 +76,7 @@ def test_load_or_build_dataset_builds_normalized_cache_and_reuses_it(tmp_path, m
         {'record_id': '2', 'formula': 'AlN', 'target': 2.0},
     ]
     assert set(STRUCTURE_SUMMARY_COLUMNS).issubset(df1.columns)
+    assert set(REFERENCE_PROPERTY_COLUMNS).issubset(df1.columns)
     assert df1.loc[0, 'structure_n_sites'] == 2.0
     assert df1.loc[0, 'structure_cell_height'] == pytest.approx(20.0)
     assert df1.loc[0, 'structure_thickness'] == pytest.approx(2.0)
@@ -130,6 +137,7 @@ def test_load_or_build_dataset_rebuilds_stale_processed_cache_from_cached_raw_js
     rebuilt_df, rebuilt_manifest = load_or_build_dataset(cfg)
 
     assert set(STRUCTURE_SUMMARY_COLUMNS).issubset(rebuilt_df.columns)
+    assert set(REFERENCE_PROPERTY_COLUMNS).issubset(rebuilt_df.columns)
     assert len(rebuilt_df) == 2
     assert rebuilt_df.loc[0, 'structure_thickness_fraction'] == pytest.approx(0.1)
     assert rebuilt_manifest['version_hint'] == 'rebuilt from cached raw json'

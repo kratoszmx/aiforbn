@@ -40,6 +40,29 @@ def test_default_config_has_expected_poc_defaults():
     assert cfg['screening']['domain_support']['ranking_penalty_enabled'] is True
     assert cfg['screening']['domain_support']['ranking_penalty_weight'] == 0.15
     assert cfg['screening']['domain_support']['penalize_below_percentile'] == 25.0
+    assert cfg['screening']['bn_support']['enabled'] is True
+    assert (
+        cfg['screening']['bn_support']['method']
+        == 'train_plus_val_bn_knn_feature_space_support'
+    )
+    assert cfg['screening']['bn_support']['distance_metric'] == 'z_scored_euclidean_rms'
+    assert cfg['screening']['bn_support']['k_neighbors'] == 3
+    assert cfg['screening']['bn_support']['ranking_penalty_enabled'] is True
+    assert cfg['screening']['bn_support']['ranking_penalty_weight'] == 0.1
+    assert cfg['screening']['bn_support']['penalize_below_percentile'] == 25.0
+    assert cfg['screening']['bn_analog_evidence']['enabled'] is True
+    assert (
+        cfg['screening']['bn_analog_evidence']['aggregation']
+        == 'mean_over_k_nearest_bn_formulas'
+    )
+    assert (
+        cfg['screening']['bn_analog_evidence']['reference_split']
+        == 'train_plus_val_bn_unique_formulas'
+    )
+    assert (
+        cfg['screening']['bn_analog_evidence']['exfoliation_reference']
+        == 'train_plus_val_bn_formula_median'
+    )
     assert cfg['screening']['chemical_plausibility']['enabled'] is True
     assert (
         cfg['screening']['chemical_plausibility']['method']

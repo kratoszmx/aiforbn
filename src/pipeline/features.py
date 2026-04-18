@@ -22,7 +22,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.neighbors import NearestNeighbors
 
-from pipeline.data import STRUCTURE_SUMMARY_COLUMNS
+from pipeline.data import REFERENCE_PROPERTY_COLUMNS, STRUCTURE_SUMMARY_COLUMNS
 
 
 ATOMIC_NUMBERS = {
@@ -64,6 +64,27 @@ DEFAULT_DOMAIN_SUPPORT_NOTE = (
     'a calibrated discovery confidence, uncertainty, or stability estimate.'
 )
 DOMAIN_SUPPORT_REFERENCE_SPLIT = 'train_plus_val_unique_formulas'
+DEFAULT_BN_SUPPORT_METHOD = 'train_plus_val_bn_knn_feature_space_support'
+DEFAULT_BN_SUPPORT_DISTANCE_METRIC = 'z_scored_euclidean_rms'
+DEFAULT_BN_SUPPORT_NOTE = (
+    'Support is measured relative to known BN-containing train+val formulas in the selected '
+    'formula-only screening feature space. This is a BN-theme alignment heuristic, not a '
+    'calibrated discovery confidence, uncertainty, or structure/stability estimate.'
+)
+BN_SUPPORT_REFERENCE_SPLIT = 'train_plus_val_bn_unique_formulas'
+DEFAULT_BN_ANALOG_EVIDENCE_NOTE = (
+    'Observed-property evidence is retrieved from nearby BN-containing train+val formulas. This '
+    'is an analog-evidence layer, not a predicted structure, thermodynamic stability, or synthesis '
+    'feasibility estimate.'
+)
+BN_ANALOG_EVIDENCE_REFERENCE_SPLIT = 'train_plus_val_bn_unique_formulas'
+BN_ANALOG_EVIDENCE_RANKING_NOTE = (
+    'Candidates are also paired with observed-property evidence from nearby BN-containing '
+    'train+val formulas, including analog band gap, energy-per-atom, exfoliation-energy, and '
+    'magnetization summaries. A lightweight analog-validation label then summarizes whether those '
+    'nearby BN references stay in more reference-like or more divergent property regimes on the '
+    'available metrics. This is analog retrieval, not direct candidate property validation.'
+)
 BASIC_FEATURE_SET = 'basic_formula_composition'
 MATMINER_FEATURE_SET = 'matminer_composition'
 STRUCTURE_AWARE_FEATURE_SET = 'matminer_composition_plus_structure_summary'
@@ -98,10 +119,49 @@ DISAGREEMENT_WITH_DOMAIN_SUPPORT_PENALTY_RANKING_NOTE = (
     'penalty in the selected screening feature space; both terms are heuristic and not calibrated '
     'physical uncertainty or stability estimates.'
 )
+SELECTED_MODEL_WITH_BN_SUPPORT_PENALTY_RANKING_BASIS = (
+    'composition_only_selected_model_band_gap_minus_bn_support_penalty'
+)
+SELECTED_MODEL_WITH_BN_SUPPORT_PENALTY_RANKING_NOTE = (
+    'Composition-only ranking from the selected formula-based model with a mild BN-local support '
+    'penalty in the selected screening feature space; this remains a formula-only heuristic and '
+    'not a structure-aware stability estimate.'
+)
+DISAGREEMENT_WITH_BN_SUPPORT_PENALTY_RANKING_BASIS = (
+    'composition_only_mean_band_gap_minus_model_disagreement_and_bn_support_penalties'
+)
+DISAGREEMENT_WITH_BN_SUPPORT_PENALTY_RANKING_NOTE = (
+    'Composition-only demo ranking using a tiny feature/model candidate pool. The score is the '
+    'ensemble mean band gap minus a small model-disagreement penalty and a mild BN-local support '
+    'penalty; both terms are heuristic and not calibrated physical uncertainty or stability '
+    'estimates.'
+)
+SELECTED_MODEL_WITH_DOMAIN_AND_BN_SUPPORT_PENALTY_RANKING_BASIS = (
+    'composition_only_selected_model_band_gap_minus_low_support_and_bn_support_penalties'
+)
+SELECTED_MODEL_WITH_DOMAIN_AND_BN_SUPPORT_PENALTY_RANKING_NOTE = (
+    'Composition-only ranking from the selected formula-based model with mild low-support and '
+    'BN-local support penalties in the selected screening feature space; these remain formula-only '
+    'heuristics and not structure-aware stability estimates.'
+)
+DISAGREEMENT_WITH_DOMAIN_AND_BN_SUPPORT_PENALTY_RANKING_BASIS = (
+    'composition_only_mean_band_gap_minus_model_disagreement_low_support_and_bn_support_penalties'
+)
+DISAGREEMENT_WITH_DOMAIN_AND_BN_SUPPORT_PENALTY_RANKING_NOTE = (
+    'Composition-only demo ranking using a tiny feature/model candidate pool. The score is the '
+    'ensemble mean band gap minus a small model-disagreement penalty together with mild '
+    'feature-space low-support and BN-local support penalties; all terms remain heuristic and not '
+    'calibrated physical uncertainty or stability estimates.'
+)
 DOMAIN_SUPPORT_RANKING_NOTE = (
     'Candidates are also annotated with a train+val feature-space domain-support layer: support '
     'comes from z-scored distances to nearby known formulas in the selected screening feature '
     'space, contextualized by the leave-one-out train+val neighborhood-distance distribution.'
+)
+BN_SUPPORT_RANKING_NOTE = (
+    'Candidates are also contextualized against the known BN slice: support comes from z-scored '
+    'distances to nearby BN-containing train+val formulas in the selected screening feature '
+    'space, contextualized by the leave-one-out BN-neighborhood-distance distribution.'
 )
 CHEMICAL_PLAUSIBILITY_SCREENING_NOTE = (
     'A lightweight formula-level chemical plausibility screen is applied first using pymatgen '
@@ -195,6 +255,7 @@ BASE_PASSTHROUGH_COLUMNS = (
     'source',
     'formula',
     'target',
+    *REFERENCE_PROPERTY_COLUMNS,
     'candidate_space_name',
     'candidate_space_kind',
     'candidate_generation_strategy',
@@ -433,12 +494,60 @@ def _domain_support_config(cfg: dict | None = None) -> dict:
     }
 
 
+def _bn_support_config(cfg: dict | None = None) -> dict:
+    screening_cfg = (cfg or {}).get('screening', {})
+    support_cfg = screening_cfg.get('bn_support', {})
+    k_neighbors = max(1, int(support_cfg.get('k_neighbors', 3)))
+    ranking_penalty_weight = max(0.0, float(support_cfg.get('ranking_penalty_weight', 0.1)))
+    penalize_below_percentile = float(support_cfg.get('penalize_below_percentile', 25.0))
+    penalize_below_percentile = min(max(penalize_below_percentile, 0.0), 100.0)
+    enabled = bool(support_cfg.get('enabled', True))
+    return {
+        'enabled': enabled,
+        'method': support_cfg.get('method', DEFAULT_BN_SUPPORT_METHOD),
+        'distance_metric': support_cfg.get(
+            'distance_metric',
+            DEFAULT_BN_SUPPORT_DISTANCE_METRIC,
+        ),
+        'k_neighbors': k_neighbors,
+        'ranking_penalty_enabled': enabled and bool(
+            support_cfg.get('ranking_penalty_enabled', True)
+        ),
+        'ranking_penalty_weight': ranking_penalty_weight,
+        'penalize_below_percentile': penalize_below_percentile,
+        'note': support_cfg.get('note', DEFAULT_BN_SUPPORT_NOTE),
+    }
+
+
+def _bn_analog_evidence_config(cfg: dict | None = None) -> dict:
+    screening_cfg = (cfg or {}).get('screening', {})
+    evidence_cfg = screening_cfg.get('bn_analog_evidence', {})
+    return {
+        'enabled': bool(evidence_cfg.get('enabled', True)),
+        'aggregation': evidence_cfg.get(
+            'aggregation',
+            'mean_over_k_nearest_bn_formulas',
+        ),
+        'reference_split': evidence_cfg.get(
+            'reference_split',
+            BN_ANALOG_EVIDENCE_REFERENCE_SPLIT,
+        ),
+        'exfoliation_reference': evidence_cfg.get(
+            'exfoliation_reference',
+            'train_plus_val_bn_formula_median',
+        ),
+        'note': evidence_cfg.get('note', DEFAULT_BN_ANALOG_EVIDENCE_NOTE),
+    }
+
+
 def get_screening_ranking_metadata(
     cfg: dict | None = None,
     domain_support_penalty_applied: bool | None = None,
+    bn_support_penalty_applied: bool | None = None,
 ) -> dict[str, object]:
     screening_cfg = (cfg or {}).get('screening', {})
     support_cfg = _domain_support_config(cfg)
+    bn_support_cfg = _bn_support_config(cfg)
     use_model_disagreement = bool(screening_cfg.get('use_model_disagreement', False))
     domain_support_penalty_enabled = bool(
         support_cfg['enabled'] and support_cfg['ranking_penalty_enabled']
@@ -451,16 +560,39 @@ def get_screening_ranking_metadata(
             else domain_support_penalty_applied
         )
     )
+    bn_support_penalty_enabled = bool(
+        bn_support_cfg['enabled'] and bn_support_cfg['ranking_penalty_enabled']
+    )
+    bn_support_penalty_active = bool(
+        bn_support_penalty_enabled
+        and (
+            True
+            if bn_support_penalty_applied is None
+            else bn_support_penalty_applied
+        )
+    )
 
-    if use_model_disagreement and domain_support_penalty_active:
+    if use_model_disagreement and domain_support_penalty_active and bn_support_penalty_active:
+        ranking_basis = DISAGREEMENT_WITH_DOMAIN_AND_BN_SUPPORT_PENALTY_RANKING_BASIS
+        ranking_note = DISAGREEMENT_WITH_DOMAIN_AND_BN_SUPPORT_PENALTY_RANKING_NOTE
+    elif use_model_disagreement and domain_support_penalty_active:
         ranking_basis = DISAGREEMENT_WITH_DOMAIN_SUPPORT_PENALTY_RANKING_BASIS
         ranking_note = DISAGREEMENT_WITH_DOMAIN_SUPPORT_PENALTY_RANKING_NOTE
+    elif use_model_disagreement and bn_support_penalty_active:
+        ranking_basis = DISAGREEMENT_WITH_BN_SUPPORT_PENALTY_RANKING_BASIS
+        ranking_note = DISAGREEMENT_WITH_BN_SUPPORT_PENALTY_RANKING_NOTE
     elif use_model_disagreement:
         ranking_basis = DISAGREEMENT_RANKING_BASIS
         ranking_note = DISAGREEMENT_RANKING_NOTE
+    elif domain_support_penalty_active and bn_support_penalty_active:
+        ranking_basis = SELECTED_MODEL_WITH_DOMAIN_AND_BN_SUPPORT_PENALTY_RANKING_BASIS
+        ranking_note = SELECTED_MODEL_WITH_DOMAIN_AND_BN_SUPPORT_PENALTY_RANKING_NOTE
     elif domain_support_penalty_active:
         ranking_basis = SELECTED_MODEL_WITH_DOMAIN_SUPPORT_PENALTY_RANKING_BASIS
         ranking_note = SELECTED_MODEL_WITH_DOMAIN_SUPPORT_PENALTY_RANKING_NOTE
+    elif bn_support_penalty_active:
+        ranking_basis = SELECTED_MODEL_WITH_BN_SUPPORT_PENALTY_RANKING_BASIS
+        ranking_note = SELECTED_MODEL_WITH_BN_SUPPORT_PENALTY_RANKING_NOTE
     else:
         ranking_basis = SELECTED_MODEL_RANKING_BASIS
         ranking_note = SELECTED_MODEL_RANKING_NOTE
@@ -480,6 +612,16 @@ def get_screening_ranking_metadata(
         'domain_support_penalty_active': domain_support_penalty_active,
         'domain_support_penalty_weight': float(support_cfg['ranking_penalty_weight']),
         'domain_support_penalize_below_percentile': float(support_cfg['penalize_below_percentile']),
+        'bn_support_enabled': bool(bn_support_cfg['enabled']),
+        'bn_support_method': bn_support_cfg['method'],
+        'bn_support_distance_metric': bn_support_cfg['distance_metric'],
+        'bn_support_reference_split': BN_SUPPORT_REFERENCE_SPLIT,
+        'bn_support_k_neighbors': int(bn_support_cfg['k_neighbors']),
+        'bn_support_note': bn_support_cfg['note'],
+        'bn_support_penalty_enabled': bn_support_penalty_enabled,
+        'bn_support_penalty_active': bn_support_penalty_active,
+        'bn_support_penalty_weight': float(bn_support_cfg['ranking_penalty_weight']),
+        'bn_support_penalize_below_percentile': float(bn_support_cfg['penalize_below_percentile']),
     }
 
 
@@ -973,6 +1115,7 @@ def _feature_columns(df: pd.DataFrame) -> list[str]:
         'source',
         'formula',
         'target',
+        *REFERENCE_PROPERTY_COLUMNS,
         'elements',
         'feature_set',
         'feature_generation_failed',
@@ -1700,6 +1843,346 @@ def annotate_candidate_domain_support(
     return out
 
 
+def annotate_candidate_bn_support(
+    candidate_feature_df: pd.DataFrame,
+    reference_feature_df: pd.DataFrame,
+    split_masks,
+    feature_columns: list[str],
+    cfg: dict | None = None,
+    formula_col: str = 'formula',
+) -> pd.DataFrame:
+    if formula_col not in candidate_feature_df.columns:
+        raise KeyError(f'Formula column not found in candidate features: {formula_col}')
+    if formula_col not in reference_feature_df.columns:
+        raise KeyError(f'Formula column not found in reference features: {formula_col}')
+
+    support_metadata = get_screening_ranking_metadata(cfg)
+    out = pd.DataFrame({
+        formula_col: candidate_feature_df[formula_col].astype(str).reset_index(drop=True),
+    })
+    out['bn_support_enabled'] = bool(support_metadata['bn_support_enabled'])
+    out['bn_support_method'] = support_metadata['bn_support_method']
+    out['bn_support_distance_metric'] = support_metadata['bn_support_distance_metric']
+    out['bn_support_reference_split'] = support_metadata['bn_support_reference_split']
+    out['bn_support_reference_formula_count'] = 0
+    out['bn_support_k_neighbors'] = int(support_metadata['bn_support_k_neighbors'])
+    out['bn_support_nearest_formula'] = ''
+    out['bn_support_neighbor_formulas'] = ''
+    out['bn_support_neighbor_formula_count'] = 0
+    out['bn_support_nearest_distance'] = np.nan
+    out['bn_support_mean_k_distance'] = np.nan
+    out['bn_support_percentile'] = np.nan
+    out['bn_support_penalty'] = 0.0
+
+    if not bool(support_metadata['bn_support_enabled']):
+        return out
+    if split_masks is None:
+        raise ValueError('BN-support annotation requires split masks for the reference dataset')
+
+    train_plus_val_mask = np.asarray(split_masks['train']) | np.asarray(split_masks['val'])
+    if len(train_plus_val_mask) != len(reference_feature_df):
+        raise ValueError('Reference feature table length does not match split masks')
+
+    reference_df = reference_feature_df.loc[train_plus_val_mask].copy()
+    reference_df = reference_df.loc[_feature_valid_mask(reference_df, feature_columns)].copy()
+    reference_df[formula_col] = reference_df[formula_col].astype(str)
+    reference_df = reference_df.loc[
+        reference_df[formula_col].apply(
+            lambda value: {'B', 'N'}.issubset(set(extract_elements(value)))
+        )
+    ].copy()
+    reference_df = reference_df.drop_duplicates(subset=formula_col, keep='first').reset_index(drop=True)
+    out['bn_support_reference_formula_count'] = int(len(reference_df))
+
+    candidate_valid_mask = _feature_valid_mask(candidate_feature_df, feature_columns)
+    if not bool(candidate_valid_mask.all()):
+        failed_formulas = (
+            candidate_feature_df.loc[~candidate_valid_mask, formula_col]
+            .astype(str)
+            .head(5)
+            .tolist()
+        )
+        raise ValueError(
+            'BN-support annotation aborted because candidate features were invalid for formulas: '
+            f'{failed_formulas}'
+        )
+    if reference_df.empty:
+        return out
+
+    reference_matrix_raw = reference_df[feature_columns].to_numpy(dtype=float)
+    candidate_matrix_raw = candidate_feature_df[feature_columns].to_numpy(dtype=float)
+    center = reference_matrix_raw.mean(axis=0)
+    spread = reference_matrix_raw.std(axis=0)
+    spread = np.where(np.isfinite(spread) & (spread > 0), spread, 1.0)
+
+    reference_matrix = (reference_matrix_raw - center) / spread
+    candidate_matrix = (candidate_matrix_raw - center) / spread
+    distance_scale = float(np.sqrt(max(len(feature_columns), 1)))
+    effective_k = min(int(support_metadata['bn_support_k_neighbors']), len(reference_df))
+
+    reference_neighbors = NearestNeighbors(metric='euclidean', n_neighbors=effective_k)
+    reference_neighbors.fit(reference_matrix)
+    candidate_distances, candidate_indices = reference_neighbors.kneighbors(
+        candidate_matrix,
+        n_neighbors=effective_k,
+    )
+    candidate_nearest_formulas = (
+        reference_df.iloc[candidate_indices[:, 0]][formula_col]
+        .astype(str)
+        .reset_index(drop=True)
+    )
+    candidate_neighbor_formulas = [
+        '|'.join(_ordered_values(reference_df.iloc[index_row][formula_col].astype(str).tolist()))
+        for index_row in candidate_indices
+    ]
+    candidate_neighbor_formula_count = [
+        len([value for value in neighbor_value.split('|') if value])
+        for neighbor_value in candidate_neighbor_formulas
+    ]
+    candidate_nearest_distances = candidate_distances[:, 0] / distance_scale
+    candidate_mean_k_distances = candidate_distances.mean(axis=1) / distance_scale
+
+    if len(reference_df) > 1:
+        reference_effective_k = min(int(support_metadata['bn_support_k_neighbors']), len(reference_df) - 1)
+        reference_distances, _ = reference_neighbors.kneighbors(
+            reference_matrix,
+            n_neighbors=reference_effective_k + 1,
+        )
+        reference_mean_k_distances = reference_distances[:, 1:].mean(axis=1) / distance_scale
+        candidate_percentiles = np.asarray([
+            100.0 * float((reference_mean_k_distances >= value).mean())
+            for value in candidate_mean_k_distances
+        ])
+    else:
+        candidate_percentiles = np.where(
+            np.isclose(candidate_mean_k_distances, 0.0),
+            100.0,
+            0.0,
+        ).astype(float)
+
+    out['bn_support_nearest_formula'] = candidate_nearest_formulas
+    out['bn_support_neighbor_formulas'] = candidate_neighbor_formulas
+    out['bn_support_neighbor_formula_count'] = np.asarray(candidate_neighbor_formula_count, dtype=int)
+    out['bn_support_nearest_distance'] = candidate_nearest_distances.astype(float)
+    out['bn_support_mean_k_distance'] = candidate_mean_k_distances.astype(float)
+    out['bn_support_percentile'] = candidate_percentiles.astype(float)
+
+    if bool(support_metadata['bn_support_penalty_enabled']):
+        percentile_threshold = float(support_metadata['bn_support_penalize_below_percentile'])
+        safe_threshold = max(percentile_threshold, 1e-12)
+        low_support_gap = np.clip(
+            (percentile_threshold - np.nan_to_num(candidate_percentiles, nan=0.0)) / safe_threshold,
+            a_min=0.0,
+            a_max=None,
+        )
+        out['bn_support_penalty'] = (
+            float(support_metadata['bn_support_penalty_weight']) * low_support_gap
+        ).astype(float)
+
+    return out
+
+
+def annotate_candidate_bn_analog_evidence(
+    candidate_df: pd.DataFrame,
+    dataset_df: pd.DataFrame,
+    split_masks,
+    cfg: dict | None = None,
+    formula_col: str = 'formula',
+) -> pd.DataFrame:
+    evidence_metadata = _bn_analog_evidence_config(cfg)
+    out = pd.DataFrame({
+        formula_col: candidate_df[formula_col].astype(str).reset_index(drop=True),
+    })
+    out['bn_analog_evidence_enabled'] = bool(evidence_metadata['enabled'])
+    out['bn_analog_evidence_aggregation'] = evidence_metadata['aggregation']
+    out['bn_analog_evidence_reference_split'] = evidence_metadata['reference_split']
+    out['bn_analog_evidence_exfoliation_reference'] = evidence_metadata['exfoliation_reference']
+    out['bn_analog_evidence_note'] = evidence_metadata['note']
+    out['bn_analog_reference_formula_count'] = 0
+    out['bn_analog_reference_exfoliation_energy_median'] = np.nan
+    out['bn_analog_reference_energy_per_atom_median'] = np.nan
+    out['bn_analog_reference_abs_total_magnetization_median'] = np.nan
+    out['bn_analog_nearest_formula'] = ''
+    out['bn_analog_neighbor_formulas'] = ''
+    out['bn_analog_neighbor_formula_count'] = 0
+    out['bn_analog_nearest_band_gap'] = np.nan
+    out['bn_analog_nearest_energy_per_atom'] = np.nan
+    out['bn_analog_nearest_exfoliation_energy_per_atom'] = np.nan
+    out['bn_analog_nearest_abs_total_magnetization'] = np.nan
+    out['bn_analog_neighbor_band_gap_mean'] = np.nan
+    out['bn_analog_neighbor_energy_per_atom_mean'] = np.nan
+    out['bn_analog_neighbor_exfoliation_energy_per_atom_mean'] = np.nan
+    out['bn_analog_neighbor_abs_total_magnetization_mean'] = np.nan
+    out['bn_analog_neighbor_exfoliation_available_formula_count'] = 0
+    out['bn_analog_exfoliation_support_label'] = 'unknown'
+    out['bn_analog_energy_support_label'] = 'unknown'
+    out['bn_analog_abs_total_magnetization_support_label'] = 'unknown'
+    out['bn_analog_support_vote_count'] = 0
+    out['bn_analog_support_available_metric_count'] = 0
+    out['bn_analog_validation_label'] = 'unknown'
+
+    if not bool(evidence_metadata['enabled']):
+        return out
+    if split_masks is None:
+        raise ValueError('BN analog evidence annotation requires split masks for the reference dataset')
+    if 'bn_support_nearest_formula' not in candidate_df.columns:
+        raise KeyError('BN analog evidence annotation requires bn_support_nearest_formula')
+    if 'bn_support_neighbor_formulas' not in candidate_df.columns:
+        raise KeyError('BN analog evidence annotation requires bn_support_neighbor_formulas')
+
+    train_plus_val_mask = np.asarray(split_masks['train']) | np.asarray(split_masks['val'])
+    if len(train_plus_val_mask) != len(dataset_df):
+        raise ValueError('Dataset length does not match split masks for BN analog evidence annotation')
+
+    reference_df = dataset_df.loc[train_plus_val_mask].copy()
+    for column in REFERENCE_PROPERTY_COLUMNS:
+        if column not in reference_df.columns:
+            reference_df[column] = np.nan
+    if 'abs_total_magnetization' in reference_df.columns and reference_df['abs_total_magnetization'].isna().all():
+        reference_df['abs_total_magnetization'] = reference_df['total_magnetization'].abs()
+    reference_df = filter_bn(reference_df, formula_col=formula_col)
+    reference_df[formula_col] = reference_df[formula_col].astype(str)
+    out['bn_analog_reference_formula_count'] = int(reference_df[formula_col].nunique())
+
+    aggregated = (
+        reference_df.groupby(formula_col, as_index=True)
+        .agg(
+            target=('target', 'mean'),
+            energy_per_atom=('energy_per_atom', 'mean'),
+            exfoliation_energy_per_atom=('exfoliation_energy_per_atom', 'mean'),
+            abs_total_magnetization=('abs_total_magnetization', 'mean'),
+            reference_row_count=(formula_col, 'size'),
+        )
+        .sort_index()
+    )
+    reference_exfoliation_values = aggregated['exfoliation_energy_per_atom'].dropna()
+    if not reference_exfoliation_values.empty:
+        out['bn_analog_reference_exfoliation_energy_median'] = float(
+            reference_exfoliation_values.median()
+        )
+    reference_energy_values = aggregated['energy_per_atom'].dropna()
+    if not reference_energy_values.empty:
+        out['bn_analog_reference_energy_per_atom_median'] = float(
+            reference_energy_values.median()
+        )
+    reference_abs_mag_values = aggregated['abs_total_magnetization'].dropna()
+    if not reference_abs_mag_values.empty:
+        out['bn_analog_reference_abs_total_magnetization_median'] = float(
+            reference_abs_mag_values.median()
+        )
+
+    def _lookup_metric(formulas: list[str], column: str) -> tuple[float, int]:
+        values = []
+        for formula in formulas:
+            if formula in aggregated.index:
+                value = aggregated.at[formula, column]
+                if pd.notna(value):
+                    values.append(float(value))
+        if not values:
+            return np.nan, 0
+        return float(np.mean(values)), len(values)
+
+    nearest_formulas = candidate_df['bn_support_nearest_formula'].astype(str).reset_index(drop=True)
+    neighbor_formula_strings = candidate_df['bn_support_neighbor_formulas'].astype(str).reset_index(drop=True)
+    reference_exfoliation_median = (
+        float(reference_exfoliation_values.median()) if not reference_exfoliation_values.empty else np.nan
+    )
+    reference_energy_median = (
+        float(reference_energy_values.median()) if not reference_energy_values.empty else np.nan
+    )
+    reference_abs_mag_median = (
+        float(reference_abs_mag_values.median()) if not reference_abs_mag_values.empty else np.nan
+    )
+
+    def _compare_against_reference(mean_value: float, reference_value: float) -> tuple[str, int, int]:
+        if not np.isfinite(mean_value) or not np.isfinite(reference_value):
+            return 'unknown', 0, 0
+        favorable = int(mean_value <= reference_value)
+        label = (
+            'lower_or_equal_bn_reference_median'
+            if favorable
+            else 'higher_than_bn_reference_median'
+        )
+        return label, 1, favorable
+
+    for idx, nearest_formula in enumerate(nearest_formulas):
+        neighbor_formulas = _ordered_values([
+            value for value in neighbor_formula_strings.iloc[idx].split('|') if value
+        ])
+        out.at[idx, 'bn_analog_nearest_formula'] = nearest_formula
+        out.at[idx, 'bn_analog_neighbor_formulas'] = '|'.join(neighbor_formulas)
+        out.at[idx, 'bn_analog_neighbor_formula_count'] = int(len(neighbor_formulas))
+
+        if nearest_formula in aggregated.index:
+            out.at[idx, 'bn_analog_nearest_band_gap'] = float(aggregated.at[nearest_formula, 'target'])
+            out.at[idx, 'bn_analog_nearest_energy_per_atom'] = float(
+                aggregated.at[nearest_formula, 'energy_per_atom']
+            ) if pd.notna(aggregated.at[nearest_formula, 'energy_per_atom']) else np.nan
+            out.at[idx, 'bn_analog_nearest_exfoliation_energy_per_atom'] = float(
+                aggregated.at[nearest_formula, 'exfoliation_energy_per_atom']
+            ) if pd.notna(aggregated.at[nearest_formula, 'exfoliation_energy_per_atom']) else np.nan
+            out.at[idx, 'bn_analog_nearest_abs_total_magnetization'] = float(
+                aggregated.at[nearest_formula, 'abs_total_magnetization']
+            ) if pd.notna(aggregated.at[nearest_formula, 'abs_total_magnetization']) else np.nan
+
+        neighbor_band_gap_mean, _ = _lookup_metric(neighbor_formulas, 'target')
+        neighbor_energy_mean, _ = _lookup_metric(neighbor_formulas, 'energy_per_atom')
+        neighbor_exfoliation_mean, neighbor_exfoliation_count = _lookup_metric(
+            neighbor_formulas,
+            'exfoliation_energy_per_atom',
+        )
+        neighbor_abs_mag_mean, _ = _lookup_metric(neighbor_formulas, 'abs_total_magnetization')
+        out.at[idx, 'bn_analog_neighbor_band_gap_mean'] = neighbor_band_gap_mean
+        out.at[idx, 'bn_analog_neighbor_energy_per_atom_mean'] = neighbor_energy_mean
+        out.at[idx, 'bn_analog_neighbor_exfoliation_energy_per_atom_mean'] = neighbor_exfoliation_mean
+        out.at[idx, 'bn_analog_neighbor_abs_total_magnetization_mean'] = neighbor_abs_mag_mean
+        out.at[idx, 'bn_analog_neighbor_exfoliation_available_formula_count'] = int(
+            neighbor_exfoliation_count
+        )
+
+        energy_label, energy_available, energy_vote = _compare_against_reference(
+            neighbor_energy_mean,
+            reference_energy_median,
+        )
+        out.at[idx, 'bn_analog_energy_support_label'] = energy_label
+
+        if neighbor_exfoliation_count <= 0 or not np.isfinite(reference_exfoliation_median):
+            exfoliation_label = 'unknown'
+            exfoliation_available = 0
+            exfoliation_vote = 0
+        elif neighbor_exfoliation_mean <= reference_exfoliation_median:
+            exfoliation_label = 'lower_or_equal_bn_reference_median'
+            exfoliation_available = 1
+            exfoliation_vote = 1
+        else:
+            exfoliation_label = 'higher_than_bn_reference_median'
+            exfoliation_available = 1
+            exfoliation_vote = 0
+        out.at[idx, 'bn_analog_exfoliation_support_label'] = exfoliation_label
+
+        abs_mag_label, abs_mag_available, abs_mag_vote = _compare_against_reference(
+            neighbor_abs_mag_mean,
+            reference_abs_mag_median,
+        )
+        out.at[idx, 'bn_analog_abs_total_magnetization_support_label'] = abs_mag_label
+
+        support_available = int(energy_available + exfoliation_available + abs_mag_available)
+        support_votes = int(energy_vote + exfoliation_vote + abs_mag_vote)
+        out.at[idx, 'bn_analog_support_vote_count'] = support_votes
+        out.at[idx, 'bn_analog_support_available_metric_count'] = support_available
+        if support_available <= 0:
+            validation_label = 'unknown'
+        elif support_votes == support_available:
+            validation_label = 'reference_like_on_available_metrics'
+        elif support_votes == 0:
+            validation_label = 'reference_divergent_on_available_metrics'
+        else:
+            validation_label = 'mixed_reference_alignment'
+        out.at[idx, 'bn_analog_validation_label'] = validation_label
+
+    return out
+
+
 def screen_candidates(
     candidate_df: pd.DataFrame,
     model,
@@ -1753,6 +2236,7 @@ def screen_candidates(
     else:
         out['ranking_score'] = out['predicted_band_gap']
     out['ranking_score_before_domain_support_penalty'] = out['ranking_score']
+    out['ranking_score_before_bn_support_penalty'] = out['ranking_score']
 
     reference_feature_df = reference_feature_df
     if bool(ranking_config_metadata['domain_support_enabled']):
@@ -1793,9 +2277,67 @@ def screen_candidates(
         out['domain_support_percentile'] = np.nan
         out['domain_support_penalty'] = 0.0
 
+    out['ranking_score_before_bn_support_penalty'] = out['ranking_score']
+    if bool(ranking_config_metadata['bn_support_enabled']):
+        if reference_feature_df is None:
+            if dataset_df is None:
+                raise ValueError(
+                    'BN-support annotation requires either reference_feature_df or dataset_df'
+                )
+            reference_feature_df = build_feature_table(
+                dataset_df,
+                formula_col=(cfg.get('data') or {}).get('formula_column', 'formula'),
+                feature_set=feature_set,
+            )
+        bn_support_df = annotate_candidate_bn_support(
+            candidate_feature_df=feature_df,
+            reference_feature_df=reference_feature_df,
+            split_masks=split_masks,
+            feature_columns=feature_columns,
+            cfg=cfg,
+            formula_col='formula',
+        )
+        out = pd.concat(
+            [out.reset_index(drop=True), bn_support_df.drop(columns=['formula'])],
+            axis=1,
+        )
+        if bool(ranking_config_metadata['bn_support_penalty_enabled']):
+            out['ranking_score'] = out['ranking_score'] - out['bn_support_penalty'].fillna(0.0)
+    else:
+        out['bn_support_enabled'] = False
+        out['bn_support_method'] = ranking_config_metadata['bn_support_method']
+        out['bn_support_distance_metric'] = ranking_config_metadata['bn_support_distance_metric']
+        out['bn_support_reference_split'] = ranking_config_metadata['bn_support_reference_split']
+        out['bn_support_reference_formula_count'] = 0
+        out['bn_support_k_neighbors'] = int(ranking_config_metadata['bn_support_k_neighbors'])
+        out['bn_support_nearest_formula'] = ''
+        out['bn_support_neighbor_formulas'] = ''
+        out['bn_support_neighbor_formula_count'] = 0
+        out['bn_support_nearest_distance'] = np.nan
+        out['bn_support_mean_k_distance'] = np.nan
+        out['bn_support_percentile'] = np.nan
+        out['bn_support_penalty'] = 0.0
+
+    bn_analog_evidence_cfg = _bn_analog_evidence_config(cfg)
+    if bool(bn_analog_evidence_cfg['enabled']):
+        if dataset_df is None:
+            raise ValueError('BN analog evidence annotation requires dataset_df')
+        bn_analog_df = annotate_candidate_bn_analog_evidence(
+            out,
+            dataset_df,
+            split_masks=split_masks,
+            cfg=cfg,
+            formula_col='formula',
+        )
+        out = pd.concat(
+            [out.reset_index(drop=True), bn_analog_df.drop(columns=['formula'])],
+            axis=1,
+        )
+
     ranking_metadata = get_screening_ranking_metadata(
         cfg,
         domain_support_penalty_applied=bool(out['domain_support_penalty'].fillna(0.0).gt(0.0).any()),
+        bn_support_penalty_applied=bool(out['bn_support_penalty'].fillna(0.0).gt(0.0).any()),
     )
 
     if dataset_df is not None:
@@ -1838,6 +2380,10 @@ def screen_candidates(
     )
     if bool(ranking_metadata['domain_support_enabled']):
         out['ranking_note'] = out['ranking_note'] + ' ' + DOMAIN_SUPPORT_RANKING_NOTE
+    if bool(ranking_metadata['bn_support_enabled']):
+        out['ranking_note'] = out['ranking_note'] + ' ' + BN_SUPPORT_RANKING_NOTE
+    if 'bn_analog_evidence_enabled' in out.columns and bool(out['bn_analog_evidence_enabled'].fillna(False).any()):
+        out['ranking_note'] = out['ranking_note'] + ' ' + BN_ANALOG_EVIDENCE_RANKING_NOTE
     if 'candidate_novelty_bucket' in out.columns:
         out['ranking_note'] = out['ranking_note'] + ' ' + NOVELTY_ANNOTATION_RANKING_NOTE
     chemical_plausibility_enabled = bool(out.get('chemical_plausibility_enabled', True).fillna(True).all())
