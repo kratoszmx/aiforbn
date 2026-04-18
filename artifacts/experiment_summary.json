@@ -234,6 +234,63 @@
       "dummy_mean"
     ]
   },
+  "robustness": {
+    "enabled": true,
+    "robustness_artifact": "robustness_results.csv",
+    "method": "group_kfold_by_formula",
+    "group_column": "formula",
+    "requested_folds": 5,
+    "note": "Runs a grouped-by-formula cross-validation benchmark across configured feature/model combos so the advisor-facing story does not depend on a single lucky holdout split.",
+    "result_row_count": 7,
+    "successful_result_rows": 7,
+    "failed_result_rows": 0,
+    "selected_feature_set": "matminer_composition_plus_structure_summary",
+    "selected_model_type": "hist_gradient_boosting",
+    "screening_feature_set": "matminer_composition",
+    "screening_model_type": "hist_gradient_boosting",
+    "selected_model_metrics": {
+      "feature_set": "matminer_composition_plus_structure_summary",
+      "model_type": "hist_gradient_boosting",
+      "robustness_status": "ok",
+      "requested_folds": 5,
+      "actual_folds": 5,
+      "completed_folds": 5,
+      "mae_mean": 0.6050184874318222,
+      "mae_std": 0.017580558579494886,
+      "rmse_mean": 0.8914976469637599,
+      "rmse_std": 0.026267740024463252,
+      "r2_mean": 0.6170372264418622,
+      "r2_std": 0.023524561876117494
+    },
+    "screening_model_metrics": {
+      "feature_set": "matminer_composition",
+      "model_type": "hist_gradient_boosting",
+      "robustness_status": "ok",
+      "requested_folds": 5,
+      "actual_folds": 5,
+      "completed_folds": 5,
+      "mae_mean": 0.6321220613391219,
+      "mae_std": 0.019211460456496892,
+      "rmse_mean": 0.9286368408605676,
+      "rmse_std": 0.03462547800131904,
+      "r2_mean": 0.584549043224644,
+      "r2_std": 0.02734039656760932
+    },
+    "dummy_baseline_metrics": {
+      "feature_set": "feature_agnostic_dummy",
+      "model_type": "dummy_mean",
+      "robustness_status": "ok",
+      "requested_folds": 5,
+      "actual_folds": 5,
+      "completed_folds": 5,
+      "mae_mean": 1.1526862687554993,
+      "mae_std": 0.023316302661850467,
+      "rmse_mean": 1.4431925380437955,
+      "rmse_std": 0.05135635365185667,
+      "r2_mean": -0.0013334277897428138,
+      "r2_std": 0.0016053850172013976
+    }
+  },
   "screening": {
     "candidate_space_name": "bn_anchored_formula_family_grid",
     "candidate_space_kind": "bn_family_demo",

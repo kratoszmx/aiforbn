@@ -17,13 +17,55 @@ from pipeline.features import (
     NOVELTY_BUCKET_FORMULA_LEVEL_EXTRAPOLATION,
     NOVELTY_BUCKET_HELD_OUT_KNOWN_FORMULA,
     NOVELTY_BUCKET_TRAIN_PLUS_VAL_REDISCOVERY,
+    feature_set_supports_formula_only_screening,
     get_feature_family,
     get_screening_ranking_metadata,
-    feature_set_supports_formula_only_screening,
 )
 
 
-def build_experiment_summary(dataset_df, bn_df, candidate_df, split_masks, selection_summary, cfg):
+ROBUSTNESS_METRIC_COLUMNS = [
+    'feature_set',
+    'model_type',
+    'robustness_status',
+    'requested_folds',
+    'actual_folds',
+    'completed_folds',
+    'mae_mean',
+    'mae_std',
+    'rmse_mean',
+    'rmse_std',
+    'r2_mean',
+    'r2_std',
+]
+
+
+def _robustness_row_payload(robustness_df: pd.DataFrame, mask) -> dict | None:
+    if robustness_df.empty:
+        return None
+    row_df = robustness_df.loc[mask, ROBUSTNESS_METRIC_COLUMNS]
+    if row_df.empty:
+        return None
+    payload = row_df.iloc[0].to_dict()
+    cleaned = {}
+    for key, value in payload.items():
+        if pd.isna(value):
+            cleaned[key] = None
+        elif isinstance(value, (int, float, bool, str)):
+            cleaned[key] = value
+        else:
+            cleaned[key] = value.item() if hasattr(value, 'item') else value
+    return cleaned
+
+
+def build_experiment_summary(
+    dataset_df,
+    bn_df,
+    candidate_df,
+    split_masks,
+    selection_summary,
+    cfg,
+    robustness_df=None,
+):
     formula_col = cfg['data']['formula_column']
     target_col = cfg['data']['target_column']
     split_metadata = split_masks.get('metadata', {})
@@ -52,6 +94,9 @@ def build_experiment_summary(dataset_df, bn_df, candidate_df, split_masks, selec
     chemical_plausibility_cfg = cfg['screening'].get('chemical_plausibility', {})
     chemical_plausibility_enabled = bool(chemical_plausibility_cfg.get('enabled', True))
     ranking_config_metadata = get_screening_ranking_metadata(cfg)
+    robustness_cfg = cfg.get('robustness', {})
+    robustness_enabled = bool(robustness_cfg.get('enabled', False))
+    robustness_df = pd.DataFrame() if robustness_df is None else robustness_df.copy()
 
     plausibility_pass_count = None
     plausibility_fail_count = None
@@ -314,6 +359,47 @@ def build_experiment_summary(dataset_df, bn_df, candidate_df, split_masks, selec
             ),
             'dummy_baselines': cfg['model'].get('benchmark_baselines', ['dummy_mean']),
         },
+        'robustness': {
+            'enabled': robustness_enabled,
+            'robustness_artifact': 'robustness_results.csv' if robustness_enabled else None,
+            'method': robustness_cfg.get('method', 'group_kfold_by_formula'),
+            'group_column': robustness_cfg.get(
+                'group_column',
+                cfg.get('split', {}).get('group_column', formula_col),
+            ),
+            'requested_folds': int(robustness_cfg.get('n_splits', 5)),
+            'note': robustness_cfg.get(
+                'note',
+                (
+                    'Runs grouped-by-formula cross-validation across configured feature/model '
+                    'combos so the evaluation story does not depend on a single holdout split.'
+                ),
+            ),
+            'result_row_count': int(len(robustness_df)),
+            'successful_result_rows': int(
+                robustness_df['robustness_status'].eq('ok').sum()
+            ) if 'robustness_status' in robustness_df.columns else 0,
+            'failed_result_rows': int(
+                robustness_df['robustness_status'].eq('evaluation_failed').sum()
+            ) if 'robustness_status' in robustness_df.columns else 0,
+            'selected_feature_set': selected_feature_set,
+            'selected_model_type': selected_model_type,
+            'screening_feature_set': screening_feature_set,
+            'screening_model_type': screening_model_type,
+            'selected_model_metrics': _robustness_row_payload(
+                robustness_df,
+                robustness_df['selected_by_validation'].fillna(False).astype(bool),
+            ) if 'selected_by_validation' in robustness_df.columns else None,
+            'screening_model_metrics': _robustness_row_payload(
+                robustness_df,
+                robustness_df['feature_set'].astype(str).eq(screening_feature_set)
+                & robustness_df['model_type'].astype(str).eq(screening_model_type),
+            ) if {'feature_set', 'model_type'}.issubset(robustness_df.columns) else None,
+            'dummy_baseline_metrics': _robustness_row_payload(
+                robustness_df,
+                robustness_df['benchmark_role'].astype(str).eq('dummy_baseline'),
+            ) if 'benchmark_role' in robustness_df.columns else None,
+        },
         'screening': {
             'candidate_space_name': candidate_space_name,
             'candidate_space_kind': candidate_space_kind,
@@ -496,6 +582,7 @@ def save_metrics_and_predictions(
     bn_df,
     screened_df,
     benchmark_df,
+    robustness_df,
     experiment_summary,
     manifest,
     cfg,
@@ -507,6 +594,11 @@ def save_metrics_and_predictions(
     bn_df.to_csv(artifact_dir / 'bn_slice.csv', index=False)
     screened_df.to_csv(artifact_dir / 'demo_candidate_ranking.csv', index=False)
     benchmark_df.to_csv(artifact_dir / 'benchmark_results.csv', index=False)
+    robustness_path = artifact_dir / 'robustness_results.csv'
+    if robustness_df is not None and not robustness_df.empty:
+        robustness_df.to_csv(robustness_path, index=False)
+    elif robustness_path.exists():
+        robustness_path.unlink()
     (artifact_dir / 'experiment_summary.json').write_text(json.dumps(experiment_summary, indent=2))
     (artifact_dir / 'manifest.json').write_text(json.dumps(manifest, indent=2))
     legacy_screen_path = artifact_dir / 'screened_candidates.csv'

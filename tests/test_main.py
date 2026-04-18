@@ -41,6 +41,11 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
         'model_type': ['linear_regression'],
         'mae': [0.1],
     })
+    robustness_df = pd.DataFrame({
+        'feature_set': ['matminer_composition'],
+        'model_type': ['linear_regression'],
+        'mae_mean': [0.2],
+    })
     metrics = {'mae': 0.1, 'rmse': 0.1, 'r2': 0.9}
     manifest = {'name': 'twod_matpd'}
     selection_summary = {
@@ -117,6 +122,11 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
     )
     monkeypatch.setattr(
         main_module,
+        'benchmark_grouped_robustness',
+        lambda feature_tables, cfg, selected_feature_set, selected_model_type: calls.append('benchmark_grouped_robustness') or robustness_df,
+    )
+    monkeypatch.setattr(
+        main_module,
         'build_candidate_prediction_ensemble',
         lambda candidate_df, feature_tables, split_masks, cfg, candidate_feature_sets=None: calls.append('build_candidate_prediction_ensemble') or candidate_ensemble_df,
     )
@@ -128,12 +138,12 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
     monkeypatch.setattr(
         main_module,
         'build_experiment_summary',
-        lambda dataset_df, bn_df, candidate_df, split_masks, selection_summary, cfg: calls.append('build_experiment_summary') or experiment_summary,
+        lambda dataset_df, bn_df, candidate_df, split_masks, selection_summary, cfg, robustness_df=None: calls.append('build_experiment_summary') or experiment_summary,
     )
     monkeypatch.setattr(
         main_module,
         'save_metrics_and_predictions',
-        lambda metrics, prediction_df, bn_df, screened_df, benchmark_df, experiment_summary, manifest, cfg: calls.append('save_metrics_and_predictions'),
+        lambda metrics, prediction_df, bn_df, screened_df, benchmark_df, robustness_df, experiment_summary, manifest, cfg: calls.append('save_metrics_and_predictions'),
     )
     monkeypatch.setattr(main_module, 'save_basic_plots', lambda prediction_df, cfg: calls.append('save_basic_plots'))
 
@@ -152,6 +162,7 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
         'train_baseline_model',
         'evaluate_predictions',
         'benchmark_regressors',
+        'benchmark_grouped_robustness',
         'build_candidate_prediction_ensemble',
         'screen_candidates',
         'build_experiment_summary',

@@ -20,6 +20,7 @@ from sklearn.dummy import DummyRegressor
 from sklearn.ensemble import HistGradientBoostingRegressor, RandomForestRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.model_selection import GroupKFold
 from sklearn.neighbors import NearestNeighbors
 
 from pipeline.data import REFERENCE_PROPERTY_COLUMNS, STRUCTURE_SUMMARY_COLUMNS
@@ -78,6 +79,11 @@ DEFAULT_BN_ANALOG_EVIDENCE_NOTE = (
     'feasibility estimate.'
 )
 BN_ANALOG_EVIDENCE_REFERENCE_SPLIT = 'train_plus_val_bn_unique_formulas'
+DEFAULT_ROBUSTNESS_METHOD = 'group_kfold_by_formula'
+DEFAULT_ROBUSTNESS_NOTE = (
+    'Runs grouped-by-formula cross-validation across configured feature/model combos so the '
+    'evaluation story does not depend on a single holdout split.'
+)
 BN_ANALOG_EVIDENCE_RANKING_NOTE = (
     'Candidates are also paired with observed-property evidence from nearby BN-containing '
     'train+val formulas, including analog band gap, energy-per-atom, exfoliation-energy, and '
@@ -547,6 +553,22 @@ def _bn_analog_evidence_config(cfg: dict | None = None) -> dict:
             'train_plus_val_bn_formula_median',
         ),
         'note': evidence_cfg.get('note', DEFAULT_BN_ANALOG_EVIDENCE_NOTE),
+    }
+
+
+def _robustness_config(cfg: dict | None = None) -> dict:
+    resolved_cfg = cfg or {}
+    robustness_cfg = resolved_cfg.get('robustness', {})
+    split_cfg = resolved_cfg.get('split', {})
+    return {
+        'enabled': bool(robustness_cfg.get('enabled', False)),
+        'method': robustness_cfg.get('method', DEFAULT_ROBUSTNESS_METHOD),
+        'group_column': robustness_cfg.get(
+            'group_column',
+            split_cfg.get('group_column', 'formula'),
+        ),
+        'n_splits': max(2, int(robustness_cfg.get('n_splits', 5))),
+        'note': robustness_cfg.get('note', DEFAULT_ROBUSTNESS_NOTE),
     }
 
 
@@ -1661,6 +1683,224 @@ def benchmark_regressors(
 
     benchmark_df = pd.DataFrame(rows)
     return benchmark_df.sort_values(
+        ['selected_by_validation', 'benchmark_role', 'feature_set', 'model_type'],
+        ascending=[False, True, True, True],
+    ).reset_index(drop=True)
+
+
+def _group_kfold_splits(
+    df: pd.DataFrame,
+    group_col: str,
+    requested_splits: int,
+) -> tuple[int, int, list[dict[str, np.ndarray]]]:
+    if group_col not in df.columns:
+        raise KeyError(f'Group split column not found for robustness evaluation: {group_col}')
+
+    target_mask = df['target'].notna().to_numpy()
+    eligible_indices = np.flatnonzero(target_mask)
+    if len(eligible_indices) == 0:
+        raise ValueError('Robustness evaluation requires at least one row with a target value')
+
+    eligible_groups = df.loc[target_mask, group_col].astype(str).to_numpy()
+    unique_group_count = int(pd.Series(eligible_groups).nunique())
+    actual_splits = min(int(requested_splits), unique_group_count)
+    if actual_splits < 2:
+        raise ValueError(
+            'Robustness evaluation requires at least two unique groups with target values'
+        )
+
+    splitter = GroupKFold(n_splits=actual_splits)
+    split_payloads: list[dict[str, np.ndarray]] = []
+    dummy_x = np.zeros(len(eligible_indices), dtype=float)
+    for fold_index, (train_positions, test_positions) in enumerate(
+        splitter.split(dummy_x, groups=eligible_groups),
+        start=1,
+    ):
+        train_idx = eligible_indices[train_positions]
+        test_idx = eligible_indices[test_positions]
+        train_mask = np.zeros(len(df), dtype=bool)
+        val_mask = np.zeros(len(df), dtype=bool)
+        test_mask = np.zeros(len(df), dtype=bool)
+        train_mask[train_idx] = True
+        test_mask[test_idx] = True
+        split_payloads.append({
+            'fold_index': int(fold_index),
+            'train': train_mask,
+            'val': val_mask,
+            'test': test_mask,
+        })
+
+    return int(requested_splits), int(actual_splits), split_payloads
+
+
+def _aggregate_fold_metric_rows(metric_rows: list[dict[str, float]]) -> dict[str, float | int]:
+    metric_df = pd.DataFrame(metric_rows)
+    summary: dict[str, float | int] = {
+        'completed_folds': int(len(metric_df)),
+    }
+    for metric_name in ('mae', 'rmse', 'r2'):
+        values = metric_df[metric_name].dropna().to_numpy(dtype=float)
+        if len(values) == 0:
+            summary[f'{metric_name}_mean'] = np.nan
+            summary[f'{metric_name}_std'] = np.nan
+            continue
+        summary[f'{metric_name}_mean'] = float(np.mean(values))
+        summary[f'{metric_name}_std'] = float(np.std(values, ddof=0))
+    return summary
+
+
+def benchmark_grouped_robustness(
+    feature_tables: dict[str, pd.DataFrame],
+    cfg: dict,
+    selected_feature_set: str,
+    selected_model_type: str,
+) -> pd.DataFrame:
+    robustness_cfg = _robustness_config(cfg)
+    if not bool(robustness_cfg['enabled']):
+        return pd.DataFrame()
+
+    candidate_feature_sets = [value for value in get_candidate_feature_sets(cfg) if value in feature_tables]
+    candidate_model_types = get_candidate_model_types(cfg)
+    baseline_types = _ordered_model_types(cfg['model'].get('benchmark_baselines', ['dummy_mean']))
+    requested_splits = int(robustness_cfg['n_splits'])
+    group_col = str(robustness_cfg['group_column'])
+
+    rows = []
+    for feature_set in candidate_feature_sets:
+        feature_df = feature_tables[feature_set]
+        feature_info = summarize_feature_table(feature_df, feature_set=feature_set)
+        for model_type in candidate_model_types:
+            row = {
+                'feature_set': feature_set,
+                'feature_family': feature_info['feature_family'],
+                'candidate_compatible': feature_info['candidate_compatible'],
+                'n_features': feature_info['n_features'],
+                'model_type': model_type,
+                'benchmark_role': 'candidate_model',
+                'selected_by_validation': bool(
+                    feature_set == selected_feature_set and model_type == selected_model_type
+                ),
+                'robustness_method': robustness_cfg['method'],
+                'robustness_group_column': group_col,
+                'requested_folds': requested_splits,
+                'actual_folds': None,
+                'completed_folds': 0,
+                'robustness_status': 'ok',
+                'robustness_note': robustness_cfg['note'],
+                'mae_mean': None,
+                'mae_std': None,
+                'rmse_mean': None,
+                'rmse_std': None,
+                'r2_mean': None,
+                'r2_std': None,
+            }
+            if row['selected_by_validation']:
+                row['benchmark_role'] = 'selected_model'
+
+            if not feature_info['selection_eligible']:
+                row['robustness_status'] = 'skipped_featurization_failure'
+                row['robustness_note'] = (
+                    'Skipped because this feature set could not featurize every dataset formula.'
+                )
+                rows.append(row)
+                continue
+
+            try:
+                requested_fold_count, actual_fold_count, split_payloads = _group_kfold_splits(
+                    feature_df,
+                    group_col=group_col,
+                    requested_splits=requested_splits,
+                )
+                row['requested_folds'] = requested_fold_count
+                row['actual_folds'] = actual_fold_count
+
+                fold_metric_rows: list[dict[str, float]] = []
+                for split_payload in split_payloads:
+                    split_masks = {
+                        'train': split_payload['train'],
+                        'val': split_payload['val'],
+                        'test': split_payload['test'],
+                    }
+                    model, feature_columns = train_baseline_model(
+                        df=feature_df,
+                        split_masks=split_masks,
+                        cfg=cfg,
+                        model_type=model_type,
+                        include_validation=False,
+                    )
+                    metrics, _ = evaluate_predictions(
+                        df=feature_df,
+                        split_masks=split_masks,
+                        model=model,
+                        feature_columns=feature_columns,
+                        split_name='test',
+                    )
+                    fold_metric_rows.append(metrics)
+
+                row.update(_aggregate_fold_metric_rows(fold_metric_rows))
+            except Exception as exc:
+                row['robustness_status'] = 'evaluation_failed'
+                row['robustness_note'] = f'{type(exc).__name__}: {exc}'
+            rows.append(row)
+
+    selected_feature_df = feature_tables[selected_feature_set]
+    selected_feature_columns = _feature_columns(selected_feature_df)
+    selected_feature_count = len(selected_feature_columns)
+    for model_type in baseline_types:
+        row = {
+            'feature_set': DUMMY_FEATURE_SET,
+            'feature_family': get_feature_family(DUMMY_FEATURE_SET),
+            'candidate_compatible': False,
+            'n_features': int(selected_feature_count),
+            'model_type': model_type,
+            'benchmark_role': 'dummy_baseline',
+            'selected_by_validation': False,
+            'robustness_method': robustness_cfg['method'],
+            'robustness_group_column': group_col,
+            'robustness_status': 'ok',
+            'robustness_note': get_feature_note(DUMMY_FEATURE_SET),
+        }
+        try:
+            requested_fold_count, actual_fold_count, split_payloads = _group_kfold_splits(
+                selected_feature_df,
+                group_col=group_col,
+                requested_splits=requested_splits,
+            )
+            row['requested_folds'] = requested_fold_count
+            row['actual_folds'] = actual_fold_count
+
+            fold_metric_rows: list[dict[str, float]] = []
+            for split_payload in split_payloads:
+                split_masks = {
+                    'train': split_payload['train'],
+                    'val': split_payload['val'],
+                    'test': split_payload['test'],
+                }
+                model, feature_columns = train_baseline_model(
+                    df=selected_feature_df,
+                    split_masks=split_masks,
+                    cfg=cfg,
+                    model_type=model_type,
+                    include_validation=False,
+                )
+                metrics, _ = evaluate_predictions(
+                    df=selected_feature_df,
+                    split_masks=split_masks,
+                    model=model,
+                    feature_columns=feature_columns,
+                    split_name='test',
+                )
+                fold_metric_rows.append(metrics)
+
+            row.update(_aggregate_fold_metric_rows(fold_metric_rows))
+        except Exception as exc:
+            row['robustness_status'] = 'evaluation_failed'
+            row['robustness_note'] = f'{type(exc).__name__}: {exc}'
+
+        rows.append(row)
+
+    robustness_df = pd.DataFrame(rows)
+    return robustness_df.sort_values(
         ['selected_by_validation', 'benchmark_role', 'feature_set', 'model_type'],
         ascending=[False, True, True, True],
     ).reset_index(drop=True)

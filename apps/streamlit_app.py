@@ -21,6 +21,7 @@ artifact_dir = Path('artifacts')
 metrics_path = artifact_dir / 'metrics.json'
 summary_path = artifact_dir / 'experiment_summary.json'
 benchmark_path = artifact_dir / 'benchmark_results.csv'
+robustness_path = artifact_dir / 'robustness_results.csv'
 pred_path = artifact_dir / 'predictions.csv'
 screen_path = artifact_dir / 'demo_candidate_ranking.csv'
 
@@ -39,6 +40,10 @@ if summary_path.exists():
 if benchmark_path.exists():
     st.subheader('Benchmark results')
     st.dataframe(pd.read_csv(benchmark_path), use_container_width=True)
+
+if robustness_path.exists():
+    st.subheader('Grouped robustness results')
+    st.dataframe(pd.read_csv(robustness_path), use_container_width=True)
 
 if pred_path.exists():
     st.subheader('Prediction samples')

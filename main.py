@@ -9,6 +9,7 @@ if str(SRC_DIR) not in sys.path:
 from core.io_utils import clear_project_cache, ensure_runtime_dirs, load_config
 from pipeline.data import load_or_build_dataset
 from pipeline.features import (
+    benchmark_grouped_robustness,
     benchmark_regressors,
     build_candidate_prediction_ensemble,
     build_feature_tables,
@@ -80,6 +81,12 @@ def main() -> None:
         selected_feature_set=selected_feature_set,
         selected_model_type=selected_model_type,
     )
+    robustness_df = benchmark_grouped_robustness(
+        feature_tables,
+        cfg,
+        selected_feature_set=selected_feature_set,
+        selected_model_type=selected_model_type,
+    )
     ranking_feature_df = feature_tables[ranking_feature_set]
     if ranking_feature_set == selected_feature_set and ranking_model_type == selected_model_type:
         ranking_model = model
@@ -121,6 +128,7 @@ def main() -> None:
         candidate_df=ranked_candidate_df,
         split_masks=split_masks,
         selection_summary=selection_summary,
+        robustness_df=robustness_df,
         cfg=cfg,
     )
 
@@ -130,6 +138,7 @@ def main() -> None:
         bn_df,
         ranked_candidate_df,
         benchmark_df,
+        robustness_df,
         experiment_summary,
         manifest,
         cfg,

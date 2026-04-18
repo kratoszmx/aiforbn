@@ -9,6 +9,7 @@ import pytest
 from pipeline.data import STRUCTURE_SUMMARY_COLUMNS
 from pipeline.features import (
     STRUCTURE_AWARE_FEATURE_SET,
+    benchmark_grouped_robustness,
     benchmark_regressors,
     build_candidate_prediction_ensemble,
     build_feature_table,
@@ -58,6 +59,13 @@ CFG = {
             'random_state': 42,
         },
         'dummy_mean': {'strategy': 'mean'},
+    },
+    'robustness': {
+        'enabled': True,
+        'method': 'group_kfold_by_formula',
+        'group_column': 'formula',
+        'n_splits': 5,
+        'note': 'demo grouped robustness note',
     },
     'screening': {
         'top_k': 5,
@@ -334,6 +342,33 @@ def test_select_feature_model_combo_separates_structure_aware_evaluation_from_fo
     assert summary['screening_selected_feature_set'] != summary['selected_feature_set']
     assert summary['screening_selection_matches_overall'] is False
     assert 'falls back to the best candidate-compatible validation combo' in summary['screening_selection_note']
+
+
+def test_grouped_robustness_benchmark_summarizes_group_kfold_results():
+    dataset_df = _stoichiometry_signal_df()
+    feature_tables = build_feature_tables(dataset_df, CFG)
+    split_masks = make_split_masks(dataset_df, CFG)
+    selection_summary = select_feature_model_combo(feature_tables, split_masks, CFG)
+    robustness_df = benchmark_grouped_robustness(
+        feature_tables,
+        CFG,
+        selected_feature_set=selection_summary['selected_feature_set'],
+        selected_model_type=selection_summary['selected_model_type'],
+    )
+
+    assert not robustness_df.empty
+    assert robustness_df['robustness_method'].eq('group_kfold_by_formula').all()
+    assert robustness_df['robustness_group_column'].eq('formula').all()
+    ok_rows = robustness_df.loc[robustness_df['robustness_status'] == 'ok']
+    assert ok_rows['requested_folds'].eq(5).all()
+    assert ok_rows['actual_folds'].eq(5).all()
+    assert ok_rows['completed_folds'].eq(5).all()
+    assert ok_rows['mae_mean'].notna().all()
+    assert ok_rows['rmse_mean'].notna().all()
+    assert 'dummy_baseline' in set(robustness_df['benchmark_role'])
+    structure_rows = robustness_df[robustness_df['feature_set'] == STRUCTURE_AWARE_FEATURE_SET]
+    assert structure_rows['robustness_status'].eq('skipped_featurization_failure').all()
+    assert robustness_df['selected_by_validation'].sum() == 1
 
 
 def test_feature_pipeline_can_train_evaluate_benchmark_and_rank_demo_candidates():

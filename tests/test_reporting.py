@@ -30,6 +30,13 @@ def test_reporting_writes_expected_artifacts(tmp_path):
             'candidate_types': ['linear_regression', 'hist_gradient_boosting'],
             'benchmark_baselines': ['dummy_mean'],
         },
+        'robustness': {
+            'enabled': True,
+            'method': 'group_kfold_by_formula',
+            'group_column': 'formula',
+            'n_splits': 4,
+            'note': 'demo grouped robustness note',
+        },
         'screening': {
             'candidate_generation_strategy': 'bn_anchored_formula_family_grid',
             'candidate_space_name': 'bn_anchored_formula_family_grid',
@@ -170,6 +177,28 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         'model_type': ['linear_regression', 'dummy_mean'],
         'mae': [1.0, 1.4],
     })
+    robustness_df = pd.DataFrame({
+        'feature_set': ['matminer_composition', 'basic_formula_composition', 'feature_agnostic_dummy'],
+        'feature_family': ['composition_only', 'composition_only', 'baseline'],
+        'candidate_compatible': [True, True, False],
+        'n_features': [138, 5, 138],
+        'model_type': ['linear_regression', 'hist_gradient_boosting', 'dummy_mean'],
+        'benchmark_role': ['selected_model', 'candidate_model', 'dummy_baseline'],
+        'selected_by_validation': [True, False, False],
+        'robustness_method': ['group_kfold_by_formula'] * 3,
+        'robustness_group_column': ['formula'] * 3,
+        'requested_folds': [4, 4, 4],
+        'actual_folds': [4, 4, 4],
+        'completed_folds': [4, 4, 4],
+        'robustness_status': ['ok', 'ok', 'ok'],
+        'robustness_note': ['demo grouped robustness note', 'demo grouped robustness note', 'feature-agnostic dummy baseline'],
+        'mae_mean': [1.1, 1.3, 1.6],
+        'mae_std': [0.1, 0.2, 0.3],
+        'rmse_mean': [1.4, 1.7, 2.0],
+        'rmse_std': [0.1, 0.2, 0.3],
+        'r2_mean': [0.6, 0.4, 0.1],
+        'r2_std': [0.05, 0.08, 0.1],
+    })
     split_masks = {
         'train': [True],
         'val': [False],
@@ -216,6 +245,7 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         split_masks=split_masks,
         selection_summary=selection_summary,
         cfg=cfg,
+        robustness_df=robustness_df,
     )
     manifest = {'name': 'twod_matpd'}
 
@@ -225,6 +255,7 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         bn_df,
         screened_df,
         benchmark_df,
+        robustness_df,
         experiment_summary,
         manifest,
         cfg,
@@ -237,6 +268,17 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     assert experiment_summary['features']['selected_feature_set'] == 'matminer_composition'
     assert experiment_summary['features']['selected_feature_family'] == 'composition_only'
     assert experiment_summary['feature_model_selection']['selected_model_type'] == 'linear_regression'
+    assert experiment_summary['robustness']['enabled'] is True
+    assert experiment_summary['robustness']['robustness_artifact'] == 'robustness_results.csv'
+    assert experiment_summary['robustness']['method'] == 'group_kfold_by_formula'
+    assert experiment_summary['robustness']['group_column'] == 'formula'
+    assert experiment_summary['robustness']['requested_folds'] == 4
+    assert experiment_summary['robustness']['result_row_count'] == 3
+    assert experiment_summary['robustness']['successful_result_rows'] == 3
+    assert experiment_summary['robustness']['failed_result_rows'] == 0
+    assert experiment_summary['robustness']['selected_model_metrics']['mae_mean'] == 1.1
+    assert experiment_summary['robustness']['screening_model_metrics']['model_type'] == 'linear_regression'
+    assert experiment_summary['robustness']['dummy_baseline_metrics']['model_type'] == 'dummy_mean'
     assert experiment_summary['screening']['ranking_basis'] == (
         'composition_only_mean_band_gap_minus_model_disagreement_low_support_and_bn_support_and_bn_analog_validation_penalties'
     )
@@ -375,6 +417,7 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     assert (artifact_dir / 'bn_slice.csv').exists()
     assert (artifact_dir / 'demo_candidate_ranking.csv').exists()
     assert (artifact_dir / 'benchmark_results.csv').exists()
+    assert (artifact_dir / 'robustness_results.csv').exists()
     assert (artifact_dir / 'parity_plot.png').exists()
 
 

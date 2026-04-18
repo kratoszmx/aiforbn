@@ -10,7 +10,7 @@
 - 当前工作已恢复到**已重新验证**的节点。
 - 在当前 dirty working tree 上，以下命令已通过：
   - 清缓存：通过 `../myutils/file_utils.delete_cache('.')`
-  - `pytest -q` → `19 passed in 2.26s`
+  - `pytest -q` → `20 passed in 2.38s`
   - `/opt/homebrew/Caskroom/miniforge/base/envs/quant/bin/python main.py` → 运行成功
 - 主任务仍是 `band_gap` 预测与 BN 主题下的候选排序演示。
 - 训练数据仍来自 JARVIS / 2DMatPedia 的 `twod_matpd`。
@@ -60,6 +60,7 @@
   - 两者是否一致
   - screening fallback note
 - `benchmark_results.csv` 已能诚实呈现 structure-aware 与 composition-only 路径的 test 对照。
+- `robustness_results.csv` 已能额外呈现 grouped-by-formula cross-validation 下的 feature/model robustness 对照，避免方法叙事只依赖单次 holdout split。
 - `demo_candidate_ranking.csv` 已明确写出：
   - `ranking_feature_set`
   - `ranking_model_type`
@@ -154,9 +155,15 @@
   - `matminer_composition + linear_regression`: `MAE = 0.8555`
   - `basic_formula_composition + linear_regression`: `MAE = 1.0056`
   - `dummy_mean`: `MAE = 1.1118`
+- 当前 grouped robustness（`group_kfold_by_formula`, 5 folds）：
+  - `matminer_composition_plus_structure_summary + hist_gradient_boosting`: `MAE_mean = 0.6050 ± 0.0176`
+  - `matminer_composition + hist_gradient_boosting`: `MAE_mean = 0.6321 ± 0.0192`
+  - `basic_formula_composition + hist_gradient_boosting`: `MAE_mean = 1.0116 ± 0.0173`
+  - `dummy_mean`: `MAE_mean = 1.1527 ± 0.0233`
 - 当前结果的准确解读：
   - structure-aware 路径相对最佳 formula-only 路径的提升是**小幅但一致**的；
   - test MAE 从 `0.5822` 降到 `0.5568`，绝对改善约 `0.0254`，相对改善约 `4.4%`；
+  - grouped robustness 下，`MAE_mean` 也从 `0.6321` 降到 `0.6050`，说明这一优势不只来自单次 holdout split；
   - 这足以让 overall evaluation 选到 structure-aware，但还不是巨大跃升。
 - 当前候选排序摘要：
   - `ranking_basis = composition_only_mean_band_gap_minus_model_disagreement_low_support_and_bn_support_and_bn_analog_validation_penalties`
@@ -207,7 +214,8 @@
 - `src/pipeline/reporting.py`：artifact 输出与实验摘要。
 - `artifacts/metrics.json`：当前 best overall combo 的测试指标与元数据。
 - `artifacts/benchmark_results.csv`：测试集 feature/model benchmark。
-- `artifacts/experiment_summary.json`：数据、split、选择与 screening 摘要。
+- `artifacts/robustness_results.csv`：grouped-by-formula cross-validation robustness benchmark。
+- `artifacts/experiment_summary.json`：数据、split、选择、robustness 与 screening 摘要。
 - `artifacts/demo_candidate_ranking.csv`：当前完整 formula-only source-space ranking artifact，含 plausibility pass/fail 与 top-k decision。
 - `PY_FILES_SUMMARY.md`：AI-facing Python summary。
 - `给见微的说明.md`：面向见微的项目说明。
@@ -216,6 +224,7 @@
 ## 仍然明确的限制
 - 当前已经不是纯 composition-only evaluation，但**也远不是成熟的 structure-aware 材料模型**。
 - 结构路径只用了 cached JARVIS atoms 导出的轻量结构摘要，不是 crystal graph、3D/2D 几何编码、形成能或稳定性建模。
+- grouped robustness 虽然比单次 split 更可信，但它仍然只是当前数据表上的 grouped cross-validation，不等于跨数据源外部验证或真实 prospective validation。
 - formula-only 候选空间虽然新增了基础 oxidation-state / charge-balance plausibility layer，但**仍然没有结构、形成能、热力学稳定性、声子稳定性、合成可行性约束**。
 - 当前 plausibility screen 只是轻量公式级可信度边界，不等于“材料可存在”判断；例如某些边缘氧化态解释仍可能通过。
 - 当前 domain-support 层在新候选空间上已经开始真正触发惩罚，当前 `domain_support_penalized_rows = 12`，说明它不再只是装饰性注释。

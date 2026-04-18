@@ -55,6 +55,16 @@ CONFIG = {
             'strategy': 'mean',
         },
     },
+    'robustness': {
+        'enabled': True,
+        'method': 'group_kfold_by_formula',
+        'group_column': 'formula',
+        'n_splits': 5,
+        'note': (
+            'Runs a grouped-by-formula cross-validation benchmark across configured feature/model '
+            'combos so the advisor-facing story does not depend on a single lucky holdout split.'
+        ),
+    },
     'screening': {
         'enabled': True,
         'top_k': 20,

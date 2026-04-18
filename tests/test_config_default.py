@@ -24,6 +24,10 @@ def test_default_config_has_expected_poc_defaults():
     ]
     assert cfg['features']['feature_family'] == 'mixed_formula_and_structure'
     assert cfg['model']['candidate_types'] == ['linear_regression', 'hist_gradient_boosting']
+    assert cfg['robustness']['enabled'] is True
+    assert cfg['robustness']['method'] == 'group_kfold_by_formula'
+    assert cfg['robustness']['group_column'] == 'formula'
+    assert cfg['robustness']['n_splits'] == 5
     assert cfg['screening']['candidate_generation_strategy'] == 'bn_anchored_formula_family_grid'
     assert cfg['screening']['candidate_space_name'] == 'bn_anchored_formula_family_grid'
     assert cfg['screening']['candidate_space_kind'] == 'bn_family_demo'

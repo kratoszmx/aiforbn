@@ -19,9 +19,10 @@ What it does, in order:
 6. selects `{feature_set} x {model_type}` on validation
 7. retrains the selected overall-evaluation combo on `train + val`
 8. benchmarks all configured combos on `test`
-9. builds formula-only candidate uncertainty stats
-10. ranks candidates with the best candidate-compatible combo
-11. writes metrics / plots / benchmark / ranking artifacts
+9. runs grouped-by-formula robustness benchmarking across configured combos
+10. builds formula-only candidate uncertainty stats
+11. ranks candidates with the best candidate-compatible combo
+12. writes metrics / plots / benchmark / robustness / ranking artifacts
 
 Important:
 - overall evaluation combo and formula-only screening combo may differ
@@ -218,6 +219,30 @@ Useful benchmark columns include:
 - `rmse`
 - `r2`
 
+### `benchmark_grouped_robustness(feature_tables, cfg, selected_feature_set, selected_model_type)`
+Runs grouped-by-formula cross-validation robustness benchmarking over the configured feature/model combos.
+This is the new layer that checks whether the evaluation story survives more than one split.
+
+Useful robustness columns include:
+- `feature_set`
+- `feature_family`
+- `candidate_compatible`
+- `model_type`
+- `benchmark_role`
+- `selected_by_validation`
+- `robustness_method`
+- `robustness_group_column`
+- `requested_folds`
+- `actual_folds`
+- `completed_folds`
+- `robustness_status`
+- `mae_mean`
+- `mae_std`
+- `rmse_mean`
+- `rmse_std`
+- `r2_mean`
+- `r2_std`
+
 ### `build_candidate_prediction_ensemble(candidate_df, feature_tables, split_masks, cfg, candidate_feature_sets=None)`
 Trains the tiny candidate-compatible feature/model pool on `train + val` and computes candidate-level ensemble prediction statistics:
 - `ensemble_predicted_band_gap_mean`
@@ -340,13 +365,14 @@ Useful output columns include:
 
 ## src/pipeline/reporting.py
 
-### `build_experiment_summary(dataset_df, bn_df, candidate_df, split_masks, selection_summary, cfg)`
+### `build_experiment_summary(dataset_df, bn_df, candidate_df, split_masks, selection_summary, cfg, robustness_df=None)`
 Builds the structured experiment summary dict written to `artifacts/experiment_summary.json`.
 Includes:
 - dataset stats
 - feature summary
 - joint feature/model selection summary
 - benchmark metadata
+- grouped robustness metadata
 - candidate ranking metadata
 
 Important:
@@ -356,8 +382,9 @@ Important:
 - now also summarizes BN analog-evidence metadata from observed BN reference properties
 - now also summarizes analog-validation label counts derived from BN reference property alignment
 - now also summarizes whether the BN analog-validation proxy is active in ranking and how many rows were penalized
+- now also summarizes grouped-by-formula robustness results for the selected model, screening fallback, and dummy baseline
 
-### `save_metrics_and_predictions(metrics, prediction_df, bn_df, screened_df, benchmark_df, experiment_summary, manifest, cfg)`
+### `save_metrics_and_predictions(metrics, prediction_df, bn_df, screened_df, benchmark_df, robustness_df, experiment_summary, manifest, cfg)`
 Writes the main artifact files under `artifacts/`.
 
 ### `save_basic_plots(prediction_df, cfg)`
@@ -372,6 +399,7 @@ It is a simple artifact viewer for:
 - `metrics.json`
 - `experiment_summary.json`
 - `benchmark_results.csv`
+- `robustness_results.csv`
 - `predictions.csv`
 - `demo_candidate_ranking.csv`
 
