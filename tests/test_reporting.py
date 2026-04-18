@@ -138,6 +138,8 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         'bn_analog_support_vote_count': [3, 2],
         'bn_analog_support_available_metric_count': [3, 3],
         'bn_analog_validation_label': ['reference_like_on_available_metrics', 'mixed_reference_alignment'],
+        'bn_analog_validation_support_fraction': [1.0, 2.0 / 3.0],
+        'bn_analog_validation_penalty': [0.0, 0.04],
         'chemical_plausibility_pass': [True, False],
         'chemical_plausibility_guess_count': [1, 0],
         'chemical_plausibility_primary_oxidation_state_guess': ['B(+3), N(-3)', ''],
@@ -236,7 +238,7 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     assert experiment_summary['features']['selected_feature_family'] == 'composition_only'
     assert experiment_summary['feature_model_selection']['selected_model_type'] == 'linear_regression'
     assert experiment_summary['screening']['ranking_basis'] == (
-        'composition_only_mean_band_gap_minus_model_disagreement_low_support_and_bn_support_penalties'
+        'composition_only_mean_band_gap_minus_model_disagreement_low_support_and_bn_support_and_bn_analog_validation_penalties'
     )
     assert experiment_summary['screening']['ranking_feature_family'] == 'composition_only'
     assert experiment_summary['screening']['ranking_matches_best_overall_evaluation'] is True
@@ -265,6 +267,12 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     assert experiment_summary['screening']['bn_analog_reference_like_rows'] == 1
     assert experiment_summary['screening']['bn_analog_mixed_alignment_rows'] == 1
     assert experiment_summary['screening']['bn_analog_reference_divergent_rows'] == 0
+    assert experiment_summary['screening']['bn_analog_validation_enabled'] is True
+    assert experiment_summary['screening']['bn_analog_validation_method'] == 'bn_analog_alignment_vote_fraction'
+    assert experiment_summary['screening']['bn_analog_validation_penalty_enabled'] is True
+    assert experiment_summary['screening']['bn_analog_validation_penalty_active'] is True
+    assert experiment_summary['screening']['bn_analog_validation_penalty_weight'] == 0.12
+    assert experiment_summary['screening']['bn_analog_validation_penalized_rows'] == 1
     assert experiment_summary['screening']['chemical_plausibility_enabled'] is True
     assert experiment_summary['screening']['chemical_plausibility_passed_rows'] == 1
     assert experiment_summary['screening']['chemical_plausibility_failed_rows'] == 1
@@ -303,6 +311,7 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     assert 'Novelty is tracked only at the formula level' in experiment_summary['screening']['ranking_note']
     assert 'known BN slice' in experiment_summary['screening']['ranking_note']
     assert 'observed-property evidence from nearby BN-containing train+val formulas' in experiment_summary['screening']['ranking_note']
+    assert 'BN analog-validation penalty' in experiment_summary['screening']['ranking_note']
     assert experiment_summary['screening']['candidate_annotations'] == [
         'candidate_family',
         'candidate_template',
@@ -341,6 +350,8 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         'bn_analog_support_vote_count',
         'bn_analog_support_available_metric_count',
         'bn_analog_validation_label',
+        'bn_analog_validation_support_fraction',
+        'bn_analog_validation_penalty',
         'chemical_plausibility_pass',
         'chemical_plausibility_guess_count',
         'chemical_plausibility_primary_oxidation_state_guess',
@@ -508,6 +519,8 @@ def test_experiment_summary_explains_structure_aware_evaluation_vs_formula_only_
             'bn_analog_support_vote_count': [3, 2],
             'bn_analog_support_available_metric_count': [3, 3],
             'bn_analog_validation_label': ['reference_like_on_available_metrics', 'mixed_reference_alignment'],
+            'bn_analog_validation_support_fraction': [1.0, 2.0 / 3.0],
+            'bn_analog_validation_penalty': [0.0, 0.04],
             'chemical_plausibility_pass': [True, False],
             'chemical_plausibility_guess_count': [1, 0],
             'chemical_plausibility_primary_oxidation_state_guess': ['B(+3), N(-3)', ''],
@@ -529,6 +542,7 @@ def test_experiment_summary_explains_structure_aware_evaluation_vs_formula_only_
     assert 'train+val feature-space domain-support layer' in summary['screening']['ranking_note']
     assert 'known BN slice' in summary['screening']['ranking_note']
     assert 'observed-property evidence from nearby BN-containing train+val formulas' in summary['screening']['ranking_note']
+    assert 'BN analog-validation penalty' in summary['screening']['ranking_note']
     assert 'lightweight pymatgen oxidation-state plausibility screen' in summary['screening']['ranking_note']
     assert summary['screening']['candidate_generation_strategy'] == 'bn_anchored_formula_family_grid'
     assert summary['screening']['candidate_family_counts'] == {
@@ -545,4 +559,6 @@ def test_experiment_summary_explains_structure_aware_evaluation_vs_formula_only_
     assert summary['screening']['bn_analog_reference_like_rows'] == 1
     assert summary['screening']['bn_analog_mixed_alignment_rows'] == 1
     assert summary['screening']['bn_analog_reference_divergent_rows'] == 0
+    assert summary['screening']['bn_analog_validation_enabled'] is True
+    assert summary['screening']['bn_analog_validation_penalized_rows'] == 1
     assert summary['screening']['chemical_plausibility_failed_formulas'] == ['AlBN']

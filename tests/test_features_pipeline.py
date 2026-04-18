@@ -430,8 +430,18 @@ def test_feature_pipeline_can_train_evaluate_benchmark_and_rank_demo_candidates(
         expected_reference_formula_count
     ).all()
     assert screened_df['domain_support_k_neighbors'].eq(5).all()
-    assert (screened_df['ranking_score_before_domain_support_penalty'] >= screened_df['ranking_score_before_bn_support_penalty']).all()
-    assert (screened_df['ranking_score_before_bn_support_penalty'] >= screened_df['ranking_score']).all()
+    assert (
+        screened_df['ranking_score_before_domain_support_penalty']
+        >= screened_df['ranking_score_before_bn_support_penalty']
+    ).all()
+    assert (
+        screened_df['ranking_score_before_bn_support_penalty']
+        >= screened_df['ranking_score_before_bn_analog_validation_penalty']
+    ).all()
+    assert (
+        screened_df['ranking_score_before_bn_analog_validation_penalty']
+        >= screened_df['ranking_score']
+    ).all()
     assert screened_df['domain_support_penalty'].ge(0.0).all()
     assert (screened_df['domain_support_penalty'] > 0.0).any()
     assert screened_df['bn_support_enabled'].eq(True).all()
@@ -461,6 +471,11 @@ def test_feature_pipeline_can_train_evaluate_benchmark_and_rank_demo_candidates(
     assert screened_df['bn_analog_evidence_aggregation'].eq(
         'mean_over_k_nearest_bn_formulas'
     ).all()
+    assert screened_df['bn_analog_validation_enabled'].eq(True).all()
+    assert screened_df['bn_analog_validation_method'].eq(
+        'bn_analog_alignment_vote_fraction'
+    ).all()
+    assert screened_df['bn_analog_validation_penalty'].eq(0.0).all()
     assert screened_df['bn_analog_reference_formula_count'].eq(
         expected_bn_reference_formula_count
     ).all()
@@ -512,6 +527,8 @@ def test_feature_pipeline_can_train_evaluate_benchmark_and_rank_demo_candidates(
     assert bn_row['bn_analog_support_vote_count'] == 3
     assert bn_row['bn_analog_support_available_metric_count'] == 3
     assert bn_row['bn_analog_validation_label'] == 'reference_like_on_available_metrics'
+    assert bn_row['bn_analog_validation_support_fraction'] == pytest.approx(1.0)
+    assert bn_row['bn_analog_validation_penalty'] == pytest.approx(0.0)
     assert ge2bn_row['domain_support_nearest_distance'] > 0.0
     assert ge2bn_row['bn_support_nearest_distance'] > 0.0
     assert bn_row['domain_support_percentile'] >= ge2bn_row['domain_support_percentile']
@@ -521,6 +538,8 @@ def test_feature_pipeline_can_train_evaluate_benchmark_and_rank_demo_candidates(
         'mixed_reference_alignment',
         'reference_divergent_on_available_metrics',
     }
+    assert 0.0 <= ge2bn_row['bn_analog_validation_support_fraction'] <= 1.0
+    assert ge2bn_row['bn_analog_validation_penalty'] >= 0.0
     assert 'train+val feature-space domain-support layer' in screened_df['ranking_note'].iloc[0]
     assert 'known BN slice' in screened_df['ranking_note'].iloc[0]
     assert 'observed-property evidence from nearby BN-containing train+val formulas' in screened_df['ranking_note'].iloc[0]

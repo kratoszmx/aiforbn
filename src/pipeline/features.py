@@ -85,6 +85,16 @@ BN_ANALOG_EVIDENCE_RANKING_NOTE = (
     'nearby BN references stay in more reference-like or more divergent property regimes on the '
     'available metrics. This is analog retrieval, not direct candidate property validation.'
 )
+DEFAULT_BN_ANALOG_VALIDATION_NOTE = (
+    'Compresses BN analog exfoliation / energy / magnetization alignment into a lightweight '
+    'vote-fraction validation proxy. This is still a heuristic ranking layer, not direct '
+    'structure, thermodynamic stability, or synthesis validation.'
+)
+BN_ANALOG_VALIDATION_RANKING_NOTE = (
+    'A mild BN analog-validation penalty is also applied from the available analog alignment '
+    'votes across exfoliation, energy, and magnetization; this remains a heuristic validation '
+    'proxy, not direct stability validation.'
+)
 BASIC_FEATURE_SET = 'basic_formula_composition'
 MATMINER_FEATURE_SET = 'matminer_composition'
 STRUCTURE_AWARE_FEATURE_SET = 'matminer_composition_plus_structure_summary'
@@ -540,14 +550,48 @@ def _bn_analog_evidence_config(cfg: dict | None = None) -> dict:
     }
 
 
+def _bn_analog_validation_config(cfg: dict | None = None) -> dict:
+    screening_cfg = (cfg or {}).get('screening', {})
+    validation_cfg = screening_cfg.get('bn_analog_validation', {})
+    return {
+        'enabled': bool(validation_cfg.get('enabled', True)),
+        'method': validation_cfg.get(
+            'method',
+            'bn_analog_alignment_vote_fraction',
+        ),
+        'ranking_penalty_enabled': bool(validation_cfg.get('ranking_penalty_enabled', True)),
+        'ranking_penalty_weight': max(
+            0.0,
+            float(validation_cfg.get('ranking_penalty_weight', 0.12)),
+        ),
+        'note': validation_cfg.get('note', DEFAULT_BN_ANALOG_VALIDATION_NOTE),
+    }
+
+
+def _append_bn_analog_validation_basis(ranking_basis: str) -> str:
+    if ranking_basis.endswith('_penalties'):
+        return (
+            ranking_basis[: -len('_penalties')]
+            + '_and_bn_analog_validation_penalties'
+        )
+    if ranking_basis.endswith('_penalty'):
+        return (
+            ranking_basis[: -len('_penalty')]
+            + '_and_bn_analog_validation_penalties'
+        )
+    return f'{ranking_basis}_minus_bn_analog_validation_penalty'
+
+
 def get_screening_ranking_metadata(
     cfg: dict | None = None,
     domain_support_penalty_applied: bool | None = None,
     bn_support_penalty_applied: bool | None = None,
+    bn_analog_validation_penalty_applied: bool | None = None,
 ) -> dict[str, object]:
     screening_cfg = (cfg or {}).get('screening', {})
     support_cfg = _domain_support_config(cfg)
     bn_support_cfg = _bn_support_config(cfg)
+    bn_analog_validation_cfg = _bn_analog_validation_config(cfg)
     use_model_disagreement = bool(screening_cfg.get('use_model_disagreement', False))
     domain_support_penalty_enabled = bool(
         support_cfg['enabled'] and support_cfg['ranking_penalty_enabled']
@@ -569,6 +613,18 @@ def get_screening_ranking_metadata(
             True
             if bn_support_penalty_applied is None
             else bn_support_penalty_applied
+        )
+    )
+
+    bn_analog_validation_penalty_enabled = bool(
+        bn_analog_validation_cfg['enabled'] and bn_analog_validation_cfg['ranking_penalty_enabled']
+    )
+    bn_analog_validation_penalty_active = bool(
+        bn_analog_validation_penalty_enabled
+        and (
+            True
+            if bn_analog_validation_penalty_applied is None
+            else bn_analog_validation_penalty_applied
         )
     )
 
@@ -597,6 +653,10 @@ def get_screening_ranking_metadata(
         ranking_basis = SELECTED_MODEL_RANKING_BASIS
         ranking_note = SELECTED_MODEL_RANKING_NOTE
 
+    if bn_analog_validation_penalty_active:
+        ranking_basis = _append_bn_analog_validation_basis(ranking_basis)
+        ranking_note = f'{ranking_note} {BN_ANALOG_VALIDATION_RANKING_NOTE}'
+
     return {
         'ranking_basis': ranking_basis,
         'ranking_note': ranking_note,
@@ -622,6 +682,14 @@ def get_screening_ranking_metadata(
         'bn_support_penalty_active': bn_support_penalty_active,
         'bn_support_penalty_weight': float(bn_support_cfg['ranking_penalty_weight']),
         'bn_support_penalize_below_percentile': float(bn_support_cfg['penalize_below_percentile']),
+        'bn_analog_validation_enabled': bool(bn_analog_validation_cfg['enabled']),
+        'bn_analog_validation_method': bn_analog_validation_cfg['method'],
+        'bn_analog_validation_note': bn_analog_validation_cfg['note'],
+        'bn_analog_validation_penalty_enabled': bn_analog_validation_penalty_enabled,
+        'bn_analog_validation_penalty_active': bn_analog_validation_penalty_active,
+        'bn_analog_validation_penalty_weight': float(
+            bn_analog_validation_cfg['ranking_penalty_weight']
+        ),
     }
 
 
@@ -2237,6 +2305,7 @@ def screen_candidates(
         out['ranking_score'] = out['predicted_band_gap']
     out['ranking_score_before_domain_support_penalty'] = out['ranking_score']
     out['ranking_score_before_bn_support_penalty'] = out['ranking_score']
+    out['ranking_score_before_bn_analog_validation_penalty'] = out['ranking_score']
 
     reference_feature_df = reference_feature_df
     if bool(ranking_config_metadata['domain_support_enabled']):
@@ -2319,6 +2388,13 @@ def screen_candidates(
         out['bn_support_penalty'] = 0.0
 
     bn_analog_evidence_cfg = _bn_analog_evidence_config(cfg)
+    bn_analog_validation_cfg = _bn_analog_validation_config(cfg)
+    out['bn_analog_validation_enabled'] = bool(bn_analog_validation_cfg['enabled'])
+    out['bn_analog_validation_method'] = bn_analog_validation_cfg['method']
+    out['bn_analog_validation_note'] = bn_analog_validation_cfg['note']
+    out['bn_analog_validation_support_fraction'] = np.nan
+    out['bn_analog_validation_penalty'] = 0.0
+    out['ranking_score_before_bn_analog_validation_penalty'] = out['ranking_score']
     if bool(bn_analog_evidence_cfg['enabled']):
         if dataset_df is None:
             raise ValueError('BN analog evidence annotation requires dataset_df')
@@ -2333,11 +2409,29 @@ def screen_candidates(
             [out.reset_index(drop=True), bn_analog_df.drop(columns=['formula'])],
             axis=1,
         )
+        available_metric_count = out['bn_analog_support_available_metric_count'].fillna(0.0)
+        vote_count = out['bn_analog_support_vote_count'].fillna(0.0)
+        support_fraction = np.where(
+            available_metric_count.to_numpy(dtype=float) > 0.0,
+            vote_count.to_numpy(dtype=float) / available_metric_count.to_numpy(dtype=float),
+            np.nan,
+        )
+        out['bn_analog_validation_support_fraction'] = support_fraction
+        if bool(bn_analog_validation_cfg['enabled'] and bn_analog_validation_cfg['ranking_penalty_enabled']):
+            out['bn_analog_validation_penalty'] = np.where(
+                np.isfinite(support_fraction),
+                float(bn_analog_validation_cfg['ranking_penalty_weight']) * (1.0 - support_fraction),
+                0.0,
+            )
+            out['ranking_score'] = out['ranking_score'] - out['bn_analog_validation_penalty'].fillna(0.0)
 
     ranking_metadata = get_screening_ranking_metadata(
         cfg,
         domain_support_penalty_applied=bool(out['domain_support_penalty'].fillna(0.0).gt(0.0).any()),
         bn_support_penalty_applied=bool(out['bn_support_penalty'].fillna(0.0).gt(0.0).any()),
+        bn_analog_validation_penalty_applied=bool(
+            out['bn_analog_validation_penalty'].fillna(0.0).gt(0.0).any()
+        ),
     )
 
     if dataset_df is not None:

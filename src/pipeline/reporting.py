@@ -107,6 +107,7 @@ def build_experiment_summary(dataset_df, bn_df, candidate_df, split_masks, selec
     bn_analog_reference_like_rows = None
     bn_analog_mixed_alignment_rows = None
     bn_analog_reference_divergent_rows = None
+    bn_analog_validation_penalized_rows = None
     if 'bn_analog_evidence_enabled' in candidate_df.columns and not candidate_df.empty:
         bn_analog_evidence_enabled = bool(candidate_df['bn_analog_evidence_enabled'].fillna(False).iloc[0])
     if 'bn_analog_reference_formula_count' in candidate_df.columns and not candidate_df.empty:
@@ -159,11 +160,16 @@ def build_experiment_summary(dataset_df, bn_df, candidate_df, split_masks, selec
                 'reference_divergent_on_available_metrics'
             ).sum()
         )
+    if 'bn_analog_validation_penalty' in candidate_df.columns:
+        bn_analog_validation_penalized_rows = int(
+            candidate_df['bn_analog_validation_penalty'].fillna(0.0).gt(0.0).sum()
+        )
 
     ranking_metadata = get_screening_ranking_metadata(
         cfg,
         domain_support_penalty_applied=bool(domain_support_penalized_rows),
         bn_support_penalty_applied=bool(bn_support_penalized_rows),
+        bn_analog_validation_penalty_applied=bool(bn_analog_validation_penalized_rows),
     )
     candidate_space_name = cfg['screening']['candidate_space_name']
     candidate_space_kind = cfg['screening']['candidate_space_kind']
@@ -364,6 +370,19 @@ def build_experiment_summary(dataset_df, bn_df, candidate_df, split_masks, selec
             'bn_analog_reference_like_rows': bn_analog_reference_like_rows,
             'bn_analog_mixed_alignment_rows': bn_analog_mixed_alignment_rows,
             'bn_analog_reference_divergent_rows': bn_analog_reference_divergent_rows,
+            'bn_analog_validation_enabled': bool(ranking_metadata['bn_analog_validation_enabled']),
+            'bn_analog_validation_method': ranking_metadata['bn_analog_validation_method'],
+            'bn_analog_validation_note': ranking_metadata['bn_analog_validation_note'],
+            'bn_analog_validation_penalty_enabled': bool(
+                ranking_metadata['bn_analog_validation_penalty_enabled']
+            ),
+            'bn_analog_validation_penalty_active': bool(
+                ranking_metadata['bn_analog_validation_penalty_active']
+            ),
+            'bn_analog_validation_penalty_weight': float(
+                ranking_metadata['bn_analog_validation_penalty_weight']
+            ),
+            'bn_analog_validation_penalized_rows': bn_analog_validation_penalized_rows,
             'chemical_plausibility_enabled': chemical_plausibility_enabled,
             'chemical_plausibility_method': chemical_plausibility_cfg.get(
                 'method',
@@ -446,6 +465,8 @@ def build_experiment_summary(dataset_df, bn_df, candidate_df, split_masks, selec
                 'bn_analog_support_vote_count',
                 'bn_analog_support_available_metric_count',
                 'bn_analog_validation_label',
+                'bn_analog_validation_support_fraction',
+                'bn_analog_validation_penalty',
                 'chemical_plausibility_pass',
                 'chemical_plausibility_guess_count',
                 'chemical_plausibility_primary_oxidation_state_guess',

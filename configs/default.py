@@ -111,6 +111,17 @@ CONFIG = {
                 'stability validation for unseen candidates.'
             ),
         },
+        'bn_analog_validation': {
+            'enabled': True,
+            'method': 'bn_analog_alignment_vote_fraction',
+            'ranking_penalty_enabled': True,
+            'ranking_penalty_weight': 0.12,
+            'note': (
+                'Compresses BN analog exfoliation / energy / magnetization alignment into a '
+                'lightweight vote-fraction validation proxy. This is still a heuristic ranking '
+                'penalty, not direct structure, thermodynamic stability, or synthesis validation.'
+            ),
+        },
         'chemical_plausibility': {
             'enabled': True,
             'method': 'pymatgen_common_oxidation_state_balance',

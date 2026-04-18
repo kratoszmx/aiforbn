@@ -10,7 +10,7 @@
 - 当前工作已恢复到**已重新验证**的节点。
 - 在当前 dirty working tree 上，以下命令已通过：
   - 清缓存：通过 `../myutils/file_utils.delete_cache('.')`
-  - `pytest -q` → `19 passed in 3.16s`
+  - `pytest -q` → `19 passed in 2.26s`
   - `/opt/homebrew/Caskroom/miniforge/base/envs/quant/bin/python main.py` → 运行成功
 - 主任务仍是 `band_gap` 预测与 BN 主题下的候选排序演示。
 - 训练数据仍来自 JARVIS / 2DMatPedia 的 `twod_matpd`。
@@ -38,7 +38,7 @@
   - **domain-support annotation**：用 `train+val` 全局特征空间近邻距离给每个候选写支持度注释；
   - **BN-local support annotation**：用 `train+val` 中已知 BN slice 的近邻距离给每个候选写 BN 主题支持度注释；
   - **BN analog evidence annotation**：把邻近 BN reference formulas 的观测 `band gap / energy_per_atom / exfoliation_energy_per_atom / magnetization` 写进候选解释；
-  - **BN analog validation label**：把 analog `exfoliation / energy / magnetization` 是否更接近 BN 参考区间，汇总成 `reference_like / mixed / reference_divergent`；
+  - **BN analog validation proxy**：把 analog `exfoliation / energy / magnetization` 是否更接近 BN 参考区间，汇总成 `reference_like / mixed / reference_divergent`，并把 vote-fraction 变成轻量 ranking penalty；
   - **novelty / rediscovery annotation**：显式区分 `train_plus_val_rediscovery`、`held_out_known_formula`、`formula_level_extrapolation`。
 - 当前默认策略仍是：**保留完整 source space，标注全部候选，再显式写出 top-k 与未入选原因。**
 
@@ -93,6 +93,8 @@
   - `bn_analog_neighbor_exfoliation_energy_per_atom_mean`
   - `bn_analog_exfoliation_support_label`
   - `bn_analog_validation_label`
+  - `bn_analog_validation_support_fraction`
+  - `bn_analog_validation_penalty`
   - `candidate_novelty_bucket`
   - `novelty_rank_within_bucket`
   - `novel_formula_rank`
@@ -157,7 +159,7 @@
   - test MAE 从 `0.5822` 降到 `0.5568`，绝对改善约 `0.0254`，相对改善约 `4.4%`；
   - 这足以让 overall evaluation 选到 structure-aware，但还不是巨大跃升。
 - 当前候选排序摘要：
-  - `ranking_basis = composition_only_mean_band_gap_minus_model_disagreement_low_support_and_bn_support_penalties`
+  - `ranking_basis = composition_only_mean_band_gap_minus_model_disagreement_low_support_and_bn_support_and_bn_analog_validation_penalties`
   - `ranking_feature_set = matminer_composition`
   - `ranking_model_type = hist_gradient_boosting`
   - `ranking_uncertainty_method = small_feature_model_disagreement`
@@ -184,15 +186,18 @@
   - `bn_analog_reference_like_rows = 2`
   - `bn_analog_mixed_alignment_rows = 2`
   - `bn_analog_reference_divergent_rows = 21`
+  - `bn_analog_validation_penalty_weight = 0.12`
+  - `bn_analog_validation_penalized_rows = 23`
   - `novelty_bucket_counts = {train_plus_val_rediscovery: 3, held_out_known_formula: 0, formula_level_extrapolation: 22}`
   - `standard_top_k_novelty_bucket_counts = {train_plus_val_rediscovery: 3, held_out_known_formula: 0, formula_level_extrapolation: 17}`
   - failed formulas：`AlBN`, `TlBN`
   - top-ranked formula-level extrapolation 候选现在包括：`BCN2`, `BCN`, `AlBN2`, `SiBN2`, `SiBN`
   - BN-local nearest anchors 在当前 artifact 里已经可见，例如 `BCN2 -> B2(CN2)3`、`BCN -> BC2N`、`AlBN2 -> Si2BN`
   - BN analog evidence 也已可见，例如 `BC2N` 的邻近 BN analog exfoliation mean 低于 BN reference median，而 `BCN2 / BCN / AlBN2` 则高于该 reference median
-  - BN analog validation label 也已可见：当前 `reference_like = 2`、`mixed = 2`、`reference_divergent = 21`，前列候选中 `BC2N` 属于 `reference_like`，`BCN2 / BCN` 属于 `mixed`
-  - 当前更适合解读为 **BN-anchored formula-family demo ranking with BN-local support, BN analog evidence, and a lightweight BN analog-validation layer**，而不是新候选发现
-  - 现在可以明确说：BN 不再只是报表标题，至少已经开始作为 screening 逻辑中的显式参考层、analog-evidence 层和轻量 validation-proxy 层出现
+  - BN analog validation label 也已可见：当前 `reference_like = 2`、`mixed = 2`、`reference_divergent = 21`，其中 `23` 个候选在 ranking 中吃到了非零 validation penalty
+  - 轻量 ranking effect 也已生效：`BCN2 / BCN` 仍在前二，但 `BC2N` 现在上升到第 `3` 名且属于 `reference_like`，而 `AlBN2 / SiBN2 / SiBN` 这类 `reference_divergent` 候选被进一步温和压分
+  - 当前更适合解读为 **BN-anchored formula-family demo ranking with BN-local support, BN analog evidence, and an active BN analog-validation penalty layer**，而不是新候选发现
+  - 现在可以明确说：BN 不再只是报表标题，至少已经开始作为 screening 逻辑中的显式参考层、analog-evidence 层和轻量 validation-proxy / ranking-penalty 层出现
 
 ## 当前目录重点
 - `main.py`：线性主入口；保持 notebook-friendly。
@@ -215,7 +220,7 @@
 - 当前 plausibility screen 只是轻量公式级可信度边界，不等于“材料可存在”判断；例如某些边缘氧化态解释仍可能通过。
 - 当前 domain-support 层在新候选空间上已经开始真正触发惩罚，当前 `domain_support_penalized_rows = 12`，说明它不再只是装饰性注释。
 - 当前 BN-local support 层也已经开始真正触发惩罚，当前 `bn_support_penalized_rows = 15`，说明 BN 现在不仅是题目标签，也开始进入 screening 逻辑。
-- 当前 BN analog evidence / analog validation 层已经接入观测属性，并把它们压缩成更可读的 validation label，但它仍然只是 retrieval-style analog evidence / validation proxy，不是对 unseen candidate 的直接稳定性预测或结构验证。
+- 当前 BN analog evidence / analog validation 层已经接入观测属性，并把它们压缩成更可读的 validation label，甚至开始进入 ranking penalty；但它仍然只是 retrieval-style analog evidence / validation proxy，不是对 unseen candidate 的直接稳定性预测或结构验证。
 - BN slice 仍然很小，当前训练主体仍是全体 2D 数据，不是 BN-only 学习。
 - ranking 使用的仍是小模型池 disagreement heuristic，不是校准不确定性。
 - 当前 BN-anchored candidate space 中只有 `3/25` 公式已在 dataset 中出现，`22/25` 已经是 dataset 未见公式；但这依然只是 formula-level extrapolation，不是结构级 discovery。

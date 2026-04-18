@@ -292,6 +292,8 @@ Useful fields include:
 - `bn_analog_support_vote_count`
 - `bn_analog_support_available_metric_count`
 - `bn_analog_validation_label`
+- `bn_analog_validation_support_fraction`
+- `bn_analog_validation_penalty`
 
 ### `screen_candidates(candidate_df, model, feature_columns, cfg, feature_set, model_type, best_overall_feature_set=None, best_overall_model_type=None, screening_selection_note=None, dataset_df=None, split_masks=None, ensemble_prediction_df=None, reference_feature_df=None)`
 Builds the final demo ranking dataframe.
@@ -307,8 +309,9 @@ Current behavior:
 - optionally adds BN-local support annotations against the known BN slice
 - optionally adds BN analog-evidence annotations from observed BN reference properties
 - optionally derives a lightweight BN analog-validation label from analog exfoliation / energy / magnetization alignment
+- optionally applies a mild BN analog-validation penalty in ranking space from the analog vote fraction
 - adds novelty / rediscovery annotations from the overlap fields
-- computes `ranking_score` and preserves both `ranking_score_before_domain_support_penalty` and `ranking_score_before_bn_support_penalty`
+- computes `ranking_score` and preserves both `ranking_score_before_domain_support_penalty`, `ranking_score_before_bn_support_penalty`, and `ranking_score_before_bn_analog_validation_penalty`
 - writes explicit honesty fields about whether screening matches the overall best evaluation combo
 - keeps the full ranking artifact and exposes novelty ranks instead of truncating the file to top-k only
 
@@ -322,6 +325,7 @@ Useful output columns include:
 - `bn_analog_neighbor_exfoliation_energy_per_atom_mean`
 - `bn_analog_exfoliation_support_label`
 - `bn_analog_validation_label`
+- `bn_analog_validation_penalty`
 - `candidate_novelty_bucket`
 - `novelty_rank_within_bucket`
 - `novel_formula_rank`
@@ -351,6 +355,7 @@ Important:
 - now also summarizes BN-local support metadata so the screening story is not purely global-data driven
 - now also summarizes BN analog-evidence metadata from observed BN reference properties
 - now also summarizes analog-validation label counts derived from BN reference property alignment
+- now also summarizes whether the BN analog-validation proxy is active in ranking and how many rows were penalized
 
 ### `save_metrics_and_predictions(metrics, prediction_df, bn_df, screened_df, benchmark_df, experiment_summary, manifest, cfg)`
 Writes the main artifact files under `artifacts/`.

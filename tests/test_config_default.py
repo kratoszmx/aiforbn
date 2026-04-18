@@ -63,6 +63,13 @@ def test_default_config_has_expected_poc_defaults():
         cfg['screening']['bn_analog_evidence']['exfoliation_reference']
         == 'train_plus_val_bn_formula_median'
     )
+    assert cfg['screening']['bn_analog_validation']['enabled'] is True
+    assert (
+        cfg['screening']['bn_analog_validation']['method']
+        == 'bn_analog_alignment_vote_fraction'
+    )
+    assert cfg['screening']['bn_analog_validation']['ranking_penalty_enabled'] is True
+    assert cfg['screening']['bn_analog_validation']['ranking_penalty_weight'] == 0.12
     assert cfg['screening']['chemical_plausibility']['enabled'] is True
     assert (
         cfg['screening']['chemical_plausibility']['method']
