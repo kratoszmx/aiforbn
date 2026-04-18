@@ -166,7 +166,7 @@
   - grouped robustness 下，`MAE_mean` 也从 `0.6321` 降到 `0.6050`，说明这一优势不只来自单次 holdout split；
   - 这足以让 overall evaluation 选到 structure-aware，但还不是巨大跃升。
 - 当前候选排序摘要：
-  - `ranking_basis = composition_only_mean_band_gap_minus_model_disagreement_low_support_and_bn_support_and_bn_analog_validation_penalties`
+  - `ranking_basis = composition_only_mean_band_gap_minus_model_disagreement_low_support_and_bn_support_and_grouped_robustness_and_bn_analog_validation_penalties`
   - `ranking_feature_set = matminer_composition`
   - `ranking_model_type = hist_gradient_boosting`
   - `ranking_uncertainty_method = small_feature_model_disagreement`
@@ -182,6 +182,11 @@
   - `bn_support_enabled = True`
   - `bn_support_reference_formula_count = 10`
   - `bn_support_penalized_rows = 15`
+  - `grouped_robustness_uncertainty_enabled = True`
+  - `grouped_robustness_penalty_weight = 0.15`
+  - `grouped_robustness_prediction_fold_count = 5`
+  - `grouped_robustness_prediction_std_mean = 0.36601793676809036`
+  - `grouped_robustness_penalized_rows = 25`
   - `bn_analog_evidence_enabled = True`
   - `bn_analog_reference_formula_count = 10`
   - `bn_analog_reference_exfoliation_energy_median = 0.07173938218750031`
@@ -202,9 +207,11 @@
   - BN-local nearest anchors 在当前 artifact 里已经可见，例如 `BCN2 -> B2(CN2)3`、`BCN -> BC2N`、`AlBN2 -> Si2BN`
   - BN analog evidence 也已可见，例如 `BC2N` 的邻近 BN analog exfoliation mean 低于 BN reference median，而 `BCN2 / BCN / AlBN2` 则高于该 reference median
   - BN analog validation label 也已可见：当前 `reference_like = 2`、`mixed = 2`、`reference_divergent = 21`，其中 `23` 个候选在 ranking 中吃到了非零 validation penalty
-  - 轻量 ranking effect 也已生效：`BCN2 / BCN` 仍在前二，但 `BC2N` 现在上升到第 `3` 名且属于 `reference_like`，而 `AlBN2 / SiBN2 / SiBN` 这类 `reference_divergent` 候选被进一步温和压分
-  - 当前更适合解读为 **BN-anchored formula-family demo ranking with BN-local support, BN analog evidence, and an active BN analog-validation penalty layer**，而不是新候选发现
-  - 现在可以明确说：BN 不再只是报表标题，至少已经开始作为 screening 逻辑中的显式参考层、analog-evidence 层和轻量 validation-proxy / ranking-penalty 层出现
+  - grouped candidate robustness penalty 也已激活，并且是 **train+val grouped folds** 上的候选级 split-robustness 信号，不吃 test labels
+  - 当前前列候选里，`BCN2 / BCN / BC2N` 的 grouped robustness penalty 分别约为 `0.0897 / 0.1068 / 0.1247`；`TlBN2` 只有约 `0.0197`，但仍因 BN-support 与 analog-validation 层被压在更后面
+  - 轻量 ranking effect 也已生效：`BCN2 / BCN` 仍在前二，但 `BC2N` 虽然是 `reference_like`，仍会因为更高的 grouped-fold spread 被温和压分；`AlBN2 / SiBN2 / SiBN` 这类 `reference_divergent` 候选则继续被 BN analog validation penalty 压低
+  - 当前更适合解读为 **BN-anchored formula-family demo ranking with BN-local support, grouped candidate robustness, BN analog evidence, and active heuristic penalty layers**，而不是新候选发现
+  - 现在可以明确说：BN 不再只是报表标题，至少已经开始作为 screening 逻辑中的显式参考层、analog-evidence 层和轻量 validation-proxy / ranking-penalty 层出现；同时候选排序也不再只依赖一次 `train+val` 拟合
 
 ## 当前目录重点
 - `main.py`：线性主入口；保持 notebook-friendly。
@@ -231,7 +238,7 @@
 - 当前 BN-local support 层也已经开始真正触发惩罚，当前 `bn_support_penalized_rows = 15`，说明 BN 现在不仅是题目标签，也开始进入 screening 逻辑。
 - 当前 BN analog evidence / analog validation 层已经接入观测属性，并把它们压缩成更可读的 validation label，甚至开始进入 ranking penalty；但它仍然只是 retrieval-style analog evidence / validation proxy，不是对 unseen candidate 的直接稳定性预测或结构验证。
 - BN slice 仍然很小，当前训练主体仍是全体 2D 数据，不是 BN-only 学习。
-- ranking 使用的仍是小模型池 disagreement heuristic，不是校准不确定性。
+- ranking 使用的仍是小模型池 disagreement heuristic，加上 grouped-fold candidate robustness spread；这些都不是校准不确定性。
 - 当前 BN-anchored candidate space 中只有 `3/25` 公式已在 dataset 中出现，`22/25` 已经是 dataset 未见公式；但这依然只是 formula-level extrapolation，不是结构级 discovery。
 - 仍未做 train / inference API 解耦。
 

@@ -11,6 +11,7 @@ from pipeline.features import (
     STRUCTURE_AWARE_FEATURE_SET,
     benchmark_grouped_robustness,
     benchmark_regressors,
+    build_candidate_grouped_robustness_predictions,
     build_candidate_prediction_ensemble,
     build_feature_table,
     build_feature_tables,
@@ -77,6 +78,13 @@ CFG = {
         'use_model_disagreement': True,
         'uncertainty_method': 'small_feature_model_disagreement',
         'uncertainty_penalty': 0.5,
+        'grouped_robustness_uncertainty': {
+            'enabled': True,
+            'method': 'selected_formula_only_group_kfold_candidate_prediction_std',
+            'ranking_penalty_enabled': True,
+            'ranking_penalty_weight': 0.15,
+            'note': 'demo grouped candidate robustness note',
+        },
         'domain_support': {
             'enabled': True,
             'method': 'train_plus_val_knn_feature_space_support',
@@ -400,6 +408,14 @@ def test_feature_pipeline_can_train_evaluate_benchmark_and_rank_demo_candidates(
         split_masks,
         CFG,
     )
+    candidate_grouped_robustness_df = build_candidate_grouped_robustness_predictions(
+        candidates,
+        selected_feature_df,
+        split_masks,
+        CFG,
+        feature_set=selection_summary['selected_feature_set'],
+        model_type=selection_summary['selected_model_type'],
+    )
     screened_df = screen_candidates(
         candidates,
         model,
@@ -410,6 +426,7 @@ def test_feature_pipeline_can_train_evaluate_benchmark_and_rank_demo_candidates(
         dataset_df=dataset_df,
         split_masks=split_masks,
         ensemble_prediction_df=candidate_ensemble_df,
+        grouped_robustness_prediction_df=candidate_grouped_robustness_df,
     )
 
     assert len(candidates) == 25
@@ -440,7 +457,7 @@ def test_feature_pipeline_can_train_evaluate_benchmark_and_rank_demo_candidates(
     assert screened_df.loc[screened_df['chemical_plausibility_pass'], 'ranking_score'].is_monotonic_decreasing
     assert screened_df['ranking_label'].eq('demo_candidate_ranking').all()
     assert screened_df['ranking_basis'].eq(
-        'composition_only_mean_band_gap_minus_model_disagreement_low_support_and_bn_support_penalties'
+        'composition_only_mean_band_gap_minus_model_disagreement_low_support_and_bn_support_and_grouped_robustness_penalties'
     ).all()
     assert screened_df['ranking_feature_set'].eq(selection_summary['selected_feature_set']).all()
     assert screened_df['ranking_model_type'].eq(selection_summary['selected_model_type']).all()
@@ -465,6 +482,17 @@ def test_feature_pipeline_can_train_evaluate_benchmark_and_rank_demo_candidates(
         expected_reference_formula_count
     ).all()
     assert screened_df['domain_support_k_neighbors'].eq(5).all()
+    assert screened_df['grouped_robustness_prediction_enabled'].eq(True).all()
+    assert screened_df['grouped_robustness_prediction_method'].eq(
+        'selected_formula_only_group_kfold_candidate_prediction_std'
+    ).all()
+    assert screened_df['grouped_robustness_prediction_fold_count'].eq(5).all()
+    assert screened_df['grouped_robustness_predicted_band_gap_std'].ge(0.0).all()
+    assert (screened_df['grouped_robustness_uncertainty_penalty'] > 0.0).any()
+    assert (
+        screened_df['ranking_score_before_grouped_robustness_penalty']
+        >= screened_df['ranking_score_before_domain_support_penalty']
+    ).all()
     assert (
         screened_df['ranking_score_before_domain_support_penalty']
         >= screened_df['ranking_score_before_bn_support_penalty']
@@ -575,6 +603,7 @@ def test_feature_pipeline_can_train_evaluate_benchmark_and_rank_demo_candidates(
     }
     assert 0.0 <= ge2bn_row['bn_analog_validation_support_fraction'] <= 1.0
     assert ge2bn_row['bn_analog_validation_penalty'] >= 0.0
+    assert 'grouped-fold candidate robustness penalty' in screened_df['ranking_note'].iloc[0]
     assert 'train+val feature-space domain-support layer' in screened_df['ranking_note'].iloc[0]
     assert 'known BN slice' in screened_df['ranking_note'].iloc[0]
     assert 'observed-property evidence from nearby BN-containing train+val formulas' in screened_df['ranking_note'].iloc[0]

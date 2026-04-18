@@ -34,6 +34,13 @@ def test_default_config_has_expected_poc_defaults():
     assert cfg['screening']['use_model_disagreement'] is True
     assert cfg['screening']['uncertainty_method'] == 'small_feature_model_disagreement'
     assert cfg['screening']['uncertainty_penalty'] == 0.5
+    assert cfg['screening']['grouped_robustness_uncertainty']['enabled'] is True
+    assert (
+        cfg['screening']['grouped_robustness_uncertainty']['method']
+        == 'selected_formula_only_group_kfold_candidate_prediction_std'
+    )
+    assert cfg['screening']['grouped_robustness_uncertainty']['ranking_penalty_enabled'] is True
+    assert cfg['screening']['grouped_robustness_uncertainty']['ranking_penalty_weight'] == 0.15
     assert cfg['screening']['domain_support']['enabled'] is True
     assert (
         cfg['screening']['domain_support']['method']

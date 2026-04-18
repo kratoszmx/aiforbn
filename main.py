@@ -11,6 +11,7 @@ from pipeline.data import load_or_build_dataset
 from pipeline.features import (
     benchmark_grouped_robustness,
     benchmark_regressors,
+    build_candidate_grouped_robustness_predictions,
     build_candidate_prediction_ensemble,
     build_feature_tables,
     evaluate_predictions,
@@ -106,6 +107,14 @@ def main() -> None:
         cfg,
         candidate_feature_sets=selection_summary.get('screening_candidate_feature_sets'),
     )
+    candidate_grouped_robustness_df = build_candidate_grouped_robustness_predictions(
+        candidate_df,
+        ranking_feature_df,
+        split_masks,
+        cfg,
+        feature_set=ranking_feature_set,
+        model_type=ranking_model_type,
+    )
 
     ranked_candidate_df = screen_candidates(
         candidate_df,
@@ -120,6 +129,7 @@ def main() -> None:
         dataset_df=dataset_df,
         split_masks=split_masks,
         ensemble_prediction_df=candidate_ensemble_df,
+        grouped_robustness_prediction_df=candidate_grouped_robustness_df,
         reference_feature_df=ranking_feature_df,
     )
     experiment_summary = build_experiment_summary(

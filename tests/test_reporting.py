@@ -46,6 +46,13 @@ def test_reporting_writes_expected_artifacts(tmp_path):
             'use_model_disagreement': True,
             'uncertainty_method': 'small_feature_model_disagreement',
             'uncertainty_penalty': 0.5,
+            'grouped_robustness_uncertainty': {
+                'enabled': True,
+                'method': 'selected_formula_only_group_kfold_candidate_prediction_std',
+                'ranking_penalty_enabled': True,
+                'ranking_penalty_weight': 0.15,
+                'note': 'demo grouped candidate robustness note',
+            },
             'domain_support': {
                 'enabled': True,
                 'method': 'train_plus_val_knn_feature_space_support',
@@ -105,6 +112,22 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         'candidate_family_note': ['BN anchor', 'Group-III BN ternary extension'],
         'ranking_rank': [1, 2],
         'ranking_score': [4.8, 1.2],
+        'grouped_robustness_prediction_enabled': [True, True],
+        'grouped_robustness_prediction_method': [
+            'selected_formula_only_group_kfold_candidate_prediction_std',
+            'selected_formula_only_group_kfold_candidate_prediction_std',
+        ],
+        'grouped_robustness_prediction_note': [
+            'demo grouped candidate robustness note',
+            'demo grouped candidate robustness note',
+        ],
+        'grouped_robustness_prediction_feature_set': ['matminer_composition', 'matminer_composition'],
+        'grouped_robustness_prediction_model_type': ['linear_regression', 'linear_regression'],
+        'grouped_robustness_prediction_fold_count': [4, 4],
+        'grouped_robustness_predicted_band_gap_mean': [4.82, 1.24],
+        'grouped_robustness_predicted_band_gap_std': [0.02, 0.30],
+        'grouped_robustness_uncertainty_penalty': [0.003, 0.045],
+        'ranking_score_before_grouped_robustness_penalty': [4.803, 1.245],
         'domain_support_reference_formula_count': [12, 12],
         'domain_support_k_neighbors': [5, 5],
         'domain_support_nearest_formula': ['BN', 'BN'],
@@ -280,7 +303,7 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     assert experiment_summary['robustness']['screening_model_metrics']['model_type'] == 'linear_regression'
     assert experiment_summary['robustness']['dummy_baseline_metrics']['model_type'] == 'dummy_mean'
     assert experiment_summary['screening']['ranking_basis'] == (
-        'composition_only_mean_band_gap_minus_model_disagreement_low_support_and_bn_support_and_bn_analog_validation_penalties'
+        'composition_only_mean_band_gap_minus_model_disagreement_low_support_and_bn_support_and_grouped_robustness_and_bn_analog_validation_penalties'
     )
     assert experiment_summary['screening']['ranking_feature_family'] == 'composition_only'
     assert experiment_summary['screening']['ranking_matches_best_overall_evaluation'] is True
@@ -298,6 +321,17 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     assert experiment_summary['screening']['bn_support_penalty_enabled'] is True
     assert experiment_summary['screening']['bn_support_penalized_rows'] == 1
     assert experiment_summary['screening']['bn_support_low_support_rows'] == 1
+    assert experiment_summary['screening']['grouped_robustness_uncertainty_enabled'] is True
+    assert (
+        experiment_summary['screening']['grouped_robustness_uncertainty_method']
+        == 'selected_formula_only_group_kfold_candidate_prediction_std'
+    )
+    assert experiment_summary['screening']['grouped_robustness_penalty_enabled'] is True
+    assert experiment_summary['screening']['grouped_robustness_penalty_active'] is True
+    assert experiment_summary['screening']['grouped_robustness_penalty_weight'] == 0.15
+    assert experiment_summary['screening']['grouped_robustness_prediction_fold_count'] == 4
+    assert experiment_summary['screening']['grouped_robustness_prediction_std_mean'] == 0.16
+    assert experiment_summary['screening']['grouped_robustness_penalized_rows'] == 2
     assert experiment_summary['screening']['bn_analog_evidence_enabled'] is True
     assert experiment_summary['screening']['bn_analog_reference_formula_count'] == 4
     assert experiment_summary['screening']['bn_analog_reference_exfoliation_energy_median'] == 0.07
@@ -451,6 +485,13 @@ def test_experiment_summary_explains_structure_aware_evaluation_vs_formula_only_
             'use_model_disagreement': True,
             'uncertainty_method': 'small_feature_model_disagreement',
             'uncertainty_penalty': 0.5,
+            'grouped_robustness_uncertainty': {
+                'enabled': True,
+                'method': 'selected_formula_only_group_kfold_candidate_prediction_std',
+                'ranking_penalty_enabled': True,
+                'ranking_penalty_weight': 0.15,
+                'note': 'demo grouped candidate robustness note',
+            },
             'domain_support': {
                 'enabled': True,
                 'method': 'train_plus_val_knn_feature_space_support',
@@ -522,6 +563,21 @@ def test_experiment_summary_explains_structure_aware_evaluation_vs_formula_only_
             'candidate_family': ['bn_binary_anchor', 'group13_bn_111_family'],
             'candidate_template': ['B1N1', 'X1B1N1'],
             'candidate_family_note': ['BN anchor', 'Group-III BN ternary extension'],
+            'grouped_robustness_prediction_enabled': [True, True],
+            'grouped_robustness_prediction_method': [
+                'selected_formula_only_group_kfold_candidate_prediction_std',
+                'selected_formula_only_group_kfold_candidate_prediction_std',
+            ],
+            'grouped_robustness_prediction_note': [
+                'demo grouped candidate robustness note',
+                'demo grouped candidate robustness note',
+            ],
+            'grouped_robustness_prediction_feature_set': ['matminer_composition', 'matminer_composition'],
+            'grouped_robustness_prediction_model_type': ['hist_gradient_boosting', 'hist_gradient_boosting'],
+            'grouped_robustness_prediction_fold_count': [4, 4],
+            'grouped_robustness_predicted_band_gap_mean': [4.82, 1.24],
+            'grouped_robustness_predicted_band_gap_std': [0.02, 0.30],
+            'grouped_robustness_uncertainty_penalty': [0.003, 0.045],
             'domain_support_reference_formula_count': [12, 12],
             'domain_support_k_neighbors': [5, 5],
             'domain_support_nearest_formula': ['BN', 'BN'],
@@ -582,6 +638,7 @@ def test_experiment_summary_explains_structure_aware_evaluation_vs_formula_only_
         'matminer_composition_plus_structure_summary'
     )
     assert 'falls back to the best candidate-compatible combo' in summary['screening']['ranking_note']
+    assert 'grouped-fold candidate robustness penalty' in summary['screening']['ranking_note']
     assert 'train+val feature-space domain-support layer' in summary['screening']['ranking_note']
     assert 'known BN slice' in summary['screening']['ranking_note']
     assert 'observed-property evidence from nearby BN-containing train+val formulas' in summary['screening']['ranking_note']
@@ -594,6 +651,8 @@ def test_experiment_summary_explains_structure_aware_evaluation_vs_formula_only_
     }
     assert summary['screening']['bn_support_reference_formula_count'] == 4
     assert summary['screening']['bn_support_penalized_rows'] == 1
+    assert summary['screening']['grouped_robustness_uncertainty_enabled'] is True
+    assert summary['screening']['grouped_robustness_penalized_rows'] == 2
     assert summary['screening']['bn_analog_evidence_enabled'] is True
     assert summary['screening']['bn_analog_reference_formula_count'] == 4
     assert summary['screening']['bn_analog_reference_energy_per_atom_median'] == -8.0

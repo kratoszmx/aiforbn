@@ -253,6 +253,21 @@ Important:
 - this is a **small disagreement heuristic**, not calibrated physical uncertainty
 - by default it only uses formula-only feature sets that can featurize candidates
 
+### `build_candidate_grouped_robustness_predictions(candidate_df, feature_df, split_masks, cfg, feature_set, model_type, formula_col='formula')`
+Builds candidate-level grouped-fold prediction statistics from the selected formula-only screening combo.
+This layer is trained only on `train + val` reference formulas, so it does not leak test labels into candidate ranking.
+
+Useful fields include:
+- `grouped_robustness_prediction_enabled`
+- `grouped_robustness_prediction_method`
+- `grouped_robustness_prediction_fold_count`
+- `grouped_robustness_predicted_band_gap_mean`
+- `grouped_robustness_predicted_band_gap_std`
+
+Interpretation:
+- this is a **split-robustness heuristic**, not calibrated uncertainty
+- large std means the candidate moves more across grouped-by-formula training folds
+
 ### `annotate_candidate_dataset_overlap(candidate_df, dataset_df, split_masks=None, formula_col='formula')`
 Adds honesty-oriented candidate annotations such as:
 - `seen_in_dataset`
@@ -320,7 +335,7 @@ Useful fields include:
 - `bn_analog_validation_support_fraction`
 - `bn_analog_validation_penalty`
 
-### `screen_candidates(candidate_df, model, feature_columns, cfg, feature_set, model_type, best_overall_feature_set=None, best_overall_model_type=None, screening_selection_note=None, dataset_df=None, split_masks=None, ensemble_prediction_df=None, reference_feature_df=None)`
+### `screen_candidates(candidate_df, model, feature_columns, cfg, feature_set, model_type, best_overall_feature_set=None, best_overall_model_type=None, screening_selection_note=None, dataset_df=None, split_masks=None, ensemble_prediction_df=None, grouped_robustness_prediction_df=None, reference_feature_df=None)`
 Builds the final demo ranking dataframe.
 Current behavior:
 - keeps the full candidate source pool in the artifact instead of silently dropping failed formulas
@@ -329,14 +344,16 @@ Current behavior:
 - records why a formula was or was not selected via `screening_selection_decision`
 - predicts with the selected formula-only screening model
 - merges small-pool disagreement statistics
+- optionally merges grouped-fold candidate robustness predictions from the selected formula-only screening combo
 - optionally merges dataset-overlap annotations
 - optionally adds train+val feature-space domain-support annotations
 - optionally adds BN-local support annotations against the known BN slice
 - optionally adds BN analog-evidence annotations from observed BN reference properties
 - optionally derives a lightweight BN analog-validation label from analog exfoliation / energy / magnetization alignment
+- optionally applies a mild grouped candidate-robustness penalty in ranking space from fold-to-fold prediction spread
 - optionally applies a mild BN analog-validation penalty in ranking space from the analog vote fraction
 - adds novelty / rediscovery annotations from the overlap fields
-- computes `ranking_score` and preserves both `ranking_score_before_domain_support_penalty`, `ranking_score_before_bn_support_penalty`, and `ranking_score_before_bn_analog_validation_penalty`
+- computes `ranking_score` and preserves `ranking_score_before_grouped_robustness_penalty`, `ranking_score_before_domain_support_penalty`, `ranking_score_before_bn_support_penalty`, and `ranking_score_before_bn_analog_validation_penalty`
 - writes explicit honesty fields about whether screening matches the overall best evaluation combo
 - keeps the full ranking artifact and exposes novelty ranks instead of truncating the file to top-k only
 
@@ -345,6 +362,8 @@ Useful output columns include:
 - `ensemble_predicted_band_gap_mean`
 - `ensemble_predicted_band_gap_std`
 - `ranking_score`
+- `grouped_robustness_predicted_band_gap_std`
+- `grouped_robustness_uncertainty_penalty`
 - `domain_support_percentile`
 - `bn_support_percentile`
 - `bn_analog_neighbor_exfoliation_energy_per_atom_mean`
@@ -383,6 +402,7 @@ Important:
 - now also summarizes analog-validation label counts derived from BN reference property alignment
 - now also summarizes whether the BN analog-validation proxy is active in ranking and how many rows were penalized
 - now also summarizes grouped-by-formula robustness results for the selected model, screening fallback, and dummy baseline
+- now also summarizes grouped candidate-robustness penalty settings, fold count, average spread, and penalized-row count
 
 ### `save_metrics_and_predictions(metrics, prediction_df, bn_df, screened_df, benchmark_df, robustness_df, experiment_summary, manifest, cfg)`
 Writes the main artifact files under `artifacts/`.

@@ -13,6 +13,7 @@ from pipeline.features import (
     BN_ANALOG_EVIDENCE_RANKING_NOTE,
     BN_SUPPORT_RANKING_NOTE,
     DOMAIN_SUPPORT_RANKING_NOTE,
+    GROUPED_ROBUSTNESS_UNCERTAINTY_RANKING_NOTE,
     NOVELTY_ANNOTATION_RANKING_NOTE,
     NOVELTY_BUCKET_FORMULA_LEVEL_EXTRAPOLATION,
     NOVELTY_BUCKET_HELD_OUT_KNOWN_FORMULA,
@@ -141,6 +142,10 @@ def build_experiment_summary(
             candidate_df['bn_support_percentile'].fillna(100.0).lt(percentile_threshold).sum()
         )
 
+    grouped_robustness_uncertainty_enabled = False
+    grouped_robustness_prediction_fold_count = None
+    grouped_robustness_penalized_rows = None
+    grouped_robustness_prediction_std_mean = None
     bn_analog_evidence_enabled = False
     bn_analog_reference_formula_count = None
     bn_analog_reference_exfoliation_energy_median = None
@@ -153,6 +158,23 @@ def build_experiment_summary(
     bn_analog_mixed_alignment_rows = None
     bn_analog_reference_divergent_rows = None
     bn_analog_validation_penalized_rows = None
+    if 'grouped_robustness_prediction_enabled' in candidate_df.columns and not candidate_df.empty:
+        grouped_robustness_uncertainty_enabled = bool(
+            candidate_df['grouped_robustness_prediction_enabled'].fillna(False).iloc[0]
+        )
+    if 'grouped_robustness_prediction_fold_count' in candidate_df.columns and not candidate_df.empty:
+        grouped_robustness_prediction_fold_count = int(
+            candidate_df['grouped_robustness_prediction_fold_count'].fillna(0).iloc[0]
+        )
+    if 'grouped_robustness_predicted_band_gap_std' in candidate_df.columns:
+        std_values = candidate_df['grouped_robustness_predicted_band_gap_std'].dropna()
+        grouped_robustness_prediction_std_mean = (
+            float(std_values.mean()) if not std_values.empty else None
+        )
+    if 'grouped_robustness_uncertainty_penalty' in candidate_df.columns:
+        grouped_robustness_penalized_rows = int(
+            candidate_df['grouped_robustness_uncertainty_penalty'].fillna(0.0).gt(0.0).sum()
+        )
     if 'bn_analog_evidence_enabled' in candidate_df.columns and not candidate_df.empty:
         bn_analog_evidence_enabled = bool(candidate_df['bn_analog_evidence_enabled'].fillna(False).iloc[0])
     if 'bn_analog_reference_formula_count' in candidate_df.columns and not candidate_df.empty:
@@ -214,6 +236,7 @@ def build_experiment_summary(
         cfg,
         domain_support_penalty_applied=bool(domain_support_penalized_rows),
         bn_support_penalty_applied=bool(bn_support_penalized_rows),
+        grouped_robustness_penalty_applied=bool(grouped_robustness_penalized_rows),
         bn_analog_validation_penalty_applied=bool(bn_analog_validation_penalized_rows),
     )
     candidate_space_name = cfg['screening']['candidate_space_name']
@@ -250,6 +273,8 @@ def build_experiment_summary(
         ranking_note = f'{ranking_note} {DOMAIN_SUPPORT_RANKING_NOTE}'
     if bool(ranking_metadata['bn_support_enabled']):
         ranking_note = f'{ranking_note} {BN_SUPPORT_RANKING_NOTE}'
+    if bool(ranking_metadata['grouped_robustness_penalty_active']):
+        ranking_note = f'{ranking_note} {GROUPED_ROBUSTNESS_UNCERTAINTY_RANKING_NOTE}'
     if bn_analog_evidence_enabled:
         ranking_note = f'{ranking_note} {BN_ANALOG_EVIDENCE_RANKING_NOTE}'
     if not screening_matches_overall:
@@ -445,6 +470,27 @@ def build_experiment_summary(
             ),
             'bn_support_penalized_rows': bn_support_penalized_rows,
             'bn_support_low_support_rows': bn_support_low_support_rows,
+            'grouped_robustness_uncertainty_enabled': bool(
+                ranking_metadata['grouped_robustness_uncertainty_enabled']
+            ),
+            'grouped_robustness_uncertainty_method': ranking_metadata[
+                'grouped_robustness_uncertainty_method'
+            ],
+            'grouped_robustness_uncertainty_note': ranking_metadata[
+                'grouped_robustness_uncertainty_note'
+            ],
+            'grouped_robustness_penalty_enabled': bool(
+                ranking_metadata['grouped_robustness_penalty_enabled']
+            ),
+            'grouped_robustness_penalty_active': bool(
+                ranking_metadata['grouped_robustness_penalty_active']
+            ),
+            'grouped_robustness_penalty_weight': float(
+                ranking_metadata['grouped_robustness_penalty_weight']
+            ),
+            'grouped_robustness_prediction_fold_count': grouped_robustness_prediction_fold_count,
+            'grouped_robustness_prediction_std_mean': grouped_robustness_prediction_std_mean,
+            'grouped_robustness_penalized_rows': grouped_robustness_penalized_rows,
             'bn_analog_evidence_enabled': bn_analog_evidence_enabled,
             'bn_analog_reference_formula_count': bn_analog_reference_formula_count,
             'bn_analog_reference_exfoliation_energy_median': bn_analog_reference_exfoliation_energy_median,

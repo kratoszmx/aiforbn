@@ -35,6 +35,17 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
         'ensemble_predicted_band_gap_std': [0.1],
         'ensemble_member_count': [4],
     })
+    candidate_grouped_robustness_df = pd.DataFrame({
+        'formula': ['BN'],
+        'grouped_robustness_prediction_enabled': [True],
+        'grouped_robustness_prediction_method': ['selected_formula_only_group_kfold_candidate_prediction_std'],
+        'grouped_robustness_prediction_note': ['demo grouped candidate robustness note'],
+        'grouped_robustness_prediction_feature_set': ['matminer_composition'],
+        'grouped_robustness_prediction_model_type': ['linear_regression'],
+        'grouped_robustness_prediction_fold_count': [5],
+        'grouped_robustness_predicted_band_gap_mean': [4.87],
+        'grouped_robustness_predicted_band_gap_std': [0.08],
+    })
     ranked_candidate_df = pd.DataFrame({'formula': ['BN'], 'predicted_band_gap': [4.9], 'ranking_score': [4.8]})
     benchmark_df = pd.DataFrame({
         'feature_set': ['matminer_composition'],
@@ -132,8 +143,13 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
     )
     monkeypatch.setattr(
         main_module,
+        'build_candidate_grouped_robustness_predictions',
+        lambda candidate_df, feature_df, split_masks, cfg, feature_set, model_type: calls.append('build_candidate_grouped_robustness_predictions') or candidate_grouped_robustness_df,
+    )
+    monkeypatch.setattr(
+        main_module,
         'screen_candidates',
-        lambda candidate_df, model, feature_columns, cfg, feature_set, model_type, best_overall_feature_set=None, best_overall_model_type=None, screening_selection_note=None, dataset_df=None, split_masks=None, ensemble_prediction_df=None, reference_feature_df=None: calls.append('screen_candidates') or ranked_candidate_df,
+        lambda candidate_df, model, feature_columns, cfg, feature_set, model_type, best_overall_feature_set=None, best_overall_model_type=None, screening_selection_note=None, dataset_df=None, split_masks=None, ensemble_prediction_df=None, grouped_robustness_prediction_df=None, reference_feature_df=None: calls.append('screen_candidates') or ranked_candidate_df,
     )
     monkeypatch.setattr(
         main_module,
@@ -164,6 +180,7 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
         'benchmark_regressors',
         'benchmark_grouped_robustness',
         'build_candidate_prediction_ensemble',
+        'build_candidate_grouped_robustness_predictions',
         'screen_candidates',
         'build_experiment_summary',
         'save_metrics_and_predictions',

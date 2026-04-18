@@ -81,6 +81,17 @@ CONFIG = {
         'use_model_disagreement': True,
         'uncertainty_method': 'small_feature_model_disagreement',
         'uncertainty_penalty': 0.5,
+        'grouped_robustness_uncertainty': {
+            'enabled': True,
+            'method': 'selected_formula_only_group_kfold_candidate_prediction_std',
+            'ranking_penalty_enabled': True,
+            'ranking_penalty_weight': 0.15,
+            'note': (
+                'Uses grouped-by-formula fold-to-fold prediction spread from the selected '
+                'formula-only screening combo as a candidate-ranking robustness penalty. '
+                'This is a split-robustness heuristic, not calibrated uncertainty.'
+            ),
+        },
         'domain_support': {
             'enabled': True,
             'method': 'train_plus_val_knn_feature_space_support',

@@ -96,10 +96,23 @@ DEFAULT_BN_ANALOG_VALIDATION_NOTE = (
     'vote-fraction validation proxy. This is still a heuristic ranking layer, not direct '
     'structure, thermodynamic stability, or synthesis validation.'
 )
+DEFAULT_GROUPED_ROBUSTNESS_UNCERTAINTY_METHOD = (
+    'selected_formula_only_group_kfold_candidate_prediction_std'
+)
+DEFAULT_GROUPED_ROBUSTNESS_UNCERTAINTY_NOTE = (
+    'Uses grouped-by-formula fold-to-fold prediction spread from the selected formula-only '
+    'screening combo as a candidate-ranking robustness penalty. This is a split-robustness '
+    'heuristic, not calibrated uncertainty.'
+)
 BN_ANALOG_VALIDATION_RANKING_NOTE = (
     'A mild BN analog-validation penalty is also applied from the available analog alignment '
     'votes across exfoliation, energy, and magnetization; this remains a heuristic validation '
     'proxy, not direct stability validation.'
+)
+GROUPED_ROBUSTNESS_UNCERTAINTY_RANKING_NOTE = (
+    'A mild grouped-fold candidate robustness penalty is also applied from the selected '
+    'formula-only screening combo, so candidates that move more across grouped-by-formula '
+    'training folds are treated as less robust ranking targets.'
 )
 BASIC_FEATURE_SET = 'basic_formula_composition'
 MATMINER_FEATURE_SET = 'matminer_composition'
@@ -590,6 +603,41 @@ def _bn_analog_validation_config(cfg: dict | None = None) -> dict:
     }
 
 
+def _grouped_robustness_uncertainty_config(cfg: dict | None = None) -> dict:
+    screening_cfg = (cfg or {}).get('screening', {})
+    robustness_cfg = screening_cfg.get('grouped_robustness_uncertainty', {})
+    return {
+        'enabled': bool(robustness_cfg.get('enabled', False)),
+        'method': robustness_cfg.get(
+            'method',
+            DEFAULT_GROUPED_ROBUSTNESS_UNCERTAINTY_METHOD,
+        ),
+        'ranking_penalty_enabled': bool(robustness_cfg.get('ranking_penalty_enabled', True)),
+        'ranking_penalty_weight': max(
+            0.0,
+            float(robustness_cfg.get('ranking_penalty_weight', 0.15)),
+        ),
+        'note': robustness_cfg.get(
+            'note',
+            DEFAULT_GROUPED_ROBUSTNESS_UNCERTAINTY_NOTE,
+        ),
+    }
+
+
+def _append_grouped_robustness_basis(ranking_basis: str) -> str:
+    if ranking_basis.endswith('_penalties'):
+        return (
+            ranking_basis[: -len('_penalties')]
+            + '_and_grouped_robustness_penalties'
+        )
+    if ranking_basis.endswith('_penalty'):
+        return (
+            ranking_basis[: -len('_penalty')]
+            + '_and_grouped_robustness_penalties'
+        )
+    return f'{ranking_basis}_minus_grouped_robustness_penalty'
+
+
 def _append_bn_analog_validation_basis(ranking_basis: str) -> str:
     if ranking_basis.endswith('_penalties'):
         return (
@@ -608,11 +656,13 @@ def get_screening_ranking_metadata(
     cfg: dict | None = None,
     domain_support_penalty_applied: bool | None = None,
     bn_support_penalty_applied: bool | None = None,
+    grouped_robustness_penalty_applied: bool | None = None,
     bn_analog_validation_penalty_applied: bool | None = None,
 ) -> dict[str, object]:
     screening_cfg = (cfg or {}).get('screening', {})
     support_cfg = _domain_support_config(cfg)
     bn_support_cfg = _bn_support_config(cfg)
+    grouped_robustness_cfg = _grouped_robustness_uncertainty_config(cfg)
     bn_analog_validation_cfg = _bn_analog_validation_config(cfg)
     use_model_disagreement = bool(screening_cfg.get('use_model_disagreement', False))
     domain_support_penalty_enabled = bool(
@@ -635,6 +685,18 @@ def get_screening_ranking_metadata(
             True
             if bn_support_penalty_applied is None
             else bn_support_penalty_applied
+        )
+    )
+
+    grouped_robustness_penalty_enabled = bool(
+        grouped_robustness_cfg['enabled'] and grouped_robustness_cfg['ranking_penalty_enabled']
+    )
+    grouped_robustness_penalty_active = bool(
+        grouped_robustness_penalty_enabled
+        and (
+            True
+            if grouped_robustness_penalty_applied is None
+            else grouped_robustness_penalty_applied
         )
     )
 
@@ -675,6 +737,10 @@ def get_screening_ranking_metadata(
         ranking_basis = SELECTED_MODEL_RANKING_BASIS
         ranking_note = SELECTED_MODEL_RANKING_NOTE
 
+    if grouped_robustness_penalty_active:
+        ranking_basis = _append_grouped_robustness_basis(ranking_basis)
+        ranking_note = f'{ranking_note} {GROUPED_ROBUSTNESS_UNCERTAINTY_RANKING_NOTE}'
+
     if bn_analog_validation_penalty_active:
         ranking_basis = _append_bn_analog_validation_basis(ranking_basis)
         ranking_note = f'{ranking_note} {BN_ANALOG_VALIDATION_RANKING_NOTE}'
@@ -704,6 +770,14 @@ def get_screening_ranking_metadata(
         'bn_support_penalty_active': bn_support_penalty_active,
         'bn_support_penalty_weight': float(bn_support_cfg['ranking_penalty_weight']),
         'bn_support_penalize_below_percentile': float(bn_support_cfg['penalize_below_percentile']),
+        'grouped_robustness_uncertainty_enabled': bool(grouped_robustness_cfg['enabled']),
+        'grouped_robustness_uncertainty_method': grouped_robustness_cfg['method'],
+        'grouped_robustness_uncertainty_note': grouped_robustness_cfg['note'],
+        'grouped_robustness_penalty_enabled': grouped_robustness_penalty_enabled,
+        'grouped_robustness_penalty_active': grouped_robustness_penalty_active,
+        'grouped_robustness_penalty_weight': float(
+            grouped_robustness_cfg['ranking_penalty_weight']
+        ),
         'bn_analog_validation_enabled': bool(bn_analog_validation_cfg['enabled']),
         'bn_analog_validation_method': bn_analog_validation_cfg['method'],
         'bn_analog_validation_note': bn_analog_validation_cfg['note'],
@@ -1973,6 +2047,123 @@ def build_candidate_prediction_ensemble(
     return aggregated
 
 
+def build_candidate_grouped_robustness_predictions(
+    candidate_df: pd.DataFrame,
+    feature_df: pd.DataFrame,
+    split_masks,
+    cfg: dict,
+    feature_set: str,
+    model_type: str,
+    formula_col: str = 'formula',
+) -> pd.DataFrame:
+    robustness_cfg = _robustness_config(cfg)
+    grouped_uncertainty_cfg = _grouped_robustness_uncertainty_config(cfg)
+    out = pd.DataFrame({
+        formula_col: candidate_df[formula_col].astype(str).reset_index(drop=True),
+    })
+    out['grouped_robustness_prediction_enabled'] = bool(
+        robustness_cfg['enabled'] and grouped_uncertainty_cfg['enabled']
+    )
+    out['grouped_robustness_prediction_method'] = grouped_uncertainty_cfg['method']
+    out['grouped_robustness_prediction_note'] = grouped_uncertainty_cfg['note']
+    out['grouped_robustness_prediction_feature_set'] = feature_set
+    out['grouped_robustness_prediction_model_type'] = model_type
+    out['grouped_robustness_prediction_fold_count'] = 0
+    out['grouped_robustness_predicted_band_gap_mean'] = np.nan
+    out['grouped_robustness_predicted_band_gap_std'] = 0.0
+
+    if not bool(robustness_cfg['enabled'] and grouped_uncertainty_cfg['enabled']):
+        return out
+
+    feature_info = summarize_feature_table(feature_df, feature_set=feature_set)
+    if not feature_info['selection_eligible']:
+        raise ValueError(
+            'Grouped candidate robustness prediction aborted because the selected feature set '
+            f'was not selection-eligible: {feature_info["failed_formula_examples"]}'
+        )
+    feature_columns = _feature_columns(feature_df)
+
+    train_plus_val_mask = np.asarray(split_masks['train']) | np.asarray(split_masks['val'])
+    if len(train_plus_val_mask) != len(feature_df):
+        raise ValueError('Feature table length does not match split masks for grouped candidate robustness')
+    reference_feature_df = feature_df.loc[train_plus_val_mask].reset_index(drop=True)
+    _, _, split_payloads = _group_kfold_splits(
+        reference_feature_df,
+        formula_col,
+        int(robustness_cfg['n_splits']),
+    )
+    candidate_feature_df = build_feature_table(candidate_df, formula_col=formula_col, feature_set=feature_set)
+    candidate_valid_mask = _feature_valid_mask(candidate_feature_df, feature_columns)
+    if not bool(candidate_valid_mask.all()):
+        failed_formulas = (
+            candidate_feature_df.loc[~candidate_valid_mask, formula_col]
+            .astype(str)
+            .head(5)
+            .tolist()
+        )
+        raise ValueError(
+            'Grouped candidate robustness prediction aborted because candidate features were '
+            f'invalid for formulas: {failed_formulas}'
+        )
+
+    candidate_matrix = candidate_feature_df[feature_columns].to_numpy(dtype=float)
+    fold_predictions: list[pd.DataFrame] = []
+    for fold_payload in split_payloads:
+        fold_idx = int(fold_payload['fold_index'])
+        train_df = reference_feature_df.loc[fold_payload['train']].reset_index(drop=True)
+        model = make_model(cfg, model_type)
+        model.fit(
+            train_df[feature_columns],
+            train_df['target'],
+        )
+        fold_predictions.append(pd.DataFrame({
+            formula_col: candidate_feature_df[formula_col].astype(str),
+            'fold_index': fold_idx,
+            'prediction': model.predict(candidate_matrix).astype(float),
+        }))
+
+    prediction_df = pd.concat(fold_predictions, ignore_index=True)
+    aggregated = (
+        prediction_df.groupby(formula_col, as_index=False)
+        .agg(
+            grouped_robustness_prediction_fold_count=('prediction', 'size'),
+            grouped_robustness_predicted_band_gap_mean=('prediction', 'mean'),
+            grouped_robustness_predicted_band_gap_std=('prediction', 'std'),
+        )
+        .sort_values(formula_col)
+        .reset_index(drop=True)
+    )
+    aggregated['grouped_robustness_predicted_band_gap_std'] = (
+        aggregated['grouped_robustness_predicted_band_gap_std'].fillna(0.0).astype(float)
+    )
+    aggregated['grouped_robustness_prediction_fold_count'] = (
+        aggregated['grouped_robustness_prediction_fold_count'].astype(int)
+    )
+    return out.merge(aggregated, on=formula_col, how='left', suffixes=('', '_agg')).assign(
+        grouped_robustness_prediction_fold_count=lambda df: (
+            df['grouped_robustness_prediction_fold_count_agg']
+            .fillna(df['grouped_robustness_prediction_fold_count'])
+            .astype(int)
+        ),
+        grouped_robustness_predicted_band_gap_mean=lambda df: (
+            df['grouped_robustness_predicted_band_gap_mean_agg']
+            .fillna(df['grouped_robustness_predicted_band_gap_mean'])
+            .astype(float)
+        ),
+        grouped_robustness_predicted_band_gap_std=lambda df: (
+            df['grouped_robustness_predicted_band_gap_std_agg']
+            .fillna(df['grouped_robustness_predicted_band_gap_std'])
+            .astype(float)
+        ),
+    ).drop(
+        columns=[
+            'grouped_robustness_prediction_fold_count_agg',
+            'grouped_robustness_predicted_band_gap_mean_agg',
+            'grouped_robustness_predicted_band_gap_std_agg',
+        ]
+    )
+
+
 def annotate_candidate_dataset_overlap(
     candidate_df: pd.DataFrame,
     dataset_df: pd.DataFrame,
@@ -2504,6 +2695,7 @@ def screen_candidates(
     dataset_df: pd.DataFrame | None = None,
     split_masks=None,
     ensemble_prediction_df: pd.DataFrame | None = None,
+    grouped_robustness_prediction_df: pd.DataFrame | None = None,
     reference_feature_df: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
     annotated_candidate_df = annotate_candidate_chemical_plausibility(candidate_df, cfg=cfg, formula_col='formula')
@@ -2533,6 +2725,27 @@ def screen_candidates(
         out['ensemble_predicted_band_gap_std'] = 0.0
         out['ensemble_member_count'] = 1
 
+    grouped_robustness_cfg = _grouped_robustness_uncertainty_config(cfg)
+    if grouped_robustness_prediction_df is not None:
+        out = out.merge(grouped_robustness_prediction_df, on='formula', how='left')
+        if out['grouped_robustness_prediction_enabled'].isna().any():
+            missing_formulas = out.loc[
+                out['grouped_robustness_prediction_enabled'].isna(), 'formula'
+            ].astype(str).tolist()
+            raise ValueError(
+                'Candidate ranking aborted because grouped robustness predictions were missing '
+                f'for formulas: {missing_formulas}'
+            )
+    else:
+        out['grouped_robustness_prediction_enabled'] = False
+        out['grouped_robustness_prediction_method'] = grouped_robustness_cfg['method']
+        out['grouped_robustness_prediction_note'] = grouped_robustness_cfg['note']
+        out['grouped_robustness_prediction_feature_set'] = feature_set
+        out['grouped_robustness_prediction_model_type'] = model_type
+        out['grouped_robustness_prediction_fold_count'] = 0
+        out['grouped_robustness_predicted_band_gap_mean'] = np.nan
+        out['grouped_robustness_predicted_band_gap_std'] = 0.0
+
     ranking_config_metadata = get_screening_ranking_metadata(cfg)
     uncertainty_penalty = float(ranking_config_metadata['ranking_uncertainty_penalty'])
     use_model_disagreement = bool(cfg['screening'].get('use_model_disagreement', False))
@@ -2543,6 +2756,28 @@ def screen_candidates(
         )
     else:
         out['ranking_score'] = out['predicted_band_gap']
+    out['ranking_score_before_grouped_robustness_penalty'] = out['ranking_score']
+    grouped_robustness_penalty_enabled = bool(
+        ranking_config_metadata['grouped_robustness_penalty_enabled']
+    )
+    out['grouped_robustness_uncertainty_enabled'] = bool(
+        ranking_config_metadata['grouped_robustness_uncertainty_enabled']
+    )
+    out['grouped_robustness_uncertainty_method'] = (
+        ranking_config_metadata['grouped_robustness_uncertainty_method']
+    )
+    out['grouped_robustness_uncertainty_note'] = (
+        ranking_config_metadata['grouped_robustness_uncertainty_note']
+    )
+    out['grouped_robustness_uncertainty_penalty'] = 0.0
+    if grouped_robustness_penalty_enabled and grouped_robustness_prediction_df is not None:
+        out['grouped_robustness_uncertainty_penalty'] = (
+            float(ranking_config_metadata['grouped_robustness_penalty_weight'])
+            * out['grouped_robustness_predicted_band_gap_std'].fillna(0.0)
+        )
+        out['ranking_score'] = (
+            out['ranking_score'] - out['grouped_robustness_uncertainty_penalty']
+        )
     out['ranking_score_before_domain_support_penalty'] = out['ranking_score']
     out['ranking_score_before_bn_support_penalty'] = out['ranking_score']
     out['ranking_score_before_bn_analog_validation_penalty'] = out['ranking_score']
@@ -2669,6 +2904,9 @@ def screen_candidates(
         cfg,
         domain_support_penalty_applied=bool(out['domain_support_penalty'].fillna(0.0).gt(0.0).any()),
         bn_support_penalty_applied=bool(out['bn_support_penalty'].fillna(0.0).gt(0.0).any()),
+        grouped_robustness_penalty_applied=bool(
+            out['grouped_robustness_uncertainty_penalty'].fillna(0.0).gt(0.0).any()
+        ),
         bn_analog_validation_penalty_applied=bool(
             out['bn_analog_validation_penalty'].fillna(0.0).gt(0.0).any()
         ),
