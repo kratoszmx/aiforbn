@@ -9,9 +9,9 @@
 ## 当前状态
 - 当前工作已恢复到**已重新验证**的节点。
 - 在当前 dirty working tree 上，以下命令已通过：
-  - 清缓存：通过 `../myutils/file_utils.delete_cache('.')`
-  - `pytest -q` → `22 passed in 2.78s`
-  - `/opt/homebrew/Caskroom/miniforge/base/envs/quant/bin/python main.py` → 运行成功（当前输出含 `bn slice benchmark rows: 8`）
+  - 清缓存：通过从 `../myutils` 注入 `file_utils.delete_cache('.')`
+  - `pytest -q` → `25 passed in 2.73s`
+  - `/opt/homebrew/Caskroom/miniforge/base/envs/quant/bin/python main.py` → 运行成功（当前输出含 `bn slice benchmark rows: 8`、`bn-centered alternative ranking rows: 25` 与 `structure-generation seed rows: 33`）
 - 主任务仍是 `band_gap` 预测与 BN 主题下的候选排序演示。
 - 训练数据仍来自 JARVIS / 2DMatPedia 的 `twod_matpd`。
 - 默认评估协议仍是 **按 `formula` 分组切分**，`train/val/test` 的 formula overlap 为 0。
@@ -44,6 +44,13 @@
 - 在完整 ranking 之外，当前还额外导出两层 advisor-facing shortlist：
   - **family-aware proposal shortlist**：保留高排位、化学 plausibility 优先、并限制单一 `candidate_family` 过度集中；
   - **formula-level extrapolation shortlist**：只从 `formula_level_extrapolation` 候选中选，并继续做 family cap，避免汇报时又被 rediscovery 主导。
+- 在 shortlist 之外，当前又新增了一层 **structure-generation bridge artifact**：
+  - 从 proposal shortlist、extrapolation shortlist、以及 BN-centered top-N 的并集里挑出需要后续跟进的候选；
+  - 为每个候选附上来自 `train+val` BN analog reference formulas 的 deterministic exemplar record；
+  - 导出真实参考结构摘要列，作为后续 substitution / enumeration / relaxation 的原型 seed；
+  - 现在还会额外导出 machine-readable `demo_candidate_structure_generation_handoff.json`，把 candidate-level seed 列表组织成更容易被后续 workflow 消费的 handoff payload；
+  - 每条 seed 现在还带有 lightweight formula-edit hints，例如 shared elements、candidate-only elements、seed-only elements、element-count L1 distance，以及 `same_elements_stoichiometry_adjustment / element_substitution_or_decoration / element_insertion_or_decoration` 之类的 edit strategy；
+  - 明确声明这不是结构生成、结构验证或稳定性证明，只是把 formula ranking 正式桥接到下一阶段 structure-aware follow-up。
 
 ## 本轮已确认完成
 - `data.py` 已支持优先复用 cached raw JARVIS JSON，并在规范化阶段写入结构摘要列：
@@ -108,6 +115,16 @@
   - `extrapolation_shortlist_selected`
   - `extrapolation_shortlist_rank`
   - `extrapolation_shortlist_decision`
+- `build_candidate_structure_generation_seeds()` 已接入主流程：
+  - 候选来源为 `proposal shortlist ∪ extrapolation shortlist ∪ BN-centered top-10`
+  - 当前 `candidate_rows = 11`
+  - 当前 `seed_rows = 33`
+  - 当前 `seeded_candidate_rows = 11`
+  - 当前 `unique_seed_reference_formulas = 7`
+  - 当前 `unique_seed_reference_records = 7`
+  - 当前 bridge candidate 公式为：`BCN2`, `BCN`, `BC2N`, `AlBN2`, `SiBN2`, `SiBN`, `Si2BN`, `TlBN2`, `BN`, `Al2BN`, `Ge2BN`
+  - 当前 seed reference formulas 主要包括：`BC2N`, `Si2BN`, `B3C10N3`, `ZnB2(CN)8`, `B2(CN2)3`, `BN`, `CuB2(CN)8`
+  - 这批 seed 会导出 `seed_reference_record_id / source / band_gap / energy_per_atom / exfoliation_energy_per_atom / structure_*` 等字段，供后续结构枚举或松弛任务直接接手
 - 当前 chemical plausibility screen 的验证结果：
   - 25 个 demo candidates 中，23 个通过
   - 2 个失败公式为：`AlBN`, `TlBN`
@@ -191,6 +208,20 @@
   - 但 BN-focused leave-one-formula-out 诊断揭示了更尖锐的问题：当前 overall selected model 与 formula-only screening model 在 BN slice 上都**没有打赢**最基本的 global dummy mean baseline；
   - 同时，BN-slice best configured combo 目前变成了 `matminer_composition_plus_structure_summary + linear_regression`，说明“overall best”“screening best”“BN-centered best”现在是三个不同角色；
   - 这让当前 artifact 更诚实，也更适合导师追问，但同样说明 BN-centered generalization 还没有被真正解决。
+- 当前新增的 BN-centered alternative ranking：
+  - 选择来源：从 `bn_slice_benchmark_results.csv` 里挑出 **candidate-compatible 且 BN-slice MAE 最低** 的组合；
+  - 当前选中：`matminer_composition + linear_regression`；
+  - 导出 artifact：`artifacts/demo_candidate_bn_centered_ranking.csv`；
+  - 打分口径：**单模型 BN-centered ranking**，不用 general ranking 的小模型池 disagreement 视角；
+  - 当前与 general ranking 的关系：top-20 成员集合保持一致，但顺序会发生可解释的 BN-centered 偏移；
+  - 目前最明显的顺序变化：`BN` 从第 `9` 升到第 `4`，`Al2BN` 从第 `16` 升到第 `10`；
+  - 当前 family-aware proposal shortlist 的 `10` 个成员不变，说明 shortlist 成员本身对这两种 ranking view 相对稳定，只是内部顺序更偏 BN-centered。
+- 当前新增的 structure-generation bridge：
+  - 导出 artifacts：`artifacts/demo_candidate_structure_generation_seeds.csv` 与 `artifacts/demo_candidate_structure_generation_handoff.json`；
+  - candidate scope：`proposal_shortlist_plus_extrapolation_shortlist_plus_bn_centered_top_n`；
+  - 每个候选当前保留 `3` 条 seed；
+  - 当前 `11` 个桥接候选全部成功连到了 BN analog reference records，`candidates_without_seed_rows = 0`；
+  - 它把 `BCN2 / BCN / BC2N / AlBN2 / BN / Al2BN` 这类当前最值得跟进的公式，明确连到了真实 BN 参考公式与 record id，而不是停留在“只有 formula 排名”的状态。
 - 当前候选排序摘要：
   - `ranking_basis = composition_only_mean_band_gap_minus_model_disagreement_low_support_and_bn_support_and_grouped_robustness_and_bn_analog_validation_penalties`
   - `ranking_feature_set = matminer_composition`
@@ -230,6 +261,13 @@
   - `standard_top_k_novelty_bucket_counts = {train_plus_val_rediscovery: 3, held_out_known_formula: 0, formula_level_extrapolation: 17}`
   - `proposal_shortlist_selected_rows = 10`
   - `proposal_shortlist_novelty_bucket_counts = {train_plus_val_rediscovery: 3, held_out_known_formula: 0, formula_level_extrapolation: 7}`
+  - `bn_centered_alternative.enabled = True`
+  - `bn_centered_alternative.ranking_feature_set = matminer_composition`
+  - `bn_centered_alternative.ranking_model_type = linear_regression`
+  - `bn_centered_alternative.bn_slice_mae = 1.4217`
+  - `bn_centered_alternative.top_k_overlap_count = 20 / 20`
+  - `bn_centered_alternative.mean_absolute_rank_shift = 1.84`
+  - `bn_centered_alternative.max_absolute_rank_shift = 6`（当前是 `Al2BN`）
   - `extrapolation_shortlist_selected_rows = 5`
   - `extrapolation_shortlist_target_novelty_bucket = formula_level_extrapolation`
   - failed formulas：`AlBN`, `TlBN`
@@ -256,7 +294,10 @@
 - `artifacts/bn_slice_benchmark_results.csv`：BN-focused leave-one-BN-formula-out benchmark，含 selected / screening / candidate / dummy / BN-local baseline 对照。
 - `artifacts/bn_slice_predictions.csv`：BN-focused benchmark 的逐公式预测记录，用来检查每个 held-out BN formula 的误差来源。
 - `artifacts/experiment_summary.json`：数据、split、选择、robustness、BN-slice benchmark 与 screening 摘要。
-- `artifacts/demo_candidate_ranking.csv`：当前完整 formula-only source-space ranking artifact，含 plausibility pass/fail 与 top-k decision。
+- `artifacts/demo_candidate_ranking.csv`：当前完整 formula-only source-space ranking artifact，含 general ensemble/disagreement 视角下的 plausibility pass/fail 与 top-k decision。
+- `artifacts/demo_candidate_bn_centered_ranking.csv`：BN-centered alternative ranking artifact，使用 BN-slice 里最优的 candidate-compatible 单模型视角。
+- `artifacts/demo_candidate_structure_generation_seeds.csv`：structure-generation bridge artifact，把 shortlisted BN 候选连到 observed BN analog reference structures / records，供后续结构枚举与松弛任务接手。
+- `artifacts/demo_candidate_structure_generation_handoff.json`：machine-readable structure-generation handoff payload，按 candidate 聚合 seed，并附带 formula-edit hints，方便后续 prototype substitution / enumeration workflow 直接消费。
 - `artifacts/demo_candidate_proposal_shortlist.csv`：family-aware advisor-facing proposal shortlist。
 - `artifacts/demo_candidate_extrapolation_shortlist.csv`：只保留 formula-level extrapolation 的 advisor-facing shortlist。
 - `PY_FILES_SUMMARY.md`：AI-facing Python summary。
@@ -274,14 +315,17 @@
 - 当前 BN-local support 层也已经开始真正触发惩罚，当前 `bn_support_penalized_rows = 15`，说明 BN 现在不仅是题目标签，也开始进入 screening 逻辑。
 - 当前 BN analog evidence / analog validation 层已经接入观测属性，并把它们压缩成更可读的 validation label，甚至开始进入 ranking penalty；但它仍然只是 retrieval-style analog evidence / validation proxy，不是对 unseen candidate 的直接稳定性预测或结构验证。
 - BN slice 仍然很小，当前训练主体仍是全体 2D 数据，不是 BN-only 学习。
-- ranking 使用的仍是小模型池 disagreement heuristic，加上 grouped-fold candidate robustness spread；这些都不是校准不确定性。
+- general ranking 使用的仍是小模型池 disagreement heuristic，加上 grouped-fold candidate robustness spread；这些都不是校准不确定性。
+- 新增的 BN-centered alternative ranking 虽然让 BN-slice 选模真正反馈到候选排序，但它仍然只是**单模型 formula-only 对照视图**，不是结构验证，也不是新的 discovery 证明。
 - 当前 BN-anchored candidate space 中只有 `3/25` 公式已在 dataset 中出现，`22/25` 已经是 dataset 未见公式；但这依然只是 formula-level extrapolation，不是结构级 discovery。
 - 新增的 proposal shortlist / extrapolation shortlist 只是更诚实的 advisor-facing 选择层，不是结构验证、稳定性筛选或真实实验优先级证明。
+- 新增的 structure-generation bridge 虽然把当前工作从 formula ranking 推进到了 prototype handoff，但它仍然**不是**真正的结构生成、结构搜索、DFT/ML relaxation、形成能筛选或实验可合成性证明。
 - 仍未做 train / inference API 解耦。
 
 ## 恢复工作时的直接起点
 - 不需要重做 wave-3 设计，也不需要回滚当前 dirty tree。
 - 若继续推进，优先从以下方向里选一个：
+  - 基于当前 `demo_candidate_structure_generation_seeds.csv` 做真正的 prototype substitution / structure enumeration / relaxation workflow；
   - 更强、真正材料导向的 structure-aware 表示；
   - 把 candidate source space 从“几乎全是已知公式”推进到包含更多真正 dataset 未见公式；
   - 在更真实的 candidate space 上加入结构 / 稳定性约束；

@@ -72,6 +72,18 @@ DEFAULT_EXTRAPOLATION_SHORTLIST_NOTE = (
     'chemical-plausibility priority and an explicit candidate_family cap for diversity. This '
     'shortlist does not replace the full raw ranking artifact or the general proposal shortlist.'
 )
+DEFAULT_STRUCTURE_GENERATION_SEED_LABEL = 'bn_structure_generation_seed_set'
+DEFAULT_STRUCTURE_GENERATION_SEED_METHOD = 'bn_analog_reference_exemplar'
+DEFAULT_STRUCTURE_GENERATION_SEED_CANDIDATE_SCOPE = (
+    'proposal_shortlist_plus_extrapolation_shortlist_plus_bn_centered_top_n'
+)
+DEFAULT_STRUCTURE_GENERATION_SEED_NOTE = (
+    'Builds a structure-generation handoff artifact by attaching shortlisted BN candidates to '
+    'nearby BN-containing train+val reference formulas and deterministic exemplar records with '
+    'observed structures. This does not generate, relax, or validate new candidate structures; '
+    'it only surfaces prototype seeds for downstream substitution, enumeration, or relaxation '
+    'workflows.'
+)
 DEFAULT_DOMAIN_SUPPORT_METHOD = 'train_plus_val_knn_feature_space_support'
 DEFAULT_DOMAIN_SUPPORT_DISTANCE_METRIC = 'z_scored_euclidean_rms'
 DEFAULT_DOMAIN_SUPPORT_NOTE = (
@@ -590,6 +602,77 @@ def _extrapolation_shortlist_config(cfg: dict | None = None) -> dict:
         ),
         'required_novelty_bucket': required_novelty_bucket,
         'note': str(shortlist_cfg.get('note', DEFAULT_EXTRAPOLATION_SHORTLIST_NOTE)),
+    }
+
+
+def _structure_generation_seed_config(cfg: dict | None = None) -> dict:
+    screening_cfg = (cfg or {}).get('screening', {})
+    seed_cfg = screening_cfg.get('structure_generation_seeds', {})
+    proposal_cfg = _proposal_shortlist_config(cfg)
+    per_candidate_seed_limit = int(seed_cfg.get('per_candidate_seed_limit', 3))
+    bn_centered_top_n = int(seed_cfg.get('bn_centered_top_n', proposal_cfg['shortlist_size']))
+    if per_candidate_seed_limit <= 0:
+        raise ValueError('structure_generation_seeds.per_candidate_seed_limit must be positive')
+    if bn_centered_top_n <= 0:
+        raise ValueError('structure_generation_seeds.bn_centered_top_n must be positive')
+    return {
+        'enabled': bool(seed_cfg.get('enabled', True)),
+        'label': str(seed_cfg.get('label', DEFAULT_STRUCTURE_GENERATION_SEED_LABEL)),
+        'method': str(seed_cfg.get('method', DEFAULT_STRUCTURE_GENERATION_SEED_METHOD)),
+        'candidate_scope': str(
+            seed_cfg.get(
+                'candidate_scope',
+                DEFAULT_STRUCTURE_GENERATION_SEED_CANDIDATE_SCOPE,
+            )
+        ),
+        'per_candidate_seed_limit': per_candidate_seed_limit,
+        'bn_centered_top_n': bn_centered_top_n,
+        'note': str(seed_cfg.get('note', DEFAULT_STRUCTURE_GENERATION_SEED_NOTE)),
+    }
+
+
+def _formula_amount_map(formula: str) -> dict[str, float]:
+    comp = Composition(str(formula)).reduced_composition
+    return {str(key): float(value) for key, value in comp.get_el_amt_dict().items()}
+
+
+def _structure_seed_edit_metadata(candidate_formula: str, seed_formula: str) -> dict[str, object]:
+    candidate_amounts = _formula_amount_map(candidate_formula)
+    seed_amounts = _formula_amount_map(seed_formula)
+    candidate_elements = _ordered_values(extract_elements(candidate_formula))
+    seed_elements = _ordered_values(extract_elements(seed_formula))
+    shared_elements = [element for element in candidate_elements if element in seed_amounts]
+    candidate_only_elements = [element for element in candidate_elements if element not in seed_amounts]
+    seed_only_elements = [element for element in seed_elements if element not in candidate_amounts]
+    all_elements = sorted(set(candidate_amounts) | set(seed_amounts))
+    element_count_l1_distance = float(
+        sum(
+            abs(candidate_amounts.get(element, 0.0) - seed_amounts.get(element, 0.0))
+            for element in all_elements
+        )
+    )
+    exact_element_match = not candidate_only_elements and not seed_only_elements
+
+    if exact_element_match and element_count_l1_distance == 0.0:
+        edit_strategy = 'same_reduced_formula_reference'
+    elif exact_element_match:
+        edit_strategy = 'same_elements_stoichiometry_adjustment'
+    elif candidate_only_elements and seed_only_elements:
+        edit_strategy = 'element_substitution_or_decoration'
+    elif candidate_only_elements:
+        edit_strategy = 'element_insertion_or_decoration'
+    elif seed_only_elements:
+        edit_strategy = 'element_removal_or_vacancy'
+    else:
+        edit_strategy = 'mixed_formula_edit'
+
+    return {
+        'seed_formula_exact_element_match': bool(exact_element_match),
+        'seed_formula_shared_elements': '|'.join(shared_elements),
+        'seed_formula_candidate_only_elements': '|'.join(candidate_only_elements),
+        'seed_formula_seed_only_elements': '|'.join(seed_only_elements),
+        'seed_formula_element_count_l1_distance': element_count_l1_distance,
+        'seed_formula_edit_strategy': edit_strategy,
     }
 
 
@@ -2582,6 +2665,467 @@ def benchmark_bn_slice(
             ascending=[False, True, True],
         ).reset_index(drop=True)
     return benchmark_df, prediction_df
+
+
+def select_bn_centered_candidate_screening_combo(
+    bn_slice_benchmark_df: pd.DataFrame,
+    cfg: dict,
+    fallback_feature_set: str | None = None,
+    fallback_model_type: str | None = None,
+) -> dict[str, object]:
+    summary: dict[str, object] = {
+        'enabled': False,
+        'selection_scope': 'bn_slice_candidate_compatible_best',
+        'selection_source_artifact': 'bn_slice_benchmark_results.csv',
+        'ranking_artifact': 'demo_candidate_bn_centered_ranking.csv',
+        'feature_set': None,
+        'feature_family': None,
+        'model_type': None,
+        'benchmark_role': None,
+        'mae': None,
+        'rmse': None,
+        'r2': None,
+        'matches_general_screening_combo': None,
+        'selection_note': (
+            'No BN-centered alternative candidate-compatible combo was available from the '
+            'BN-slice benchmark.'
+        ),
+    }
+    benchmark_cfg = _bn_slice_benchmark_config(cfg)
+    if not bool(benchmark_cfg['enabled']):
+        summary['selection_note'] = (
+            'BN-centered alternative ranking is disabled because the BN-slice benchmark is off.'
+        )
+        return summary
+    if bn_slice_benchmark_df is None or bn_slice_benchmark_df.empty:
+        return summary
+    required_columns = {'feature_set', 'model_type', 'benchmark_status', 'mae'}
+    if not required_columns.issubset(bn_slice_benchmark_df.columns):
+        summary['selection_note'] = (
+            'BN-centered alternative ranking is unavailable because the BN-slice benchmark '
+            'artifact is missing required columns.'
+        )
+        return summary
+
+    candidate_mask = bn_slice_benchmark_df['benchmark_status'].astype(str).eq('ok')
+    if 'candidate_compatible' in bn_slice_benchmark_df.columns:
+        candidate_mask &= bn_slice_benchmark_df['candidate_compatible'].fillna(False).astype(bool)
+    else:
+        candidate_mask &= bn_slice_benchmark_df['feature_set'].astype(str).map(
+            feature_set_supports_formula_only_screening
+        )
+    if 'benchmark_role' in bn_slice_benchmark_df.columns:
+        candidate_mask &= ~bn_slice_benchmark_df['benchmark_role'].astype(str).isin(
+            ['global_dummy_mean_baseline', 'bn_local_reference_baseline']
+        )
+
+    candidate_result_df = bn_slice_benchmark_df.loc[candidate_mask].copy()
+    if candidate_result_df.empty:
+        return summary
+
+    candidate_result_df['mae'] = candidate_result_df['mae'].astype(float)
+    best_idx = candidate_result_df['mae'].idxmin()
+    best_row = candidate_result_df.loc[best_idx]
+    feature_set = str(best_row['feature_set'])
+    model_type = str(best_row['model_type'])
+    summary.update(
+        {
+            'enabled': True,
+            'feature_set': feature_set,
+            'feature_family': str(
+                best_row.get('feature_family')
+                if pd.notna(best_row.get('feature_family'))
+                else get_feature_family(feature_set)
+            ),
+            'model_type': model_type,
+            'benchmark_role': (
+                str(best_row['benchmark_role'])
+                if 'benchmark_role' in candidate_result_df.columns and pd.notna(best_row.get('benchmark_role'))
+                else None
+            ),
+            'mae': float(best_row['mae']) if pd.notna(best_row.get('mae')) else None,
+            'rmse': float(best_row['rmse']) if pd.notna(best_row.get('rmse')) else None,
+            'r2': float(best_row['r2']) if pd.notna(best_row.get('r2')) else None,
+            'matches_general_screening_combo': (
+                feature_set == fallback_feature_set and model_type == fallback_model_type
+                if fallback_feature_set is not None and fallback_model_type is not None
+                else None
+            ),
+            'selection_note': (
+                'BN-centered alternative ranking uses the lowest-MAE candidate-compatible '
+                'formula-only combo under the leave-one-BN-formula-out benchmark and scores '
+                'candidates with that single model rather than the general ensemble disagreement '
+                'view. This is a comparison/control artifact, not a replacement for the default '
+                'ranking.'
+            ),
+        }
+    )
+    return summary
+
+
+def _split_pipe_delimited_values(value: object) -> list[str]:
+    if value is None or (isinstance(value, float) and np.isnan(value)):
+        return []
+    if not isinstance(value, str):
+        value = str(value)
+    return _ordered_values([item.strip() for item in value.split('|') if item and item.strip()])
+
+
+def build_candidate_structure_generation_seeds(
+    candidate_df: pd.DataFrame,
+    dataset_df: pd.DataFrame,
+    split_masks,
+    cfg: dict | None = None,
+    bn_centered_candidate_df: pd.DataFrame | None = None,
+    formula_col: str = 'formula',
+) -> pd.DataFrame:
+    seed_cfg = _structure_generation_seed_config(cfg)
+    out_columns = [
+        formula_col,
+        'candidate_family',
+        'candidate_template',
+        'candidate_novelty_bucket',
+        'chemical_plausibility_pass',
+        'ranking_rank',
+        'proposal_shortlist_selected',
+        'proposal_shortlist_rank',
+        'extrapolation_shortlist_selected',
+        'extrapolation_shortlist_rank',
+        'bn_centered_ranking_rank',
+        'bn_centered_top_n_selected',
+        'rank_shift_general_minus_bn_centered',
+        'absolute_rank_shift_vs_bn_centered',
+        'structure_generation_seed_enabled',
+        'structure_generation_seed_label',
+        'structure_generation_seed_method',
+        'structure_generation_seed_candidate_scope',
+        'structure_generation_seed_note',
+        'structure_generation_candidate_selected',
+        'structure_generation_candidate_priority_reason',
+        'structure_generation_seed_limit',
+        'structure_generation_seed_rank',
+        'structure_generation_seed_source_column',
+        'structure_generation_seed_status',
+        'seed_reference_formula',
+        'seed_reference_record_id',
+        'seed_reference_source',
+        'seed_reference_formula_row_count',
+        'seed_reference_formula_mean_band_gap',
+        'seed_reference_band_gap',
+        'seed_formula_exact_element_match',
+        'seed_formula_shared_elements',
+        'seed_formula_candidate_only_elements',
+        'seed_formula_seed_only_elements',
+        'seed_formula_element_count_l1_distance',
+        'seed_formula_edit_strategy',
+        *[f'seed_reference_{column}' for column in REFERENCE_PROPERTY_COLUMNS],
+        'seed_reference_has_structure_summary',
+        *[f'seed_reference_{column}' for column in STRUCTURE_SUMMARY_COLUMNS],
+    ]
+    if candidate_df is None or candidate_df.empty or formula_col not in candidate_df.columns:
+        return pd.DataFrame(columns=out_columns)
+
+    candidate_ranking_df = candidate_df.copy()
+    candidate_ranking_df[formula_col] = candidate_ranking_df[formula_col].astype(str)
+    if 'ranking_rank' in candidate_ranking_df.columns:
+        candidate_ranking_df = candidate_ranking_df.sort_values(
+            'ranking_rank', ascending=True, kind='stable'
+        ).reset_index(drop=True)
+    else:
+        candidate_ranking_df = candidate_ranking_df.reset_index(drop=True)
+        candidate_ranking_df['ranking_rank'] = np.arange(1, len(candidate_ranking_df) + 1, dtype=int)
+
+    for column_name, default_value in (
+        ('proposal_shortlist_selected', False),
+        ('proposal_shortlist_rank', pd.NA),
+        ('extrapolation_shortlist_selected', False),
+        ('extrapolation_shortlist_rank', pd.NA),
+        ('candidate_novelty_bucket', pd.NA),
+        ('chemical_plausibility_pass', pd.NA),
+        ('candidate_family', pd.NA),
+        ('candidate_template', pd.NA),
+    ):
+        if column_name not in candidate_ranking_df.columns:
+            candidate_ranking_df[column_name] = default_value
+
+    bn_centered_top_formulas: set[str] = set()
+    bn_centered_rank_map: dict[str, int] = {}
+    if (
+        bn_centered_candidate_df is not None
+        and not bn_centered_candidate_df.empty
+        and formula_col in bn_centered_candidate_df.columns
+    ):
+        alternative_df = bn_centered_candidate_df.copy()
+        alternative_df[formula_col] = alternative_df[formula_col].astype(str)
+        if 'ranking_rank' in alternative_df.columns:
+            alternative_df = alternative_df.sort_values(
+                'ranking_rank', ascending=True, kind='stable'
+            ).reset_index(drop=True)
+        else:
+            alternative_df = alternative_df.reset_index(drop=True)
+            alternative_df['ranking_rank'] = np.arange(1, len(alternative_df) + 1, dtype=int)
+        bn_centered_rank_map = {
+            str(row[formula_col]): int(row['ranking_rank'])
+            for _, row in alternative_df[[formula_col, 'ranking_rank']].iterrows()
+        }
+        bn_centered_top_formulas = set(
+            alternative_df.head(int(seed_cfg['bn_centered_top_n']))[formula_col].astype(str)
+        )
+
+    candidate_ranking_df['bn_centered_ranking_rank'] = candidate_ranking_df[formula_col].map(
+        bn_centered_rank_map
+    )
+    candidate_ranking_df['bn_centered_ranking_rank'] = candidate_ranking_df[
+        'bn_centered_ranking_rank'
+    ].astype('Int64')
+    candidate_ranking_df['bn_centered_top_n_selected'] = candidate_ranking_df[formula_col].isin(
+        bn_centered_top_formulas
+    )
+    candidate_ranking_df['rank_shift_general_minus_bn_centered'] = pd.Series(
+        pd.NA, index=candidate_ranking_df.index, dtype='Float64'
+    )
+    comparable_rank_mask = candidate_ranking_df['bn_centered_ranking_rank'].notna()
+    candidate_ranking_df.loc[comparable_rank_mask, 'rank_shift_general_minus_bn_centered'] = (
+        candidate_ranking_df.loc[comparable_rank_mask, 'ranking_rank'].astype(float)
+        - candidate_ranking_df.loc[comparable_rank_mask, 'bn_centered_ranking_rank'].astype(float)
+    )
+    candidate_ranking_df['absolute_rank_shift_vs_bn_centered'] = (
+        candidate_ranking_df['rank_shift_general_minus_bn_centered'].abs().astype('Float64')
+    )
+
+    proposal_mask = candidate_ranking_df['proposal_shortlist_selected'].fillna(False).astype(bool)
+    extrapolation_mask = candidate_ranking_df['extrapolation_shortlist_selected'].fillna(False).astype(bool)
+    bn_top_mask = candidate_ranking_df['bn_centered_top_n_selected'].fillna(False).astype(bool)
+    candidate_ranking_df['structure_generation_candidate_selected'] = (
+        proposal_mask | extrapolation_mask | bn_top_mask
+    )
+    if not candidate_ranking_df['structure_generation_candidate_selected'].any():
+        fallback_n = min(int(seed_cfg['bn_centered_top_n']), len(candidate_ranking_df))
+        candidate_ranking_df['structure_generation_candidate_selected'] = candidate_ranking_df[
+            'ranking_rank'
+        ].le(fallback_n)
+    else:
+        fallback_n = None
+
+    priority_reasons: list[str] = []
+    for _, row in candidate_ranking_df.iterrows():
+        reasons: list[str] = []
+        if bool(row['proposal_shortlist_selected']):
+            reasons.append('proposal_shortlist')
+        if bool(row['extrapolation_shortlist_selected']):
+            reasons.append('extrapolation_shortlist')
+        if bool(row['bn_centered_top_n_selected']):
+            reasons.append(f"bn_centered_top_{int(seed_cfg['bn_centered_top_n'])}")
+        if not reasons and bool(row['structure_generation_candidate_selected']) and fallback_n is not None:
+            reasons.append(f'general_top_{fallback_n}_fallback')
+        priority_reasons.append('|'.join(reasons) if reasons else 'not_selected')
+    candidate_ranking_df['structure_generation_candidate_priority_reason'] = priority_reasons
+
+    candidate_ranking_df['structure_generation_seed_enabled'] = bool(seed_cfg['enabled'])
+    candidate_ranking_df['structure_generation_seed_label'] = str(seed_cfg['label'])
+    candidate_ranking_df['structure_generation_seed_method'] = str(seed_cfg['method'])
+    candidate_ranking_df['structure_generation_seed_candidate_scope'] = str(
+        seed_cfg['candidate_scope']
+    )
+    candidate_ranking_df['structure_generation_seed_note'] = str(seed_cfg['note'])
+    candidate_ranking_df['structure_generation_seed_limit'] = int(seed_cfg['per_candidate_seed_limit'])
+
+    if not bool(seed_cfg['enabled']):
+        return candidate_ranking_df.loc[
+            candidate_ranking_df['structure_generation_candidate_selected'].fillna(False).astype(bool),
+            [column for column in out_columns if column in candidate_ranking_df.columns],
+        ].copy()
+
+    target_col = ((cfg or {}).get('data') or {}).get('target_column', 'target')
+    train_mask = pd.Series(split_masks.get('train', []), index=dataset_df.index).fillna(False).astype(bool)
+    val_mask = pd.Series(split_masks.get('val', []), index=dataset_df.index).fillna(False).astype(bool)
+    reference_df = dataset_df.loc[train_mask | val_mask].copy()
+    reference_df = filter_bn(reference_df, formula_col=formula_col)
+    if reference_df.empty:
+        return pd.DataFrame(columns=out_columns)
+
+    if target_col not in reference_df.columns:
+        if 'target' in reference_df.columns:
+            target_col = 'target'
+        else:
+            raise ValueError(
+                'Structure-generation seed construction requires the target column to be present '
+                'in the reference dataset.'
+            )
+
+    structure_columns = [column for column in STRUCTURE_SUMMARY_COLUMNS if column in reference_df.columns]
+    reference_df['reference_has_structure_summary'] = (
+        reference_df[structure_columns].notna().any(axis=1)
+        if structure_columns
+        else False
+    )
+    reference_df['reference_formula_row_count'] = reference_df.groupby(formula_col)[formula_col].transform('size')
+    reference_df['reference_formula_mean_band_gap'] = reference_df.groupby(formula_col)[target_col].transform('mean')
+    reference_df['reference_formula_mean_absolute_deviation'] = (
+        reference_df[target_col] - reference_df['reference_formula_mean_band_gap']
+    ).abs()
+    reference_df['_seed_sort_record_id'] = (
+        reference_df['record_id'].astype(str) if 'record_id' in reference_df.columns else ''
+    )
+    reference_df = reference_df.sort_values(
+        [
+            formula_col,
+            'reference_has_structure_summary',
+            'reference_formula_mean_absolute_deviation',
+            '_seed_sort_record_id',
+        ],
+        ascending=[True, False, True, True],
+        kind='stable',
+    )
+    exemplar_df = reference_df.drop_duplicates(subset=[formula_col], keep='first').copy()
+    exemplar_lookup: dict[str, dict[str, object]] = {}
+    for _, row in exemplar_df.iterrows():
+        payload: dict[str, object] = {
+            'seed_reference_formula': str(row[formula_col]),
+            'seed_reference_record_id': row['record_id'] if 'record_id' in row else None,
+            'seed_reference_source': row['source'] if 'source' in row else None,
+            'seed_reference_formula_row_count': int(row['reference_formula_row_count']),
+            'seed_reference_formula_mean_band_gap': float(row['reference_formula_mean_band_gap']),
+            'seed_reference_band_gap': float(row[target_col]),
+            'seed_reference_has_structure_summary': bool(row['reference_has_structure_summary']),
+        }
+        for column_name in REFERENCE_PROPERTY_COLUMNS:
+            payload[f'seed_reference_{column_name}'] = (
+                float(row[column_name]) if column_name in row and pd.notna(row[column_name]) else None
+            )
+        for column_name in STRUCTURE_SUMMARY_COLUMNS:
+            payload[f'seed_reference_{column_name}'] = (
+                float(row[column_name]) if column_name in row and pd.notna(row[column_name]) else None
+            )
+        exemplar_lookup[str(row[formula_col])] = payload
+
+    selected_candidate_df = candidate_ranking_df.loc[
+        candidate_ranking_df['structure_generation_candidate_selected'].fillna(False).astype(bool)
+    ].copy()
+    selected_candidate_df = selected_candidate_df.sort_values(
+        ['proposal_shortlist_rank', 'extrapolation_shortlist_rank', 'ranking_rank'],
+        ascending=[True, True, True],
+        na_position='last',
+        kind='stable',
+    ).reset_index(drop=True)
+
+    rows: list[dict[str, object]] = []
+    for _, row in selected_candidate_df.iterrows():
+        candidate_payload = {
+            formula_col: str(row[formula_col]),
+            'candidate_family': row.get('candidate_family'),
+            'candidate_template': row.get('candidate_template'),
+            'candidate_novelty_bucket': row.get('candidate_novelty_bucket'),
+            'chemical_plausibility_pass': (
+                bool(row['chemical_plausibility_pass'])
+                if pd.notna(row.get('chemical_plausibility_pass'))
+                else None
+            ),
+            'ranking_rank': int(row['ranking_rank']),
+            'proposal_shortlist_selected': bool(row['proposal_shortlist_selected']),
+            'proposal_shortlist_rank': (
+                int(row['proposal_shortlist_rank'])
+                if pd.notna(row.get('proposal_shortlist_rank'))
+                else None
+            ),
+            'extrapolation_shortlist_selected': bool(row['extrapolation_shortlist_selected']),
+            'extrapolation_shortlist_rank': (
+                int(row['extrapolation_shortlist_rank'])
+                if pd.notna(row.get('extrapolation_shortlist_rank'))
+                else None
+            ),
+            'bn_centered_ranking_rank': (
+                int(row['bn_centered_ranking_rank'])
+                if pd.notna(row.get('bn_centered_ranking_rank'))
+                else None
+            ),
+            'bn_centered_top_n_selected': bool(row['bn_centered_top_n_selected']),
+            'rank_shift_general_minus_bn_centered': (
+                float(row['rank_shift_general_minus_bn_centered'])
+                if pd.notna(row.get('rank_shift_general_minus_bn_centered'))
+                else None
+            ),
+            'absolute_rank_shift_vs_bn_centered': (
+                float(row['absolute_rank_shift_vs_bn_centered'])
+                if pd.notna(row.get('absolute_rank_shift_vs_bn_centered'))
+                else None
+            ),
+            'structure_generation_seed_enabled': bool(seed_cfg['enabled']),
+            'structure_generation_seed_label': str(seed_cfg['label']),
+            'structure_generation_seed_method': str(seed_cfg['method']),
+            'structure_generation_seed_candidate_scope': str(seed_cfg['candidate_scope']),
+            'structure_generation_seed_note': str(seed_cfg['note']),
+            'structure_generation_candidate_selected': True,
+            'structure_generation_candidate_priority_reason': str(
+                row['structure_generation_candidate_priority_reason']
+            ),
+            'structure_generation_seed_limit': int(seed_cfg['per_candidate_seed_limit']),
+        }
+
+        seed_source_column = None
+        seed_formulas = _split_pipe_delimited_values(row.get('bn_analog_neighbor_formulas'))
+        if seed_formulas:
+            seed_source_column = 'bn_analog_neighbor_formulas'
+        if not seed_formulas:
+            seed_formulas = _split_pipe_delimited_values(row.get('bn_support_neighbor_formulas'))
+            if seed_formulas:
+                seed_source_column = 'bn_support_neighbor_formulas'
+        if not seed_formulas:
+            nearest_formula = row.get('bn_analog_nearest_formula')
+            if pd.notna(nearest_formula):
+                seed_formulas = [str(nearest_formula)]
+                seed_source_column = 'bn_analog_nearest_formula'
+        if not seed_formulas:
+            nearest_formula = row.get('bn_support_nearest_formula')
+            if pd.notna(nearest_formula):
+                seed_formulas = [str(nearest_formula)]
+                seed_source_column = 'bn_support_nearest_formula'
+        seed_formulas = seed_formulas[: int(seed_cfg['per_candidate_seed_limit'])]
+
+        if not seed_formulas:
+            rows.append(
+                {
+                    **candidate_payload,
+                    'structure_generation_seed_rank': None,
+                    'structure_generation_seed_source_column': None,
+                    'structure_generation_seed_status': 'no_reference_formula_seed_available',
+                }
+            )
+            continue
+
+        for seed_rank, seed_formula in enumerate(seed_formulas, start=1):
+            edit_payload = _structure_seed_edit_metadata(str(row[formula_col]), str(seed_formula))
+            seed_payload = exemplar_lookup.get(str(seed_formula))
+            if seed_payload is None:
+                rows.append(
+                    {
+                        **candidate_payload,
+                        'structure_generation_seed_rank': int(seed_rank),
+                        'structure_generation_seed_source_column': seed_source_column,
+                        'structure_generation_seed_status': 'reference_formula_missing_from_train_plus_val_bn_slice',
+                        'seed_reference_formula': str(seed_formula),
+                        **edit_payload,
+                    }
+                )
+                continue
+            rows.append(
+                {
+                    **candidate_payload,
+                    'structure_generation_seed_rank': int(seed_rank),
+                    'structure_generation_seed_source_column': seed_source_column,
+                    'structure_generation_seed_status': 'ok',
+                    **edit_payload,
+                    **seed_payload,
+                }
+            )
+
+    out = pd.DataFrame(rows)
+    if out.empty:
+        return pd.DataFrame(columns=out_columns)
+    for column_name in out_columns:
+        if column_name not in out.columns:
+            out[column_name] = pd.NA
+    return out[out_columns].reset_index(drop=True)
 
 
 def build_candidate_prediction_ensemble(

@@ -14,6 +14,7 @@ from pipeline.features import (
     benchmark_regressors,
     build_candidate_grouped_robustness_predictions,
     build_candidate_prediction_ensemble,
+    build_candidate_structure_generation_seeds,
     build_feature_table,
     build_feature_tables,
     evaluate_predictions,
@@ -21,6 +22,7 @@ from pipeline.features import (
     make_model,
     make_split_masks,
     screen_candidates,
+    select_bn_centered_candidate_screening_combo,
     select_feature_model_combo,
     summarize_feature_table,
     train_baseline_model,
@@ -160,6 +162,15 @@ CFG = {
             'required_novelty_bucket': 'formula_level_extrapolation',
             'chemical_plausibility_priority': True,
             'note': 'demo extrapolation shortlist note',
+        },
+        'structure_generation_seeds': {
+            'enabled': True,
+            'label': 'bn_structure_generation_seed_set',
+            'method': 'bn_analog_reference_exemplar',
+            'candidate_scope': 'proposal_shortlist_plus_extrapolation_shortlist_plus_bn_centered_top_n',
+            'per_candidate_seed_limit': 2,
+            'bn_centered_top_n': 2,
+            'note': 'demo structure-generation seed note',
         },
     },
 }
@@ -437,6 +448,121 @@ def test_grouped_robustness_benchmark_summarizes_group_kfold_results():
     structure_rows = robustness_df[robustness_df['feature_set'] == STRUCTURE_AWARE_FEATURE_SET]
     assert structure_rows['robustness_status'].eq('skipped_featurization_failure').all()
     assert robustness_df['selected_by_validation'].sum() == 1
+
+
+def test_select_bn_centered_candidate_screening_combo_prefers_best_candidate_compatible_row():
+    benchmark_df = pd.DataFrame({
+        'feature_set': [
+            'matminer_composition',
+            'basic_formula_composition',
+            'matminer_composition',
+            'matminer_composition',
+        ],
+        'feature_family': [
+            'composition_only',
+            'composition_only',
+            'composition_only',
+            'composition_only',
+        ],
+        'model_type': [
+            'linear_regression',
+            'hist_gradient_boosting',
+            'dummy_mean',
+            'bn_local_knn_mean',
+        ],
+        'benchmark_role': [
+            'candidate_model',
+            'screening_model',
+            'global_dummy_mean_baseline',
+            'bn_local_reference_baseline',
+        ],
+        'candidate_compatible': [True, True, False, True],
+        'benchmark_status': ['ok', 'ok', 'ok', 'ok'],
+        'mae': [1.2, 1.4, 0.8, 2.0],
+        'rmse': [1.5, 1.7, 1.0, 2.1],
+        'r2': [0.1, -0.2, 0.0, -1.0],
+    })
+
+    summary = select_bn_centered_candidate_screening_combo(
+        benchmark_df,
+        CFG,
+        fallback_feature_set='matminer_composition',
+        fallback_model_type='hist_gradient_boosting',
+    )
+
+    assert summary['enabled'] is True
+    assert summary['feature_set'] == 'matminer_composition'
+    assert summary['model_type'] == 'linear_regression'
+    assert summary['benchmark_role'] == 'candidate_model'
+    assert summary['mae'] == pytest.approx(1.2)
+    assert summary['matches_general_screening_combo'] is False
+    assert summary['ranking_artifact'] == 'demo_candidate_bn_centered_ranking.csv'
+
+
+
+def test_build_candidate_structure_generation_seeds_links_shortlisted_candidates_to_bn_reference_records():
+    dataset_df = _structure_signal_df().copy()
+    dataset_df['record_id'] = [f'jid-{idx}' for idx in range(len(dataset_df))]
+    split_masks = {
+        'train': [True] * 12 + [False] * 6,
+        'val': [False] * 12 + [True] * 3 + [False] * 3,
+        'test': [False] * 15 + [True] * 3,
+        'metadata': {'method': 'group_by_formula'},
+    }
+    candidate_df = pd.DataFrame({
+        'formula': ['BCN2', 'BCN', 'AlBN2'],
+        'candidate_family': ['group14_bn_121_family', 'group14_bn_111_family', 'group13_bn_121_family'],
+        'candidate_template': ['B1X1N2', 'B1X1N1', 'X1B1N2'],
+        'candidate_novelty_bucket': ['formula_level_extrapolation'] * 3,
+        'chemical_plausibility_pass': [True, True, True],
+        'ranking_rank': [1, 2, 3],
+        'proposal_shortlist_selected': [True, True, False],
+        'proposal_shortlist_rank': [1, 2, pd.NA],
+        'extrapolation_shortlist_selected': [True, False, True],
+        'extrapolation_shortlist_rank': [1, pd.NA, 2],
+        'bn_analog_neighbor_formulas': ['BN|B2N', 'BN|BN2', 'B2N|BN'],
+        'bn_analog_nearest_formula': ['BN', 'BN', 'B2N'],
+        'bn_support_neighbor_formulas': ['BN|B2N', 'BN|BN2', 'B2N|BN'],
+    })
+    bn_centered_candidate_df = pd.DataFrame({
+        'formula': ['AlBN2', 'BCN2', 'BCN'],
+        'ranking_rank': [1, 2, 3],
+    })
+
+    seed_df = build_candidate_structure_generation_seeds(
+        candidate_df,
+        dataset_df,
+        split_masks,
+        CFG,
+        bn_centered_candidate_df=bn_centered_candidate_df,
+    )
+
+    assert not seed_df.empty
+    assert set(seed_df['formula']) == {'BCN2', 'BCN', 'AlBN2'}
+    assert seed_df['structure_generation_seed_status'].eq('ok').all()
+    assert seed_df['structure_generation_seed_rank'].max() == 2
+    assert seed_df['seed_reference_formula'].isin({'BN', 'B2N', 'BN2'}).all()
+    assert seed_df['seed_reference_record_id'].notna().all()
+    assert seed_df['seed_reference_has_structure_summary'].eq(True).all()
+    assert seed_df['seed_formula_edit_strategy'].notna().all()
+    assert seed_df['seed_formula_shared_elements'].str.contains('B').all()
+    assert seed_df.loc[
+        seed_df['formula'].eq('BCN2') & seed_df['seed_reference_formula'].eq('BN'),
+        'seed_formula_candidate_only_elements',
+    ].iloc[0] == 'C'
+    assert seed_df.loc[
+        seed_df['formula'].eq('BCN2') & seed_df['seed_reference_formula'].eq('BN'),
+        'seed_formula_edit_strategy',
+    ].iloc[0] == 'element_insertion_or_decoration'
+    assert seed_df.loc[
+        seed_df['formula'].eq('AlBN2'),
+        'bn_centered_top_n_selected',
+    ].iloc[0]
+    assert seed_df.loc[
+        seed_df['formula'].eq('BCN2'),
+        'structure_generation_candidate_priority_reason',
+    ].iloc[0] == 'proposal_shortlist|extrapolation_shortlist|bn_centered_top_2'
+
 
 
 def test_bn_slice_benchmark_reports_bn_focused_holdout_metrics():

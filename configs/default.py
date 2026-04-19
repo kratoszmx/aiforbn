@@ -206,6 +206,21 @@ CONFIG = {
                 'replace the full raw ranking artifact or the general proposal shortlist.'
             ),
         },
+        'structure_generation_seeds': {
+            'enabled': True,
+            'label': 'bn_structure_generation_seed_set',
+            'method': 'bn_analog_reference_exemplar',
+            'candidate_scope': 'proposal_shortlist_plus_extrapolation_shortlist_plus_bn_centered_top_n',
+            'per_candidate_seed_limit': 3,
+            'bn_centered_top_n': 10,
+            'note': (
+                'Builds a structure-generation handoff artifact by attaching shortlisted BN '
+                'candidates to nearby BN-containing train+val reference formulas and exemplar '
+                'records with observed structures. This does not generate, relax, or validate '
+                'new candidate structures; it only surfaces prototype seeds for downstream '
+                'substitution, enumeration, or relaxation workflows.'
+            ),
+        },
     },
     'llm': {
         'enabled': False,

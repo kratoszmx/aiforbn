@@ -1,3 +1,4 @@
+import copy
 from pathlib import Path
 import sys
 
@@ -14,11 +15,13 @@ from pipeline.features import (
     benchmark_regressors,
     build_candidate_grouped_robustness_predictions,
     build_candidate_prediction_ensemble,
+    build_candidate_structure_generation_seeds,
     build_feature_tables,
     evaluate_predictions,
     filter_bn,
     generate_bn_candidates,
     make_split_masks,
+    select_bn_centered_candidate_screening_combo,
     select_feature_model_combo,
     screen_candidates,
     train_baseline_model,
@@ -98,6 +101,12 @@ def main() -> None:
         screening_feature_set=ranking_feature_set,
         screening_model_type=ranking_model_type,
     )
+    bn_centered_screening_selection = select_bn_centered_candidate_screening_combo(
+        bn_slice_benchmark_df,
+        cfg,
+        fallback_feature_set=ranking_feature_set,
+        fallback_model_type=ranking_model_type,
+    )
     ranking_feature_df = feature_tables[ranking_feature_set]
     if ranking_feature_set == selected_feature_set and ranking_model_type == selected_model_type:
         ranking_model = model
@@ -142,6 +151,60 @@ def main() -> None:
         grouped_robustness_prediction_df=candidate_grouped_robustness_df,
         reference_feature_df=ranking_feature_df,
     )
+
+    bn_centered_ranked_candidate_df = None
+    if bool(bn_centered_screening_selection.get('enabled')):
+        bn_centered_feature_set = str(bn_centered_screening_selection['feature_set'])
+        bn_centered_model_type = str(bn_centered_screening_selection['model_type'])
+        bn_centered_feature_df = feature_tables[bn_centered_feature_set]
+        if bn_centered_feature_set == ranking_feature_set and bn_centered_model_type == ranking_model_type:
+            bn_centered_model = ranking_model
+            bn_centered_feature_columns = ranking_feature_columns
+        elif bn_centered_feature_set == selected_feature_set and bn_centered_model_type == selected_model_type:
+            bn_centered_model = model
+            bn_centered_feature_columns = feature_columns
+        else:
+            bn_centered_model, bn_centered_feature_columns = train_baseline_model(
+                bn_centered_feature_df,
+                split_masks,
+                cfg,
+                model_type=bn_centered_model_type,
+                include_validation=True,
+            )
+        bn_centered_grouped_robustness_df = build_candidate_grouped_robustness_predictions(
+            candidate_df,
+            bn_centered_feature_df,
+            split_masks,
+            cfg,
+            feature_set=bn_centered_feature_set,
+            model_type=bn_centered_model_type,
+        )
+        bn_centered_cfg = copy.deepcopy(cfg)
+        bn_centered_cfg.setdefault('screening', {})['use_model_disagreement'] = False
+        bn_centered_ranked_candidate_df = screen_candidates(
+            candidate_df,
+            bn_centered_model,
+            bn_centered_feature_columns,
+            bn_centered_cfg,
+            feature_set=bn_centered_feature_set,
+            model_type=bn_centered_model_type,
+            best_overall_feature_set=selected_feature_set,
+            best_overall_model_type=selected_model_type,
+            screening_selection_note=bn_centered_screening_selection.get('selection_note'),
+            dataset_df=dataset_df,
+            split_masks=split_masks,
+            ensemble_prediction_df=None,
+            grouped_robustness_prediction_df=bn_centered_grouped_robustness_df,
+            reference_feature_df=bn_centered_feature_df,
+        )
+    structure_generation_seed_df = build_candidate_structure_generation_seeds(
+        ranked_candidate_df,
+        dataset_df,
+        split_masks,
+        cfg,
+        bn_centered_candidate_df=bn_centered_ranked_candidate_df,
+        formula_col=cfg['data']['formula_column'],
+    )
     experiment_summary = build_experiment_summary(
         dataset_df=dataset_df,
         bn_df=bn_df,
@@ -150,6 +213,9 @@ def main() -> None:
         selection_summary=selection_summary,
         robustness_df=robustness_df,
         bn_slice_benchmark_df=bn_slice_benchmark_df,
+        bn_centered_candidate_df=bn_centered_ranked_candidate_df,
+        bn_centered_screening_selection=bn_centered_screening_selection,
+        structure_generation_seed_df=structure_generation_seed_df,
         cfg=cfg,
     )
 
@@ -162,6 +228,8 @@ def main() -> None:
         robustness_df,
         bn_slice_benchmark_df,
         bn_slice_prediction_df,
+        bn_centered_ranked_candidate_df,
+        structure_generation_seed_df,
         experiment_summary,
         manifest,
         cfg,
@@ -184,6 +252,15 @@ def main() -> None:
         )
     if bn_slice_benchmark_df is not None and not bn_slice_benchmark_df.empty:
         print(f"bn slice benchmark rows: {len(bn_slice_benchmark_df)}")
+    if bn_centered_ranked_candidate_df is not None:
+        print(f"bn-centered alternative ranking rows: {len(bn_centered_ranked_candidate_df)}")
+        print(
+            'bn-centered alternative combo: '
+            f"{bn_centered_screening_selection['feature_set']} + "
+            f"{bn_centered_screening_selection['model_type']}"
+        )
+    if structure_generation_seed_df is not None and not structure_generation_seed_df.empty:
+        print(f"structure-generation seed rows: {len(structure_generation_seed_df)}")
     print(f"split method: {split_masks['metadata']['method']}")
     print(f"selected feature set: {selected_feature_set}")
     print(f"selected model: {selected_model_type}")

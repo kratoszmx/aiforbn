@@ -26,6 +26,9 @@ bn_slice_benchmark_path = artifact_dir / 'bn_slice_benchmark_results.csv'
 bn_slice_prediction_path = artifact_dir / 'bn_slice_predictions.csv'
 pred_path = artifact_dir / 'predictions.csv'
 screen_path = artifact_dir / 'demo_candidate_ranking.csv'
+bn_centered_screen_path = artifact_dir / 'demo_candidate_bn_centered_ranking.csv'
+structure_generation_seed_path = artifact_dir / 'demo_candidate_structure_generation_seeds.csv'
+structure_generation_handoff_path = artifact_dir / 'demo_candidate_structure_generation_handoff.json'
 proposal_shortlist_path = artifact_dir / 'demo_candidate_proposal_shortlist.csv'
 extrapolation_shortlist_path = artifact_dir / 'demo_candidate_extrapolation_shortlist.csv'
 
@@ -64,6 +67,18 @@ if pred_path.exists():
 if screen_path.exists():
     st.subheader('Top demo candidate ranking')
     st.dataframe(pd.read_csv(screen_path).head(30), use_container_width=True)
+
+if bn_centered_screen_path.exists():
+    st.subheader('BN-centered alternative candidate ranking')
+    st.dataframe(pd.read_csv(bn_centered_screen_path).head(30), use_container_width=True)
+
+if structure_generation_seed_path.exists():
+    st.subheader('Structure-generation seed bridge')
+    st.dataframe(pd.read_csv(structure_generation_seed_path).head(30), use_container_width=True)
+
+if structure_generation_handoff_path.exists():
+    st.subheader('Structure-generation handoff JSON')
+    st.json(json.loads(structure_generation_handoff_path.read_text()))
 
 if proposal_shortlist_path.exists():
     st.subheader('Proposal shortlist')

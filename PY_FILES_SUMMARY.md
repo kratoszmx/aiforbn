@@ -244,7 +244,7 @@ Useful robustness columns include:
 - `r2_mean`
 - `r2_std`
 
-### `benchmark_bn_slice(feature_tables, split_masks, cfg, selected_feature_set, selected_model_type)`
+### `benchmark_bn_slice(dataset_df, feature_tables, cfg, selected_feature_set, selected_model_type, screening_feature_set, screening_model_type)`
 Runs the dedicated BN-focused leave-one-BN-formula-out benchmark.
 It returns two dataframes:
 - a benchmark summary table across all configured feature/model combos plus `dummy_mean` and `bn_local_knn_mean`
@@ -272,6 +272,52 @@ Useful benchmark columns include:
 - `rmse`
 - `r2`
 - `k_neighbors`
+
+### `select_bn_centered_candidate_screening_combo(bn_slice_benchmark_df, cfg, fallback_feature_set=None, fallback_model_type=None)`
+Selects the **best candidate-compatible BN-centered screening combo** from the BN-slice benchmark.
+Current behavior:
+- filters to `benchmark_status == 'ok'`
+- keeps only candidate-compatible feature/model rows
+- excludes the global dummy and BN-local reference baselines
+- picks the lowest-MAE row
+- returns metadata for the new BN-centered alternative ranking artifact
+
+Important:
+- this is not a new global selection rule for the whole project
+- it exists to build a **BN-centered comparison view** alongside the default general ranking
+- the chosen combo can differ from both the overall selected combo and the default formula-only screening combo
+
+### `build_candidate_structure_generation_seeds(candidate_df, dataset_df, split_masks, cfg=None, bn_centered_candidate_df=None, formula_col='formula')`
+Builds a **structure-generation bridge artifact** from the current screening outputs.
+Current behavior:
+- starts from the union of:
+  - the general proposal shortlist
+  - the formula-level extrapolation shortlist
+  - the top-`n` BN-centered alternative ranking view
+- parses nearby BN analog formulas already attached to each candidate
+- maps each analog formula to a deterministic exemplar `train + val` BN reference record with observed structure summary columns
+- writes a candidate-to-prototype seed table for downstream substitution / enumeration / relaxation work
+
+Useful output fields include:
+- `structure_generation_candidate_priority_reason`
+- `bn_centered_ranking_rank`
+- `seed_reference_formula`
+- `seed_reference_record_id`
+- `seed_reference_band_gap`
+- `seed_formula_shared_elements`
+- `seed_formula_candidate_only_elements`
+- `seed_formula_seed_only_elements`
+- `seed_formula_element_count_l1_distance`
+- `seed_formula_edit_strategy`
+- `seed_reference_energy_per_atom`
+- `seed_reference_exfoliation_energy_per_atom`
+- `seed_reference_structure_n_sites`
+- `seed_reference_structure_inplane_area`
+- `seed_reference_structure_thickness`
+
+Important:
+- this does **not** generate or validate new structures
+- it is a handoff artifact that makes the pipeline less purely formula-only by surfacing concrete BN analog prototypes for follow-up work
 
 ### `build_candidate_prediction_ensemble(candidate_df, feature_tables, split_masks, cfg, candidate_feature_sets=None)`
 Trains the tiny candidate-compatible feature/model pool on `train + val` and computes candidate-level ensemble prediction statistics:
@@ -449,7 +495,7 @@ Useful output columns include:
 
 ## src/pipeline/reporting.py
 
-### `build_experiment_summary(dataset_df, bn_df, candidate_df, split_masks, selection_summary, cfg, robustness_df=None, bn_slice_benchmark_df=None)`
+### `build_experiment_summary(dataset_df, bn_df, candidate_df, split_masks, selection_summary, cfg, robustness_df=None, bn_slice_benchmark_df=None, bn_centered_candidate_df=None, bn_centered_screening_selection=None, structure_generation_seed_df=None)`
 Builds the structured experiment summary dict written to `artifacts/experiment_summary.json`.
 Includes:
 - dataset stats
@@ -459,6 +505,7 @@ Includes:
 - grouped robustness metadata
 - BN-slice benchmark metadata
 - candidate ranking metadata
+- BN-centered alternative ranking metadata and overlap diagnostics versus the default ranking
 
 Important:
 - preserves the distinction between best overall evaluation combo and formula-only screening combo
@@ -469,14 +516,19 @@ Important:
 - now also summarizes whether the BN analog-validation proxy is active in ranking and how many rows were penalized
 - now also summarizes grouped-by-formula robustness results for the selected model, screening fallback, and dummy baseline
 - now also summarizes the BN-slice benchmark, including standard-split BN row placement, selected/screening/baseline BN metrics, and the current BN-slice best configured combo
+- now also summarizes the BN-centered alternative ranking view, including the chosen candidate-compatible combo, rank-shift statistics, and top-k overlap against the default ranking
+- now also summarizes the structure-generation bridge artifact, including seeded candidate count, seed row count, unique BN reference prototype count, and the JSON handoff artifact path
 - now also summarizes grouped candidate-robustness penalty settings, fold count, average spread, and penalized-row count
 - now also summarizes the family-aware proposal shortlist and the formula-level extrapolation shortlist as separate advisor-facing outputs
 
-### `save_metrics_and_predictions(metrics, prediction_df, bn_df, screened_df, benchmark_df, robustness_df, bn_slice_benchmark_df, bn_slice_prediction_df, experiment_summary, manifest, cfg)`
+### `save_metrics_and_predictions(metrics, prediction_df, bn_df, screened_df, benchmark_df, robustness_df, bn_slice_benchmark_df, bn_slice_prediction_df, bn_centered_screened_df, structure_generation_seed_df, experiment_summary, manifest, cfg)`
 Writes the main artifact files under `artifacts/`.
-This now includes both shortlist CSVs and BN-slice benchmark artifacts in addition to the full ranking artifact:
+This now includes both shortlist CSVs, BN-slice benchmark artifacts, the BN-centered alternative ranking artifact, and the structure-generation bridge artifacts in addition to the full ranking artifact:
 - `bn_slice_benchmark_results.csv`
 - `bn_slice_predictions.csv`
+- `demo_candidate_bn_centered_ranking.csv`
+- `demo_candidate_structure_generation_seeds.csv`
+- `demo_candidate_structure_generation_handoff.json`
 - `demo_candidate_proposal_shortlist.csv`
 - `demo_candidate_extrapolation_shortlist.csv`
 
@@ -497,6 +549,9 @@ It is a simple artifact viewer for:
 - `bn_slice_predictions.csv`
 - `predictions.csv`
 - `demo_candidate_ranking.csv`
+- `demo_candidate_bn_centered_ranking.csv`
+- `demo_candidate_structure_generation_seeds.csv`
+- `demo_candidate_structure_generation_handoff.json`
 - `demo_candidate_proposal_shortlist.csv`
 - `demo_candidate_extrapolation_shortlist.csv`
 

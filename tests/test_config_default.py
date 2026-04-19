@@ -127,4 +127,13 @@ def test_default_config_has_expected_poc_defaults():
         == 'formula_level_extrapolation'
     )
     assert cfg['screening']['extrapolation_shortlist']['chemical_plausibility_priority'] is True
+    assert cfg['screening']['structure_generation_seeds']['enabled'] is True
+    assert cfg['screening']['structure_generation_seeds']['label'] == 'bn_structure_generation_seed_set'
+    assert cfg['screening']['structure_generation_seeds']['method'] == 'bn_analog_reference_exemplar'
+    assert (
+        cfg['screening']['structure_generation_seeds']['candidate_scope']
+        == 'proposal_shortlist_plus_extrapolation_shortlist_plus_bn_centered_top_n'
+    )
+    assert cfg['screening']['structure_generation_seeds']['per_candidate_seed_limit'] == 3
+    assert cfg['screening']['structure_generation_seeds']['bn_centered_top_n'] == 10
     assert cfg['ui']['streamlit_enabled'] is True

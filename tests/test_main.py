@@ -47,6 +47,7 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
         'grouped_robustness_predicted_band_gap_std': [0.08],
     })
     ranked_candidate_df = pd.DataFrame({'formula': ['BN'], 'predicted_band_gap': [4.9], 'ranking_score': [4.8]})
+    structure_generation_seed_df = pd.DataFrame({'formula': ['BN'], 'seed_reference_formula': ['BN']})
     benchmark_df = pd.DataFrame({
         'feature_set': ['matminer_composition'],
         'model_type': ['linear_regression'],
@@ -81,6 +82,7 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
         'screening_selection_matches_overall': True,
         'screening_selection_note': 'Best overall validation combo is candidate-compatible, so screening reuses it.',
     }
+    bn_centered_screening_selection = {'enabled': False, 'selection_note': 'disabled in test'}
     experiment_summary = {'dataset': {'rows': 2}}
 
     monkeypatch.setattr(main_module, 'clear_project_cache', lambda path: calls.append('clear_project_cache'))
@@ -154,6 +156,11 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
     )
     monkeypatch.setattr(
         main_module,
+        'select_bn_centered_candidate_screening_combo',
+        lambda bn_slice_benchmark_df, cfg, fallback_feature_set=None, fallback_model_type=None: calls.append('select_bn_centered_candidate_screening_combo') or bn_centered_screening_selection,
+    )
+    monkeypatch.setattr(
+        main_module,
         'build_candidate_prediction_ensemble',
         lambda candidate_df, feature_tables, split_masks, cfg, candidate_feature_sets=None: calls.append('build_candidate_prediction_ensemble') or candidate_ensemble_df,
     )
@@ -169,13 +176,18 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
     )
     monkeypatch.setattr(
         main_module,
+        'build_candidate_structure_generation_seeds',
+        lambda candidate_df, dataset_df, split_masks, cfg, bn_centered_candidate_df=None, formula_col='formula': calls.append('build_candidate_structure_generation_seeds') or structure_generation_seed_df,
+    )
+    monkeypatch.setattr(
+        main_module,
         'build_experiment_summary',
-        lambda dataset_df, bn_df, candidate_df, split_masks, selection_summary, cfg, robustness_df=None, bn_slice_benchmark_df=None: calls.append('build_experiment_summary') or experiment_summary,
+        lambda dataset_df, bn_df, candidate_df, split_masks, selection_summary, cfg, robustness_df=None, bn_slice_benchmark_df=None, bn_centered_candidate_df=None, bn_centered_screening_selection=None, structure_generation_seed_df=None: calls.append('build_experiment_summary') or experiment_summary,
     )
     monkeypatch.setattr(
         main_module,
         'save_metrics_and_predictions',
-        lambda metrics, prediction_df, bn_df, screened_df, benchmark_df, robustness_df, bn_slice_benchmark_df, bn_slice_prediction_df, experiment_summary, manifest, cfg: calls.append('save_metrics_and_predictions'),
+        lambda metrics, prediction_df, bn_df, screened_df, benchmark_df, robustness_df, bn_slice_benchmark_df, bn_slice_prediction_df, bn_centered_screened_df, structure_generation_seed_df, experiment_summary, manifest, cfg: calls.append('save_metrics_and_predictions'),
     )
     monkeypatch.setattr(main_module, 'save_basic_plots', lambda prediction_df, cfg: calls.append('save_basic_plots'))
 
@@ -196,9 +208,11 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
         'benchmark_regressors',
         'benchmark_grouped_robustness',
         'benchmark_bn_slice',
+        'select_bn_centered_candidate_screening_combo',
         'build_candidate_prediction_ensemble',
         'build_candidate_grouped_robustness_predictions',
         'screen_candidates',
+        'build_candidate_structure_generation_seeds',
         'build_experiment_summary',
         'save_metrics_and_predictions',
         'save_basic_plots',
@@ -208,6 +222,7 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
     assert 'BN AI PoC pipeline completed' in out
     assert 'dataset rows: 2' in out
     assert 'bn slice benchmark rows: 1' in out
+    assert 'structure-generation seed rows: 1' in out
     assert 'split method: group_by_formula' in out
     assert 'selected feature set: matminer_composition' in out
     assert 'selected model: linear_regression' in out

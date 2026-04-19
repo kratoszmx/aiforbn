@@ -435,6 +435,34 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         'prediction': [4.4, 4.3, 4.5, 4.1, 3.9],
         'absolute_error': [0.6, 0.7, 0.5, 0.9, 1.1],
     })
+    bn_centered_candidate_df = pd.DataFrame({
+        'formula': ['AlBN', 'BN'],
+        'ranking_rank': [1, 2],
+        'ranking_score': [1.5, 1.4],
+        'ranking_basis': ['composition_only_selected_model_low_support_and_bn_support_and_grouped_robustness_and_bn_band_gap_alignment_and_bn_analog_validation_penalties'] * 2,
+        'ranking_note': ['bn-centered alternative note'] * 2,
+    })
+    bn_centered_screening_selection = {
+        'enabled': True,
+        'selection_source_artifact': 'bn_slice_benchmark_results.csv',
+        'selection_scope': 'bn_slice_candidate_compatible_best',
+        'selection_note': 'bn-centered alternative ranking note',
+        'ranking_artifact': 'demo_candidate_bn_centered_ranking.csv',
+        'feature_set': 'matminer_composition',
+        'feature_family': 'composition_only',
+        'model_type': 'linear_regression',
+        'benchmark_role': 'selected_model',
+        'mae': 0.6,
+        'rmse': 0.7,
+        'r2': 0.5,
+        'matches_general_screening_combo': True,
+    }
+    structure_generation_seed_df = pd.DataFrame({
+        'formula': ['BN', 'AlBN'],
+        'structure_generation_seed_status': ['ok', 'ok'],
+        'seed_reference_formula': ['BN', 'B2N'],
+        'seed_reference_record_id': ['jid-1', 'jid-2'],
+    })
     split_masks = {
         'train': [True],
         'val': [False],
@@ -483,6 +511,9 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         cfg=cfg,
         robustness_df=robustness_df,
         bn_slice_benchmark_df=bn_slice_benchmark_df,
+        bn_centered_candidate_df=bn_centered_candidate_df,
+        bn_centered_screening_selection=bn_centered_screening_selection,
+        structure_generation_seed_df=structure_generation_seed_df,
     )
     manifest = {'name': 'twod_matpd'}
 
@@ -495,6 +526,8 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         robustness_df,
         bn_slice_benchmark_df,
         bn_slice_prediction_df,
+        bn_centered_candidate_df,
+        structure_generation_seed_df,
         experiment_summary,
         manifest,
         cfg,
@@ -543,6 +576,33 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         'composition_only_mean_band_gap_minus_model_disagreement_low_support_and_bn_support_and_grouped_robustness_and_bn_band_gap_alignment_and_bn_analog_validation_penalties'
     )
     assert experiment_summary['screening']['ranking_feature_family'] == 'composition_only'
+    assert experiment_summary['screening']['bn_centered_alternative']['enabled'] is True
+    assert (
+        experiment_summary['screening']['bn_centered_alternative']['ranking_artifact']
+        == 'demo_candidate_bn_centered_ranking.csv'
+    )
+    assert experiment_summary['screening']['bn_centered_alternative']['ranking_feature_set'] == 'matminer_composition'
+    assert experiment_summary['screening']['bn_centered_alternative']['ranking_model_type'] == 'linear_regression'
+    assert experiment_summary['screening']['bn_centered_alternative']['bn_slice_mae'] == 0.6
+    assert experiment_summary['screening']['bn_centered_alternative']['top_k_overlap_count'] == 2
+    assert experiment_summary['screening']['bn_centered_alternative']['top_k_overlap_formulas'] == ['BN', 'AlBN']
+    assert experiment_summary['screening']['bn_centered_alternative']['general_top_k_formulas'] == ['BN', 'AlBN']
+    assert experiment_summary['screening']['bn_centered_alternative']['bn_centered_top_k_formulas'] == ['AlBN', 'BN']
+    assert experiment_summary['screening']['bn_centered_alternative']['mean_absolute_rank_shift'] == 1.0
+    assert experiment_summary['screening']['bn_centered_alternative']['max_absolute_rank_shift'] == 1.0
+    assert experiment_summary['screening']['bn_centered_alternative']['max_absolute_rank_shift_formula'] == 'BN'
+    assert experiment_summary['screening']['structure_generation_bridge']['enabled'] is True
+    assert (
+        experiment_summary['screening']['structure_generation_bridge']['artifact']
+        == 'demo_candidate_structure_generation_seeds.csv'
+    )
+    assert (
+        experiment_summary['screening']['structure_generation_bridge']['handoff_artifact']
+        == 'demo_candidate_structure_generation_handoff.json'
+    )
+    assert experiment_summary['screening']['structure_generation_bridge']['candidate_rows'] == 2
+    assert experiment_summary['screening']['structure_generation_bridge']['seed_rows'] == 2
+    assert experiment_summary['screening']['structure_generation_bridge']['unique_seed_reference_formulas'] == 2
     assert experiment_summary['screening']['ranking_matches_best_overall_evaluation'] is True
     assert experiment_summary['screening']['best_overall_evaluation_feature_set'] == 'matminer_composition'
     assert experiment_summary['screening']['ranking_uncertainty_method'] == 'small_feature_model_disagreement'
@@ -799,6 +859,20 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     assert (artifact_dir / 'predictions.csv').exists()
     assert (artifact_dir / 'bn_slice.csv').exists()
     assert (artifact_dir / 'demo_candidate_ranking.csv').exists()
+    assert (artifact_dir / 'demo_candidate_bn_centered_ranking.csv').exists()
+    assert (artifact_dir / 'demo_candidate_structure_generation_seeds.csv').exists()
+    assert (artifact_dir / 'demo_candidate_structure_generation_handoff.json').exists()
+    handoff_payload = json.loads(
+        (artifact_dir / 'demo_candidate_structure_generation_handoff.json').read_text()
+    )
+    assert handoff_payload['candidate_count'] == 2
+    assert handoff_payload['seed_row_count'] == 2
+    assert handoff_payload['candidates'][0]['formula'] == 'BN'
+    assert handoff_payload['candidates'][0]['seeds'][0]['seed_reference_record_id'] == 'jid-1'
+    assert handoff_payload['candidates'][0]['seeds'][0]['seed_formula_edit_strategy'] == (
+        'same_reduced_formula_reference'
+    )
+    assert handoff_payload['candidates'][1]['seeds'][0]['seed_formula_candidate_only_elements'] == 'Al'
     assert (artifact_dir / 'demo_candidate_proposal_shortlist.csv').exists()
     assert (artifact_dir / 'demo_candidate_extrapolation_shortlist.csv').exists()
     assert (artifact_dir / 'benchmark_results.csv').exists()
