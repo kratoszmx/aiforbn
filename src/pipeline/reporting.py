@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+import re
 
 os.environ.setdefault('MPLBACKEND', 'Agg')
 os.environ.setdefault('MPLCONFIGDIR', '/tmp/ai_for_bn_mplconfig')
@@ -61,6 +62,14 @@ BN_SLICE_BENCHMARK_COLUMNS = [
     'rmse',
     'r2',
 ]
+
+STRUCTURE_GENERATION_JOB_PLAN_LABEL = 'prototype_substitution_enumeration_job_plan'
+STRUCTURE_GENERATION_JOB_PLAN_METHOD = 'candidate_seed_to_workflow_plan'
+STRUCTURE_GENERATION_JOB_PLAN_NOTE = (
+    'Converts each candidate/seed pairing into a deterministic downstream workflow plan '
+    'for prototype substitution, enumeration, and relaxation. This is a planning artifact, '
+    'not a generated-structure or validated-structure claim.'
+)
 
 
 def _robustness_row_payload(robustness_df: pd.DataFrame, mask) -> dict | None:
@@ -254,6 +263,269 @@ def _json_safe_value(value):
         except Exception:
             pass
     return value
+
+
+def _split_pipe_delimited_values(value: object) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, float) and pd.isna(value):
+        return []
+    if not isinstance(value, str):
+        value = str(value)
+    return [item.strip() for item in value.split('|') if item and item.strip()]
+
+
+def _slugify_structure_generation_job_component(value: object) -> str:
+    text = str(value or '').strip()
+    slug = re.sub(r'[^A-Za-z0-9]+', '_', text).strip('_').lower()
+    return slug or 'unknown'
+
+
+def _structure_generation_job_workflow_steps(action_label: str) -> list[str]:
+    workflow_map = {
+        'reference_reuse_control': [
+            'load_reference_atoms',
+            'reuse_reference_as_control_seed',
+            'relax_reference_control',
+            'record_control_outcome',
+        ],
+        'stoichiometry_adjustment_enumeration': [
+            'load_reference_atoms',
+            'adjust_formula_stoichiometry',
+            'enumerate_stoichiometric_variants',
+            'relax_candidate_variants',
+            'rank_relaxed_variants',
+        ],
+        'element_substitution_enumeration': [
+            'load_reference_atoms',
+            'apply_element_substitution',
+            'enumerate_symmetry_preserving_variants',
+            'relax_substituted_variants',
+            'rank_relaxed_variants',
+        ],
+        'element_insertion_enumeration': [
+            'load_reference_atoms',
+            'insert_or_decorate_candidate_elements',
+            'enumerate_insertion_sites',
+            'relax_decorated_variants',
+            'rank_relaxed_variants',
+        ],
+        'element_removal_enumeration': [
+            'load_reference_atoms',
+            'remove_or_vacancy_seed_elements',
+            'enumerate_vacancy_variants',
+            'relax_vacancy_variants',
+            'rank_relaxed_variants',
+        ],
+        'mixed_formula_edit_enumeration': [
+            'load_reference_atoms',
+            'combine_substitution_and_stoichiometry_edits',
+            'enumerate_candidate_variants',
+            'relax_candidate_variants',
+            'rank_relaxed_variants',
+        ],
+        'manual_reference_recovery': [
+            'recover_reference_record',
+            'rebuild_candidate_seed_link',
+            'resume_prototype_enumeration',
+        ],
+    }
+    return workflow_map.get(action_label, workflow_map['mixed_formula_edit_enumeration'])
+
+
+def _structure_generation_job_payload(row: pd.Series, *, formula_col: str) -> dict[str, object]:
+    candidate_formula = str(row[formula_col])
+    seed_rank = _json_safe_value(row.get('structure_generation_seed_rank'))
+    record_id = _json_safe_value(row.get('seed_reference_record_id'))
+    seed_formula = _json_safe_value(row.get('seed_reference_formula'))
+    seed_status = str(row.get('structure_generation_seed_status') or 'unknown')
+
+    edit_payload = {}
+    if seed_formula is not None:
+        missing_edit_columns = [
+            column
+            for column in (
+                'seed_formula_exact_element_match',
+                'seed_formula_shared_elements',
+                'seed_formula_candidate_only_elements',
+                'seed_formula_seed_only_elements',
+                'seed_formula_element_count_l1_distance',
+                'seed_formula_edit_strategy',
+            )
+            if column not in row.index or pd.isna(row[column])
+        ]
+        if missing_edit_columns:
+            edit_payload = _structure_seed_edit_metadata(candidate_formula, str(seed_formula))
+
+    edit_strategy = _json_safe_value(row.get('seed_formula_edit_strategy'))
+    if edit_strategy is None:
+        edit_strategy = _json_safe_value(edit_payload.get('seed_formula_edit_strategy'))
+    shared_elements = _split_pipe_delimited_values(
+        row.get('seed_formula_shared_elements')
+        if 'seed_formula_shared_elements' in row.index and pd.notna(row.get('seed_formula_shared_elements'))
+        else edit_payload.get('seed_formula_shared_elements')
+    )
+    candidate_only_elements = _split_pipe_delimited_values(
+        row.get('seed_formula_candidate_only_elements')
+        if 'seed_formula_candidate_only_elements' in row.index and pd.notna(row.get('seed_formula_candidate_only_elements'))
+        else edit_payload.get('seed_formula_candidate_only_elements')
+    )
+    seed_only_elements = _split_pipe_delimited_values(
+        row.get('seed_formula_seed_only_elements')
+        if 'seed_formula_seed_only_elements' in row.index and pd.notna(row.get('seed_formula_seed_only_elements'))
+        else edit_payload.get('seed_formula_seed_only_elements')
+    )
+    exact_element_match_value = (
+        row.get('seed_formula_exact_element_match')
+        if 'seed_formula_exact_element_match' in row.index and pd.notna(row.get('seed_formula_exact_element_match'))
+        else edit_payload.get('seed_formula_exact_element_match')
+    )
+    exact_element_match = bool(exact_element_match_value) if exact_element_match_value is not None else False
+    element_count_l1_distance = _json_safe_value(
+        row.get('seed_formula_element_count_l1_distance')
+        if 'seed_formula_element_count_l1_distance' in row.index and pd.notna(row.get('seed_formula_element_count_l1_distance'))
+        else edit_payload.get('seed_formula_element_count_l1_distance')
+    )
+
+    if seed_status != 'ok':
+        action_label = 'manual_reference_recovery'
+    elif edit_strategy == 'same_reduced_formula_reference':
+        action_label = 'reference_reuse_control'
+    elif edit_strategy == 'same_elements_stoichiometry_adjustment':
+        action_label = 'stoichiometry_adjustment_enumeration'
+    elif edit_strategy == 'element_substitution_or_decoration' and len(candidate_only_elements) == len(seed_only_elements):
+        action_label = 'element_substitution_enumeration'
+    elif edit_strategy == 'element_insertion_or_decoration':
+        action_label = 'element_insertion_enumeration'
+    elif edit_strategy == 'element_removal_or_vacancy':
+        action_label = 'element_removal_enumeration'
+    else:
+        action_label = 'mixed_formula_edit_enumeration'
+
+    substitution_pairs = []
+    if action_label == 'element_substitution_enumeration':
+        substitution_pairs = [
+            {'from_element': old_element, 'to_element': new_element}
+            for old_element, new_element in zip(seed_only_elements, candidate_only_elements)
+        ]
+
+    workflow_steps = _structure_generation_job_workflow_steps(action_label)
+    direct_substitution_feasible = bool(substitution_pairs)
+    requires_stoichiometry_adjustment = bool(
+        element_count_l1_distance and float(element_count_l1_distance) > 0.0
+    )
+    requires_enumeration = action_label != 'reference_reuse_control'
+
+    return {
+        'job_id': '__'.join(
+            [
+                _slugify_structure_generation_job_component(candidate_formula),
+                f"seed_{seed_rank or 'na'}",
+                _slugify_structure_generation_job_component(record_id or seed_formula),
+            ]
+        ),
+        'job_rank': seed_rank,
+        'job_action_label': action_label,
+        'job_status': seed_status,
+        'candidate_formula': candidate_formula,
+        'ranking_rank': _json_safe_value(row.get('ranking_rank')),
+        'bn_centered_ranking_rank': _json_safe_value(row.get('bn_centered_ranking_rank')),
+        'candidate_family': _json_safe_value(row.get('candidate_family')),
+        'candidate_novelty_bucket': _json_safe_value(row.get('candidate_novelty_bucket')),
+        'chemical_plausibility_pass': _json_safe_value(row.get('chemical_plausibility_pass')),
+        'structure_generation_candidate_priority_reason': _json_safe_value(
+            row.get('structure_generation_candidate_priority_reason')
+        ),
+        'seed_reference_formula': seed_formula,
+        'seed_reference_record_id': record_id,
+        'seed_reference_source': _json_safe_value(row.get('seed_reference_source')),
+        'seed_reference_has_structure_summary': _json_safe_value(
+            row.get('seed_reference_has_structure_summary')
+        ),
+        'seed_formula_edit_strategy': edit_strategy,
+        'seed_formula_exact_element_match': exact_element_match,
+        'seed_formula_shared_elements': shared_elements,
+        'seed_formula_candidate_only_elements': candidate_only_elements,
+        'seed_formula_seed_only_elements': seed_only_elements,
+        'seed_formula_element_count_l1_distance': element_count_l1_distance,
+        'suggested_element_substitutions': substitution_pairs,
+        'direct_element_substitution_feasible': direct_substitution_feasible,
+        'requires_stoichiometry_adjustment': requires_stoichiometry_adjustment,
+        'requires_enumeration': requires_enumeration,
+        'requires_relaxation': True,
+        'reference_record_payload_artifact': 'demo_candidate_structure_generation_reference_records.json',
+        'workflow_steps': workflow_steps,
+        'workflow_step_count': len(workflow_steps),
+    }
+
+
+def _build_structure_generation_job_plan_payload(
+    structure_generation_seed_df: pd.DataFrame,
+    *,
+    formula_col: str,
+    cfg_defaults: dict[str, object],
+) -> dict[str, object]:
+    payload = {
+        'label': STRUCTURE_GENERATION_JOB_PLAN_LABEL,
+        'method': STRUCTURE_GENERATION_JOB_PLAN_METHOD,
+        'candidate_scope': str(cfg_defaults['candidate_scope']),
+        'per_candidate_seed_limit': int(cfg_defaults['per_candidate_seed_limit']),
+        'bn_centered_top_n': int(cfg_defaults['bn_centered_top_n']),
+        'seed_bridge_label': str(cfg_defaults['label']),
+        'seed_bridge_method': str(cfg_defaults['method']),
+        'seed_bridge_note': str(cfg_defaults['note']),
+        'note': STRUCTURE_GENERATION_JOB_PLAN_NOTE,
+        'handoff_artifact': 'demo_candidate_structure_generation_handoff.json',
+        'reference_record_payload_artifact': 'demo_candidate_structure_generation_reference_records.json',
+        'candidate_count': 0,
+        'job_count': 0,
+        'direct_substitution_job_count': 0,
+        'job_action_counts': {},
+        'candidates': [],
+    }
+    if structure_generation_seed_df is None or structure_generation_seed_df.empty:
+        return payload
+
+    seed_df = structure_generation_seed_df.copy()
+    payload['candidate_count'] = int(seed_df[formula_col].astype(str).nunique())
+    payload['job_count'] = int(len(seed_df))
+
+    sort_columns = [
+        column
+        for column in ('ranking_rank', 'structure_generation_seed_rank')
+        if column in seed_df.columns
+    ]
+    if sort_columns:
+        seed_df = seed_df.sort_values(sort_columns, ascending=True)
+
+    action_counts: dict[str, int] = {}
+    candidate_payloads: list[dict[str, object]] = []
+    for formula_value, group_df in seed_df.groupby(formula_col, sort=False):
+        group_df = group_df.reset_index(drop=True)
+        jobs = [_structure_generation_job_payload(row, formula_col=formula_col) for _, row in group_df.iterrows()]
+        for job in jobs:
+            action_counts[job['job_action_label']] = action_counts.get(job['job_action_label'], 0) + 1
+        candidate_payloads.append(
+            {
+                formula_col: str(formula_value),
+                'ranking_rank': _json_safe_value(group_df.iloc[0].get('ranking_rank')),
+                'bn_centered_ranking_rank': _json_safe_value(
+                    group_df.iloc[0].get('bn_centered_ranking_rank')
+                ),
+                'structure_generation_candidate_priority_reason': _json_safe_value(
+                    group_df.iloc[0].get('structure_generation_candidate_priority_reason')
+                ),
+                'job_count': len(jobs),
+                'jobs': jobs,
+            }
+        )
+
+    payload['job_action_counts'] = action_counts
+    payload['direct_substitution_job_count'] = int(
+        action_counts.get('element_substitution_enumeration', 0)
+    )
+    payload['candidates'] = candidate_payloads
+    return payload
 
 
 def _build_structure_generation_handoff_payload(
@@ -1074,6 +1346,23 @@ def build_experiment_summary(
         structure_generation_seed_summary['reference_record_payload_artifact'] = (
             'demo_candidate_structure_generation_reference_records.json'
         )
+        structure_generation_job_plan = _build_structure_generation_job_plan_payload(
+            structure_generation_seed_df,
+            formula_col=formula_col,
+            cfg_defaults=structure_generation_seed_cfg,
+        )
+        structure_generation_seed_summary['job_plan_artifact'] = (
+            'demo_candidate_structure_generation_job_plan.json'
+        )
+        structure_generation_seed_summary['job_count'] = int(
+            structure_generation_job_plan['job_count']
+        )
+        structure_generation_seed_summary['job_action_counts'] = dict(
+            structure_generation_job_plan['job_action_counts']
+        )
+        structure_generation_seed_summary['direct_substitution_job_count'] = int(
+            structure_generation_job_plan['direct_substitution_job_count']
+        )
 
     return {
         'dataset': {
@@ -1470,12 +1759,16 @@ def save_metrics_and_predictions(
     structure_generation_reference_records_path = (
         artifact_dir / 'demo_candidate_structure_generation_reference_records.json'
     )
+    structure_generation_job_plan_path = (
+        artifact_dir / 'demo_candidate_structure_generation_job_plan.json'
+    )
     if structure_generation_seed_df is not None and not structure_generation_seed_df.empty:
         structure_generation_seed_df.to_csv(structure_generation_seed_path, index=False)
         structure_generation_seed_cfg = _structure_generation_seed_config(cfg)
+        formula_col = ((cfg.get('data') or {}).get('formula_column') or 'formula')
         structure_generation_handoff = _build_structure_generation_handoff_payload(
             structure_generation_seed_df,
-            formula_col=((cfg.get('data') or {}).get('formula_column') or 'formula'),
+            formula_col=formula_col,
             cfg_defaults=structure_generation_seed_cfg,
         )
         structure_generation_handoff_path.write_text(
@@ -1488,6 +1781,14 @@ def save_metrics_and_predictions(
         structure_generation_reference_records_path.write_text(
             json.dumps(structure_generation_reference_records, indent=2, ensure_ascii=False)
         )
+        structure_generation_job_plan = _build_structure_generation_job_plan_payload(
+            structure_generation_seed_df,
+            formula_col=formula_col,
+            cfg_defaults=structure_generation_seed_cfg,
+        )
+        structure_generation_job_plan_path.write_text(
+            json.dumps(structure_generation_job_plan, indent=2, ensure_ascii=False)
+        )
     else:
         if structure_generation_seed_path.exists():
             structure_generation_seed_path.unlink()
@@ -1495,6 +1796,8 @@ def save_metrics_and_predictions(
             structure_generation_handoff_path.unlink()
         if structure_generation_reference_records_path.exists():
             structure_generation_reference_records_path.unlink()
+        if structure_generation_job_plan_path.exists():
+            structure_generation_job_plan_path.unlink()
     for selected_column, rank_column, artifact_name in (
         (
             'proposal_shortlist_selected',

@@ -640,8 +640,21 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         experiment_summary['screening']['structure_generation_bridge']['reference_record_payload_artifact']
         == 'demo_candidate_structure_generation_reference_records.json'
     )
+    assert (
+        experiment_summary['screening']['structure_generation_bridge']['job_plan_artifact']
+        == 'demo_candidate_structure_generation_job_plan.json'
+    )
     assert experiment_summary['screening']['structure_generation_bridge']['candidate_rows'] == 2
     assert experiment_summary['screening']['structure_generation_bridge']['seed_rows'] == 2
+    assert experiment_summary['screening']['structure_generation_bridge']['job_count'] == 2
+    assert (
+        experiment_summary['screening']['structure_generation_bridge']['direct_substitution_job_count']
+        == 0
+    )
+    assert experiment_summary['screening']['structure_generation_bridge']['job_action_counts'] == {
+        'reference_reuse_control': 1,
+        'element_insertion_enumeration': 1,
+    }
     assert experiment_summary['screening']['structure_generation_bridge']['unique_seed_reference_formulas'] == 2
     assert experiment_summary['screening']['ranking_matches_best_overall_evaluation'] is True
     assert experiment_summary['screening']['best_overall_evaluation_feature_set'] == 'matminer_composition'
@@ -903,11 +916,15 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     assert (artifact_dir / 'demo_candidate_structure_generation_seeds.csv').exists()
     assert (artifact_dir / 'demo_candidate_structure_generation_handoff.json').exists()
     assert (artifact_dir / 'demo_candidate_structure_generation_reference_records.json').exists()
+    assert (artifact_dir / 'demo_candidate_structure_generation_job_plan.json').exists()
     handoff_payload = json.loads(
         (artifact_dir / 'demo_candidate_structure_generation_handoff.json').read_text()
     )
     reference_record_payload = json.loads(
         (artifact_dir / 'demo_candidate_structure_generation_reference_records.json').read_text()
+    )
+    job_plan_payload = json.loads(
+        (artifact_dir / 'demo_candidate_structure_generation_job_plan.json').read_text()
     )
     assert handoff_payload['candidate_count'] == 2
     assert handoff_payload['seed_row_count'] == 2
@@ -920,6 +937,16 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     assert reference_record_payload['record_count'] == 2
     assert reference_record_payload['reference_records'][0]['record_id'] == 'jid-1'
     assert reference_record_payload['reference_records'][0]['atoms']['elements'] == ['B', 'N']
+    assert job_plan_payload['job_count'] == 2
+    assert job_plan_payload['job_action_counts'] == {
+        'reference_reuse_control': 1,
+        'element_insertion_enumeration': 1,
+    }
+    assert job_plan_payload['candidates'][0]['jobs'][0]['job_action_label'] == 'reference_reuse_control'
+    assert job_plan_payload['candidates'][1]['jobs'][0]['workflow_steps'][0] == 'load_reference_atoms'
+    assert job_plan_payload['candidates'][1]['jobs'][0]['reference_record_payload_artifact'] == (
+        'demo_candidate_structure_generation_reference_records.json'
+    )
     assert (artifact_dir / 'demo_candidate_proposal_shortlist.csv').exists()
     assert (artifact_dir / 'demo_candidate_extrapolation_shortlist.csv').exists()
     assert (artifact_dir / 'benchmark_results.csv').exists()

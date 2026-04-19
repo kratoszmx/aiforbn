@@ -530,7 +530,18 @@
         "Al2BN",
         "Ge2BN"
       ],
-      "reference_record_payload_artifact": "demo_candidate_structure_generation_reference_records.json"
+      "reference_record_payload_artifact": "demo_candidate_structure_generation_reference_records.json",
+      "job_plan_artifact": "demo_candidate_structure_generation_job_plan.json",
+      "job_count": 33,
+      "job_action_counts": {
+        "stoichiometry_adjustment_enumeration": 9,
+        "reference_reuse_control": 3,
+        "element_insertion_enumeration": 1,
+        "element_substitution_enumeration": 12,
+        "mixed_formula_edit_enumeration": 6,
+        "element_removal_enumeration": 2
+      },
+      "direct_substitution_job_count": 12
     },
     "proposal_shortlist_enabled": true,
     "proposal_shortlist_artifact": "demo_candidate_proposal_shortlist.csv",

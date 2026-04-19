@@ -9,6 +9,7 @@ The main handoff artifacts are:
 - `artifacts/demo_candidate_structure_generation_seeds.csv`
 - `artifacts/demo_candidate_structure_generation_handoff.json`
 - `artifacts/demo_candidate_structure_generation_reference_records.json`
+- `artifacts/demo_candidate_structure_generation_job_plan.json`
 
 They are produced by `main.py` after candidate ranking.
 
@@ -26,15 +27,16 @@ The reference-record payload JSON now also carries the unique raw `atoms` object
 
 ## Recommended downstream workflow
 
-For each candidate in `demo_candidate_structure_generation_handoff.json`:
+For each candidate in `demo_candidate_structure_generation_job_plan.json`:
 
-1. Start from the candidate's top 1-3 prototype seeds.
-2. Inspect `seed_reference_record_id`, `seed_reference_formula`, and `seed_reference_source`.
-3. Pull the corresponding raw structure from the original dataset source.
-4. Apply composition-aware prototype editing or substitution to move from the reference formula family toward the candidate formula.
-5. Enumerate a small set of plausible decorated structures rather than trusting a single prototype.
-6. Run geometry relaxation / stability screening before making any scientific claim.
-7. Keep provenance from candidate formula back to seed record id.
+1. Start from the candidate's top 1-3 jobs rather than only the flat seed rows.
+2. Inspect `job_action_label`, `workflow_steps`, and the linked `seed_reference_record_id` / `seed_reference_formula`.
+3. Pull the corresponding raw structure from `demo_candidate_structure_generation_reference_records.json`.
+4. If `direct_element_substitution_feasible` is true, start from the suggested substitution pairs.
+5. Otherwise follow the planned path, e.g. stoichiometry adjustment, insertion/decoration, removal/vacancy, or mixed edit enumeration.
+6. Enumerate a small set of plausible decorated structures rather than trusting a single prototype.
+7. Run geometry relaxation / stability screening before making any scientific claim.
+8. Keep provenance from candidate formula to job id and seed record id.
 
 ## Minimum metadata to preserve
 
