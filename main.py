@@ -9,6 +9,7 @@ if str(SRC_DIR) not in sys.path:
 from core.io_utils import clear_project_cache, ensure_runtime_dirs, load_config
 from pipeline.data import load_or_build_dataset
 from pipeline.features import (
+    benchmark_bn_slice,
     benchmark_grouped_robustness,
     benchmark_regressors,
     build_candidate_grouped_robustness_predictions,
@@ -88,6 +89,15 @@ def main() -> None:
         selected_feature_set=selected_feature_set,
         selected_model_type=selected_model_type,
     )
+    bn_slice_benchmark_df, bn_slice_prediction_df = benchmark_bn_slice(
+        dataset_df,
+        feature_tables,
+        cfg,
+        selected_feature_set=selected_feature_set,
+        selected_model_type=selected_model_type,
+        screening_feature_set=ranking_feature_set,
+        screening_model_type=ranking_model_type,
+    )
     ranking_feature_df = feature_tables[ranking_feature_set]
     if ranking_feature_set == selected_feature_set and ranking_model_type == selected_model_type:
         ranking_model = model
@@ -139,6 +149,7 @@ def main() -> None:
         split_masks=split_masks,
         selection_summary=selection_summary,
         robustness_df=robustness_df,
+        bn_slice_benchmark_df=bn_slice_benchmark_df,
         cfg=cfg,
     )
 
@@ -149,6 +160,8 @@ def main() -> None:
         ranked_candidate_df,
         benchmark_df,
         robustness_df,
+        bn_slice_benchmark_df,
+        bn_slice_prediction_df,
         experiment_summary,
         manifest,
         cfg,
@@ -159,6 +172,18 @@ def main() -> None:
     print(f"dataset rows: {len(dataset_df)}")
     print(f"bn rows: {len(bn_df)}")
     print(f"candidate rows: {len(ranked_candidate_df)}")
+    if 'proposal_shortlist_selected' in ranked_candidate_df.columns:
+        print(
+            'proposal shortlist rows: '
+            f"{int(ranked_candidate_df['proposal_shortlist_selected'].fillna(False).sum())}"
+        )
+    if 'extrapolation_shortlist_selected' in ranked_candidate_df.columns:
+        print(
+            'extrapolation shortlist rows: '
+            f"{int(ranked_candidate_df['extrapolation_shortlist_selected'].fillna(False).sum())}"
+        )
+    if bn_slice_benchmark_df is not None and not bn_slice_benchmark_df.empty:
+        print(f"bn slice benchmark rows: {len(bn_slice_benchmark_df)}")
     print(f"split method: {split_masks['metadata']['method']}")
     print(f"selected feature set: {selected_feature_set}")
     print(f"selected model: {selected_model_type}")

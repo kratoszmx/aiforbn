@@ -10,8 +10,8 @@
 - 当前工作已恢复到**已重新验证**的节点。
 - 在当前 dirty working tree 上，以下命令已通过：
   - 清缓存：通过 `../myutils/file_utils.delete_cache('.')`
-  - `pytest -q` → `20 passed in 2.38s`
-  - `/opt/homebrew/Caskroom/miniforge/base/envs/quant/bin/python main.py` → 运行成功
+  - `pytest -q` → `22 passed in 2.78s`
+  - `/opt/homebrew/Caskroom/miniforge/base/envs/quant/bin/python main.py` → 运行成功（当前输出含 `bn slice benchmark rows: 8`）
 - 主任务仍是 `band_gap` 预测与 BN 主题下的候选排序演示。
 - 训练数据仍来自 JARVIS / 2DMatPedia 的 `twod_matpd`。
 - 默认评估协议仍是 **按 `formula` 分组切分**，`train/val/test` 的 formula overlap 为 0。
@@ -41,6 +41,9 @@
   - **BN analog validation proxy**：把 analog `exfoliation / energy / magnetization` 是否更接近 BN 参考区间，汇总成 `reference_like / mixed / reference_divergent`，并把 vote-fraction 变成轻量 ranking penalty；
   - **novelty / rediscovery annotation**：显式区分 `train_plus_val_rediscovery`、`held_out_known_formula`、`formula_level_extrapolation`。
 - 当前默认策略仍是：**保留完整 source space，标注全部候选，再显式写出 top-k 与未入选原因。**
+- 在完整 ranking 之外，当前还额外导出两层 advisor-facing shortlist：
+  - **family-aware proposal shortlist**：保留高排位、化学 plausibility 优先、并限制单一 `candidate_family` 过度集中；
+  - **formula-level extrapolation shortlist**：只从 `formula_level_extrapolation` 候选中选，并继续做 family cap，避免汇报时又被 rediscovery 主导。
 
 ## 本轮已确认完成
 - `data.py` 已支持优先复用 cached raw JARVIS JSON，并在规范化阶段写入结构摘要列：
@@ -99,6 +102,12 @@
   - `candidate_novelty_bucket`
   - `novelty_rank_within_bucket`
   - `novel_formula_rank`
+  - `proposal_shortlist_selected`
+  - `proposal_shortlist_rank`
+  - `proposal_shortlist_decision`
+  - `extrapolation_shortlist_selected`
+  - `extrapolation_shortlist_rank`
+  - `extrapolation_shortlist_decision`
 - 当前 chemical plausibility screen 的验证结果：
   - 25 个 demo candidates 中，23 个通过
   - 2 个失败公式为：`AlBN`, `TlBN`
@@ -108,6 +117,14 @@
   - `held_out_known_formula`: `0`
   - `formula_level_extrapolation`: `22`
   - 标准 top-k 20 中已有 `17` 个 `formula_level_extrapolation` 候选
+- 当前 shortlist 输出结果：
+  - `proposal_shortlist_selected_rows = 10`
+  - `proposal_shortlist_selected_family_counts = {group14_bn_121_family: 2, group14_bn_111_family: 2, group14_bn_211_family: 2, group13_bn_121_family: 2, bn_binary_anchor: 1, group13_bn_211_family: 1}`
+  - `proposal_shortlist_novelty_bucket_counts = {train_plus_val_rediscovery: 3, held_out_known_formula: 0, formula_level_extrapolation: 7}`
+  - `extrapolation_shortlist_selected_rows = 5`
+  - `extrapolation_shortlist_target_novelty_bucket = formula_level_extrapolation`
+  - `extrapolation_shortlist_selected_family_counts = {group14_bn_121_family: 1, group14_bn_111_family: 1, group13_bn_121_family: 1, group13_bn_211_family: 1, group14_bn_211_family: 1}`
+  - 当前 extrapolation shortlist 公式为：`BCN2`, `BCN`, `AlBN2`, `Al2BN`, `Ge2BN`
 - 本轮还清理了 repo 内不必要的 Hugging Face secret 暴露：
   - `ai_for_bn/.env` 实际只是指向 `../myutils/.env` 的 symlink，项目代码并不读取它
   - 已将 `.env` 加入 `ai_for_bn/.gitignore`
@@ -160,11 +177,20 @@
   - `matminer_composition + hist_gradient_boosting`: `MAE_mean = 0.6321 ± 0.0192`
   - `basic_formula_composition + hist_gradient_boosting`: `MAE_mean = 1.0116 ± 0.0173`
   - `dummy_mean`: `MAE_mean = 1.1527 ± 0.0233`
+- 当前 BN-focused benchmark（`leave_one_bn_formula_out`, 10 BN formulas / 12 rows）：
+  - 标准 grouped split 下 BN rows 分布：`train = 12`, `val = 0`, `test = 0`
+  - `matminer_composition_plus_structure_summary + hist_gradient_boosting`（selected model）：`MAE = 1.6397`
+  - `matminer_composition + hist_gradient_boosting`（screening model）：`MAE = 1.6383`
+  - `matminer_composition_plus_structure_summary + linear_regression`（当前 BN-slice best configured combo）：`MAE = 1.2889`
+  - `dummy_mean`（global dummy baseline）：`MAE = 1.3257`
+  - `bn_local_knn_mean`（BN-local reference baseline）：`MAE = 2.2142`
 - 当前结果的准确解读：
   - structure-aware 路径相对最佳 formula-only 路径的提升是**小幅但一致**的；
   - test MAE 从 `0.5822` 降到 `0.5568`，绝对改善约 `0.0254`，相对改善约 `4.4%`；
   - grouped robustness 下，`MAE_mean` 也从 `0.6321` 降到 `0.6050`，说明这一优势不只来自单次 holdout split；
-  - 这足以让 overall evaluation 选到 structure-aware，但还不是巨大跃升。
+  - 但 BN-focused leave-one-formula-out 诊断揭示了更尖锐的问题：当前 overall selected model 与 formula-only screening model 在 BN slice 上都**没有打赢**最基本的 global dummy mean baseline；
+  - 同时，BN-slice best configured combo 目前变成了 `matminer_composition_plus_structure_summary + linear_regression`，说明“overall best”“screening best”“BN-centered best”现在是三个不同角色；
+  - 这让当前 artifact 更诚实，也更适合导师追问，但同样说明 BN-centered generalization 还没有被真正解决。
 - 当前候选排序摘要：
   - `ranking_basis = composition_only_mean_band_gap_minus_model_disagreement_low_support_and_bn_support_and_grouped_robustness_and_bn_analog_validation_penalties`
   - `ranking_feature_set = matminer_composition`
@@ -202,8 +228,13 @@
   - `bn_analog_validation_penalized_rows = 23`
   - `novelty_bucket_counts = {train_plus_val_rediscovery: 3, held_out_known_formula: 0, formula_level_extrapolation: 22}`
   - `standard_top_k_novelty_bucket_counts = {train_plus_val_rediscovery: 3, held_out_known_formula: 0, formula_level_extrapolation: 17}`
+  - `proposal_shortlist_selected_rows = 10`
+  - `proposal_shortlist_novelty_bucket_counts = {train_plus_val_rediscovery: 3, held_out_known_formula: 0, formula_level_extrapolation: 7}`
+  - `extrapolation_shortlist_selected_rows = 5`
+  - `extrapolation_shortlist_target_novelty_bucket = formula_level_extrapolation`
   - failed formulas：`AlBN`, `TlBN`
   - top-ranked formula-level extrapolation 候选现在包括：`BCN2`, `BCN`, `AlBN2`, `SiBN2`, `SiBN`
+  - 当前 formula-level extrapolation shortlist 则进一步收敛为：`BCN2`, `BCN`, `AlBN2`, `Al2BN`, `Ge2BN`
   - BN-local nearest anchors 在当前 artifact 里已经可见，例如 `BCN2 -> B2(CN2)3`、`BCN -> BC2N`、`AlBN2 -> Si2BN`
   - BN analog evidence 也已可见，例如 `BC2N` 的邻近 BN analog exfoliation mean 低于 BN reference median，而 `BCN2 / BCN / AlBN2` 则高于该 reference median
   - BN analog validation label 也已可见：当前 `reference_like = 2`、`mixed = 2`、`reference_divergent = 21`，其中 `23` 个候选在 ranking 中吃到了非零 validation penalty
@@ -222,8 +253,12 @@
 - `artifacts/metrics.json`：当前 best overall combo 的测试指标与元数据。
 - `artifacts/benchmark_results.csv`：测试集 feature/model benchmark。
 - `artifacts/robustness_results.csv`：grouped-by-formula cross-validation robustness benchmark。
-- `artifacts/experiment_summary.json`：数据、split、选择、robustness 与 screening 摘要。
+- `artifacts/bn_slice_benchmark_results.csv`：BN-focused leave-one-BN-formula-out benchmark，含 selected / screening / candidate / dummy / BN-local baseline 对照。
+- `artifacts/bn_slice_predictions.csv`：BN-focused benchmark 的逐公式预测记录，用来检查每个 held-out BN formula 的误差来源。
+- `artifacts/experiment_summary.json`：数据、split、选择、robustness、BN-slice benchmark 与 screening 摘要。
 - `artifacts/demo_candidate_ranking.csv`：当前完整 formula-only source-space ranking artifact，含 plausibility pass/fail 与 top-k decision。
+- `artifacts/demo_candidate_proposal_shortlist.csv`：family-aware advisor-facing proposal shortlist。
+- `artifacts/demo_candidate_extrapolation_shortlist.csv`：只保留 formula-level extrapolation 的 advisor-facing shortlist。
 - `PY_FILES_SUMMARY.md`：AI-facing Python summary。
 - `给见微的说明.md`：面向见微的项目说明。
 - `项目汇报.md`：面向导师/评审的汇报稿。
@@ -232,6 +267,7 @@
 - 当前已经不是纯 composition-only evaluation，但**也远不是成熟的 structure-aware 材料模型**。
 - 结构路径只用了 cached JARVIS atoms 导出的轻量结构摘要，不是 crystal graph、3D/2D 几何编码、形成能或稳定性建模。
 - grouped robustness 虽然比单次 split 更可信，但它仍然只是当前数据表上的 grouped cross-validation，不等于跨数据源外部验证或真实 prospective validation。
+- 新增 BN-focused benchmark 虽然让 BN 成为显式评估对象，但它的样本仍然很小，当前只有 `10` 个 BN formulas / `12` 行，并且它已经暴露出 selected / screening 模型在 BN slice 上不如 global dummy 的问题，因此这层更像关键诊断，而不是“BN 已经被解决”的证据。
 - formula-only 候选空间虽然新增了基础 oxidation-state / charge-balance plausibility layer，但**仍然没有结构、形成能、热力学稳定性、声子稳定性、合成可行性约束**。
 - 当前 plausibility screen 只是轻量公式级可信度边界，不等于“材料可存在”判断；例如某些边缘氧化态解释仍可能通过。
 - 当前 domain-support 层在新候选空间上已经开始真正触发惩罚，当前 `domain_support_penalized_rows = 12`，说明它不再只是装饰性注释。
@@ -240,6 +276,7 @@
 - BN slice 仍然很小，当前训练主体仍是全体 2D 数据，不是 BN-only 学习。
 - ranking 使用的仍是小模型池 disagreement heuristic，加上 grouped-fold candidate robustness spread；这些都不是校准不确定性。
 - 当前 BN-anchored candidate space 中只有 `3/25` 公式已在 dataset 中出现，`22/25` 已经是 dataset 未见公式；但这依然只是 formula-level extrapolation，不是结构级 discovery。
+- 新增的 proposal shortlist / extrapolation shortlist 只是更诚实的 advisor-facing 选择层，不是结构验证、稳定性筛选或真实实验优先级证明。
 - 仍未做 train / inference API 解耦。
 
 ## 恢复工作时的直接起点

@@ -65,6 +65,16 @@ CONFIG = {
             'combos so the advisor-facing story does not depend on a single lucky holdout split.'
         ),
     },
+    'bn_slice_benchmark': {
+        'enabled': True,
+        'method': 'leave_one_bn_formula_out',
+        'k_neighbors': 3,
+        'note': (
+            'Runs a dedicated BN-focused leave-one-formula-out benchmark because the standard '
+            'grouped split can place zero BN formulas in validation/test. This is a small-sample '
+            'diagnostic for BN-centered generalization, not a definitive BN-only benchmark.'
+        ),
+    },
     'screening': {
         'enabled': True,
         'top_k': 20,
@@ -132,6 +142,21 @@ CONFIG = {
                 'stability validation for unseen candidates.'
             ),
         },
+        'bn_band_gap_alignment': {
+            'enabled': True,
+            'method': 'predicted_band_gap_vs_local_bn_analog_window',
+            'reference_split': 'train_plus_val_bn_unique_formulas',
+            'window_expansion_iqr_factor': 0.5,
+            'minimum_neighbor_formula_count_for_penalty': 2,
+            'ranking_penalty_enabled': True,
+            'ranking_penalty_weight': 0.08,
+            'note': (
+                'Compares the predicted candidate band gap against a local window derived from '
+                'nearby BN-containing train+val formulas. This is a heuristic local analog-'
+                'consistency layer, not direct structure validation, stability proof, or '
+                'discovery evidence.'
+            ),
+        },
         'bn_analog_validation': {
             'enabled': True,
             'method': 'bn_analog_alignment_vote_fraction',
@@ -151,6 +176,34 @@ CONFIG = {
                 'Uses pymatgen oxidation-state guesses as a lightweight formula-level credibility '
                 'screen. This does not establish structure stability, synthesis feasibility, or '
                 'experimental realizability.'
+            ),
+        },
+        'proposal_shortlist': {
+            'enabled': True,
+            'label': 'family_aware_proposal_shortlist',
+            'method': 'ranked_family_cap',
+            'shortlist_size': 10,
+            'max_per_candidate_family': 2,
+            'chemical_plausibility_priority': True,
+            'note': (
+                'Creates a separate advisor-facing proposal shortlist by walking the raw ranking '
+                'in order, keeping chemical-plausibility priority, and limiting over-concentration '
+                'from any one candidate_family. This does not replace the full raw ranking artifact.'
+            ),
+        },
+        'extrapolation_shortlist': {
+            'enabled': True,
+            'label': 'formula_level_extrapolation_shortlist',
+            'method': 'novelty_bucket_ranked_family_cap',
+            'shortlist_size': 5,
+            'max_per_candidate_family': 1,
+            'required_novelty_bucket': 'formula_level_extrapolation',
+            'chemical_plausibility_priority': True,
+            'note': (
+                'Creates a separate advisor-facing novelty shortlist that only considers '
+                'formula-level extrapolation candidates, keeps chemical-plausibility priority, '
+                'and applies an explicit candidate_family cap for diversity. This does not '
+                'replace the full raw ranking artifact or the general proposal shortlist.'
             ),
         },
     },

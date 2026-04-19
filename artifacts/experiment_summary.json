@@ -291,6 +291,107 @@
       "r2_std": 0.0016053850172013976
     }
   },
+  "bn_slice_benchmark": {
+    "enabled": true,
+    "benchmark_artifact": "bn_slice_benchmark_results.csv",
+    "prediction_artifact": "bn_slice_predictions.csv",
+    "method": "leave_one_bn_formula_out",
+    "k_neighbors": 3,
+    "note": "Runs a dedicated BN-focused leave-one-formula-out benchmark because the standard grouped split can place zero BN formulas in validation/test. This is a small-sample diagnostic for BN-centered generalization, not a definitive BN-only benchmark.",
+    "bn_rows": 12,
+    "bn_unique_formulas": 10,
+    "standard_split_bn_train_rows": 12,
+    "standard_split_bn_val_rows": 0,
+    "standard_split_bn_test_rows": 0,
+    "standard_split_has_bn_eval_rows": false,
+    "result_row_count": 8,
+    "successful_result_rows": 8,
+    "non_ok_result_rows": 0,
+    "selected_model_metrics": {
+      "feature_set": "matminer_composition_plus_structure_summary",
+      "feature_family": "structure_aware",
+      "model_type": "hist_gradient_boosting",
+      "benchmark_role": "selected_model",
+      "benchmark_status": "ok",
+      "bn_slice_method": "leave_one_bn_formula_out",
+      "bn_slice_train_scope": "full_dataset_minus_held_out_bn_formula",
+      "bn_formula_count": 10,
+      "bn_row_count": 12,
+      "completed_holds": 10,
+      "k_neighbors": null,
+      "mae": 1.6397329414843025,
+      "rmse": 1.9937788363436686,
+      "r2": -0.2220321909536911
+    },
+    "screening_model_metrics": {
+      "feature_set": "matminer_composition",
+      "feature_family": "composition_only",
+      "model_type": "hist_gradient_boosting",
+      "benchmark_role": "screening_model",
+      "benchmark_status": "ok",
+      "bn_slice_method": "leave_one_bn_formula_out",
+      "bn_slice_train_scope": "full_dataset_minus_held_out_bn_formula",
+      "bn_formula_count": 10,
+      "bn_row_count": 12,
+      "completed_holds": 10,
+      "k_neighbors": null,
+      "mae": 1.6382932753929258,
+      "rmse": 2.02946189070356,
+      "r2": -0.2661655235789151
+    },
+    "bn_local_reference_metrics": {
+      "feature_set": "matminer_composition",
+      "feature_family": "composition_only",
+      "model_type": "bn_local_knn_mean",
+      "benchmark_role": "bn_local_reference_baseline",
+      "benchmark_status": "ok",
+      "bn_slice_method": "leave_one_bn_formula_out",
+      "bn_slice_train_scope": "bn_only_reference_formulas",
+      "bn_formula_count": 10,
+      "bn_row_count": 12,
+      "completed_holds": 10,
+      "k_neighbors": 3.0,
+      "mae": 2.2142155555555556,
+      "rmse": 2.419236837210966,
+      "r2": -0.7992249150753783
+    },
+    "global_dummy_baseline_metrics": {
+      "feature_set": "matminer_composition",
+      "feature_family": "composition_only",
+      "model_type": "dummy_mean",
+      "benchmark_role": "global_dummy_mean_baseline",
+      "benchmark_status": "ok",
+      "bn_slice_method": "leave_one_bn_formula_out",
+      "bn_slice_train_scope": "full_dataset_minus_held_out_bn_formula",
+      "bn_formula_count": 10,
+      "bn_row_count": 12,
+      "completed_holds": 10,
+      "k_neighbors": null,
+      "mae": 1.325744527546155,
+      "rmse": 1.893393456667956,
+      "r2": -0.10207316263052313
+    },
+    "best_candidate_model_metrics": {
+      "feature_set": "matminer_composition_plus_structure_summary",
+      "feature_family": "structure_aware",
+      "model_type": "linear_regression",
+      "benchmark_role": "candidate_model",
+      "benchmark_status": "ok",
+      "bn_slice_method": "leave_one_bn_formula_out",
+      "bn_slice_train_scope": "full_dataset_minus_held_out_bn_formula",
+      "bn_formula_count": 10,
+      "bn_row_count": 12,
+      "completed_holds": 10,
+      "k_neighbors": null,
+      "mae": 1.2889470723349743,
+      "rmse": 1.5940939927002988,
+      "r2": 0.2188102555451732
+    },
+    "selected_model_beats_global_dummy": false,
+    "screening_model_beats_global_dummy": false,
+    "best_candidate_model_beats_global_dummy": true,
+    "selected_model_matches_best_candidate": false
+  },
   "screening": {
     "candidate_space_name": "bn_anchored_formula_family_grid",
     "candidate_space_kind": "bn_family_demo",
@@ -305,12 +406,176 @@
       "group13_bn_111_family": 4,
       "bn_binary_anchor": 1
     },
-    "candidate_rows": 25,
+    "candidate_rows": 6,
     "candidate_formulas_have_structures": false,
     "top_k": 20,
     "ranking_artifact": "demo_candidate_ranking.csv",
+    "proposal_shortlist_enabled": true,
+    "proposal_shortlist_artifact": "demo_candidate_proposal_shortlist.csv",
+    "proposal_shortlist_label": "family_aware_proposal_shortlist",
+    "proposal_shortlist_method": "ranked_family_cap",
+    "proposal_shortlist_note": "Creates a separate advisor-facing proposal shortlist by walking the raw ranking in order, keeping chemical-plausibility priority, and limiting over-concentration from any one candidate_family. This does not replace the full raw ranking artifact.",
+    "proposal_shortlist_size": 10,
+    "proposal_shortlist_family_cap": 2,
+    "proposal_shortlist_selected_rows": 10,
+    "proposal_shortlist_selected_family_counts": {
+      "group14_bn_121_family": 2,
+      "group14_bn_111_family": 2,
+      "group14_bn_211_family": 2,
+      "group13_bn_121_family": 2,
+      "bn_binary_anchor": 1,
+      "group13_bn_211_family": 1
+    },
+    "proposal_shortlist_novelty_bucket_counts": {
+      "train_plus_val_rediscovery": 3,
+      "held_out_known_formula": 0,
+      "formula_level_extrapolation": 7
+    },
+    "proposal_shortlist_formulas": [
+      {
+        "formula": "BCN2",
+        "proposal_shortlist_rank": 1,
+        "ranking_rank": 1,
+        "novel_formula_rank": 1,
+        "candidate_family": "group14_bn_121_family",
+        "ranking_score": 1.692359050218978
+      },
+      {
+        "formula": "BCN",
+        "proposal_shortlist_rank": 2,
+        "ranking_rank": 2,
+        "novel_formula_rank": 2,
+        "candidate_family": "group14_bn_111_family",
+        "ranking_score": 1.6601926534169231
+      },
+      {
+        "formula": "BC2N",
+        "proposal_shortlist_rank": 3,
+        "ranking_rank": 3,
+        "candidate_family": "group14_bn_211_family",
+        "ranking_score": 1.6029674687428148
+      },
+      {
+        "formula": "AlBN2",
+        "proposal_shortlist_rank": 4,
+        "ranking_rank": 4,
+        "novel_formula_rank": 3,
+        "candidate_family": "group13_bn_121_family",
+        "ranking_score": 1.545697017844994
+      },
+      {
+        "formula": "SiBN2",
+        "proposal_shortlist_rank": 5,
+        "ranking_rank": 5,
+        "novel_formula_rank": 4,
+        "candidate_family": "group14_bn_121_family",
+        "ranking_score": 1.475514296395235
+      },
+      {
+        "formula": "SiBN",
+        "proposal_shortlist_rank": 6,
+        "ranking_rank": 6,
+        "novel_formula_rank": 5,
+        "candidate_family": "group14_bn_111_family",
+        "ranking_score": 1.3819408924812948
+      },
+      {
+        "formula": "Si2BN",
+        "proposal_shortlist_rank": 7,
+        "ranking_rank": 7,
+        "candidate_family": "group14_bn_211_family",
+        "ranking_score": 1.270158153069001
+      },
+      {
+        "formula": "TlBN2",
+        "proposal_shortlist_rank": 8,
+        "ranking_rank": 8,
+        "novel_formula_rank": 6,
+        "candidate_family": "group13_bn_121_family",
+        "ranking_score": 1.2483750734179546
+      },
+      {
+        "formula": "BN",
+        "proposal_shortlist_rank": 9,
+        "ranking_rank": 9,
+        "candidate_family": "bn_binary_anchor",
+        "ranking_score": 1.2379122269946918
+      },
+      {
+        "formula": "Al2BN",
+        "proposal_shortlist_rank": 10,
+        "ranking_rank": 16,
+        "novel_formula_rank": 13,
+        "candidate_family": "group13_bn_211_family",
+        "ranking_score": 0.9776570335372053
+      }
+    ],
+    "extrapolation_shortlist_enabled": true,
+    "extrapolation_shortlist_artifact": "demo_candidate_extrapolation_shortlist.csv",
+    "extrapolation_shortlist_label": "formula_level_extrapolation_shortlist",
+    "extrapolation_shortlist_method": "novelty_bucket_ranked_family_cap",
+    "extrapolation_shortlist_note": "Creates a separate advisor-facing novelty shortlist that only considers formula-level extrapolation candidates, keeps chemical-plausibility priority, and applies an explicit candidate_family cap for diversity. This does not replace the full raw ranking artifact or the general proposal shortlist.",
+    "extrapolation_shortlist_size": 5,
+    "extrapolation_shortlist_family_cap": 1,
+    "extrapolation_shortlist_selected_rows": 5,
+    "extrapolation_shortlist_selected_family_counts": {
+      "group14_bn_121_family": 1,
+      "group14_bn_111_family": 1,
+      "group13_bn_121_family": 1,
+      "group13_bn_211_family": 1,
+      "group14_bn_211_family": 1
+    },
+    "extrapolation_shortlist_novelty_bucket_counts": {
+      "train_plus_val_rediscovery": 0,
+      "held_out_known_formula": 0,
+      "formula_level_extrapolation": 5
+    },
+    "extrapolation_shortlist_formulas": [
+      {
+        "formula": "BCN2",
+        "extrapolation_shortlist_rank": 1,
+        "ranking_rank": 1,
+        "novel_formula_rank": 1,
+        "candidate_family": "group14_bn_121_family",
+        "ranking_score": 1.692359050218978
+      },
+      {
+        "formula": "BCN",
+        "extrapolation_shortlist_rank": 2,
+        "ranking_rank": 2,
+        "novel_formula_rank": 2,
+        "candidate_family": "group14_bn_111_family",
+        "ranking_score": 1.6601926534169231
+      },
+      {
+        "formula": "AlBN2",
+        "extrapolation_shortlist_rank": 3,
+        "ranking_rank": 4,
+        "novel_formula_rank": 3,
+        "candidate_family": "group13_bn_121_family",
+        "ranking_score": 1.545697017844994
+      },
+      {
+        "formula": "Al2BN",
+        "extrapolation_shortlist_rank": 4,
+        "ranking_rank": 16,
+        "novel_formula_rank": 13,
+        "candidate_family": "group13_bn_211_family",
+        "ranking_score": 0.9776570335372053
+      },
+      {
+        "formula": "Ge2BN",
+        "extrapolation_shortlist_rank": 5,
+        "ranking_rank": 17,
+        "novel_formula_rank": 14,
+        "candidate_family": "group14_bn_211_family",
+        "ranking_score": 0.944656894357306
+      }
+    ],
+    "extrapolation_shortlist_target_novelty_bucket": "formula_level_extrapolation",
+    "extrapolation_shortlist_candidate_count": 22,
     "ranking_basis": "composition_only_mean_band_gap_minus_model_disagreement_low_support_and_bn_support_and_grouped_robustness_and_bn_analog_validation_penalties",
-    "ranking_note": "Composition-only demo ranking using a tiny feature/model candidate pool. The score is the ensemble mean band gap minus a small model-disagreement penalty together with mild feature-space low-support and BN-local support penalties; all terms remain heuristic and not calibrated physical uncertainty or stability estimates. A mild grouped-fold candidate robustness penalty is also applied from the selected formula-only screening combo, so candidates that move more across grouped-by-formula training folds are treated as less robust ranking targets. A mild BN analog-validation penalty is also applied from the available analog alignment votes across exfoliation, energy, and magnetization; this remains a heuristic validation proxy, not direct stability validation. Candidates are also annotated with a train+val feature-space domain-support layer: support comes from z-scored distances to nearby known formulas in the selected screening feature space, contextualized by the leave-one-out train+val neighborhood-distance distribution. Candidates are also contextualized against the known BN slice: support comes from z-scored distances to nearby BN-containing train+val formulas in the selected screening feature space, contextualized by the leave-one-out BN-neighborhood-distance distribution. A mild grouped-fold candidate robustness penalty is also applied from the selected formula-only screening combo, so candidates that move more across grouped-by-formula training folds are treated as less robust ranking targets. Candidates are also paired with observed-property evidence from nearby BN-containing train+val formulas, including analog band gap, energy-per-atom, exfoliation-energy, and magnetization summaries. A lightweight analog-validation label then summarizes whether those nearby BN references stay in more reference-like or more divergent property regimes on the available metrics. This is analog retrieval, not direct candidate property validation. The best overall validation combo is structure-aware, so formula-only candidate screening falls back to the best candidate-compatible combo. Candidates are also annotated with a lightweight pymatgen oxidation-state plausibility screen, and passing formulas are prioritized ahead of formulas that fail basic charge-balance checks. Novelty is tracked only at the formula level: use the novelty bucket fields to separate train+val rediscovery, held-out-known formulas, and unseen formulas. This transparency layer does not turn the demo ranking into validated discovery.",
+    "ranking_note": "Composition-only demo ranking using a tiny feature/model candidate pool. The score is the ensemble mean band gap minus a small model-disagreement penalty together with mild feature-space low-support and BN-local support penalties; all terms remain heuristic and not calibrated physical uncertainty or stability estimates. A mild grouped-fold candidate robustness penalty is also applied from the selected formula-only screening combo, so candidates that move more across grouped-by-formula training folds are treated as less robust ranking targets. A mild BN analog-validation penalty is also applied from the available analog alignment votes across exfoliation, energy, and magnetization; this remains a heuristic validation proxy, not direct stability validation. Candidates are also annotated with a train+val feature-space domain-support layer: support comes from z-scored distances to nearby known formulas in the selected screening feature space, contextualized by the leave-one-out train+val neighborhood-distance distribution. Candidates are also contextualized against the known BN slice: support comes from z-scored distances to nearby BN-containing train+val formulas in the selected screening feature space, contextualized by the leave-one-out BN-neighborhood-distance distribution. Candidates are also compared against a BN-local analog band-gap window built from nearby BN-containing train+val formulas. This is a local analog-consistency heuristic, not direct validation or discovery proof. A mild grouped-fold candidate robustness penalty is also applied from the selected formula-only screening combo, so candidates that move more across grouped-by-formula training folds are treated as less robust ranking targets. Candidates are also paired with observed-property evidence from nearby BN-containing train+val formulas, including analog band gap, energy-per-atom, exfoliation-energy, and magnetization summaries. A lightweight analog-validation label then summarizes whether those nearby BN references stay in more reference-like or more divergent property regimes on the available metrics. This is analog retrieval, not direct candidate property validation. The best overall validation combo is structure-aware, so formula-only candidate screening falls back to the best candidate-compatible combo. Candidates are also annotated with a lightweight pymatgen oxidation-state plausibility screen, and passing formulas are prioritized ahead of formulas that fail basic charge-balance checks. Novelty is tracked only at the formula level: use the novelty bucket fields to separate train+val rediscovery, held-out-known formulas, and unseen formulas. This transparency layer does not turn the demo ranking into validated discovery.",
     "ranking_feature_set": "matminer_composition",
     "ranking_feature_family": "composition_only",
     "ranking_model_type": "hist_gradient_boosting",
@@ -351,12 +616,28 @@
     "grouped_robustness_penalized_rows": 25,
     "bn_analog_evidence_enabled": true,
     "bn_analog_reference_formula_count": 10,
+    "bn_analog_reference_band_gap_median": 0.8491,
+    "bn_analog_reference_band_gap_iqr": 2.063025,
     "bn_analog_reference_exfoliation_energy_median": 0.07173938218750031,
     "bn_analog_reference_energy_per_atom_median": -7.929051850789474,
     "bn_analog_reference_abs_total_magnetization_median": 0.0,
     "bn_analog_exfoliation_available_rows": 25,
     "bn_analog_lower_or_equal_reference_rows": 2,
     "bn_analog_higher_reference_rows": 23,
+    "bn_band_gap_alignment_enabled": true,
+    "bn_band_gap_alignment_method": "predicted_band_gap_vs_local_bn_analog_window",
+    "bn_band_gap_alignment_reference_split": "train_plus_val_bn_unique_formulas",
+    "bn_band_gap_alignment_window_expansion_iqr_factor": 0.5,
+    "bn_band_gap_alignment_minimum_neighbor_formula_count_for_penalty": 2,
+    "bn_band_gap_alignment_note": "Compares the predicted candidate band gap against a local window derived from nearby BN-containing train+val formulas. This is a heuristic local analog-consistency layer, not direct structure validation, stability proof, or discovery evidence.",
+    "bn_band_gap_alignment_penalty_enabled": true,
+    "bn_band_gap_alignment_penalty_active": false,
+    "bn_band_gap_alignment_penalty_weight": 0.08,
+    "bn_band_gap_alignment_penalty_eligible_rows": 25,
+    "bn_band_gap_alignment_within_window_rows": 25,
+    "bn_band_gap_alignment_below_window_rows": 0,
+    "bn_band_gap_alignment_above_window_rows": 0,
+    "bn_band_gap_alignment_penalized_rows": 0,
     "bn_analog_reference_like_rows": 2,
     "bn_analog_mixed_alignment_rows": 2,
     "bn_analog_reference_divergent_rows": 21,
@@ -397,7 +678,10 @@
         "ranking_score": 1.692359050218978,
         "chemical_plausibility_pass": true,
         "screening_selected_for_top_k": true,
-        "screening_selection_decision": "selected_top_k"
+        "screening_selection_decision": "selected_top_k",
+        "extrapolation_shortlist_selected": true,
+        "extrapolation_shortlist_rank": 1,
+        "extrapolation_shortlist_decision": "selected_for_extrapolation_shortlist"
       },
       {
         "formula": "BCN",
@@ -406,7 +690,10 @@
         "ranking_score": 1.6601926534169231,
         "chemical_plausibility_pass": true,
         "screening_selected_for_top_k": true,
-        "screening_selection_decision": "selected_top_k"
+        "screening_selection_decision": "selected_top_k",
+        "extrapolation_shortlist_selected": true,
+        "extrapolation_shortlist_rank": 2,
+        "extrapolation_shortlist_decision": "selected_for_extrapolation_shortlist"
       },
       {
         "formula": "AlBN2",
@@ -415,7 +702,10 @@
         "ranking_score": 1.545697017844994,
         "chemical_plausibility_pass": true,
         "screening_selected_for_top_k": true,
-        "screening_selection_decision": "selected_top_k"
+        "screening_selection_decision": "selected_top_k",
+        "extrapolation_shortlist_selected": true,
+        "extrapolation_shortlist_rank": 3,
+        "extrapolation_shortlist_decision": "selected_for_extrapolation_shortlist"
       },
       {
         "formula": "SiBN2",
@@ -424,7 +714,9 @@
         "ranking_score": 1.475514296395235,
         "chemical_plausibility_pass": true,
         "screening_selected_for_top_k": true,
-        "screening_selection_decision": "selected_top_k"
+        "screening_selection_decision": "selected_top_k",
+        "extrapolation_shortlist_selected": false,
+        "extrapolation_shortlist_decision": "not_selected_family_cap_reached"
       },
       {
         "formula": "SiBN",
@@ -433,7 +725,9 @@
         "ranking_score": 1.3819408924812948,
         "chemical_plausibility_pass": true,
         "screening_selected_for_top_k": true,
-        "screening_selection_decision": "selected_top_k"
+        "screening_selection_decision": "selected_top_k",
+        "extrapolation_shortlist_selected": false,
+        "extrapolation_shortlist_decision": "not_selected_family_cap_reached"
       }
     ],
     "novelty_interpretation_note": "Standard top-k remains the default ranking output, but novelty should be interpreted separately: train+val rediscovery is in-domain replay, held-out-known formulas are known elsewhere in the dataset, and formula-level extrapolation only means unseen formula compositions inside this demo candidate space.",
@@ -473,15 +767,28 @@
       "bn_analog_nearest_formula",
       "bn_analog_neighbor_formulas",
       "bn_analog_neighbor_formula_count",
+      "bn_analog_reference_band_gap_median",
+      "bn_analog_reference_band_gap_iqr",
       "bn_analog_nearest_band_gap",
       "bn_analog_nearest_energy_per_atom",
       "bn_analog_nearest_exfoliation_energy_per_atom",
       "bn_analog_nearest_abs_total_magnetization",
       "bn_analog_neighbor_band_gap_mean",
+      "bn_analog_neighbor_band_gap_min",
+      "bn_analog_neighbor_band_gap_max",
+      "bn_analog_neighbor_band_gap_std",
       "bn_analog_neighbor_energy_per_atom_mean",
       "bn_analog_neighbor_exfoliation_energy_per_atom_mean",
       "bn_analog_neighbor_abs_total_magnetization_mean",
       "bn_analog_neighbor_exfoliation_available_formula_count",
+      "bn_band_gap_alignment_neighbor_available_formula_count",
+      "bn_band_gap_alignment_window_lower",
+      "bn_band_gap_alignment_window_upper",
+      "bn_band_gap_alignment_distance_to_window",
+      "bn_band_gap_alignment_relative_distance",
+      "bn_band_gap_alignment_penalty_eligible",
+      "bn_band_gap_alignment_label",
+      "bn_band_gap_alignment_penalty",
       "bn_analog_exfoliation_support_label",
       "bn_analog_energy_support_label",
       "bn_analog_abs_total_magnetization_support_label",
@@ -507,7 +814,16 @@
       "novelty_rank_within_bucket",
       "novel_formula_rank",
       "screening_selected_for_top_k",
-      "screening_selection_decision"
+      "screening_selection_decision",
+      "proposal_shortlist_family_count_before_selection",
+      "proposal_shortlist_selected",
+      "proposal_shortlist_rank",
+      "proposal_shortlist_decision",
+      "extrapolation_shortlist_target_novelty_bucket",
+      "extrapolation_shortlist_family_count_before_selection",
+      "extrapolation_shortlist_selected",
+      "extrapolation_shortlist_rank",
+      "extrapolation_shortlist_decision"
     ]
   }
 }

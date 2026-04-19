@@ -57,6 +57,17 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
         'model_type': ['linear_regression'],
         'mae_mean': [0.2],
     })
+    bn_slice_benchmark_df = pd.DataFrame({
+        'feature_set': ['matminer_composition'],
+        'model_type': ['linear_regression'],
+        'benchmark_role': ['selected_model'],
+        'mae': [0.3],
+    })
+    bn_slice_prediction_df = pd.DataFrame({
+        'formula': ['BN'],
+        'benchmark_role': ['selected_model'],
+        'prediction': [4.8],
+    })
     metrics = {'mae': 0.1, 'rmse': 0.1, 'r2': 0.9}
     manifest = {'name': 'twod_matpd'}
     selection_summary = {
@@ -138,6 +149,11 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
     )
     monkeypatch.setattr(
         main_module,
+        'benchmark_bn_slice',
+        lambda dataset_df, feature_tables, cfg, selected_feature_set, selected_model_type, screening_feature_set, screening_model_type: calls.append('benchmark_bn_slice') or (bn_slice_benchmark_df, bn_slice_prediction_df),
+    )
+    monkeypatch.setattr(
+        main_module,
         'build_candidate_prediction_ensemble',
         lambda candidate_df, feature_tables, split_masks, cfg, candidate_feature_sets=None: calls.append('build_candidate_prediction_ensemble') or candidate_ensemble_df,
     )
@@ -154,12 +170,12 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
     monkeypatch.setattr(
         main_module,
         'build_experiment_summary',
-        lambda dataset_df, bn_df, candidate_df, split_masks, selection_summary, cfg, robustness_df=None: calls.append('build_experiment_summary') or experiment_summary,
+        lambda dataset_df, bn_df, candidate_df, split_masks, selection_summary, cfg, robustness_df=None, bn_slice_benchmark_df=None: calls.append('build_experiment_summary') or experiment_summary,
     )
     monkeypatch.setattr(
         main_module,
         'save_metrics_and_predictions',
-        lambda metrics, prediction_df, bn_df, screened_df, benchmark_df, robustness_df, experiment_summary, manifest, cfg: calls.append('save_metrics_and_predictions'),
+        lambda metrics, prediction_df, bn_df, screened_df, benchmark_df, robustness_df, bn_slice_benchmark_df, bn_slice_prediction_df, experiment_summary, manifest, cfg: calls.append('save_metrics_and_predictions'),
     )
     monkeypatch.setattr(main_module, 'save_basic_plots', lambda prediction_df, cfg: calls.append('save_basic_plots'))
 
@@ -179,6 +195,7 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
         'evaluate_predictions',
         'benchmark_regressors',
         'benchmark_grouped_robustness',
+        'benchmark_bn_slice',
         'build_candidate_prediction_ensemble',
         'build_candidate_grouped_robustness_predictions',
         'screen_candidates',
@@ -190,6 +207,7 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
     out = capsys.readouterr().out
     assert 'BN AI PoC pipeline completed' in out
     assert 'dataset rows: 2' in out
+    assert 'bn slice benchmark rows: 1' in out
     assert 'split method: group_by_formula' in out
     assert 'selected feature set: matminer_composition' in out
     assert 'selected model: linear_regression' in out

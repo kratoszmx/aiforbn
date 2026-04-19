@@ -28,6 +28,9 @@ def test_default_config_has_expected_poc_defaults():
     assert cfg['robustness']['method'] == 'group_kfold_by_formula'
     assert cfg['robustness']['group_column'] == 'formula'
     assert cfg['robustness']['n_splits'] == 5
+    assert cfg['bn_slice_benchmark']['enabled'] is True
+    assert cfg['bn_slice_benchmark']['method'] == 'leave_one_bn_formula_out'
+    assert cfg['bn_slice_benchmark']['k_neighbors'] == 3
     assert cfg['screening']['candidate_generation_strategy'] == 'bn_anchored_formula_family_grid'
     assert cfg['screening']['candidate_space_name'] == 'bn_anchored_formula_family_grid'
     assert cfg['screening']['candidate_space_kind'] == 'bn_family_demo'
@@ -74,6 +77,22 @@ def test_default_config_has_expected_poc_defaults():
         cfg['screening']['bn_analog_evidence']['exfoliation_reference']
         == 'train_plus_val_bn_formula_median'
     )
+    assert cfg['screening']['bn_band_gap_alignment']['enabled'] is True
+    assert (
+        cfg['screening']['bn_band_gap_alignment']['method']
+        == 'predicted_band_gap_vs_local_bn_analog_window'
+    )
+    assert (
+        cfg['screening']['bn_band_gap_alignment']['reference_split']
+        == 'train_plus_val_bn_unique_formulas'
+    )
+    assert cfg['screening']['bn_band_gap_alignment']['window_expansion_iqr_factor'] == 0.5
+    assert (
+        cfg['screening']['bn_band_gap_alignment']['minimum_neighbor_formula_count_for_penalty']
+        == 2
+    )
+    assert cfg['screening']['bn_band_gap_alignment']['ranking_penalty_enabled'] is True
+    assert cfg['screening']['bn_band_gap_alignment']['ranking_penalty_weight'] == 0.08
     assert cfg['screening']['bn_analog_validation']['enabled'] is True
     assert (
         cfg['screening']['bn_analog_validation']['method']
@@ -86,4 +105,26 @@ def test_default_config_has_expected_poc_defaults():
         cfg['screening']['chemical_plausibility']['method']
         == 'pymatgen_common_oxidation_state_balance'
     )
+    assert cfg['screening']['proposal_shortlist']['enabled'] is True
+    assert cfg['screening']['proposal_shortlist']['label'] == 'family_aware_proposal_shortlist'
+    assert cfg['screening']['proposal_shortlist']['method'] == 'ranked_family_cap'
+    assert cfg['screening']['proposal_shortlist']['shortlist_size'] == 10
+    assert cfg['screening']['proposal_shortlist']['max_per_candidate_family'] == 2
+    assert cfg['screening']['proposal_shortlist']['chemical_plausibility_priority'] is True
+    assert cfg['screening']['extrapolation_shortlist']['enabled'] is True
+    assert (
+        cfg['screening']['extrapolation_shortlist']['label']
+        == 'formula_level_extrapolation_shortlist'
+    )
+    assert (
+        cfg['screening']['extrapolation_shortlist']['method']
+        == 'novelty_bucket_ranked_family_cap'
+    )
+    assert cfg['screening']['extrapolation_shortlist']['shortlist_size'] == 5
+    assert cfg['screening']['extrapolation_shortlist']['max_per_candidate_family'] == 1
+    assert (
+        cfg['screening']['extrapolation_shortlist']['required_novelty_bucket']
+        == 'formula_level_extrapolation'
+    )
+    assert cfg['screening']['extrapolation_shortlist']['chemical_plausibility_priority'] is True
     assert cfg['ui']['streamlit_enabled'] is True

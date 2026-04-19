@@ -20,9 +20,10 @@ What it does, in order:
 7. retrains the selected overall-evaluation combo on `train + val`
 8. benchmarks all configured combos on `test`
 9. runs grouped-by-formula robustness benchmarking across configured combos
-10. builds formula-only candidate uncertainty stats
-11. ranks candidates with the best candidate-compatible combo
-12. writes metrics / plots / benchmark / robustness / ranking artifacts
+10. runs a dedicated BN-focused leave-one-BN-formula-out benchmark across configured combos plus baselines
+11. builds formula-only candidate uncertainty stats
+12. ranks candidates with the best candidate-compatible combo
+13. writes metrics / plots / benchmark / robustness / BN-benchmark / ranking / shortlist artifacts
 
 Important:
 - overall evaluation combo and formula-only screening combo may differ
@@ -243,6 +244,35 @@ Useful robustness columns include:
 - `r2_mean`
 - `r2_std`
 
+### `benchmark_bn_slice(feature_tables, split_masks, cfg, selected_feature_set, selected_model_type)`
+Runs the dedicated BN-focused leave-one-BN-formula-out benchmark.
+It returns two dataframes:
+- a benchmark summary table across all configured feature/model combos plus `dummy_mean` and `bn_local_knn_mean`
+- a per-held-out-formula prediction table for deeper inspection
+
+Important:
+- this exists because the standard grouped split can place all BN rows in train
+- it is a small-sample BN-centered diagnostic, not a definitive BN-only benchmark
+- the BN-slice best combo can differ from both the overall selected combo and the formula-only screening combo
+
+Useful benchmark columns include:
+- `feature_set`
+- `feature_family`
+- `candidate_compatible`
+- `model_type`
+- `benchmark_role`
+- `selected_by_validation`
+- `bn_slice_method`
+- `bn_slice_train_scope`
+- `bn_formula_count`
+- `bn_row_count`
+- `completed_holds`
+- `benchmark_status`
+- `mae`
+- `rmse`
+- `r2`
+- `k_neighbors`
+
 ### `build_candidate_prediction_ensemble(candidate_df, feature_tables, split_masks, cfg, candidate_feature_sets=None)`
 Trains the tiny candidate-compatible feature/model pool on `train + val` and computes candidate-level ensemble prediction statistics:
 - `ensemble_predicted_band_gap_mean`
@@ -292,6 +322,35 @@ Current novelty buckets:
 - `train_plus_val_rediscovery`
 - `held_out_known_formula`
 - `formula_level_extrapolation`
+
+### `annotate_candidate_proposal_shortlist(ranked_candidate_df, cfg=None)`
+Builds a separate advisor-facing shortlist from the raw ranking.
+Current behavior:
+- walks the raw ranking in order
+- keeps chemical-plausibility priority
+- caps repeats from the same `candidate_family`
+- does not replace or mutate the full ranking artifact
+
+Useful fields include:
+- `proposal_shortlist_selected`
+- `proposal_shortlist_rank`
+- `proposal_shortlist_decision`
+- `proposal_shortlist_family_count_before_selection`
+
+### `annotate_candidate_extrapolation_shortlist(ranked_candidate_df, cfg=None)`
+Builds a second advisor-facing shortlist that only considers `formula_level_extrapolation` candidates.
+Current behavior:
+- filters to the configured novelty bucket
+- keeps chemical-plausibility priority
+- applies an explicit `candidate_family` cap for diversity
+- leaves the raw ranking artifact and general proposal shortlist untouched
+
+Useful fields include:
+- `extrapolation_shortlist_target_novelty_bucket`
+- `extrapolation_shortlist_selected`
+- `extrapolation_shortlist_rank`
+- `extrapolation_shortlist_decision`
+- `extrapolation_shortlist_family_count_before_selection`
 
 ### `annotate_candidate_domain_support(candidate_feature_df, reference_feature_df, split_masks, feature_columns, cfg=None, formula_col='formula')`
 Annotates formula-only candidates with a lightweight train+val feature-space support signal.
@@ -355,6 +414,8 @@ Current behavior:
 - adds novelty / rediscovery annotations from the overlap fields
 - computes `ranking_score` and preserves `ranking_score_before_grouped_robustness_penalty`, `ranking_score_before_domain_support_penalty`, `ranking_score_before_bn_support_penalty`, and `ranking_score_before_bn_analog_validation_penalty`
 - writes explicit honesty fields about whether screening matches the overall best evaluation combo
+- annotates a family-aware proposal shortlist without replacing the raw ranking artifact
+- annotates a second formula-level extrapolation shortlist for discovery-style follow-up inside the current demo space
 - keeps the full ranking artifact and exposes novelty ranks instead of truncating the file to top-k only
 
 Useful output columns include:
@@ -373,6 +434,10 @@ Useful output columns include:
 - `candidate_novelty_bucket`
 - `novelty_rank_within_bucket`
 - `novel_formula_rank`
+- `proposal_shortlist_selected`
+- `proposal_shortlist_rank`
+- `extrapolation_shortlist_selected`
+- `extrapolation_shortlist_rank`
 - `ranking_feature_set`
 - `ranking_model_type`
 - `best_overall_evaluation_feature_set`
@@ -384,7 +449,7 @@ Useful output columns include:
 
 ## src/pipeline/reporting.py
 
-### `build_experiment_summary(dataset_df, bn_df, candidate_df, split_masks, selection_summary, cfg, robustness_df=None)`
+### `build_experiment_summary(dataset_df, bn_df, candidate_df, split_masks, selection_summary, cfg, robustness_df=None, bn_slice_benchmark_df=None)`
 Builds the structured experiment summary dict written to `artifacts/experiment_summary.json`.
 Includes:
 - dataset stats
@@ -392,6 +457,7 @@ Includes:
 - joint feature/model selection summary
 - benchmark metadata
 - grouped robustness metadata
+- BN-slice benchmark metadata
 - candidate ranking metadata
 
 Important:
@@ -402,10 +468,17 @@ Important:
 - now also summarizes analog-validation label counts derived from BN reference property alignment
 - now also summarizes whether the BN analog-validation proxy is active in ranking and how many rows were penalized
 - now also summarizes grouped-by-formula robustness results for the selected model, screening fallback, and dummy baseline
+- now also summarizes the BN-slice benchmark, including standard-split BN row placement, selected/screening/baseline BN metrics, and the current BN-slice best configured combo
 - now also summarizes grouped candidate-robustness penalty settings, fold count, average spread, and penalized-row count
+- now also summarizes the family-aware proposal shortlist and the formula-level extrapolation shortlist as separate advisor-facing outputs
 
-### `save_metrics_and_predictions(metrics, prediction_df, bn_df, screened_df, benchmark_df, robustness_df, experiment_summary, manifest, cfg)`
+### `save_metrics_and_predictions(metrics, prediction_df, bn_df, screened_df, benchmark_df, robustness_df, bn_slice_benchmark_df, bn_slice_prediction_df, experiment_summary, manifest, cfg)`
 Writes the main artifact files under `artifacts/`.
+This now includes both shortlist CSVs and BN-slice benchmark artifacts in addition to the full ranking artifact:
+- `bn_slice_benchmark_results.csv`
+- `bn_slice_predictions.csv`
+- `demo_candidate_proposal_shortlist.csv`
+- `demo_candidate_extrapolation_shortlist.csv`
 
 ### `save_basic_plots(prediction_df, cfg)`
 Writes the parity plot.
@@ -420,8 +493,12 @@ It is a simple artifact viewer for:
 - `experiment_summary.json`
 - `benchmark_results.csv`
 - `robustness_results.csv`
+- `bn_slice_benchmark_results.csv`
+- `bn_slice_predictions.csv`
 - `predictions.csv`
 - `demo_candidate_ranking.csv`
+- `demo_candidate_proposal_shortlist.csv`
+- `demo_candidate_extrapolation_shortlist.csv`
 
 ---
 

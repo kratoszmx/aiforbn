@@ -37,6 +37,12 @@ def test_reporting_writes_expected_artifacts(tmp_path):
             'n_splits': 4,
             'note': 'demo grouped robustness note',
         },
+        'bn_slice_benchmark': {
+            'enabled': True,
+            'method': 'leave_one_bn_formula_out',
+            'k_neighbors': 2,
+            'note': 'demo bn slice benchmark note',
+        },
         'screening': {
             'candidate_generation_strategy': 'bn_anchored_formula_family_grid',
             'candidate_space_name': 'bn_anchored_formula_family_grid',
@@ -80,11 +86,47 @@ def test_reporting_writes_expected_artifacts(tmp_path):
                 'exfoliation_reference': 'train_plus_val_bn_formula_median',
                 'note': 'demo bn-analog evidence note',
             },
+            'bn_band_gap_alignment': {
+                'enabled': True,
+                'method': 'predicted_band_gap_vs_local_bn_analog_window',
+                'reference_split': 'train_plus_val_bn_unique_formulas',
+                'window_expansion_iqr_factor': 0.5,
+                'minimum_neighbor_formula_count_for_penalty': 2,
+                'ranking_penalty_enabled': True,
+                'ranking_penalty_weight': 0.08,
+                'note': 'demo bn-local band-gap alignment note',
+            },
+            'bn_analog_validation': {
+                'enabled': True,
+                'method': 'bn_analog_alignment_vote_fraction',
+                'ranking_penalty_enabled': True,
+                'ranking_penalty_weight': 0.12,
+                'note': 'demo bn-analog validation note',
+            },
             'chemical_plausibility': {
                 'enabled': True,
                 'method': 'pymatgen_common_oxidation_state_balance',
                 'selection_policy': 'annotate_and_prioritize_passing_candidates',
                 'note': 'demo plausibility note',
+            },
+            'proposal_shortlist': {
+                'enabled': True,
+                'label': 'family_aware_proposal_shortlist',
+                'method': 'ranked_family_cap',
+                'shortlist_size': 2,
+                'max_per_candidate_family': 1,
+                'chemical_plausibility_priority': True,
+                'note': 'demo proposal shortlist note',
+            },
+            'extrapolation_shortlist': {
+                'enabled': True,
+                'label': 'formula_level_extrapolation_shortlist',
+                'method': 'novelty_bucket_ranked_family_cap',
+                'shortlist_size': 1,
+                'max_per_candidate_family': 1,
+                'required_novelty_bucket': 'formula_level_extrapolation',
+                'chemical_plausibility_priority': True,
+                'note': 'demo extrapolation shortlist note',
             },
         },
     }
@@ -147,6 +189,8 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         'bn_analog_evidence_enabled': [True, True],
         'bn_analog_evidence_aggregation': ['mean_over_k_nearest_bn_formulas', 'mean_over_k_nearest_bn_formulas'],
         'bn_analog_reference_formula_count': [4, 4],
+        'bn_analog_reference_band_gap_median': [3.6, 3.6],
+        'bn_analog_reference_band_gap_iqr': [1.2, 1.2],
         'bn_analog_reference_exfoliation_energy_median': [0.07, 0.07],
         'bn_analog_reference_energy_per_atom_median': [-8.0, -8.0],
         'bn_analog_reference_abs_total_magnetization_median': [0.0, 0.0],
@@ -158,10 +202,37 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         'bn_analog_nearest_exfoliation_energy_per_atom': [0.06, 0.06],
         'bn_analog_nearest_abs_total_magnetization': [0.0, 0.0],
         'bn_analog_neighbor_band_gap_mean': [4.8, 2.4],
+        'bn_analog_neighbor_band_gap_min': [4.8, 0.0],
+        'bn_analog_neighbor_band_gap_max': [4.8, 4.8],
+        'bn_analog_neighbor_band_gap_std': [0.0, 2.4],
         'bn_analog_neighbor_energy_per_atom_mean': [-8.3, -7.3],
         'bn_analog_neighbor_exfoliation_energy_per_atom_mean': [0.06, 0.06],
         'bn_analog_neighbor_abs_total_magnetization_mean': [0.0, 0.0],
         'bn_analog_neighbor_exfoliation_available_formula_count': [1, 1],
+        'bn_band_gap_alignment_enabled': [True, True],
+        'bn_band_gap_alignment_method': [
+            'predicted_band_gap_vs_local_bn_analog_window',
+            'predicted_band_gap_vs_local_bn_analog_window',
+        ],
+        'bn_band_gap_alignment_reference_split': [
+            'train_plus_val_bn_unique_formulas',
+            'train_plus_val_bn_unique_formulas',
+        ],
+        'bn_band_gap_alignment_note': [
+            'demo bn-local band-gap alignment note',
+            'demo bn-local band-gap alignment note',
+        ],
+        'bn_band_gap_alignment_neighbor_available_formula_count': [1, 2],
+        'bn_band_gap_alignment_window_lower': [4.2, -0.6],
+        'bn_band_gap_alignment_window_upper': [5.4, 5.4],
+        'bn_band_gap_alignment_distance_to_window': [0.0, 0.6],
+        'bn_band_gap_alignment_relative_distance': [0.0, 0.5],
+        'bn_band_gap_alignment_penalty_eligible': [False, True],
+        'bn_band_gap_alignment_label': [
+            'within_local_bn_analog_band_gap_window',
+            'above_local_bn_analog_band_gap_window',
+        ],
+        'bn_band_gap_alignment_penalty': [0.0, 0.04],
         'bn_analog_exfoliation_support_label': ['lower_or_equal_bn_reference_median', 'lower_or_equal_bn_reference_median'],
         'bn_analog_energy_support_label': ['lower_or_equal_bn_reference_median', 'higher_than_bn_reference_median'],
         'bn_analog_abs_total_magnetization_support_label': ['lower_or_equal_bn_reference_median', 'lower_or_equal_bn_reference_median'],
@@ -188,12 +259,65 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         'novel_formula_rank': [pd.NA, 1],
         'screening_selected_for_top_k': [True, False],
         'screening_selection_decision': ['selected_top_k', 'failed_chemical_plausibility'],
+        'proposal_shortlist_enabled': [True, True],
+        'proposal_shortlist_label': ['family_aware_proposal_shortlist', 'family_aware_proposal_shortlist'],
+        'proposal_shortlist_method': ['ranked_family_cap', 'ranked_family_cap'],
+        'proposal_shortlist_note': ['demo proposal shortlist note', 'demo proposal shortlist note'],
+        'proposal_shortlist_size': [2, 2],
+        'proposal_shortlist_family_cap': [1, 1],
+        'proposal_shortlist_chemical_plausibility_priority': [True, True],
+        'proposal_shortlist_family_count_before_selection': [0, 0],
+        'proposal_shortlist_selected': [True, False],
+        'proposal_shortlist_rank': [1, pd.NA],
+        'proposal_shortlist_decision': [
+            'selected_for_proposal_shortlist',
+            'not_selected_failed_chemical_plausibility',
+        ],
+        'extrapolation_shortlist_enabled': [True, True],
+        'extrapolation_shortlist_label': [
+            'formula_level_extrapolation_shortlist',
+            'formula_level_extrapolation_shortlist',
+        ],
+        'extrapolation_shortlist_method': [
+            'novelty_bucket_ranked_family_cap',
+            'novelty_bucket_ranked_family_cap',
+        ],
+        'extrapolation_shortlist_note': [
+            'demo extrapolation shortlist note',
+            'demo extrapolation shortlist note',
+        ],
+        'extrapolation_shortlist_size': [1, 1],
+        'extrapolation_shortlist_family_cap': [1, 1],
+        'extrapolation_shortlist_chemical_plausibility_priority': [True, True],
+        'extrapolation_shortlist_target_novelty_bucket': [
+            'formula_level_extrapolation',
+            'formula_level_extrapolation',
+        ],
+        'extrapolation_shortlist_family_count_before_selection': [0, 0],
+        'extrapolation_shortlist_selected': [False, False],
+        'extrapolation_shortlist_rank': [pd.NA, pd.NA],
+        'extrapolation_shortlist_decision': [
+            'not_selected_novelty_bucket_mismatch',
+            'not_selected_failed_chemical_plausibility',
+        ],
     })
     screened_df = pd.DataFrame({
         'formula': ['BN', 'AlBN'],
         'predicted_band_gap': [4.8, 1.2],
         'screening_selected_for_top_k': [True, False],
         'screening_selection_decision': ['selected_top_k', 'failed_chemical_plausibility'],
+        'proposal_shortlist_selected': [True, False],
+        'proposal_shortlist_rank': [1, pd.NA],
+        'proposal_shortlist_decision': [
+            'selected_for_proposal_shortlist',
+            'not_selected_failed_chemical_plausibility',
+        ],
+        'extrapolation_shortlist_selected': [False, False],
+        'extrapolation_shortlist_rank': [pd.NA, pd.NA],
+        'extrapolation_shortlist_decision': [
+            'not_selected_novelty_bucket_mismatch',
+            'not_selected_failed_chemical_plausibility',
+        ],
     })
     benchmark_df = pd.DataFrame({
         'feature_set': ['matminer_composition', 'feature_agnostic_dummy'],
@@ -221,6 +345,95 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         'rmse_std': [0.1, 0.2, 0.3],
         'r2_mean': [0.6, 0.4, 0.1],
         'r2_std': [0.05, 0.08, 0.1],
+    })
+    bn_slice_benchmark_df = pd.DataFrame({
+        'feature_set': [
+            'matminer_composition',
+            'matminer_composition',
+            'matminer_composition_plus_structure_summary',
+            'matminer_composition',
+            'matminer_composition',
+        ],
+        'feature_family': [
+            'composition_only',
+            'composition_only',
+            'structure_aware',
+            'composition_only',
+            'composition_only',
+        ],
+        'model_type': [
+            'linear_regression',
+            'linear_regression',
+            'hist_gradient_boosting',
+            'dummy_mean',
+            'bn_local_knn_mean',
+        ],
+        'benchmark_role': [
+            'selected_model',
+            'screening_model',
+            'candidate_model',
+            'global_dummy_mean_baseline',
+            'bn_local_reference_baseline',
+        ],
+        'benchmark_status': ['ok', 'ok', 'ok', 'ok', 'ok'],
+        'bn_slice_method': ['leave_one_bn_formula_out'] * 5,
+        'bn_slice_train_scope': [
+            'full_dataset_minus_held_out_bn_formula',
+            'full_dataset_minus_held_out_bn_formula',
+            'full_dataset_minus_held_out_bn_formula',
+            'full_dataset_minus_held_out_bn_formula',
+            'bn_only_reference_formulas',
+        ],
+        'bn_formula_count': [1, 1, 1, 1, 1],
+        'bn_row_count': [1, 1, 1, 1, 1],
+        'completed_holds': [3, 3, 3, 3, 3],
+        'k_neighbors': [pd.NA, pd.NA, pd.NA, pd.NA, 2],
+        'mae': [0.6, 0.6, 0.5, 0.9, 0.8],
+        'rmse': [0.7, 0.7, 0.6, 1.0, 0.9],
+        'r2': [0.5, 0.5, 0.6, 0.1, 0.2],
+    })
+    bn_slice_prediction_df = pd.DataFrame({
+        'formula': ['BN', 'BN', 'BN', 'BN', 'BN'],
+        'benchmark_role': [
+            'selected_model',
+            'screening_model',
+            'candidate_model',
+            'global_dummy_mean_baseline',
+            'bn_local_reference_baseline',
+        ],
+        'feature_set': [
+            'matminer_composition',
+            'matminer_composition',
+            'matminer_composition_plus_structure_summary',
+            'matminer_composition',
+            'matminer_composition',
+        ],
+        'feature_family': [
+            'composition_only',
+            'composition_only',
+            'structure_aware',
+            'composition_only',
+            'composition_only',
+        ],
+        'model_type': [
+            'linear_regression',
+            'linear_regression',
+            'hist_gradient_boosting',
+            'dummy_mean',
+            'bn_local_knn_mean',
+        ],
+        'selected_by_validation': [True, False, False, False, False],
+        'bn_slice_method': ['leave_one_bn_formula_out'] * 5,
+        'bn_slice_train_scope': [
+            'full_dataset_minus_held_out_bn_formula',
+            'full_dataset_minus_held_out_bn_formula',
+            'full_dataset_minus_held_out_bn_formula',
+            'full_dataset_minus_held_out_bn_formula',
+            'bn_only_reference_formulas',
+        ],
+        'target': [5.0, 5.0, 5.0, 5.0, 5.0],
+        'prediction': [4.4, 4.3, 4.5, 4.1, 3.9],
+        'absolute_error': [0.6, 0.7, 0.5, 0.9, 1.1],
     })
     split_masks = {
         'train': [True],
@@ -269,6 +482,7 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         selection_summary=selection_summary,
         cfg=cfg,
         robustness_df=robustness_df,
+        bn_slice_benchmark_df=bn_slice_benchmark_df,
     )
     manifest = {'name': 'twod_matpd'}
 
@@ -279,6 +493,8 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         screened_df,
         benchmark_df,
         robustness_df,
+        bn_slice_benchmark_df,
+        bn_slice_prediction_df,
         experiment_summary,
         manifest,
         cfg,
@@ -302,8 +518,29 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     assert experiment_summary['robustness']['selected_model_metrics']['mae_mean'] == 1.1
     assert experiment_summary['robustness']['screening_model_metrics']['model_type'] == 'linear_regression'
     assert experiment_summary['robustness']['dummy_baseline_metrics']['model_type'] == 'dummy_mean'
+    assert experiment_summary['bn_slice_benchmark']['enabled'] is True
+    assert experiment_summary['bn_slice_benchmark']['benchmark_artifact'] == 'bn_slice_benchmark_results.csv'
+    assert experiment_summary['bn_slice_benchmark']['prediction_artifact'] == 'bn_slice_predictions.csv'
+    assert experiment_summary['bn_slice_benchmark']['method'] == 'leave_one_bn_formula_out'
+    assert experiment_summary['bn_slice_benchmark']['k_neighbors'] == 2
+    assert experiment_summary['bn_slice_benchmark']['standard_split_bn_train_rows'] == 1
+    assert experiment_summary['bn_slice_benchmark']['standard_split_bn_val_rows'] == 0
+    assert experiment_summary['bn_slice_benchmark']['standard_split_bn_test_rows'] == 0
+    assert experiment_summary['bn_slice_benchmark']['standard_split_has_bn_eval_rows'] is False
+    assert experiment_summary['bn_slice_benchmark']['selected_model_metrics']['mae'] == 0.6
+    assert experiment_summary['bn_slice_benchmark']['screening_model_metrics']['benchmark_role'] == 'screening_model'
+    assert experiment_summary['bn_slice_benchmark']['bn_local_reference_metrics']['model_type'] == 'bn_local_knn_mean'
+    assert experiment_summary['bn_slice_benchmark']['global_dummy_baseline_metrics']['model_type'] == 'dummy_mean'
+    assert experiment_summary['bn_slice_benchmark']['best_candidate_model_metrics']['benchmark_role'] == 'candidate_model'
+    assert experiment_summary['bn_slice_benchmark']['best_candidate_model_metrics']['feature_set'] == (
+        'matminer_composition_plus_structure_summary'
+    )
+    assert experiment_summary['bn_slice_benchmark']['selected_model_beats_global_dummy'] is True
+    assert experiment_summary['bn_slice_benchmark']['screening_model_beats_global_dummy'] is True
+    assert experiment_summary['bn_slice_benchmark']['best_candidate_model_beats_global_dummy'] is True
+    assert experiment_summary['bn_slice_benchmark']['selected_model_matches_best_candidate'] is False
     assert experiment_summary['screening']['ranking_basis'] == (
-        'composition_only_mean_band_gap_minus_model_disagreement_low_support_and_bn_support_and_grouped_robustness_and_bn_analog_validation_penalties'
+        'composition_only_mean_band_gap_minus_model_disagreement_low_support_and_bn_support_and_grouped_robustness_and_bn_band_gap_alignment_and_bn_analog_validation_penalties'
     )
     assert experiment_summary['screening']['ranking_feature_family'] == 'composition_only'
     assert experiment_summary['screening']['ranking_matches_best_overall_evaluation'] is True
@@ -334,12 +571,39 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     assert experiment_summary['screening']['grouped_robustness_penalized_rows'] == 2
     assert experiment_summary['screening']['bn_analog_evidence_enabled'] is True
     assert experiment_summary['screening']['bn_analog_reference_formula_count'] == 4
+    assert experiment_summary['screening']['bn_analog_reference_band_gap_median'] == 3.6
+    assert experiment_summary['screening']['bn_analog_reference_band_gap_iqr'] == 1.2
     assert experiment_summary['screening']['bn_analog_reference_exfoliation_energy_median'] == 0.07
     assert experiment_summary['screening']['bn_analog_reference_energy_per_atom_median'] == -8.0
     assert experiment_summary['screening']['bn_analog_reference_abs_total_magnetization_median'] == 0.0
     assert experiment_summary['screening']['bn_analog_exfoliation_available_rows'] == 2
     assert experiment_summary['screening']['bn_analog_lower_or_equal_reference_rows'] == 2
     assert experiment_summary['screening']['bn_analog_higher_reference_rows'] == 0
+    assert experiment_summary['screening']['bn_band_gap_alignment_enabled'] is True
+    assert (
+        experiment_summary['screening']['bn_band_gap_alignment_method']
+        == 'predicted_band_gap_vs_local_bn_analog_window'
+    )
+    assert (
+        experiment_summary['screening']['bn_band_gap_alignment_reference_split']
+        == 'train_plus_val_bn_unique_formulas'
+    )
+    assert (
+        experiment_summary['screening']['bn_band_gap_alignment_window_expansion_iqr_factor']
+        == 0.5
+    )
+    assert (
+        experiment_summary['screening']['bn_band_gap_alignment_minimum_neighbor_formula_count_for_penalty']
+        == 2
+    )
+    assert experiment_summary['screening']['bn_band_gap_alignment_penalty_enabled'] is True
+    assert experiment_summary['screening']['bn_band_gap_alignment_penalty_active'] is True
+    assert experiment_summary['screening']['bn_band_gap_alignment_penalty_weight'] == 0.08
+    assert experiment_summary['screening']['bn_band_gap_alignment_penalty_eligible_rows'] == 1
+    assert experiment_summary['screening']['bn_band_gap_alignment_within_window_rows'] == 1
+    assert experiment_summary['screening']['bn_band_gap_alignment_below_window_rows'] == 0
+    assert experiment_summary['screening']['bn_band_gap_alignment_above_window_rows'] == 1
+    assert experiment_summary['screening']['bn_band_gap_alignment_penalized_rows'] == 1
     assert experiment_summary['screening']['bn_analog_reference_like_rows'] == 1
     assert experiment_summary['screening']['bn_analog_mixed_alignment_rows'] == 1
     assert experiment_summary['screening']['bn_analog_reference_divergent_rows'] == 0
@@ -357,6 +621,66 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         'bn_binary_anchor': 1,
         'group13_bn_111_family': 1,
     }
+    assert experiment_summary['screening']['proposal_shortlist_enabled'] is True
+    assert experiment_summary['screening']['proposal_shortlist_artifact'] == (
+        'demo_candidate_proposal_shortlist.csv'
+    )
+    assert experiment_summary['screening']['proposal_shortlist_label'] == (
+        'family_aware_proposal_shortlist'
+    )
+    assert experiment_summary['screening']['proposal_shortlist_method'] == 'ranked_family_cap'
+    assert experiment_summary['screening']['proposal_shortlist_note'] == 'demo proposal shortlist note'
+    assert experiment_summary['screening']['proposal_shortlist_size'] == 2
+    assert experiment_summary['screening']['proposal_shortlist_family_cap'] == 1
+    assert experiment_summary['screening']['proposal_shortlist_selected_rows'] == 1
+    assert experiment_summary['screening']['proposal_shortlist_selected_family_counts'] == {
+        'bn_binary_anchor': 1,
+    }
+    assert experiment_summary['screening']['proposal_shortlist_novelty_bucket_counts'] == {
+        'train_plus_val_rediscovery': 1,
+        'held_out_known_formula': 0,
+        'formula_level_extrapolation': 0,
+    }
+    assert experiment_summary['screening']['proposal_shortlist_formulas'] == [
+        {
+            'formula': 'BN',
+            'proposal_shortlist_rank': 1,
+            'ranking_rank': 1,
+            'candidate_family': 'bn_binary_anchor',
+            'ranking_score': 4.8,
+        }
+    ]
+    assert experiment_summary['screening']['extrapolation_shortlist_enabled'] is True
+    assert experiment_summary['screening']['extrapolation_shortlist_artifact'] == (
+        'demo_candidate_extrapolation_shortlist.csv'
+    )
+    assert (
+        experiment_summary['screening']['extrapolation_shortlist_label']
+        == 'formula_level_extrapolation_shortlist'
+    )
+    assert (
+        experiment_summary['screening']['extrapolation_shortlist_method']
+        == 'novelty_bucket_ranked_family_cap'
+    )
+    assert (
+        experiment_summary['screening']['extrapolation_shortlist_note']
+        == 'demo extrapolation shortlist note'
+    )
+    assert experiment_summary['screening']['extrapolation_shortlist_size'] == 1
+    assert experiment_summary['screening']['extrapolation_shortlist_family_cap'] == 1
+    assert (
+        experiment_summary['screening']['extrapolation_shortlist_target_novelty_bucket']
+        == 'formula_level_extrapolation'
+    )
+    assert experiment_summary['screening']['extrapolation_shortlist_candidate_count'] == 1
+    assert experiment_summary['screening']['extrapolation_shortlist_selected_rows'] == 0
+    assert experiment_summary['screening']['extrapolation_shortlist_selected_family_counts'] == {}
+    assert experiment_summary['screening']['extrapolation_shortlist_novelty_bucket_counts'] == {
+        'train_plus_val_rediscovery': 0,
+        'held_out_known_formula': 0,
+        'formula_level_extrapolation': 0,
+    }
+    assert experiment_summary['screening']['extrapolation_shortlist_formulas'] == []
     assert experiment_summary['screening']['chemical_plausibility_failed_formulas'] == ['AlBN']
     assert experiment_summary['screening']['novelty_annotation_enabled'] is True
     assert experiment_summary['screening']['novelty_bucket_counts'] == {
@@ -379,6 +703,8 @@ def test_reporting_writes_expected_artifacts(tmp_path):
             'chemical_plausibility_pass': False,
             'screening_selected_for_top_k': False,
             'screening_selection_decision': 'failed_chemical_plausibility',
+            'extrapolation_shortlist_selected': False,
+            'extrapolation_shortlist_decision': 'not_selected_failed_chemical_plausibility',
         }
     ]
     assert 'novelty should be interpreted separately' in (
@@ -386,6 +712,7 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     )
     assert 'Novelty is tracked only at the formula level' in experiment_summary['screening']['ranking_note']
     assert 'known BN slice' in experiment_summary['screening']['ranking_note']
+    assert 'BN-local analog band-gap window' in experiment_summary['screening']['ranking_note']
     assert 'observed-property evidence from nearby BN-containing train+val formulas' in experiment_summary['screening']['ranking_note']
     assert 'BN analog-validation penalty' in experiment_summary['screening']['ranking_note']
     assert experiment_summary['screening']['candidate_annotations'] == [
@@ -411,15 +738,28 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         'bn_analog_nearest_formula',
         'bn_analog_neighbor_formulas',
         'bn_analog_neighbor_formula_count',
+        'bn_analog_reference_band_gap_median',
+        'bn_analog_reference_band_gap_iqr',
         'bn_analog_nearest_band_gap',
         'bn_analog_nearest_energy_per_atom',
         'bn_analog_nearest_exfoliation_energy_per_atom',
         'bn_analog_nearest_abs_total_magnetization',
         'bn_analog_neighbor_band_gap_mean',
+        'bn_analog_neighbor_band_gap_min',
+        'bn_analog_neighbor_band_gap_max',
+        'bn_analog_neighbor_band_gap_std',
         'bn_analog_neighbor_energy_per_atom_mean',
         'bn_analog_neighbor_exfoliation_energy_per_atom_mean',
         'bn_analog_neighbor_abs_total_magnetization_mean',
         'bn_analog_neighbor_exfoliation_available_formula_count',
+        'bn_band_gap_alignment_neighbor_available_formula_count',
+        'bn_band_gap_alignment_window_lower',
+        'bn_band_gap_alignment_window_upper',
+        'bn_band_gap_alignment_distance_to_window',
+        'bn_band_gap_alignment_relative_distance',
+        'bn_band_gap_alignment_penalty_eligible',
+        'bn_band_gap_alignment_label',
+        'bn_band_gap_alignment_penalty',
         'bn_analog_exfoliation_support_label',
         'bn_analog_energy_support_label',
         'bn_analog_abs_total_magnetization_support_label',
@@ -446,12 +786,25 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         'novel_formula_rank',
         'screening_selected_for_top_k',
         'screening_selection_decision',
+        'proposal_shortlist_family_count_before_selection',
+        'proposal_shortlist_selected',
+        'proposal_shortlist_rank',
+        'proposal_shortlist_decision',
+        'extrapolation_shortlist_target_novelty_bucket',
+        'extrapolation_shortlist_family_count_before_selection',
+        'extrapolation_shortlist_selected',
+        'extrapolation_shortlist_rank',
+        'extrapolation_shortlist_decision',
     ]
     assert (artifact_dir / 'predictions.csv').exists()
     assert (artifact_dir / 'bn_slice.csv').exists()
     assert (artifact_dir / 'demo_candidate_ranking.csv').exists()
+    assert (artifact_dir / 'demo_candidate_proposal_shortlist.csv').exists()
+    assert (artifact_dir / 'demo_candidate_extrapolation_shortlist.csv').exists()
     assert (artifact_dir / 'benchmark_results.csv').exists()
     assert (artifact_dir / 'robustness_results.csv').exists()
+    assert (artifact_dir / 'bn_slice_benchmark_results.csv').exists()
+    assert (artifact_dir / 'bn_slice_predictions.csv').exists()
     assert (artifact_dir / 'parity_plot.png').exists()
 
 
@@ -519,11 +872,47 @@ def test_experiment_summary_explains_structure_aware_evaluation_vs_formula_only_
                 'exfoliation_reference': 'train_plus_val_bn_formula_median',
                 'note': 'demo bn-analog evidence note',
             },
+            'bn_band_gap_alignment': {
+                'enabled': True,
+                'method': 'predicted_band_gap_vs_local_bn_analog_window',
+                'reference_split': 'train_plus_val_bn_unique_formulas',
+                'window_expansion_iqr_factor': 0.5,
+                'minimum_neighbor_formula_count_for_penalty': 2,
+                'ranking_penalty_enabled': True,
+                'ranking_penalty_weight': 0.08,
+                'note': 'demo bn-local band-gap alignment note',
+            },
+            'bn_analog_validation': {
+                'enabled': True,
+                'method': 'bn_analog_alignment_vote_fraction',
+                'ranking_penalty_enabled': True,
+                'ranking_penalty_weight': 0.12,
+                'note': 'demo bn-analog validation note',
+            },
             'chemical_plausibility': {
                 'enabled': True,
                 'method': 'pymatgen_common_oxidation_state_balance',
                 'selection_policy': 'annotate_and_prioritize_passing_candidates',
                 'note': 'demo plausibility note',
+            },
+            'proposal_shortlist': {
+                'enabled': True,
+                'label': 'family_aware_proposal_shortlist',
+                'method': 'ranked_family_cap',
+                'shortlist_size': 2,
+                'max_per_candidate_family': 1,
+                'chemical_plausibility_priority': True,
+                'note': 'demo proposal shortlist note',
+            },
+            'extrapolation_shortlist': {
+                'enabled': True,
+                'label': 'formula_level_extrapolation_shortlist',
+                'method': 'novelty_bucket_ranked_family_cap',
+                'shortlist_size': 1,
+                'max_per_candidate_family': 1,
+                'required_novelty_bucket': 'formula_level_extrapolation',
+                'chemical_plausibility_priority': True,
+                'note': 'demo extrapolation shortlist note',
             },
         },
     }
@@ -597,6 +986,8 @@ def test_experiment_summary_explains_structure_aware_evaluation_vs_formula_only_
             'bn_analog_evidence_enabled': [True, True],
             'bn_analog_evidence_aggregation': ['mean_over_k_nearest_bn_formulas', 'mean_over_k_nearest_bn_formulas'],
             'bn_analog_reference_formula_count': [4, 4],
+            'bn_analog_reference_band_gap_median': [3.6, 3.6],
+            'bn_analog_reference_band_gap_iqr': [1.2, 1.2],
             'bn_analog_reference_exfoliation_energy_median': [0.07, 0.07],
             'bn_analog_reference_energy_per_atom_median': [-8.0, -8.0],
             'bn_analog_reference_abs_total_magnetization_median': [0.0, 0.0],
@@ -608,10 +999,37 @@ def test_experiment_summary_explains_structure_aware_evaluation_vs_formula_only_
             'bn_analog_nearest_exfoliation_energy_per_atom': [0.06, 0.06],
             'bn_analog_nearest_abs_total_magnetization': [0.0, 0.0],
             'bn_analog_neighbor_band_gap_mean': [4.8, 2.4],
+            'bn_analog_neighbor_band_gap_min': [4.8, 0.0],
+            'bn_analog_neighbor_band_gap_max': [4.8, 4.8],
+            'bn_analog_neighbor_band_gap_std': [0.0, 2.4],
             'bn_analog_neighbor_energy_per_atom_mean': [-8.3, -7.3],
             'bn_analog_neighbor_exfoliation_energy_per_atom_mean': [0.06, 0.06],
             'bn_analog_neighbor_abs_total_magnetization_mean': [0.0, 0.0],
             'bn_analog_neighbor_exfoliation_available_formula_count': [1, 1],
+            'bn_band_gap_alignment_enabled': [True, True],
+            'bn_band_gap_alignment_method': [
+                'predicted_band_gap_vs_local_bn_analog_window',
+                'predicted_band_gap_vs_local_bn_analog_window',
+            ],
+            'bn_band_gap_alignment_reference_split': [
+                'train_plus_val_bn_unique_formulas',
+                'train_plus_val_bn_unique_formulas',
+            ],
+            'bn_band_gap_alignment_note': [
+                'demo bn-local band-gap alignment note',
+                'demo bn-local band-gap alignment note',
+            ],
+            'bn_band_gap_alignment_neighbor_available_formula_count': [1, 2],
+            'bn_band_gap_alignment_window_lower': [4.2, -0.6],
+            'bn_band_gap_alignment_window_upper': [5.4, 5.4],
+            'bn_band_gap_alignment_distance_to_window': [0.0, 0.6],
+            'bn_band_gap_alignment_relative_distance': [0.0, 0.5],
+            'bn_band_gap_alignment_penalty_eligible': [False, True],
+            'bn_band_gap_alignment_label': [
+                'within_local_bn_analog_band_gap_window',
+                'above_local_bn_analog_band_gap_window',
+            ],
+            'bn_band_gap_alignment_penalty': [0.0, 0.04],
             'bn_analog_exfoliation_support_label': ['lower_or_equal_bn_reference_median', 'lower_or_equal_bn_reference_median'],
             'bn_analog_energy_support_label': ['lower_or_equal_bn_reference_median', 'higher_than_bn_reference_median'],
             'bn_analog_abs_total_magnetization_support_label': ['lower_or_equal_bn_reference_median', 'lower_or_equal_bn_reference_median'],
@@ -624,6 +1042,47 @@ def test_experiment_summary_explains_structure_aware_evaluation_vs_formula_only_
             'chemical_plausibility_guess_count': [1, 0],
             'chemical_plausibility_primary_oxidation_state_guess': ['B(+3), N(-3)', ''],
             'chemical_plausibility_note': ['pass', 'fail'],
+            'proposal_shortlist_enabled': [True, True],
+            'proposal_shortlist_label': ['family_aware_proposal_shortlist', 'family_aware_proposal_shortlist'],
+            'proposal_shortlist_method': ['ranked_family_cap', 'ranked_family_cap'],
+            'proposal_shortlist_note': ['demo proposal shortlist note', 'demo proposal shortlist note'],
+            'proposal_shortlist_size': [2, 2],
+            'proposal_shortlist_family_cap': [1, 1],
+            'proposal_shortlist_chemical_plausibility_priority': [True, True],
+            'proposal_shortlist_family_count_before_selection': [0, 0],
+            'proposal_shortlist_selected': [True, False],
+            'proposal_shortlist_rank': [1, pd.NA],
+            'proposal_shortlist_decision': [
+                'selected_for_proposal_shortlist',
+                'not_selected_failed_chemical_plausibility',
+            ],
+            'extrapolation_shortlist_enabled': [True, True],
+            'extrapolation_shortlist_label': [
+                'formula_level_extrapolation_shortlist',
+                'formula_level_extrapolation_shortlist',
+            ],
+            'extrapolation_shortlist_method': [
+                'novelty_bucket_ranked_family_cap',
+                'novelty_bucket_ranked_family_cap',
+            ],
+            'extrapolation_shortlist_note': [
+                'demo extrapolation shortlist note',
+                'demo extrapolation shortlist note',
+            ],
+            'extrapolation_shortlist_size': [1, 1],
+            'extrapolation_shortlist_family_cap': [1, 1],
+            'extrapolation_shortlist_chemical_plausibility_priority': [True, True],
+            'extrapolation_shortlist_target_novelty_bucket': [
+                'formula_level_extrapolation',
+                'formula_level_extrapolation',
+            ],
+            'extrapolation_shortlist_family_count_before_selection': [0, 0],
+            'extrapolation_shortlist_selected': [False, False],
+            'extrapolation_shortlist_rank': [pd.NA, pd.NA],
+            'extrapolation_shortlist_decision': [
+                'not_selected_novelty_bucket_mismatch',
+                'not_selected_failed_chemical_plausibility',
+            ],
         }),
         split_masks={'metadata': {'method': 'group_by_formula'}},
         selection_summary=selection_summary,
@@ -641,6 +1100,7 @@ def test_experiment_summary_explains_structure_aware_evaluation_vs_formula_only_
     assert 'grouped-fold candidate robustness penalty' in summary['screening']['ranking_note']
     assert 'train+val feature-space domain-support layer' in summary['screening']['ranking_note']
     assert 'known BN slice' in summary['screening']['ranking_note']
+    assert 'BN-local analog band-gap window' in summary['screening']['ranking_note']
     assert 'observed-property evidence from nearby BN-containing train+val formulas' in summary['screening']['ranking_note']
     assert 'BN analog-validation penalty' in summary['screening']['ranking_note']
     assert 'lightweight pymatgen oxidation-state plausibility screen' in summary['screening']['ranking_note']
@@ -649,15 +1109,57 @@ def test_experiment_summary_explains_structure_aware_evaluation_vs_formula_only_
         'bn_binary_anchor': 1,
         'group13_bn_111_family': 1,
     }
+    assert summary['screening']['proposal_shortlist_enabled'] is True
+    assert summary['screening']['proposal_shortlist_label'] == 'family_aware_proposal_shortlist'
+    assert summary['screening']['proposal_shortlist_method'] == 'ranked_family_cap'
+    assert summary['screening']['proposal_shortlist_note'] == 'demo proposal shortlist note'
+    assert summary['screening']['proposal_shortlist_size'] == 2
+    assert summary['screening']['proposal_shortlist_family_cap'] == 1
+    assert summary['screening']['proposal_shortlist_selected_rows'] == 1
+    assert summary['screening']['proposal_shortlist_selected_family_counts'] == {
+        'bn_binary_anchor': 1,
+    }
+    assert summary['screening']['proposal_shortlist_formulas'] == [
+        {
+            'formula': 'BN',
+            'proposal_shortlist_rank': 1,
+            'candidate_family': 'bn_binary_anchor',
+        }
+    ]
+    assert summary['screening']['extrapolation_shortlist_enabled'] is True
+    assert summary['screening']['extrapolation_shortlist_label'] == (
+        'formula_level_extrapolation_shortlist'
+    )
+    assert summary['screening']['extrapolation_shortlist_method'] == (
+        'novelty_bucket_ranked_family_cap'
+    )
+    assert summary['screening']['extrapolation_shortlist_note'] == (
+        'demo extrapolation shortlist note'
+    )
+    assert summary['screening']['extrapolation_shortlist_size'] == 1
+    assert summary['screening']['extrapolation_shortlist_family_cap'] == 1
+    assert summary['screening']['extrapolation_shortlist_target_novelty_bucket'] == (
+        'formula_level_extrapolation'
+    )
+    assert summary['screening']['extrapolation_shortlist_selected_rows'] == 0
+    assert summary['screening']['extrapolation_shortlist_selected_family_counts'] == {}
+    assert summary['screening']['extrapolation_shortlist_formulas'] == []
     assert summary['screening']['bn_support_reference_formula_count'] == 4
     assert summary['screening']['bn_support_penalized_rows'] == 1
     assert summary['screening']['grouped_robustness_uncertainty_enabled'] is True
     assert summary['screening']['grouped_robustness_penalized_rows'] == 2
     assert summary['screening']['bn_analog_evidence_enabled'] is True
     assert summary['screening']['bn_analog_reference_formula_count'] == 4
+    assert summary['screening']['bn_analog_reference_band_gap_median'] == 3.6
+    assert summary['screening']['bn_analog_reference_band_gap_iqr'] == 1.2
     assert summary['screening']['bn_analog_reference_energy_per_atom_median'] == -8.0
     assert summary['screening']['bn_analog_reference_abs_total_magnetization_median'] == 0.0
     assert summary['screening']['bn_analog_exfoliation_available_rows'] == 2
+    assert summary['screening']['bn_band_gap_alignment_enabled'] is True
+    assert summary['screening']['bn_band_gap_alignment_penalty_eligible_rows'] == 1
+    assert summary['screening']['bn_band_gap_alignment_within_window_rows'] == 1
+    assert summary['screening']['bn_band_gap_alignment_above_window_rows'] == 1
+    assert summary['screening']['bn_band_gap_alignment_penalized_rows'] == 1
     assert summary['screening']['bn_analog_reference_like_rows'] == 1
     assert summary['screening']['bn_analog_mixed_alignment_rows'] == 1
     assert summary['screening']['bn_analog_reference_divergent_rows'] == 0

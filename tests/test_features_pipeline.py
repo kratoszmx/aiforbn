@@ -9,6 +9,7 @@ import pytest
 from pipeline.data import STRUCTURE_SUMMARY_COLUMNS
 from pipeline.features import (
     STRUCTURE_AWARE_FEATURE_SET,
+    benchmark_bn_slice,
     benchmark_grouped_robustness,
     benchmark_regressors,
     build_candidate_grouped_robustness_predictions,
@@ -68,6 +69,12 @@ CFG = {
         'n_splits': 5,
         'note': 'demo grouped robustness note',
     },
+    'bn_slice_benchmark': {
+        'enabled': True,
+        'method': 'leave_one_bn_formula_out',
+        'k_neighbors': 2,
+        'note': 'demo bn slice benchmark note',
+    },
     'screening': {
         'top_k': 5,
         'candidate_generation_strategy': 'bn_anchored_formula_family_grid',
@@ -112,11 +119,47 @@ CFG = {
             'exfoliation_reference': 'train_plus_val_bn_formula_median',
             'note': 'demo bn-analog evidence note',
         },
+        'bn_band_gap_alignment': {
+            'enabled': True,
+            'method': 'predicted_band_gap_vs_local_bn_analog_window',
+            'reference_split': 'train_plus_val_bn_unique_formulas',
+            'window_expansion_iqr_factor': 0.5,
+            'minimum_neighbor_formula_count_for_penalty': 2,
+            'ranking_penalty_enabled': True,
+            'ranking_penalty_weight': 0.08,
+            'note': 'demo bn-local band-gap alignment note',
+        },
+        'bn_analog_validation': {
+            'enabled': True,
+            'method': 'bn_analog_alignment_vote_fraction',
+            'ranking_penalty_enabled': True,
+            'ranking_penalty_weight': 0.12,
+            'note': 'demo bn-analog validation note',
+        },
         'chemical_plausibility': {
             'enabled': True,
             'method': 'pymatgen_common_oxidation_state_balance',
             'selection_policy': 'annotate_and_prioritize_passing_candidates',
             'note': 'demo plausibility note',
+        },
+        'proposal_shortlist': {
+            'enabled': True,
+            'label': 'family_aware_proposal_shortlist',
+            'method': 'ranked_family_cap',
+            'shortlist_size': 4,
+            'max_per_candidate_family': 1,
+            'chemical_plausibility_priority': True,
+            'note': 'demo proposal shortlist note',
+        },
+        'extrapolation_shortlist': {
+            'enabled': True,
+            'label': 'formula_level_extrapolation_shortlist',
+            'method': 'novelty_bucket_ranked_family_cap',
+            'shortlist_size': 3,
+            'max_per_candidate_family': 1,
+            'required_novelty_bucket': 'formula_level_extrapolation',
+            'chemical_plausibility_priority': True,
+            'note': 'demo extrapolation shortlist note',
         },
     },
 }
@@ -221,6 +264,23 @@ def _structure_signal_df() -> pd.DataFrame:
         + structure_feature_df['structure_areal_number_density'] * 6.0
     )
     return base_df.assign(target=target)
+
+
+def _bn_alignment_reference_df() -> pd.DataFrame:
+    formulas = ['BN', 'BC2N', 'Si2BN', 'BCN', 'AlN']
+    targets = [5.2, 2.8, 1.6, 3.5, 3.2]
+    energy_per_atom = [-8.30, -7.95, -7.60, -7.75, -6.20]
+    exfoliation_energy_per_atom = [0.060, 0.082, 0.094, 0.086, 0.120]
+    total_magnetization = [0.0, 0.0, 0.0, 0.0, 0.0]
+    return pd.DataFrame({
+        'formula': formulas,
+        'target': targets,
+        'source': 'twod_matpd',
+        'energy_per_atom': energy_per_atom,
+        'exfoliation_energy_per_atom': exfoliation_energy_per_atom,
+        'total_magnetization': total_magnetization,
+        'abs_total_magnetization': [abs(value) for value in total_magnetization],
+    })
 
 
 def test_make_split_masks_groups_duplicate_formulas_together():
@@ -379,6 +439,71 @@ def test_grouped_robustness_benchmark_summarizes_group_kfold_results():
     assert robustness_df['selected_by_validation'].sum() == 1
 
 
+def test_bn_slice_benchmark_reports_bn_focused_holdout_metrics():
+    benchmark_cfg = copy.deepcopy(CFG)
+    benchmark_cfg['bn_slice_benchmark']['k_neighbors'] = 2
+    dataset_df = pd.DataFrame({
+        'formula': [
+            'BN', 'BN', 'BCN', 'BCN', 'BC2N', 'BC2N', 'Si2BN', 'Si2BN', 'AlN', 'AlN', 'GaN', 'GaN'
+        ],
+        'target': [5.8, 5.7, 2.4, 2.5, 3.7, 3.6, 1.2, 1.3, 3.1, 3.0, 2.9, 2.8],
+    })
+    comp_df = pd.DataFrame({
+        'formula': dataset_df['formula'],
+        'target': dataset_df['target'],
+        'feat_1': [0.10, 0.11, 0.30, 0.31, 0.40, 0.41, 0.60, 0.61, 0.20, 0.21, 0.25, 0.26],
+        'feat_2': [0.90, 0.89, 0.70, 0.69, 0.55, 0.56, 0.20, 0.21, 0.80, 0.79, 0.74, 0.73],
+        'feature_generation_failed': [False] * len(dataset_df),
+        'feature_generation_error': [None] * len(dataset_df),
+        'feature_set': ['matminer_composition'] * len(dataset_df),
+    })
+    structure_df = comp_df.copy()
+    structure_df['structure_feat'] = [1.0, 1.02, 0.75, 0.76, 0.65, 0.66, 0.35, 0.34, 0.88, 0.87, 0.82, 0.81]
+    structure_df['feature_set'] = STRUCTURE_AWARE_FEATURE_SET
+    feature_tables = {
+        'matminer_composition': comp_df,
+        STRUCTURE_AWARE_FEATURE_SET: structure_df,
+    }
+
+    bn_slice_df, bn_slice_prediction_df = benchmark_bn_slice(
+        dataset_df,
+        feature_tables,
+        benchmark_cfg,
+        selected_feature_set=STRUCTURE_AWARE_FEATURE_SET,
+        selected_model_type='linear_regression',
+        screening_feature_set='matminer_composition',
+        screening_model_type='linear_regression',
+    )
+
+    assert set(bn_slice_df['benchmark_role']) == {
+        'selected_model',
+        'screening_model',
+        'candidate_model',
+        'global_dummy_mean_baseline',
+        'bn_local_reference_baseline',
+    }
+    assert bn_slice_df['benchmark_status'].eq('ok').all()
+    assert bn_slice_df['bn_formula_count'].eq(4).all()
+    assert bn_slice_df['bn_row_count'].eq(8).all()
+    assert bn_slice_df['completed_holds'].eq(4).all()
+    assert bn_slice_df['bn_slice_method'].eq('leave_one_bn_formula_out').all()
+    assert bn_slice_df.loc[
+        bn_slice_df['benchmark_role'].eq('bn_local_reference_baseline'),
+        'k_neighbors',
+    ].iloc[0] == 2
+    assert bn_slice_df['mae'].notna().all()
+    assert bn_slice_df['rmse'].notna().all()
+    assert not bn_slice_prediction_df.empty
+    assert set(bn_slice_prediction_df['benchmark_role']) == {
+        'selected_model',
+        'screening_model',
+        'candidate_model',
+        'global_dummy_mean_baseline',
+        'bn_local_reference_baseline',
+    }
+
+
+
 def test_feature_pipeline_can_train_evaluate_benchmark_and_rank_demo_candidates():
     candidates = generate_bn_candidates(CFG)
     dataset_df = _sample_training_df()
@@ -499,6 +624,10 @@ def test_feature_pipeline_can_train_evaluate_benchmark_and_rank_demo_candidates(
     ).all()
     assert (
         screened_df['ranking_score_before_bn_support_penalty']
+        >= screened_df['ranking_score_before_bn_band_gap_alignment_penalty']
+    ).all()
+    assert (
+        screened_df['ranking_score_before_bn_band_gap_alignment_penalty']
         >= screened_df['ranking_score_before_bn_analog_validation_penalty']
     ).all()
     assert (
@@ -534,14 +663,35 @@ def test_feature_pipeline_can_train_evaluate_benchmark_and_rank_demo_candidates(
     assert screened_df['bn_analog_evidence_aggregation'].eq(
         'mean_over_k_nearest_bn_formulas'
     ).all()
+    assert screened_df['bn_band_gap_alignment_enabled'].eq(True).all()
+    assert screened_df['bn_band_gap_alignment_method'].eq(
+        'predicted_band_gap_vs_local_bn_analog_window'
+    ).all()
+    assert screened_df['bn_band_gap_alignment_reference_split'].eq(
+        'train_plus_val_bn_unique_formulas'
+    ).all()
     assert screened_df['bn_analog_validation_enabled'].eq(True).all()
     assert screened_df['bn_analog_validation_method'].eq(
         'bn_analog_alignment_vote_fraction'
     ).all()
+    assert screened_df['bn_band_gap_alignment_neighbor_available_formula_count'].ge(1).all()
+    assert screened_df['bn_band_gap_alignment_window_lower'].notna().all()
+    assert screened_df['bn_band_gap_alignment_window_upper'].notna().all()
+    assert screened_df['bn_band_gap_alignment_distance_to_window'].ge(0.0).all()
+    assert screened_df['bn_band_gap_alignment_penalty'].eq(0.0).all()
+    assert screened_df['bn_band_gap_alignment_penalty_eligible'].eq(False).all()
     assert screened_df['bn_analog_validation_penalty'].eq(0.0).all()
     assert screened_df['bn_analog_reference_formula_count'].eq(
         expected_bn_reference_formula_count
     ).all()
+    assert np.allclose(
+        screened_df['bn_analog_reference_band_gap_median'].to_numpy(dtype=float),
+        5.05,
+    )
+    assert np.allclose(
+        screened_df['bn_analog_reference_band_gap_iqr'].to_numpy(dtype=float),
+        0.0,
+    )
     assert np.allclose(
         screened_df['bn_analog_reference_exfoliation_energy_median'].to_numpy(dtype=float),
         0.0615,
@@ -560,6 +710,87 @@ def test_feature_pipeline_can_train_evaluate_benchmark_and_rank_demo_candidates(
         ~screened_df['chemical_plausibility_pass'],
         'screening_selection_decision',
     ].eq('failed_chemical_plausibility').all()
+    assert screened_df['proposal_shortlist_enabled'].eq(True).all()
+    assert screened_df['proposal_shortlist_label'].eq('family_aware_proposal_shortlist').all()
+    assert screened_df['proposal_shortlist_method'].eq('ranked_family_cap').all()
+    assert screened_df['proposal_shortlist_note'].eq('demo proposal shortlist note').all()
+    assert screened_df['proposal_shortlist_size'].eq(4).all()
+    assert screened_df['proposal_shortlist_family_cap'].eq(1).all()
+    assert screened_df['proposal_shortlist_chemical_plausibility_priority'].eq(True).all()
+    assert int(screened_df['proposal_shortlist_selected'].sum()) == 4
+    proposal_shortlist_df = screened_df.loc[
+        screened_df['proposal_shortlist_selected'].fillna(False).astype(bool)
+    ]
+    assert proposal_shortlist_df['proposal_shortlist_rank'].tolist() == [1, 2, 3, 4]
+    assert proposal_shortlist_df['candidate_family'].nunique() == len(proposal_shortlist_df)
+    assert proposal_shortlist_df['chemical_plausibility_pass'].all()
+    assert proposal_shortlist_df['candidate_family'].value_counts().max() == 1
+    assert proposal_shortlist_df['ranking_rank'].is_monotonic_increasing
+    assert screened_df['proposal_shortlist_family_count_before_selection'].ge(0).all()
+    assert screened_df.loc[
+        screened_df['proposal_shortlist_selected'],
+        'proposal_shortlist_decision',
+    ].eq('selected_for_proposal_shortlist').all()
+    assert (
+        screened_df['proposal_shortlist_decision'].eq('not_selected_family_cap_reached').any()
+        or screened_df['proposal_shortlist_decision'].eq('not_selected_shortlist_full').any()
+    )
+    assert screened_df.loc[
+        ~screened_df['chemical_plausibility_pass'],
+        'proposal_shortlist_decision',
+    ].eq('not_selected_failed_chemical_plausibility').all()
+    assert screened_df['extrapolation_shortlist_enabled'].eq(True).all()
+    assert screened_df['extrapolation_shortlist_label'].eq(
+        'formula_level_extrapolation_shortlist'
+    ).all()
+    assert screened_df['extrapolation_shortlist_method'].eq(
+        'novelty_bucket_ranked_family_cap'
+    ).all()
+    assert screened_df['extrapolation_shortlist_note'].eq(
+        'demo extrapolation shortlist note'
+    ).all()
+    assert screened_df['extrapolation_shortlist_size'].eq(3).all()
+    assert screened_df['extrapolation_shortlist_family_cap'].eq(1).all()
+    assert screened_df['extrapolation_shortlist_chemical_plausibility_priority'].eq(True).all()
+    assert screened_df['extrapolation_shortlist_target_novelty_bucket'].eq(
+        'formula_level_extrapolation'
+    ).all()
+    extrapolation_shortlist_df = screened_df.loc[
+        screened_df['extrapolation_shortlist_selected'].fillna(False).astype(bool)
+    ]
+    assert int(extrapolation_shortlist_df.shape[0]) == 3
+    assert extrapolation_shortlist_df['extrapolation_shortlist_rank'].tolist() == [1, 2, 3]
+    assert extrapolation_shortlist_df['chemical_plausibility_pass'].all()
+    assert extrapolation_shortlist_df['candidate_family'].nunique() == len(
+        extrapolation_shortlist_df
+    )
+    assert extrapolation_shortlist_df['candidate_family'].value_counts().max() == 1
+    assert extrapolation_shortlist_df['ranking_rank'].is_monotonic_increasing
+    assert extrapolation_shortlist_df['candidate_novelty_bucket'].eq(
+        'formula_level_extrapolation'
+    ).all()
+    assert screened_df['extrapolation_shortlist_family_count_before_selection'].ge(0).all()
+    assert screened_df.loc[
+        screened_df['extrapolation_shortlist_selected'],
+        'extrapolation_shortlist_decision',
+    ].eq('selected_for_extrapolation_shortlist').all()
+    assert screened_df.loc[
+        screened_df['candidate_novelty_bucket'] != 'formula_level_extrapolation',
+        'extrapolation_shortlist_decision',
+    ].eq('not_selected_novelty_bucket_mismatch').all()
+    assert screened_df.loc[
+        ~screened_df['chemical_plausibility_pass'],
+        'extrapolation_shortlist_decision',
+    ].isin(
+        [
+            'not_selected_failed_chemical_plausibility',
+            'not_selected_novelty_bucket_mismatch',
+        ]
+    ).all()
+    assert (
+        screened_df['extrapolation_shortlist_decision'].eq('not_selected_family_cap_reached').any()
+        or screened_df['extrapolation_shortlist_decision'].eq('not_selected_shortlist_full').any()
+    )
     bn_row = screened_df.loc[screened_df['formula'] == 'BN'].iloc[0]
     ge2bn_row = screened_df.loc[screened_df['formula'] == 'Ge2BN'].iloc[0]
     assert bn_row['domain_support_nearest_formula'] == 'BN'
@@ -575,15 +806,30 @@ def test_feature_pipeline_can_train_evaluate_benchmark_and_rank_demo_candidates(
     assert bn_row['bn_analog_nearest_formula'] == 'BN'
     assert bn_row['bn_analog_neighbor_formulas'] == 'BN'
     assert bn_row['bn_analog_neighbor_formula_count'] == 1
+    assert bn_row['bn_analog_reference_band_gap_median'] == pytest.approx(5.05)
+    assert bn_row['bn_analog_reference_band_gap_iqr'] == pytest.approx(0.0)
     assert bn_row['bn_analog_nearest_band_gap'] == pytest.approx(5.05)
     assert bn_row['bn_analog_nearest_energy_per_atom'] == pytest.approx(-8.305)
     assert bn_row['bn_analog_nearest_exfoliation_energy_per_atom'] == pytest.approx(0.0615)
     assert bn_row['bn_analog_nearest_abs_total_magnetization'] == pytest.approx(0.0)
     assert bn_row['bn_analog_neighbor_band_gap_mean'] == pytest.approx(5.05)
+    assert bn_row['bn_analog_neighbor_band_gap_min'] == pytest.approx(5.05)
+    assert bn_row['bn_analog_neighbor_band_gap_max'] == pytest.approx(5.05)
+    assert bn_row['bn_analog_neighbor_band_gap_std'] == pytest.approx(0.0)
     assert bn_row['bn_analog_neighbor_energy_per_atom_mean'] == pytest.approx(-8.305)
     assert bn_row['bn_analog_neighbor_exfoliation_energy_per_atom_mean'] == pytest.approx(0.0615)
     assert bn_row['bn_analog_neighbor_abs_total_magnetization_mean'] == pytest.approx(0.0)
     assert bn_row['bn_analog_neighbor_exfoliation_available_formula_count'] == 1
+    assert bn_row['bn_band_gap_alignment_neighbor_available_formula_count'] == 1
+    assert bn_row['bn_band_gap_alignment_window_lower'] == pytest.approx(5.05)
+    assert bn_row['bn_band_gap_alignment_window_upper'] == pytest.approx(5.05)
+    assert bool(bn_row['bn_band_gap_alignment_penalty_eligible']) is False
+    assert bn_row['bn_band_gap_alignment_penalty'] == pytest.approx(0.0)
+    assert bn_row['bn_band_gap_alignment_label'] in {
+        'within_local_bn_analog_band_gap_window',
+        'below_local_bn_analog_band_gap_window',
+        'above_local_bn_analog_band_gap_window',
+    }
     assert bn_row['bn_analog_exfoliation_support_label'] == 'lower_or_equal_bn_reference_median'
     assert bn_row['bn_analog_energy_support_label'] == 'lower_or_equal_bn_reference_median'
     assert bn_row['bn_analog_abs_total_magnetization_support_label'] == 'lower_or_equal_bn_reference_median'
@@ -601,11 +847,18 @@ def test_feature_pipeline_can_train_evaluate_benchmark_and_rank_demo_candidates(
         'mixed_reference_alignment',
         'reference_divergent_on_available_metrics',
     }
+    assert ge2bn_row['bn_band_gap_alignment_label'] in {
+        'within_local_bn_analog_band_gap_window',
+        'below_local_bn_analog_band_gap_window',
+        'above_local_bn_analog_band_gap_window',
+    }
     assert 0.0 <= ge2bn_row['bn_analog_validation_support_fraction'] <= 1.0
+    assert ge2bn_row['bn_band_gap_alignment_distance_to_window'] >= 0.0
     assert ge2bn_row['bn_analog_validation_penalty'] >= 0.0
     assert 'grouped-fold candidate robustness penalty' in screened_df['ranking_note'].iloc[0]
     assert 'train+val feature-space domain-support layer' in screened_df['ranking_note'].iloc[0]
     assert 'known BN slice' in screened_df['ranking_note'].iloc[0]
+    assert 'BN-local analog band-gap window' in screened_df['ranking_note'].iloc[0]
     assert 'observed-property evidence from nearby BN-containing train+val formulas' in screened_df['ranking_note'].iloc[0]
     assert 'Novelty is tracked only at the formula level' in screened_df['ranking_note'].iloc[0]
     assert bool(screened_df.loc[screened_df['formula'] == 'BN', 'seen_in_dataset'].iloc[0]) is True
@@ -652,6 +905,103 @@ def test_feature_pipeline_can_train_evaluate_benchmark_and_rank_demo_candidates(
         ]
         .iloc[0]
     )
+
+
+def test_screen_candidates_can_apply_bn_local_band_gap_alignment_penalty():
+    alignment_cfg = copy.deepcopy(CFG)
+    alignment_cfg['screening']['top_k'] = 3
+    alignment_cfg['screening']['use_model_disagreement'] = False
+    alignment_cfg['screening']['domain_support']['ranking_penalty_enabled'] = False
+    alignment_cfg['screening']['bn_support']['ranking_penalty_enabled'] = False
+    alignment_cfg['screening']['grouped_robustness_uncertainty']['enabled'] = False
+    alignment_cfg['screening']['bn_analog_validation']['ranking_penalty_enabled'] = False
+
+    dataset_df = _bn_alignment_reference_df()
+    feature_tables = build_feature_tables(dataset_df, alignment_cfg)
+    feature_df = feature_tables['matminer_composition']
+    split_masks = {
+        'train': np.asarray([True, True, True, False, False], dtype=bool),
+        'val': np.asarray([False, False, False, True, False], dtype=bool),
+        'test': np.asarray([False, False, False, False, True], dtype=bool),
+        'metadata': {'method': 'group_by_formula'},
+    }
+    _, feature_columns = train_baseline_model(
+        feature_df,
+        split_masks,
+        alignment_cfg,
+        model_type='linear_regression',
+        include_validation=True,
+    )
+
+    class FixedPredictor:
+        def __init__(self, predictions):
+            self.predictions = np.asarray(predictions, dtype=float)
+
+        def predict(self, x):
+            assert len(x) == len(self.predictions)
+            return self.predictions.copy()
+
+    candidate_df = generate_bn_candidates(alignment_cfg)
+    candidate_df = candidate_df.loc[
+        candidate_df['formula'].isin(['BC2N', 'Si2BN', 'Ge2BN'])
+    ].reset_index(drop=True)
+    predicted_band_gaps = [7.0, 3.0, 0.2]
+    candidate_ensemble_df = pd.DataFrame({
+        'formula': candidate_df['formula'].astype(str),
+        'ensemble_predicted_band_gap_mean': predicted_band_gaps,
+        'ensemble_predicted_band_gap_std': [0.0, 0.0, 0.0],
+        'ensemble_member_count': [1, 1, 1],
+    })
+
+    screened_df = screen_candidates(
+        candidate_df,
+        FixedPredictor(predicted_band_gaps),
+        feature_columns,
+        alignment_cfg,
+        feature_set='matminer_composition',
+        model_type='linear_regression',
+        dataset_df=dataset_df,
+        split_masks=split_masks,
+        ensemble_prediction_df=candidate_ensemble_df,
+        grouped_robustness_prediction_df=None,
+        reference_feature_df=feature_df,
+    )
+
+    assert screened_df['ranking_basis'].eq(
+        'composition_only_selected_model_band_gap_minus_bn_band_gap_alignment_penalty'
+    ).all()
+    assert screened_df['bn_band_gap_alignment_penalty_eligible'].eq(True).all()
+    assert screened_df['bn_analog_reference_formula_count'].eq(4).all()
+    assert np.allclose(
+        screened_df['bn_analog_reference_band_gap_median'].to_numpy(dtype=float),
+        3.15,
+    )
+    assert np.allclose(
+        screened_df['bn_analog_reference_band_gap_iqr'].to_numpy(dtype=float),
+        1.425,
+    )
+
+    bc2n_row = screened_df.loc[screened_df['formula'] == 'BC2N'].iloc[0]
+    si2bn_row = screened_df.loc[screened_df['formula'] == 'Si2BN'].iloc[0]
+    ge2bn_row = screened_df.loc[screened_df['formula'] == 'Ge2BN'].iloc[0]
+
+    assert bc2n_row['bn_band_gap_alignment_label'] == 'above_local_bn_analog_band_gap_window'
+    assert bc2n_row['bn_band_gap_alignment_distance_to_window'] > 0.0
+    assert bc2n_row['bn_band_gap_alignment_relative_distance'] > 0.0
+    assert bc2n_row['bn_band_gap_alignment_penalty'] > 0.0
+    assert bc2n_row['ranking_score_before_bn_band_gap_alignment_penalty'] == pytest.approx(7.0)
+    assert bc2n_row['ranking_score'] == pytest.approx(
+        7.0 - bc2n_row['bn_band_gap_alignment_penalty']
+    )
+
+    assert si2bn_row['bn_band_gap_alignment_label'] == 'within_local_bn_analog_band_gap_window'
+    assert si2bn_row['bn_band_gap_alignment_distance_to_window'] == pytest.approx(0.0)
+    assert si2bn_row['bn_band_gap_alignment_penalty'] == pytest.approx(0.0)
+
+    assert ge2bn_row['bn_band_gap_alignment_label'] == 'below_local_bn_analog_band_gap_window'
+    assert ge2bn_row['bn_band_gap_alignment_distance_to_window'] > 0.0
+    assert ge2bn_row['bn_band_gap_alignment_penalty'] > 0.0
+    assert ge2bn_row['bn_band_gap_alignment_penalty'] <= 0.08 + 1e-12
 
 
 def test_make_model_rejects_unknown_model_type():
