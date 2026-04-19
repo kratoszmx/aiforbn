@@ -204,6 +204,28 @@ def _load_cached_raw(raw_path: Path) -> list[dict] | None:
     return payload if isinstance(payload, list) else None
 
 
+def load_cached_raw_record_lookup(cfg: dict) -> dict[str, dict]:
+    data_cfg = cfg.get('data') or {}
+    raw_dir_value = data_cfg.get('raw_dir')
+    dataset_name = data_cfg.get('dataset')
+    if not raw_dir_value or not dataset_name:
+        return {}
+
+    raw_dir = Path(raw_dir_value)
+    raw_path = raw_dir / f'{dataset_name}.json'
+    raw = _load_cached_raw(raw_path)
+    if raw is None:
+        return {}
+
+    lookup: dict[str, dict] = {}
+    for idx, entry in enumerate(raw):
+        if not isinstance(entry, dict):
+            continue
+        record_id = str(entry.get('jid', idx))
+        lookup[record_id] = entry
+    return lookup
+
+
 def _write_dataset_artifacts(
     raw: list[dict],
     target_col: str,

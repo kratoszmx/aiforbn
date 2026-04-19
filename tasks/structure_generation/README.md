@@ -8,6 +8,7 @@ The main handoff artifacts are:
 
 - `artifacts/demo_candidate_structure_generation_seeds.csv`
 - `artifacts/demo_candidate_structure_generation_handoff.json`
+- `artifacts/demo_candidate_structure_generation_reference_records.json`
 
 They are produced by `main.py` after candidate ranking.
 
@@ -21,6 +22,7 @@ They only provide a deterministic bridge from:
 
 Each shortlisted candidate is linked to nearby BN-containing `train+val` reference formulas and exemplar records.
 These exemplar records are intended to be starting prototypes for later substitution, enumeration, and relaxation workflows.
+The reference-record payload JSON now also carries the unique raw `atoms` objects needed to start that work directly.
 
 ## Recommended downstream workflow
 

@@ -9,10 +9,46 @@ from pipeline.reporting import build_experiment_summary, save_basic_plots, save_
 
 def test_reporting_writes_expected_artifacts(tmp_path):
     artifact_dir = tmp_path / 'artifacts'
+    raw_dir = tmp_path / 'raw'
+    raw_dir.mkdir()
+    (raw_dir / 'twod_matpd.json').write_text(
+        json.dumps(
+            [
+                {
+                    'jid': 'jid-1',
+                    'formula': 'BN',
+                    'band_gap': 5.8,
+                    'atoms': {
+                        'elements': ['B', 'N'],
+                        'coords': [[0.0, 0.0, 0.0], [0.5, 0.5, 0.0]],
+                        'lattice_mat': [[2.5, 0.0, 0.0], [0.0, 2.5, 0.0], [0.0, 0.0, 20.0]],
+                        'abc': [2.5, 2.5, 20.0],
+                        'angles': [90.0, 90.0, 120.0],
+                        'cartesian': False,
+                    },
+                },
+                {
+                    'jid': 'jid-2',
+                    'formula': 'B2N',
+                    'band_gap': 4.2,
+                    'atoms': {
+                        'elements': ['B', 'B', 'N'],
+                        'coords': [[0.0, 0.0, 0.0], [0.33, 0.33, 0.0], [0.66, 0.66, 0.0]],
+                        'lattice_mat': [[2.8, 0.0, 0.0], [0.0, 2.8, 0.0], [0.0, 0.0, 20.0]],
+                        'abc': [2.8, 2.8, 20.0],
+                        'angles': [90.0, 90.0, 120.0],
+                        'cartesian': False,
+                    },
+                },
+            ]
+        ),
+        encoding='utf-8',
+    )
     cfg = {
         'project': {'artifact_dir': str(artifact_dir)},
         'data': {
             'dataset': 'twod_matpd',
+            'raw_dir': str(raw_dir),
             'formula_column': 'formula',
             'target_column': 'band_gap',
         },
@@ -600,6 +636,10 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         experiment_summary['screening']['structure_generation_bridge']['handoff_artifact']
         == 'demo_candidate_structure_generation_handoff.json'
     )
+    assert (
+        experiment_summary['screening']['structure_generation_bridge']['reference_record_payload_artifact']
+        == 'demo_candidate_structure_generation_reference_records.json'
+    )
     assert experiment_summary['screening']['structure_generation_bridge']['candidate_rows'] == 2
     assert experiment_summary['screening']['structure_generation_bridge']['seed_rows'] == 2
     assert experiment_summary['screening']['structure_generation_bridge']['unique_seed_reference_formulas'] == 2
@@ -862,8 +902,12 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     assert (artifact_dir / 'demo_candidate_bn_centered_ranking.csv').exists()
     assert (artifact_dir / 'demo_candidate_structure_generation_seeds.csv').exists()
     assert (artifact_dir / 'demo_candidate_structure_generation_handoff.json').exists()
+    assert (artifact_dir / 'demo_candidate_structure_generation_reference_records.json').exists()
     handoff_payload = json.loads(
         (artifact_dir / 'demo_candidate_structure_generation_handoff.json').read_text()
+    )
+    reference_record_payload = json.loads(
+        (artifact_dir / 'demo_candidate_structure_generation_reference_records.json').read_text()
     )
     assert handoff_payload['candidate_count'] == 2
     assert handoff_payload['seed_row_count'] == 2
@@ -873,6 +917,9 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         'same_reduced_formula_reference'
     )
     assert handoff_payload['candidates'][1]['seeds'][0]['seed_formula_candidate_only_elements'] == 'Al'
+    assert reference_record_payload['record_count'] == 2
+    assert reference_record_payload['reference_records'][0]['record_id'] == 'jid-1'
+    assert reference_record_payload['reference_records'][0]['atoms']['elements'] == ['B', 'N']
     assert (artifact_dir / 'demo_candidate_proposal_shortlist.csv').exists()
     assert (artifact_dir / 'demo_candidate_extrapolation_shortlist.csv').exists()
     assert (artifact_dir / 'benchmark_results.csv').exists()

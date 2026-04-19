@@ -29,6 +29,9 @@ screen_path = artifact_dir / 'demo_candidate_ranking.csv'
 bn_centered_screen_path = artifact_dir / 'demo_candidate_bn_centered_ranking.csv'
 structure_generation_seed_path = artifact_dir / 'demo_candidate_structure_generation_seeds.csv'
 structure_generation_handoff_path = artifact_dir / 'demo_candidate_structure_generation_handoff.json'
+structure_generation_reference_records_path = (
+    artifact_dir / 'demo_candidate_structure_generation_reference_records.json'
+)
 proposal_shortlist_path = artifact_dir / 'demo_candidate_proposal_shortlist.csv'
 extrapolation_shortlist_path = artifact_dir / 'demo_candidate_extrapolation_shortlist.csv'
 
@@ -79,6 +82,10 @@ if structure_generation_seed_path.exists():
 if structure_generation_handoff_path.exists():
     st.subheader('Structure-generation handoff JSON')
     st.json(json.loads(structure_generation_handoff_path.read_text()))
+
+if structure_generation_reference_records_path.exists():
+    st.subheader('Structure-generation reference records JSON')
+    st.json(json.loads(structure_generation_reference_records_path.read_text()))
 
 if proposal_shortlist_path.exists():
     st.subheader('Proposal shortlist')

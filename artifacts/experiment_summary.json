@@ -529,7 +529,8 @@
         "BN",
         "Al2BN",
         "Ge2BN"
-      ]
+      ],
+      "reference_record_payload_artifact": "demo_candidate_structure_generation_reference_records.json"
     },
     "proposal_shortlist_enabled": true,
     "proposal_shortlist_artifact": "demo_candidate_proposal_shortlist.csv",

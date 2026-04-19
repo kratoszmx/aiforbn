@@ -9,6 +9,7 @@ os.environ.setdefault('MPLCONFIGDIR', '/tmp/ai_for_bn_mplconfig')
 import matplotlib.pyplot as plt
 import pandas as pd
 
+from pipeline.data import load_cached_raw_record_lookup
 from pipeline.features import (
     _bn_slice_benchmark_config,
     _extrapolation_shortlist_config,
@@ -367,6 +368,70 @@ def _build_structure_generation_handoff_payload(
         candidate_payloads.append(candidate_row)
 
     payload['candidates'] = candidate_payloads
+    return payload
+
+
+def _build_structure_generation_reference_record_payload(
+    structure_generation_seed_df: pd.DataFrame,
+    *,
+    cfg: dict,
+) -> dict[str, object]:
+    payload = {
+        'dataset': ((cfg.get('data') or {}).get('dataset') or 'unknown'),
+        'record_count': 0,
+        'missing_record_ids': [],
+        'reference_records': [],
+    }
+    if structure_generation_seed_df is None or structure_generation_seed_df.empty:
+        return payload
+
+    raw_lookup = load_cached_raw_record_lookup(cfg)
+    if not raw_lookup:
+        return payload
+
+    if 'seed_reference_record_id' not in structure_generation_seed_df.columns:
+        return payload
+
+    record_rows = (
+        structure_generation_seed_df[
+            structure_generation_seed_df['seed_reference_record_id'].notna()
+        ]
+        .drop_duplicates(subset=['seed_reference_record_id'])
+        .copy()
+    )
+    if record_rows.empty:
+        return payload
+
+    records = []
+    missing_record_ids = []
+    for _, row in record_rows.iterrows():
+        record_id = str(row['seed_reference_record_id'])
+        raw_entry = raw_lookup.get(record_id)
+        if raw_entry is None:
+            missing_record_ids.append(record_id)
+            continue
+        records.append({
+            'record_id': record_id,
+            'formula': _json_safe_value(row.get('seed_reference_formula')),
+            'source': _json_safe_value(row.get('seed_reference_source')),
+            'band_gap': _json_safe_value(row.get('seed_reference_band_gap')),
+            'energy_per_atom': _json_safe_value(row.get('seed_reference_energy_per_atom')),
+            'exfoliation_energy_per_atom': _json_safe_value(
+                row.get('seed_reference_exfoliation_energy_per_atom')
+            ),
+            'total_magnetization': _json_safe_value(row.get('seed_reference_total_magnetization')),
+            'abs_total_magnetization': _json_safe_value(
+                row.get('seed_reference_abs_total_magnetization')
+            ),
+            'has_structure_summary': _json_safe_value(
+                row.get('seed_reference_has_structure_summary')
+            ),
+            'atoms': raw_entry.get('atoms'),
+        })
+
+    payload['record_count'] = len(records)
+    payload['missing_record_ids'] = missing_record_ids
+    payload['reference_records'] = records
     return payload
 
 
@@ -1005,6 +1070,10 @@ def build_experiment_summary(
         artifact_name='demo_candidate_structure_generation_seeds.csv',
         handoff_artifact_name='demo_candidate_structure_generation_handoff.json',
     )
+    if structure_generation_seed_summary.get('enabled'):
+        structure_generation_seed_summary['reference_record_payload_artifact'] = (
+            'demo_candidate_structure_generation_reference_records.json'
+        )
 
     return {
         'dataset': {
@@ -1398,6 +1467,9 @@ def save_metrics_and_predictions(
         bn_centered_ranking_path.unlink()
     structure_generation_seed_path = artifact_dir / 'demo_candidate_structure_generation_seeds.csv'
     structure_generation_handoff_path = artifact_dir / 'demo_candidate_structure_generation_handoff.json'
+    structure_generation_reference_records_path = (
+        artifact_dir / 'demo_candidate_structure_generation_reference_records.json'
+    )
     if structure_generation_seed_df is not None and not structure_generation_seed_df.empty:
         structure_generation_seed_df.to_csv(structure_generation_seed_path, index=False)
         structure_generation_seed_cfg = _structure_generation_seed_config(cfg)
@@ -1409,11 +1481,20 @@ def save_metrics_and_predictions(
         structure_generation_handoff_path.write_text(
             json.dumps(structure_generation_handoff, indent=2, ensure_ascii=False)
         )
+        structure_generation_reference_records = _build_structure_generation_reference_record_payload(
+            structure_generation_seed_df,
+            cfg=cfg,
+        )
+        structure_generation_reference_records_path.write_text(
+            json.dumps(structure_generation_reference_records, indent=2, ensure_ascii=False)
+        )
     else:
         if structure_generation_seed_path.exists():
             structure_generation_seed_path.unlink()
         if structure_generation_handoff_path.exists():
             structure_generation_handoff_path.unlink()
+        if structure_generation_reference_records_path.exists():
+            structure_generation_reference_records_path.unlink()
     for selected_column, rank_column, artifact_name in (
         (
             'proposal_shortlist_selected',

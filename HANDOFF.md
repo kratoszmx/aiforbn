@@ -10,7 +10,7 @@
 - 当前工作已恢复到**已重新验证**的节点。
 - 在当前 dirty working tree 上，以下命令已通过：
   - 清缓存：通过从 `../myutils` 注入 `file_utils.delete_cache('.')`
-  - `pytest -q` → `25 passed in 2.73s`
+  - `pytest -q` → `24 passed in 2.71s`
   - `/opt/homebrew/Caskroom/miniforge/base/envs/quant/bin/python main.py` → 运行成功（当前输出含 `bn slice benchmark rows: 8`、`bn-centered alternative ranking rows: 25` 与 `structure-generation seed rows: 33`）
 - 主任务仍是 `band_gap` 预测与 BN 主题下的候选排序演示。
 - 训练数据仍来自 JARVIS / 2DMatPedia 的 `twod_matpd`。
@@ -50,6 +50,7 @@
   - 导出真实参考结构摘要列，作为后续 substitution / enumeration / relaxation 的原型 seed；
   - 现在还会额外导出 machine-readable `demo_candidate_structure_generation_handoff.json`，把 candidate-level seed 列表组织成更容易被后续 workflow 消费的 handoff payload；
   - 每条 seed 现在还带有 lightweight formula-edit hints，例如 shared elements、candidate-only elements、seed-only elements、element-count L1 distance，以及 `same_elements_stoichiometry_adjustment / element_substitution_or_decoration / element_insertion_or_decoration` 之类的 edit strategy；
+  - 另外还会导出 `demo_candidate_structure_generation_reference_records.json`，把当前实际用到的唯一 reference records 连同原始 `atoms` payload 一起打包出来，减少后续 prototype workflow 再回查原始缓存的步骤；
   - 明确声明这不是结构生成、结构验证或稳定性证明，只是把 formula ranking 正式桥接到下一阶段 structure-aware follow-up。
 
 ## 本轮已确认完成
@@ -217,7 +218,7 @@
   - 目前最明显的顺序变化：`BN` 从第 `9` 升到第 `4`，`Al2BN` 从第 `16` 升到第 `10`；
   - 当前 family-aware proposal shortlist 的 `10` 个成员不变，说明 shortlist 成员本身对这两种 ranking view 相对稳定，只是内部顺序更偏 BN-centered。
 - 当前新增的 structure-generation bridge：
-  - 导出 artifacts：`artifacts/demo_candidate_structure_generation_seeds.csv` 与 `artifacts/demo_candidate_structure_generation_handoff.json`；
+  - 导出 artifacts：`artifacts/demo_candidate_structure_generation_seeds.csv`、`artifacts/demo_candidate_structure_generation_handoff.json`、`artifacts/demo_candidate_structure_generation_reference_records.json`；
   - candidate scope：`proposal_shortlist_plus_extrapolation_shortlist_plus_bn_centered_top_n`；
   - 每个候选当前保留 `3` 条 seed；
   - 当前 `11` 个桥接候选全部成功连到了 BN analog reference records，`candidates_without_seed_rows = 0`；
@@ -298,6 +299,7 @@
 - `artifacts/demo_candidate_bn_centered_ranking.csv`：BN-centered alternative ranking artifact，使用 BN-slice 里最优的 candidate-compatible 单模型视角。
 - `artifacts/demo_candidate_structure_generation_seeds.csv`：structure-generation bridge artifact，把 shortlisted BN 候选连到 observed BN analog reference structures / records，供后续结构枚举与松弛任务接手。
 - `artifacts/demo_candidate_structure_generation_handoff.json`：machine-readable structure-generation handoff payload，按 candidate 聚合 seed，并附带 formula-edit hints，方便后续 prototype substitution / enumeration workflow 直接消费。
+- `artifacts/demo_candidate_structure_generation_reference_records.json`：当前 seed 实际引用到的唯一 reference records payload，包含原始 `atoms` 结构对象，方便 downstream structure workflow 直接取用。
 - `artifacts/demo_candidate_proposal_shortlist.csv`：family-aware advisor-facing proposal shortlist。
 - `artifacts/demo_candidate_extrapolation_shortlist.csv`：只保留 formula-level extrapolation 的 advisor-facing shortlist。
 - `PY_FILES_SUMMARY.md`：AI-facing Python summary。

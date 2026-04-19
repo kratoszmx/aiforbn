@@ -48,6 +48,7 @@ def test_streamlit_app_reads_generated_artifacts(tmp_path, monkeypatch):
     (artifact_dir / 'demo_candidate_bn_centered_ranking.csv').write_text('formula,predicted_band_gap\nAlBN,4.2\n', encoding='utf-8')
     (artifact_dir / 'demo_candidate_structure_generation_seeds.csv').write_text('formula,seed_reference_formula\nBN,BN\n', encoding='utf-8')
     (artifact_dir / 'demo_candidate_structure_generation_handoff.json').write_text(json.dumps({'candidate_count': 1}), encoding='utf-8')
+    (artifact_dir / 'demo_candidate_structure_generation_reference_records.json').write_text(json.dumps({'record_count': 1}), encoding='utf-8')
     (artifact_dir / 'demo_candidate_proposal_shortlist.csv').write_text('formula,proposal_shortlist_rank\nBN,1\n', encoding='utf-8')
     (artifact_dir / 'demo_candidate_extrapolation_shortlist.csv').write_text('formula,extrapolation_shortlist_rank\nBCN2,1\n', encoding='utf-8')
 
@@ -73,5 +74,6 @@ def test_streamlit_app_reads_generated_artifacts(tmp_path, monkeypatch):
     assert ('subheader', 'BN-centered alternative candidate ranking') in fake_streamlit.calls
     assert ('subheader', 'Structure-generation seed bridge') in fake_streamlit.calls
     assert ('subheader', 'Structure-generation handoff JSON') in fake_streamlit.calls
+    assert ('subheader', 'Structure-generation reference records JSON') in fake_streamlit.calls
     assert ('subheader', 'Proposal shortlist') in fake_streamlit.calls
     assert ('subheader', 'Formula-level extrapolation shortlist') in fake_streamlit.calls
