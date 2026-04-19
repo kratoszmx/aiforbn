@@ -309,6 +309,7 @@ Useful output fields include:
 - `seed_formula_seed_only_elements`
 - `seed_formula_element_count_l1_distance`
 - `seed_formula_edit_strategy`
+- `simple_element_relabeling_feasible` (in the job-plan JSON, not the seed CSV)
 - `seed_reference_energy_per_atom`
 - `seed_reference_exfoliation_energy_per_atom`
 - `seed_reference_structure_n_sites`

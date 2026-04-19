@@ -13,11 +13,12 @@
   "candidate_count": 11,
   "job_count": 33,
   "direct_substitution_job_count": 12,
+  "simple_relabeling_job_count": 0,
   "job_action_counts": {
     "stoichiometry_adjustment_enumeration": 9,
     "reference_reuse_control": 3,
     "element_insertion_enumeration": 1,
-    "element_substitution_enumeration": 12,
+    "element_substitution_plus_stoichiometry_adjustment": 12,
     "mixed_formula_edit_enumeration": 6,
     "element_removal_enumeration": 2
   },
@@ -57,6 +58,7 @@
           "seed_formula_element_count_l1_distance": 7.0,
           "suggested_element_substitutions": [],
           "direct_element_substitution_feasible": false,
+          "simple_element_relabeling_feasible": false,
           "requires_stoichiometry_adjustment": true,
           "requires_enumeration": true,
           "requires_relaxation": true,
@@ -98,6 +100,7 @@
           "seed_formula_element_count_l1_distance": 2.0,
           "suggested_element_substitutions": [],
           "direct_element_substitution_feasible": false,
+          "simple_element_relabeling_feasible": false,
           "requires_stoichiometry_adjustment": true,
           "requires_enumeration": true,
           "requires_relaxation": true,
@@ -139,6 +142,7 @@
           "seed_formula_element_count_l1_distance": 12.0,
           "suggested_element_substitutions": [],
           "direct_element_substitution_feasible": false,
+          "simple_element_relabeling_feasible": false,
           "requires_stoichiometry_adjustment": true,
           "requires_enumeration": true,
           "requires_relaxation": true,
@@ -189,6 +193,7 @@
           "seed_formula_element_count_l1_distance": 1.0,
           "suggested_element_substitutions": [],
           "direct_element_substitution_feasible": false,
+          "simple_element_relabeling_feasible": false,
           "requires_stoichiometry_adjustment": true,
           "requires_enumeration": true,
           "requires_relaxation": true,
@@ -230,6 +235,7 @@
           "seed_formula_element_count_l1_distance": 13.0,
           "suggested_element_substitutions": [],
           "direct_element_substitution_feasible": false,
+          "simple_element_relabeling_feasible": false,
           "requires_stoichiometry_adjustment": true,
           "requires_enumeration": true,
           "requires_relaxation": true,
@@ -271,6 +277,7 @@
           "seed_formula_element_count_l1_distance": 8.0,
           "suggested_element_substitutions": [],
           "direct_element_substitution_feasible": false,
+          "simple_element_relabeling_feasible": false,
           "requires_stoichiometry_adjustment": true,
           "requires_enumeration": true,
           "requires_relaxation": true,
@@ -321,6 +328,7 @@
           "seed_formula_element_count_l1_distance": 0.0,
           "suggested_element_substitutions": [],
           "direct_element_substitution_feasible": false,
+          "simple_element_relabeling_feasible": false,
           "requires_stoichiometry_adjustment": false,
           "requires_enumeration": false,
           "requires_relaxation": true,
@@ -361,6 +369,7 @@
           "seed_formula_element_count_l1_distance": 12.0,
           "suggested_element_substitutions": [],
           "direct_element_substitution_feasible": false,
+          "simple_element_relabeling_feasible": false,
           "requires_stoichiometry_adjustment": true,
           "requires_enumeration": true,
           "requires_relaxation": true,
@@ -403,6 +412,7 @@
           "seed_formula_element_count_l1_distance": 2.0,
           "suggested_element_substitutions": [],
           "direct_element_substitution_feasible": false,
+          "simple_element_relabeling_feasible": false,
           "requires_stoichiometry_adjustment": true,
           "requires_enumeration": true,
           "requires_relaxation": true,
@@ -428,7 +438,7 @@
         {
           "job_id": "albn2__seed_1__5977",
           "job_rank": 1,
-          "job_action_label": "element_substitution_enumeration",
+          "job_action_label": "element_substitution_plus_stoichiometry_adjustment",
           "job_status": "ok",
           "candidate_formula": "AlBN2",
           "ranking_rank": 4,
@@ -461,6 +471,7 @@
             }
           ],
           "direct_element_substitution_feasible": true,
+          "simple_element_relabeling_feasible": false,
           "requires_stoichiometry_adjustment": true,
           "requires_enumeration": true,
           "requires_relaxation": true,
@@ -468,16 +479,17 @@
           "workflow_steps": [
             "load_reference_atoms",
             "apply_element_substitution",
-            "enumerate_symmetry_preserving_variants",
-            "relax_substituted_variants",
+            "adjust_formula_stoichiometry",
+            "enumerate_substituted_variants",
+            "relax_candidate_variants",
             "rank_relaxed_variants"
           ],
-          "workflow_step_count": 5
+          "workflow_step_count": 6
         },
         {
           "job_id": "albn2__seed_2__3010",
           "job_rank": 2,
-          "job_action_label": "element_substitution_enumeration",
+          "job_action_label": "element_substitution_plus_stoichiometry_adjustment",
           "job_status": "ok",
           "candidate_formula": "AlBN2",
           "ranking_rank": 4,
@@ -510,6 +522,7 @@
             }
           ],
           "direct_element_substitution_feasible": true,
+          "simple_element_relabeling_feasible": false,
           "requires_stoichiometry_adjustment": true,
           "requires_enumeration": true,
           "requires_relaxation": true,
@@ -517,11 +530,12 @@
           "workflow_steps": [
             "load_reference_atoms",
             "apply_element_substitution",
-            "enumerate_symmetry_preserving_variants",
-            "relax_substituted_variants",
+            "adjust_formula_stoichiometry",
+            "enumerate_substituted_variants",
+            "relax_candidate_variants",
             "rank_relaxed_variants"
           ],
-          "workflow_step_count": 5
+          "workflow_step_count": 6
         },
         {
           "job_id": "albn2__seed_3__5833",
@@ -555,6 +569,7 @@
           "seed_formula_element_count_l1_distance": 17.0,
           "suggested_element_substitutions": [],
           "direct_element_substitution_feasible": false,
+          "simple_element_relabeling_feasible": false,
           "requires_stoichiometry_adjustment": true,
           "requires_enumeration": true,
           "requires_relaxation": true,
@@ -605,6 +620,7 @@
           "seed_formula_element_count_l1_distance": 2.0,
           "suggested_element_substitutions": [],
           "direct_element_substitution_feasible": false,
+          "simple_element_relabeling_feasible": false,
           "requires_stoichiometry_adjustment": true,
           "requires_enumeration": true,
           "requires_relaxation": true,
@@ -621,7 +637,7 @@
         {
           "job_id": "sibn2__seed_2__4784",
           "job_rank": 2,
-          "job_action_label": "element_substitution_enumeration",
+          "job_action_label": "element_substitution_plus_stoichiometry_adjustment",
           "job_status": "ok",
           "candidate_formula": "SiBN2",
           "ranking_rank": 5,
@@ -654,6 +670,7 @@
             }
           ],
           "direct_element_substitution_feasible": true,
+          "simple_element_relabeling_feasible": false,
           "requires_stoichiometry_adjustment": true,
           "requires_enumeration": true,
           "requires_relaxation": true,
@@ -661,16 +678,17 @@
           "workflow_steps": [
             "load_reference_atoms",
             "apply_element_substitution",
-            "enumerate_symmetry_preserving_variants",
-            "relax_substituted_variants",
+            "adjust_formula_stoichiometry",
+            "enumerate_substituted_variants",
+            "relax_candidate_variants",
             "rank_relaxed_variants"
           ],
-          "workflow_step_count": 5
+          "workflow_step_count": 6
         },
         {
           "job_id": "sibn2__seed_3__3010",
           "job_rank": 3,
-          "job_action_label": "element_substitution_enumeration",
+          "job_action_label": "element_substitution_plus_stoichiometry_adjustment",
           "job_status": "ok",
           "candidate_formula": "SiBN2",
           "ranking_rank": 5,
@@ -703,6 +721,7 @@
             }
           ],
           "direct_element_substitution_feasible": true,
+          "simple_element_relabeling_feasible": false,
           "requires_stoichiometry_adjustment": true,
           "requires_enumeration": true,
           "requires_relaxation": true,
@@ -710,11 +729,12 @@
           "workflow_steps": [
             "load_reference_atoms",
             "apply_element_substitution",
-            "enumerate_symmetry_preserving_variants",
-            "relax_substituted_variants",
+            "adjust_formula_stoichiometry",
+            "enumerate_substituted_variants",
+            "relax_candidate_variants",
             "rank_relaxed_variants"
           ],
-          "workflow_step_count": 5
+          "workflow_step_count": 6
         }
       ]
     },
@@ -753,6 +773,7 @@
           "seed_formula_element_count_l1_distance": 1.0,
           "suggested_element_substitutions": [],
           "direct_element_substitution_feasible": false,
+          "simple_element_relabeling_feasible": false,
           "requires_stoichiometry_adjustment": true,
           "requires_enumeration": true,
           "requires_relaxation": true,
@@ -769,7 +790,7 @@
         {
           "job_id": "sibn__seed_2__3010",
           "job_rank": 2,
-          "job_action_label": "element_substitution_enumeration",
+          "job_action_label": "element_substitution_plus_stoichiometry_adjustment",
           "job_status": "ok",
           "candidate_formula": "SiBN",
           "ranking_rank": 6,
@@ -802,6 +823,7 @@
             }
           ],
           "direct_element_substitution_feasible": true,
+          "simple_element_relabeling_feasible": false,
           "requires_stoichiometry_adjustment": true,
           "requires_enumeration": true,
           "requires_relaxation": true,
@@ -809,16 +831,17 @@
           "workflow_steps": [
             "load_reference_atoms",
             "apply_element_substitution",
-            "enumerate_symmetry_preserving_variants",
-            "relax_substituted_variants",
+            "adjust_formula_stoichiometry",
+            "enumerate_substituted_variants",
+            "relax_candidate_variants",
             "rank_relaxed_variants"
           ],
-          "workflow_step_count": 5
+          "workflow_step_count": 6
         },
         {
           "job_id": "sibn__seed_3__3923",
           "job_rank": 3,
-          "job_action_label": "element_substitution_enumeration",
+          "job_action_label": "element_substitution_plus_stoichiometry_adjustment",
           "job_status": "ok",
           "candidate_formula": "SiBN",
           "ranking_rank": 6,
@@ -851,6 +874,7 @@
             }
           ],
           "direct_element_substitution_feasible": true,
+          "simple_element_relabeling_feasible": false,
           "requires_stoichiometry_adjustment": true,
           "requires_enumeration": true,
           "requires_relaxation": true,
@@ -858,11 +882,12 @@
           "workflow_steps": [
             "load_reference_atoms",
             "apply_element_substitution",
-            "enumerate_symmetry_preserving_variants",
-            "relax_substituted_variants",
+            "adjust_formula_stoichiometry",
+            "enumerate_substituted_variants",
+            "relax_candidate_variants",
             "rank_relaxed_variants"
           ],
-          "workflow_step_count": 5
+          "workflow_step_count": 6
         }
       ]
     },
@@ -901,6 +926,7 @@
           "seed_formula_element_count_l1_distance": 0.0,
           "suggested_element_substitutions": [],
           "direct_element_substitution_feasible": false,
+          "simple_element_relabeling_feasible": false,
           "requires_stoichiometry_adjustment": false,
           "requires_enumeration": false,
           "requires_relaxation": true,
@@ -916,7 +942,7 @@
         {
           "job_id": "si2bn__seed_2__3010",
           "job_rank": 2,
-          "job_action_label": "element_substitution_enumeration",
+          "job_action_label": "element_substitution_plus_stoichiometry_adjustment",
           "job_status": "ok",
           "candidate_formula": "Si2BN",
           "ranking_rank": 7,
@@ -949,6 +975,7 @@
             }
           ],
           "direct_element_substitution_feasible": true,
+          "simple_element_relabeling_feasible": false,
           "requires_stoichiometry_adjustment": true,
           "requires_enumeration": true,
           "requires_relaxation": true,
@@ -956,16 +983,17 @@
           "workflow_steps": [
             "load_reference_atoms",
             "apply_element_substitution",
-            "enumerate_symmetry_preserving_variants",
-            "relax_substituted_variants",
+            "adjust_formula_stoichiometry",
+            "enumerate_substituted_variants",
+            "relax_candidate_variants",
             "rank_relaxed_variants"
           ],
-          "workflow_step_count": 5
+          "workflow_step_count": 6
         },
         {
           "job_id": "si2bn__seed_3__3923",
           "job_rank": 3,
-          "job_action_label": "element_substitution_enumeration",
+          "job_action_label": "element_substitution_plus_stoichiometry_adjustment",
           "job_status": "ok",
           "candidate_formula": "Si2BN",
           "ranking_rank": 7,
@@ -998,6 +1026,7 @@
             }
           ],
           "direct_element_substitution_feasible": true,
+          "simple_element_relabeling_feasible": false,
           "requires_stoichiometry_adjustment": true,
           "requires_enumeration": true,
           "requires_relaxation": true,
@@ -1005,11 +1034,12 @@
           "workflow_steps": [
             "load_reference_atoms",
             "apply_element_substitution",
-            "enumerate_symmetry_preserving_variants",
-            "relax_substituted_variants",
+            "adjust_formula_stoichiometry",
+            "enumerate_substituted_variants",
+            "relax_candidate_variants",
             "rank_relaxed_variants"
           ],
-          "workflow_step_count": 5
+          "workflow_step_count": 6
         }
       ]
     },
@@ -1023,7 +1053,7 @@
         {
           "job_id": "tlbn2__seed_1__5977",
           "job_rank": 1,
-          "job_action_label": "element_substitution_enumeration",
+          "job_action_label": "element_substitution_plus_stoichiometry_adjustment",
           "job_status": "ok",
           "candidate_formula": "TlBN2",
           "ranking_rank": 8,
@@ -1056,6 +1086,7 @@
             }
           ],
           "direct_element_substitution_feasible": true,
+          "simple_element_relabeling_feasible": false,
           "requires_stoichiometry_adjustment": true,
           "requires_enumeration": true,
           "requires_relaxation": true,
@@ -1063,11 +1094,12 @@
           "workflow_steps": [
             "load_reference_atoms",
             "apply_element_substitution",
-            "enumerate_symmetry_preserving_variants",
-            "relax_substituted_variants",
+            "adjust_formula_stoichiometry",
+            "enumerate_substituted_variants",
+            "relax_candidate_variants",
             "rank_relaxed_variants"
           ],
-          "workflow_step_count": 5
+          "workflow_step_count": 6
         },
         {
           "job_id": "tlbn2__seed_2__5833",
@@ -1101,6 +1133,7 @@
           "seed_formula_element_count_l1_distance": 17.0,
           "suggested_element_substitutions": [],
           "direct_element_substitution_feasible": false,
+          "simple_element_relabeling_feasible": false,
           "requires_stoichiometry_adjustment": true,
           "requires_enumeration": true,
           "requires_relaxation": true,
@@ -1146,6 +1179,7 @@
           "seed_formula_element_count_l1_distance": 17.0,
           "suggested_element_substitutions": [],
           "direct_element_substitution_feasible": false,
+          "simple_element_relabeling_feasible": false,
           "requires_stoichiometry_adjustment": true,
           "requires_enumeration": true,
           "requires_relaxation": true,
@@ -1195,6 +1229,7 @@
           "seed_formula_element_count_l1_distance": 0.0,
           "suggested_element_substitutions": [],
           "direct_element_substitution_feasible": false,
+          "simple_element_relabeling_feasible": false,
           "requires_stoichiometry_adjustment": false,
           "requires_enumeration": false,
           "requires_relaxation": true,
@@ -1236,6 +1271,7 @@
           "seed_formula_element_count_l1_distance": 14.0,
           "suggested_element_substitutions": [],
           "direct_element_substitution_feasible": false,
+          "simple_element_relabeling_feasible": false,
           "requires_stoichiometry_adjustment": true,
           "requires_enumeration": true,
           "requires_relaxation": true,
@@ -1278,6 +1314,7 @@
           "seed_formula_element_count_l1_distance": 2.0,
           "suggested_element_substitutions": [],
           "direct_element_substitution_feasible": false,
+          "simple_element_relabeling_feasible": false,
           "requires_stoichiometry_adjustment": true,
           "requires_enumeration": true,
           "requires_relaxation": true,
@@ -1303,7 +1340,7 @@
         {
           "job_id": "al2bn__seed_1__5977",
           "job_rank": 1,
-          "job_action_label": "element_substitution_enumeration",
+          "job_action_label": "element_substitution_plus_stoichiometry_adjustment",
           "job_status": "ok",
           "candidate_formula": "Al2BN",
           "ranking_rank": 16,
@@ -1336,6 +1373,7 @@
             }
           ],
           "direct_element_substitution_feasible": true,
+          "simple_element_relabeling_feasible": false,
           "requires_stoichiometry_adjustment": true,
           "requires_enumeration": true,
           "requires_relaxation": true,
@@ -1343,11 +1381,12 @@
           "workflow_steps": [
             "load_reference_atoms",
             "apply_element_substitution",
-            "enumerate_symmetry_preserving_variants",
-            "relax_substituted_variants",
+            "adjust_formula_stoichiometry",
+            "enumerate_substituted_variants",
+            "relax_candidate_variants",
             "rank_relaxed_variants"
           ],
-          "workflow_step_count": 5
+          "workflow_step_count": 6
         },
         {
           "job_id": "al2bn__seed_2__5833",
@@ -1381,6 +1420,7 @@
           "seed_formula_element_count_l1_distance": 19.0,
           "suggested_element_substitutions": [],
           "direct_element_substitution_feasible": false,
+          "simple_element_relabeling_feasible": false,
           "requires_stoichiometry_adjustment": true,
           "requires_enumeration": true,
           "requires_relaxation": true,
@@ -1397,7 +1437,7 @@
         {
           "job_id": "al2bn__seed_3__3010",
           "job_rank": 3,
-          "job_action_label": "element_substitution_enumeration",
+          "job_action_label": "element_substitution_plus_stoichiometry_adjustment",
           "job_status": "ok",
           "candidate_formula": "Al2BN",
           "ranking_rank": 16,
@@ -1430,6 +1470,7 @@
             }
           ],
           "direct_element_substitution_feasible": true,
+          "simple_element_relabeling_feasible": false,
           "requires_stoichiometry_adjustment": true,
           "requires_enumeration": true,
           "requires_relaxation": true,
@@ -1437,11 +1478,12 @@
           "workflow_steps": [
             "load_reference_atoms",
             "apply_element_substitution",
-            "enumerate_symmetry_preserving_variants",
-            "relax_substituted_variants",
+            "adjust_formula_stoichiometry",
+            "enumerate_substituted_variants",
+            "relax_candidate_variants",
             "rank_relaxed_variants"
           ],
-          "workflow_step_count": 5
+          "workflow_step_count": 6
         }
       ]
     },
@@ -1484,6 +1526,7 @@
           "seed_formula_element_count_l1_distance": 19.0,
           "suggested_element_substitutions": [],
           "direct_element_substitution_feasible": false,
+          "simple_element_relabeling_feasible": false,
           "requires_stoichiometry_adjustment": true,
           "requires_enumeration": true,
           "requires_relaxation": true,
@@ -1500,7 +1543,7 @@
         {
           "job_id": "ge2bn__seed_2__5977",
           "job_rank": 2,
-          "job_action_label": "element_substitution_enumeration",
+          "job_action_label": "element_substitution_plus_stoichiometry_adjustment",
           "job_status": "ok",
           "candidate_formula": "Ge2BN",
           "ranking_rank": 17,
@@ -1533,6 +1576,7 @@
             }
           ],
           "direct_element_substitution_feasible": true,
+          "simple_element_relabeling_feasible": false,
           "requires_stoichiometry_adjustment": true,
           "requires_enumeration": true,
           "requires_relaxation": true,
@@ -1540,11 +1584,12 @@
           "workflow_steps": [
             "load_reference_atoms",
             "apply_element_substitution",
-            "enumerate_symmetry_preserving_variants",
-            "relax_substituted_variants",
+            "adjust_formula_stoichiometry",
+            "enumerate_substituted_variants",
+            "relax_candidate_variants",
             "rank_relaxed_variants"
           ],
-          "workflow_step_count": 5
+          "workflow_step_count": 6
         },
         {
           "job_id": "ge2bn__seed_3__5425",
@@ -1578,6 +1623,7 @@
           "seed_formula_element_count_l1_distance": 19.0,
           "suggested_element_substitutions": [],
           "direct_element_substitution_feasible": false,
+          "simple_element_relabeling_feasible": false,
           "requires_stoichiometry_adjustment": true,
           "requires_enumeration": true,
           "requires_relaxation": true,

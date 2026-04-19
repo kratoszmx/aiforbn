@@ -296,11 +296,18 @@ def _structure_generation_job_workflow_steps(action_label: str) -> list[str]:
             'relax_candidate_variants',
             'rank_relaxed_variants',
         ],
-        'element_substitution_enumeration': [
+        'element_substitution_relabeling': [
             'load_reference_atoms',
             'apply_element_substitution',
-            'enumerate_symmetry_preserving_variants',
-            'relax_substituted_variants',
+            'relax_substituted_seed',
+            'record_relabeled_prototype',
+        ],
+        'element_substitution_plus_stoichiometry_adjustment': [
+            'load_reference_atoms',
+            'apply_element_substitution',
+            'adjust_formula_stoichiometry',
+            'enumerate_substituted_variants',
+            'relax_candidate_variants',
             'rank_relaxed_variants',
         ],
         'element_insertion_enumeration': [
@@ -387,14 +394,30 @@ def _structure_generation_job_payload(row: pd.Series, *, formula_col: str) -> di
         else edit_payload.get('seed_formula_element_count_l1_distance')
     )
 
+    substitution_pairs = []
+    if (
+        edit_strategy == 'element_substitution_or_decoration'
+        and len(candidate_only_elements) == len(seed_only_elements)
+    ):
+        substitution_pairs = [
+            {'from_element': old_element, 'to_element': new_element}
+            for old_element, new_element in zip(seed_only_elements, candidate_only_elements)
+        ]
+
+    requires_stoichiometry_adjustment = bool(
+        element_count_l1_distance and float(element_count_l1_distance) > 0.0
+    )
+
     if seed_status != 'ok':
         action_label = 'manual_reference_recovery'
     elif edit_strategy == 'same_reduced_formula_reference':
         action_label = 'reference_reuse_control'
     elif edit_strategy == 'same_elements_stoichiometry_adjustment':
         action_label = 'stoichiometry_adjustment_enumeration'
-    elif edit_strategy == 'element_substitution_or_decoration' and len(candidate_only_elements) == len(seed_only_elements):
-        action_label = 'element_substitution_enumeration'
+    elif substitution_pairs and requires_stoichiometry_adjustment:
+        action_label = 'element_substitution_plus_stoichiometry_adjustment'
+    elif substitution_pairs:
+        action_label = 'element_substitution_relabeling'
     elif edit_strategy == 'element_insertion_or_decoration':
         action_label = 'element_insertion_enumeration'
     elif edit_strategy == 'element_removal_or_vacancy':
@@ -402,18 +425,9 @@ def _structure_generation_job_payload(row: pd.Series, *, formula_col: str) -> di
     else:
         action_label = 'mixed_formula_edit_enumeration'
 
-    substitution_pairs = []
-    if action_label == 'element_substitution_enumeration':
-        substitution_pairs = [
-            {'from_element': old_element, 'to_element': new_element}
-            for old_element, new_element in zip(seed_only_elements, candidate_only_elements)
-        ]
-
     workflow_steps = _structure_generation_job_workflow_steps(action_label)
     direct_substitution_feasible = bool(substitution_pairs)
-    requires_stoichiometry_adjustment = bool(
-        element_count_l1_distance and float(element_count_l1_distance) > 0.0
-    )
+    simple_element_relabeling_feasible = bool(substitution_pairs) and not requires_stoichiometry_adjustment
     requires_enumeration = action_label != 'reference_reuse_control'
 
     return {
@@ -450,6 +464,7 @@ def _structure_generation_job_payload(row: pd.Series, *, formula_col: str) -> di
         'seed_formula_element_count_l1_distance': element_count_l1_distance,
         'suggested_element_substitutions': substitution_pairs,
         'direct_element_substitution_feasible': direct_substitution_feasible,
+        'simple_element_relabeling_feasible': simple_element_relabeling_feasible,
         'requires_stoichiometry_adjustment': requires_stoichiometry_adjustment,
         'requires_enumeration': requires_enumeration,
         'requires_relaxation': True,
@@ -480,6 +495,7 @@ def _build_structure_generation_job_plan_payload(
         'candidate_count': 0,
         'job_count': 0,
         'direct_substitution_job_count': 0,
+        'simple_relabeling_job_count': 0,
         'job_action_counts': {},
         'candidates': [],
     }
@@ -522,7 +538,11 @@ def _build_structure_generation_job_plan_payload(
 
     payload['job_action_counts'] = action_counts
     payload['direct_substitution_job_count'] = int(
-        action_counts.get('element_substitution_enumeration', 0)
+        action_counts.get('element_substitution_relabeling', 0)
+        + action_counts.get('element_substitution_plus_stoichiometry_adjustment', 0)
+    )
+    payload['simple_relabeling_job_count'] = int(
+        action_counts.get('element_substitution_relabeling', 0)
     )
     payload['candidates'] = candidate_payloads
     return payload
@@ -1362,6 +1382,9 @@ def build_experiment_summary(
         )
         structure_generation_seed_summary['direct_substitution_job_count'] = int(
             structure_generation_job_plan['direct_substitution_job_count']
+        )
+        structure_generation_seed_summary['simple_relabeling_job_count'] = int(
+            structure_generation_job_plan['simple_relabeling_job_count']
         )
 
     return {

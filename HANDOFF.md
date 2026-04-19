@@ -223,7 +223,8 @@
   - candidate scope：`proposal_shortlist_plus_extrapolation_shortlist_plus_bn_centered_top_n`；
   - 每个候选当前保留 `3` 条 seed；
   - 当前 `11` 个桥接候选全部成功连到了 BN analog reference records，`candidates_without_seed_rows = 0`；
-  - 当前 job-plan 共有 `33` 个 jobs，其中 `12` 个属于 `element_substitution_enumeration`，另外还显式区分 `reference_reuse_control / stoichiometry_adjustment_enumeration / element_insertion_enumeration / element_removal_enumeration / mixed_formula_edit_enumeration`；
+  - 当前 job-plan 共有 `33` 个 jobs，其中 `12` 个带有明确的一对一 substitution mapping，但 `simple_relabeling_job_count = 0`，说明这些 substitution cases 仍然都需要 stoichiometry adjustment，而不是单纯替换元素标签就结束；
+  - 当前 action labels 会显式区分 `reference_reuse_control / stoichiometry_adjustment_enumeration / element_substitution_plus_stoichiometry_adjustment / element_insertion_enumeration / element_removal_enumeration / mixed_formula_edit_enumeration`；
   - 它把 `BCN2 / BCN / BC2N / AlBN2 / BN / Al2BN` 这类当前最值得跟进的公式，明确连到了真实 BN 参考公式与 record id，而不是停留在“只有 formula 排名”的状态。
 - 当前候选排序摘要：
   - `ranking_basis = composition_only_mean_band_gap_minus_model_disagreement_low_support_and_bn_support_and_grouped_robustness_and_bn_analog_validation_penalties`

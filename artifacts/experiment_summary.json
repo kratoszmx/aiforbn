@@ -537,11 +537,12 @@
         "stoichiometry_adjustment_enumeration": 9,
         "reference_reuse_control": 3,
         "element_insertion_enumeration": 1,
-        "element_substitution_enumeration": 12,
+        "element_substitution_plus_stoichiometry_adjustment": 12,
         "mixed_formula_edit_enumeration": 6,
         "element_removal_enumeration": 2
       },
-      "direct_substitution_job_count": 12
+      "direct_substitution_job_count": 12,
+      "simple_relabeling_job_count": 0
     },
     "proposal_shortlist_enabled": true,
     "proposal_shortlist_artifact": "demo_candidate_proposal_shortlist.csv",

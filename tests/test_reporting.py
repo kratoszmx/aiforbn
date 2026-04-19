@@ -651,6 +651,10 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         experiment_summary['screening']['structure_generation_bridge']['direct_substitution_job_count']
         == 0
     )
+    assert (
+        experiment_summary['screening']['structure_generation_bridge']['simple_relabeling_job_count']
+        == 0
+    )
     assert experiment_summary['screening']['structure_generation_bridge']['job_action_counts'] == {
         'reference_reuse_control': 1,
         'element_insertion_enumeration': 1,
@@ -938,12 +942,15 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     assert reference_record_payload['reference_records'][0]['record_id'] == 'jid-1'
     assert reference_record_payload['reference_records'][0]['atoms']['elements'] == ['B', 'N']
     assert job_plan_payload['job_count'] == 2
+    assert job_plan_payload['direct_substitution_job_count'] == 0
+    assert job_plan_payload['simple_relabeling_job_count'] == 0
     assert job_plan_payload['job_action_counts'] == {
         'reference_reuse_control': 1,
         'element_insertion_enumeration': 1,
     }
     assert job_plan_payload['candidates'][0]['jobs'][0]['job_action_label'] == 'reference_reuse_control'
     assert job_plan_payload['candidates'][1]['jobs'][0]['workflow_steps'][0] == 'load_reference_atoms'
+    assert job_plan_payload['candidates'][1]['jobs'][0]['simple_element_relabeling_feasible'] is False
     assert job_plan_payload['candidates'][1]['jobs'][0]['reference_record_payload_artifact'] == (
         'demo_candidate_structure_generation_reference_records.json'
     )
