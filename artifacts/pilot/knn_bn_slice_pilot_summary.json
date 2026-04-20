@@ -1,0 +1,17 @@
+{
+  "subset_rows": 341,
+  "subset_unique_formulas": 240,
+  "subset_bn_formula_count": 10,
+  "best_by_bn_slice": {
+    "feature_set": "fractional_composition_vector",
+    "n_neighbors": 7,
+    "weights": "distance",
+    "test_mae": 0.8581754532824857,
+    "test_rmse": 1.054010855838296,
+    "test_r2": 0.017512152978006346,
+    "bn_slice_mae": 1.8807924772768738,
+    "bn_slice_rmse": 2.282890924910191,
+    "bn_slice_r2": -0.4349076706185375
+  },
+  "results_artifact": "artifacts/pilot/knn_bn_slice_pilot_results.csv"
+}

@@ -1,0 +1,34 @@
+{
+  "subset_rows": 341,
+  "subset_unique_formulas": 240,
+  "subset_bn_formula_count": 10,
+  "results": [
+    {
+      "config_name": "roost_like_small",
+      "artifact": "artifacts/pilot/roost_like_small_bn_slice_results.csv",
+      "mae": 1.3783800869032148,
+      "rmse": 1.9306215924846926,
+      "r2": -0.1458374201905428,
+      "dummy_mae": 1.3438901393433114,
+      "beats_dummy": false
+    },
+    {
+      "config_name": "roost_like_medium",
+      "artifact": "artifacts/pilot/roost_like_medium_bn_slice_results.csv",
+      "mae": 1.398406844664158,
+      "rmse": 2.0240872035152977,
+      "r2": -0.2594679527799493,
+      "dummy_mae": 1.3438901393433114,
+      "beats_dummy": false
+    },
+    {
+      "config_name": "roost_like_wider",
+      "artifact": "artifacts/pilot/roost_like_wider_bn_slice_results.csv",
+      "mae": 2.0709942089320905,
+      "rmse": 2.4566367937043925,
+      "r2": -0.8552848024932302,
+      "dummy_mae": 1.3438901393433114,
+      "beats_dummy": false
+    }
+  ]
+}

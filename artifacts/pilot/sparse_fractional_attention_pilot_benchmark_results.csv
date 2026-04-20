@@ -1,0 +1,7 @@
+feature_set,feature_family,candidate_compatible,n_features,model_type,benchmark_role,selected_by_validation,training_scope,evaluation_split,benchmark_status,benchmark_note,mae,rmse,r2
+fractional_composition_vector,composition_only,True,118,torch_sparse_fractional_attention,selected_model,True,train_plus_val,test,ok,,0.9693075767619113,1.329491835700704,-0.08670091463082596
+fractional_composition_vector,composition_only,True,118,hist_gradient_boosting,candidate_model,False,train_plus_val,test,ok,,1.0617898565573771,1.2876167446500524,-0.01932321354829769
+fractional_composition_vector,composition_only,True,118,linear_regression,candidate_model,False,train_plus_val,test,ok,,1.188805502530669,1.480674317214184,-0.34790030042324305
+fractional_composition_vector,composition_only,True,118,torch_fractional_attention,candidate_model,False,train_plus_val,test,ok,,0.9266710359466803,1.2485281711759733,0.04162522306685823
+fractional_composition_vector,composition_only,True,118,torch_mlp_ensemble,candidate_model,False,train_plus_val,test,ok,,0.9239619736676956,1.127209992909277,0.21882498648168036
+feature_agnostic_dummy,feature_agnostic_baseline,False,118,dummy_mean,dummy_baseline,False,train_plus_val,test,ok,Dummy regressor baseline that ignores composition features.,1.0597163602941175,1.2887848766781207,-0.021173522196198835

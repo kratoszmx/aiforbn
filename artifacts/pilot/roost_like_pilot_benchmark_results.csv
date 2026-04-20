@@ -1,0 +1,10 @@
+feature_set,feature_family,candidate_compatible,n_features,model_type,benchmark_role,selected_by_validation,training_scope,evaluation_split,benchmark_status,benchmark_note,mae,rmse,r2
+fractional_composition_vector,composition_only,True,118,hist_gradient_boosting,selected_model,True,train_plus_val,test,ok,,0.8362872944330444,1.0173870662660744,0.2020559918389243
+fractional_composition_vector,composition_only,True,118,linear_regression,candidate_model,False,train_plus_val,test,ok,,0.862670071654266,1.0824629677591604,0.09671231657868118
+fractional_composition_vector,composition_only,True,118,torch_mlp_ensemble,candidate_model,False,train_plus_val,test,ok,,0.8246481203946698,1.0631159031287305,0.12871302255596528
+fractional_composition_vector,composition_only,True,118,torch_roost_like,candidate_model,False,train_plus_val,test,ok,,0.8405153462795831,1.156752332792579,-0.03152738323055049
+matminer_composition,composition_only,True,19,hist_gradient_boosting,candidate_model,False,train_plus_val,test,ok,,0.571666372726648,0.7679151719985379,0.5454030791523823
+matminer_composition,composition_only,True,19,linear_regression,candidate_model,False,train_plus_val,test,ok,,0.8257937523917304,0.939113204152004,0.32011433078931884
+matminer_composition,composition_only,True,19,torch_mlp_ensemble,candidate_model,False,train_plus_val,test,ok,,0.8102940352385026,0.9641734751429718,0.28334464112894076
+matminer_composition,composition_only,True,19,torch_roost_like,candidate_model,False,train_plus_val,test,skipped_model_feature_incompatible,Skipped because torch_roost_like is currently defined only for the fractional_composition_vector feature set.,,,
+feature_agnostic_dummy,feature_agnostic_baseline,False,118,dummy_mean,dummy_baseline,False,train_plus_val,test,ok,Dummy regressor baseline that ignores composition features.,0.9903053069719043,1.14095795649383,-0.0035506022320805908

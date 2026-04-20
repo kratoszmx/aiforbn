@@ -1,124 +1,93 @@
-AI for BN PoC — Brief Workflow
-================================
+AI for BN PoC — Current Workflow Brief
+======================================
 
-Project goal
-------------
-Build a fast, demoable AI-first BN PoC (software-only, no lab), centered on:
-1) public data ingestion,
-2) BN slice extraction,
-3) property prediction,
-4) candidate screening,
-5) interactive demo UI.
+Purpose
+-------
+This file is no longer an MVP start plan. It is a compact snapshot of the repo's current workflow state so future coding rounds do not fall back to the old "baseline + demo UI" framing.
 
-Freeze scope (MVP)
-------------------
-- Primary dataset: 2DMatPedia via JARVIS-Tools
-- Primary task: property prediction + candidate screening
-- Primary target: band gap
-- Model path: composition features + sklearn baseline
-- Demo UI: Streamlit
-- Extensions: keep as empty stubs only
-  - literature_mining/
-  - stm_image_analysis/
-  - structure_generation/
-  - surrogate_potentials/
+Current project goal
+--------------------
+Build a PhD-level AI for BN research PoC that is:
+1) runnable,
+2) methodologically honest,
+3) explicit about the difference between overall evaluation and formula-only screening,
+4) able to bridge ranked BN-themed formula candidates into a concrete structure-follow-up workflow.
 
-Why this is enough to start coding
+Current stable mainline
+-----------------------
+The last fully verified mainline already includes:
+- public 2D materials data ingestion and normalized caching
+- grouped-by-formula evaluation
+- grouped robustness benchmarking
+- BN formula holdout benchmark
+- BN family holdout benchmark
+- BN vs non-BN stratified error benchmarking
+- candidate-compatible honesty tables
+- ranking uncertainty / abstention / decision-policy layers
+- BN-centered alternative ranking
+- structure-generation handoff and first-pass execution artifacts
+
+Current default modeling surface
+--------------------------------
+Feature families kept in the mainline:
+- `basic_formula_composition`
+- `matminer_composition`
+- `fractional_composition_vector`
+- `matminer_composition_plus_structure_summary`
+
+Default model sweep kept in the mainline:
+- `linear_regression`
+- `hist_gradient_boosting`
+- `torch_mlp`
+- `torch_mlp_ensemble`
+
+Important interpretation:
+- overall best evaluation model and best candidate-compatible screening model may differ
+- the strongest currently verified candidate-compatible neural control is still:
+  - `matminer_composition + torch_mlp_ensemble`
+
+Current experimental branch status
 ----------------------------------
-We already have enough to define the first vertical slice:
-- data source
-- task type
-- first target
-- baseline model family
-- demo form
+The live experimental tree has added pilot-only composition models:
+- `torch_fractional_attention`
+- `torch_sparse_fractional_attention`
+- `torch_roost_like`
 
-What remains uncertain (non-blocking for MVP)
---------------------------------------------
-- exact secondary targets (optional later)
-- stronger model choices (CrabNet / GNN later)
-- deeper chemistry validity constraints for candidate generation
-- evaluation rigor beyond MVP split strategy
+Current short-pilot conclusions:
+- dense fractional attention: negative
+- sparse fractional attention: negative / unstable
+- Roost-like: mildly interesting, but still below dummy on BN-slice
+- kNN sanity check: clearly not the next route
 
-These are extension questions, not blockers for the first working demo.
+Therefore:
+- these experimental models should remain out of the default sweep
+- the scientific mainline conclusion is not yet changed by them
 
-Implementation phases
----------------------
-Phase 1. Scaffold
-- create repo structure
-- add requirements / config / artifact folders
-- add empty future-direction folders with README stubs
+Current blocked next step
+-------------------------
+The most plausible next small-tabular modern baseline identified so far is `TabPFN`.
 
-Phase 2. Data adapter
-- implement 2DMatPedia loader via JARVIS-Tools
-- cache raw data
-- normalize to a clean table
-- save processed parquet/json manifest
+Current status:
+- `tabpfn==7.1.1` is installed in `quant`
+- actual pilot execution is blocked by Prior Labs license acceptance plus missing `TABPFN_TOKEN`
+- this is an auth/license blocker, not a compute blocker
 
-Phase 3. BN filter + candidate generator
-- filter entries containing B and N
-- create simple BN-related candidate generator
-- save BN subset and candidate list
+Workflow rule for future modeling rounds
+----------------------------------------
+1. Re-read skills + `HANDOFF.md`
+2. Preserve the last stable mainline as the fallback truth
+3. Test new model ideas only through short local pilots first
+4. Promote nothing into the default sweep without stronger BN evidence
+5. If a future model shows strong signal and then becomes compute-limited, ask for the user's ready GPU machine
 
-Phase 4. Features + baseline model
-- build composition-based features
-- train sklearn baseline
-- first model family:
-  - HistGradientBoostingRegressor OR RandomForestRegressor
+Current honest claim boundary
+-----------------------------
+What the repo can support now:
+- a stronger and more honest research PoC than the original MVP
+- clear BN-centered diagnostics
+- a defensible candidate-ranking workflow with follow-up structure handoff
 
-Phase 5. Evaluation
-- train/val/test split with fixed seed
-- report:
-  - MAE
-  - RMSE
-  - R^2
-- also report BN-slice metrics separately
-
-Phase 6. Inference layer
-- input: formula or candidate list
-- output: predicted property table
-- keep this as a plain Python inference layer for now
-
-Phase 7. Streamlit demo
-- tab 1: overview
-- tab 2: predict from formula
-- tab 3: BN candidate screener
-- tab 4: diagnostics
-
-Top-level deliverables
-----------------------
-1) runnable repo scaffold
-2) processed BN-ready dataset
-3) trained baseline model
-4) metrics + plots
-5) Streamlit demo
-
-Key parameters (initial defaults)
----------------------------------
-- target: band_gap
-- split: 80 / 10 / 10
-- random seed: 42
-- baseline model options:
-  - HistGradientBoostingRegressor
-  - RandomForestRegressor(n_estimators=500)
-- metrics:
-  - MAE
-  - RMSE
-  - R^2
-
-Out of scope for the first coding round
----------------------------------------
-- publishable chemistry claims
-- experimental validation
-- GNN / generative models / surrogate potentials implementation
-- multi-dataset benchmark suite
-- full FastAPI service
-
-Decision rule
--------------
-Start coding if we agree on:
-- dataset = 2DMatPedia
-- target = band gap
-- baseline = sklearn
-- demo = Streamlit
-
-If any of the above 4 must change now, then we should pause and request one more deep-research round.
+What it still cannot support:
+- strong BN-centered generalization claims
+- structure validation or discovery claims
+- the statement that the latest experimental branch has already found a clearly better modern-model replacement for the current mainline

@@ -3,447 +3,243 @@
 ## 项目
 - 名称：AI for BN PoC
 - 路径：`$HOME/projects/ai_for_bn`
-- 目标：构建一个可运行、可展示、方法上尽量诚实的 AI for BN 最小 PoC
-- 默认运行环境：zsh 的 `quant` 环境
+- 默认环境：用户 zsh 下的 `quant`
+- 当前优先级：**先把状态记录清楚，不继续推进新的长建模波次**
 
-## 当前状态
-- 当前工作已恢复到**已重新验证**的节点。
-- 在当前 dirty working tree 上，以下命令已通过：
-  - 清缓存：通过从 `../myutils` 注入 `file_utils.delete_cache('.')`
-  - `pytest -q` → `28 passed, 5 warnings in 5.52s`
-  - `/opt/homebrew/Caskroom/miniforge/base/envs/quant/bin/python main.py` → 运行成功（当前输出含 `bn slice benchmark rows: 18`、`bn family benchmark rows: 18`、`bn stratified error rows: 17`、`bn-centered alternative ranking rows: 25`、`structure-generation seed rows: 39`）
-- 主任务仍是 `band_gap` 预测与 BN 主题下的候选排序演示。
-- 训练数据仍来自 JARVIS / 2DMatPedia 的 `twod_matpd`。
-- 默认评估协议仍是 **按 `formula` 分组切分**，`train/val/test` 的 formula overlap 为 0。
-- 当前默认特征搜索空间已经是 **三条 composition-only 路径 + 一条 lightweight structure-aware 路径**：
-  - `basic_formula_composition`：7 维手写基础控制组；
-  - `matminer_composition`：19 维 composition-only matminer 描述符；
-  - `fractional_composition_vector`：118 维原始元素分数向量，用于 learned neural composition baseline；
-  - `matminer_composition_plus_structure_summary`：`matminer_composition` + 11 个由 cached raw JARVIS `atoms` / `lattice` 信息导出的结构摘要列，总计 30 维。
-- 当前选择流程是联合选择 `{feature_set} x {model_type}`，默认候选组合为：
-  - `basic_formula_composition + hist_gradient_boosting`
-  - `basic_formula_composition + linear_regression`
-  - `basic_formula_composition + torch_mlp`
-  - `basic_formula_composition + torch_mlp_ensemble`
-  - `matminer_composition + hist_gradient_boosting`
-  - `matminer_composition + linear_regression`
-  - `matminer_composition + torch_mlp`
-  - `matminer_composition + torch_mlp_ensemble`
-  - `fractional_composition_vector + hist_gradient_boosting`
-  - `fractional_composition_vector + linear_regression`
-  - `fractional_composition_vector + torch_mlp`
-  - `fractional_composition_vector + torch_mlp_ensemble`
-  - `matminer_composition_plus_structure_summary + hist_gradient_boosting`
-  - `matminer_composition_plus_structure_summary + linear_regression`
-  - `matminer_composition_plus_structure_summary + torch_mlp`
-  - `matminer_composition_plus_structure_summary + torch_mlp_ensemble`
-- 当前方法学上的关键事实已经变成：
-  - **最佳 overall evaluation 组合可以是 structure-aware；**
-  - **formula-only 候选排序必须退回到最佳 candidate-compatible 组合，不能假装候选也有结构。**
-- 当前默认 formula-only 候选空间已经不再是 Group 13 / Group 15 toy grid，而是一个 **BN-anchored 25-formula demo family space**：
-  - 由 `BCN / h-BCN`、`BC2N` 文献母题，以及数据集中真实出现过的 `Si2BN` 母题共同锚定；
-  - 同时保留 `BN` anchor、Group-IV BN ternary families、Group-III BN ternary families；
-  - 仍然只是 formula-only demo source space，不代表结构稳定性、可合成性或真实发现结论。
-- 当前候选空间已经带有八层诚实性约束：
-  - **轻量 chemical plausibility / candidate credibility screen**：`pymatgen` oxidation-state guesses；
-  - **domain-support annotation**：用 `train+val` 全局特征空间近邻距离给每个候选写支持度注释；
-  - **BN-local support annotation**：用 `train+val` 中已知 BN slice 的近邻距离给每个候选写 BN 主题支持度注释；
-  - **BN analog evidence annotation**：把邻近 BN reference formulas 的观测 `band gap / energy_per_atom / exfoliation_energy_per_atom / magnetization` 写进候选解释；
-  - **BN analog validation proxy**：把 analog `exfoliation / energy / magnetization` 是否更接近 BN 参考区间，汇总成 `reference_like / mixed / reference_divergent`，并把 vote-fraction 变成轻量 ranking penalty；
-  - **novelty / rediscovery annotation**：显式区分 `train_plus_val_rediscovery`、`held_out_known_formula`、`formula_level_extrapolation`；
-  - **ranking-stability / uncertainty view**：聚合 candidate-compatible full-fit source predictions 与 grouped-fold ranking members，导出 `predicted_band_gap_mean/std`、区间、`rank_mean/std`、`top-3/5/10` 入选频率，以及 general vs BN-centered 的 Spearman / Kendall / top-k overlap；
-  - **heuristic decision policy / abstention layer**：把 chemical plausibility、global support、BN-local support、prediction std、rank std、top-10 selection frequency 合成 `abstain_flag`、`reason_for_abstention` 与 `final_action_label`。
-- 当前默认策略仍是：**保留完整 source space，标注全部候选，再显式写出 top-k 与未入选原因。**
-- 在完整 ranking 之外，当前还额外导出两层 advisor-facing shortlist：
-  - **family-aware proposal shortlist**：保留高排位、化学 plausibility 优先、并限制单一 `candidate_family` 过度集中；
-  - **formula-level extrapolation shortlist**：只从 `formula_level_extrapolation` 候选中选，并继续做 family cap，避免汇报时又被 rediscovery 主导。
-- 在 shortlist 之外，当前又新增了一层 **structure-generation bridge artifact**：
-  - 从 proposal shortlist、extrapolation shortlist、以及 BN-centered top-N 的并集里挑出需要后续跟进的候选；
-  - 为每个候选附上来自 `train+val` BN analog reference formulas 的 deterministic exemplar record；
-  - 导出真实参考结构摘要列，作为后续 substitution / enumeration / relaxation 的原型 seed；
-  - 现在还会额外导出 machine-readable `demo_candidate_structure_generation_handoff.json`，把 candidate-level seed 列表组织成更容易被后续 workflow 消费的 handoff payload；
-  - 每条 seed 现在还带有 lightweight formula-edit hints，例如 shared elements、candidate-only elements、seed-only elements、element-count L1 distance，以及 `same_elements_stoichiometry_adjustment / element_substitution_or_decoration / element_insertion_or_decoration` 之类的 edit strategy；
-  - 另外还会导出 `demo_candidate_structure_generation_reference_records.json`，把当前实际用到的唯一 reference records 连同原始 `atoms` payload 一起打包出来，减少后续 prototype workflow 再回查原始缓存的步骤；
-  - 现在又进一步导出 `demo_candidate_structure_generation_job_plan.json`，把每个 candidate-seed pairing 变成更接近可执行的 downstream workflow plan，包含 job action label、workflow steps、direct substitution hints，以及对 reference-record payload 的交叉链接；
-  - 本轮又新增 `demo_candidate_structure_generation_first_pass_queue.json`，把 job-plan 再整理成 deterministic first-pass queue，显式给出 composition delta、edit operations、edit complexity heuristic，以及 candidate-seed jobs 的优先顺序；
-  - 进一步新增 `demo_candidate_structure_generation_followup_shortlist.csv`，把 queue 重新聚合回 candidate 层，形成真正面向后续 structure workflow 的 prototype-grounded follow-up shortlist；
-  - 在此之上，又新增 `demo_candidate_structure_generation_followup_extrapolation_shortlist.csv`，把 follow-up view 进一步收敛到 formula-level extrapolation candidates，避免后续结构工作被 rediscovery 主导；
-  - 本轮进一步新增 `demo_candidate_structure_generation_first_pass_execution.json`、summary / variants CSV 与 `.cif` 结构目录，把最优先的低复杂度候选真正 materialize 成 deterministic unrelaxed prototype，显式写出 geometry sanity、reference-reuse vs species-edit 状态，以及可选的 structure-aware band-gap proxy；
-  - 明确声明这不是结构生成、结构验证或稳定性证明，只是把 formula ranking 正式桥接到下一阶段 structure-aware follow-up。
+## 一句话结论
+- **最后一个可直接回退的稳定主线**仍然是此前已完整验证并已保存的主线波次。
+- **当前 live working tree 是实验性 dirty tree**，主要在试探新的 composition-only 现代模型方向，但这些实验**还没有证据强到可以并入默认主线**。
+- 目前最稳妥的结论仍然是：
+  - overall evaluation best 依旧不是 candidate-compatible screening best；
+  - 当前最可信的 candidate-compatible neural control 仍然是 **`matminer_composition + torch_mlp_ensemble`**；
+  - attention / Roost-like / kNN 这些新试探都**没有**在短 BN-slice pilot 上形成足够强的新证据。
 
-## 本轮已确认完成
-- `data.py` 已支持优先复用 cached raw JARVIS JSON，并在规范化阶段写入结构摘要列：
-  - `structure_n_sites`
-  - `structure_lattice_a/b/c`
-  - `structure_lattice_gamma`
-  - `structure_inplane_area`
-  - `structure_cell_height`
-  - `structure_thickness`
-  - `structure_vacuum`
-  - `structure_areal_number_density`
-  - `structure_thickness_fraction`
-- `features.py` 已支持四条特征路线，并对结构路径做显式完整性校验。
-- 本轮新增了低依赖 modern-model wave：
-  - `fractional_composition_vector` feature set
-  - `torch_mlp` neural regressor（repo-local PyTorch 实现，sklearn 风格 `fit/predict` 接口）
-  - `torch_mlp_ensemble` multi-seed neural regressor（平均多个 member 预测，并把 member-level 输出接进 uncertainty layer）
-  - `requirements.txt` 现已显式加入 `torch>=2.11`
-- `select_feature_model_combo()` 已能同时输出：
-  - best overall evaluation combo
-  - best formula-only screening combo
-  - 两者是否一致
-  - screening fallback note
-- `benchmark_results.csv` 已能诚实呈现 structure-aware 与 composition-only 路径的 test 对照。
-- `robustness_results.csv` 已能额外呈现 grouped-by-formula cross-validation 下的 feature/model robustness 对照，避免方法叙事只依赖单次 holdout split。
-- `demo_candidate_ranking.csv` 已明确写出：
-  - `ranking_feature_set`
-  - `ranking_model_type`
-  - `best_overall_evaluation_feature_set`
-  - `best_overall_evaluation_model_type`
-  - `screening_matches_best_overall_evaluation`
-  - `screening_selection_note`
-  - `objective_name / objective_target_property / objective_target_direction / objective_decision_unit / objective_decision_consequence`
-  - `ranking_signal_source / ranking_signal_value / ranking_signal_rank`
-  - `ranking_uncertainty_penalty_component / ranking_total_penalty / ranking_score_formula`
-  - `ranking_active_penalty_terms / ranking_main_penalty_driver`
-  - `ranking_penalty_rank_shift / ranking_penalty_impact_label`
-  - `ranking_decision_summary`
-  - disagreement heuristic、dataset overlap、domain-support、BN-local support、BN analog evidence 与 novelty bucket 标注
-- `generate_bn_candidates()` 现在生成 25 个 BN-anchored demo 候选公式，并为每个候选写入：
-  - `candidate_generation_strategy`
-  - `candidate_space_name`
-  - `candidate_space_kind`
-  - `candidate_family`
-  - `candidate_template`
-  - `candidate_family_note`
-  - `chemical_plausibility_pass`
-  - `chemical_plausibility_guess_count`
-  - `chemical_plausibility_primary_oxidation_state_guess`
-  - `chemical_plausibility_note`
-  - `candidate_reduced_formula`
-  - `candidate_chemical_system`
-- `screen_candidates()` 现在不再隐式截断成只剩 top-k，而是输出**完整 source-space ranking artifact**，并显式标注：
-  - `ranking_rank`
-  - `ranking_signal_rank`
-  - `ranking_penalty_rank_shift`
-  - `ranking_penalty_impact_label`
-  - `screening_selected_for_top_k`
-  - `ranking_signal_selected_for_top_k`
-  - `screening_selection_decision`
-  - `domain_support_nearest_formula`
-  - `domain_support_percentile`
-  - `bn_support_nearest_formula`
-  - `bn_support_percentile`
-  - `bn_analog_nearest_formula`
-  - `bn_analog_neighbor_exfoliation_energy_per_atom_mean`
-  - `bn_analog_exfoliation_support_label`
-  - `bn_analog_validation_label`
-  - `bn_analog_validation_support_fraction`
-  - `bn_analog_validation_penalty`
-  - `candidate_novelty_bucket`
-  - `novelty_rank_within_bucket`
-  - `novel_formula_rank`
-  - `proposal_shortlist_selected`
-  - `proposal_shortlist_rank`
-  - `proposal_shortlist_decision`
-  - `extrapolation_shortlist_selected`
-  - `extrapolation_shortlist_rank`
-  - `extrapolation_shortlist_decision`
-- `reporting.py` / `main.py` 本轮又把 uncertainty / abstention / BN-screening honesty 变成了一等 artifact：
-  - `artifacts/demo_candidate_ranking_uncertainty.csv`
-  - `artifacts/bn_candidate_compatible_evaluation.csv`
-  - `artifacts/experiment_summary.json` 里的 `screening.ranking_stability`
-  - `artifacts/experiment_summary.json` 里的 `screening.decision_policy`
-  - `artifacts/experiment_summary.json` 里的 `bn_slice_benchmark.candidate_compatible_evaluation_artifact`
-- 当前新增的 BN 评估矩阵波次已经落地：
-  - 新增 `leave_one_bn_family_out` 的 `bn_family_benchmark_results.csv` / `bn_family_predictions.csv`
-  - 新增 `group_kfold_bn_vs_non_bn_formula_stratified_error` 的 `bn_stratified_error_results.csv`
-  - 新增跨三类 BN 评估视角的 `bn_evaluation_matrix.csv`
-  - `experiment_summary.json` 现在显式写出 `screening.objective`，把项目定位收紧为 `BN-themed formula-level wide-gap follow-up prioritization`，而不是 BN discovery claim
-- `build_candidate_structure_generation_seeds()` 已接入主流程：
-  - 候选来源为 `proposal shortlist ∪ extrapolation shortlist ∪ BN-centered top-10`
-  - 当前 `candidate_rows = 11`
-  - 当前 `seed_rows = 33`
-  - 当前 `seeded_candidate_rows = 11`
-  - 当前 `unique_seed_reference_formulas = 7`
-  - 当前 `unique_seed_reference_records = 7`
-  - 当前 bridge candidate 公式为：`BCN2`, `BCN`, `BC2N`, `AlBN2`, `SiBN2`, `SiBN`, `Si2BN`, `TlBN2`, `BN`, `Al2BN`, `Ge2BN`
-  - 当前 seed reference formulas 主要包括：`BC2N`, `Si2BN`, `B3C10N3`, `ZnB2(CN)8`, `B2(CN2)3`, `BN`, `CuB2(CN)8`
-  - 这批 seed 会导出 `seed_reference_record_id / source / band_gap / energy_per_atom / exfoliation_energy_per_atom / structure_*` 等字段，供后续结构枚举或松弛任务直接接手
-- 当前 chemical plausibility screen 的验证结果：
-  - 25 个 demo candidates 中，23 个通过
-  - 2 个失败公式为：`AlBN`, `TlBN`
-  - 当前 artifact 中这 2 个公式被标成 `failed_chemical_plausibility` 并排在末尾
-- 当前 novelty / rediscovery 分层结果：
-  - `train_plus_val_rediscovery`: `3`，即 `BN`、`BC2N`、`Si2BN`
-  - `held_out_known_formula`: `0`
-  - `formula_level_extrapolation`: `22`
-  - 标准 top-k 20 中已有 `17` 个 `formula_level_extrapolation` 候选
-- 当前 shortlist 输出结果：
-  - `proposal_shortlist_selected_rows = 10`
-  - `proposal_shortlist_selected_family_counts = {group14_bn_121_family: 2, group14_bn_111_family: 2, group14_bn_211_family: 2, group13_bn_121_family: 2, bn_binary_anchor: 1, group13_bn_211_family: 1}`
-  - `proposal_shortlist_novelty_bucket_counts = {train_plus_val_rediscovery: 3, held_out_known_formula: 0, formula_level_extrapolation: 7}`
-  - `extrapolation_shortlist_selected_rows = 5`
-  - `extrapolation_shortlist_target_novelty_bucket = formula_level_extrapolation`
-  - `extrapolation_shortlist_selected_family_counts = {group14_bn_121_family: 1, group14_bn_111_family: 1, group13_bn_121_family: 1, group13_bn_211_family: 1, group14_bn_211_family: 1}`
-  - 当前 extrapolation shortlist 公式为：`BCN2`, `BCN`, `AlBN2`, `Al2BN`, `Ge2BN`
-- 本轮还清理了 repo 内不必要的 Hugging Face secret 暴露：
-  - `ai_for_bn/.env` 实际只是指向 `../myutils/.env` 的 symlink，项目代码并不读取它
-  - 已将 `.env` 加入 `ai_for_bn/.gitignore`
-  - 已执行 `git rm .env`
-- tests 已覆盖：
-  - cached raw JSON 重建数据与结构摘要
-  - structure-aware featurization 成功/失败行为
-  - overall evaluation 与 formula-only screening 分离选择
-  - ranking artifact 的诚实字段
-  - chemical plausibility annotation / selection 行为
-  - novelty bucket / novel formula rank 行为
-  - `main.py` 的线性编排
-- `src/pipeline/torch_models.py` 的神经模型训练 / 预测接口
+## 最后一个稳定主线（可回退认定）
+- 当前应把此前已经完整跑通 `pytest -q` 和 `python main.py` 的主线看作稳定基线。
+- 该稳定基线已经包含：
+  - grouped-by-formula robustness
+  - BN formula holdout
+  - BN family holdout
+  - BN vs non-BN stratified error
+  - candidate-compatible BN honesty table
+  - ranking explainability / uncertainty / abstention
+  - BN-centered alternative ranking
+  - structure-generation handoff / first-pass execution artifacts
+- 这条稳定主线里的核心方法学定位仍然是：
+  - **overall evaluation** 可以使用 lightweight structure-aware 路径
+  - **formula-only screening** 必须使用 candidate-compatible 路径
+  - 不可把二者混成一个“AI 发现 BN 新材料”的强 claim
 
-## 最近一次验证运行
-- 数据规模：
-  - 6351 rows
-  - 4381 unique formulas
-  - BN 主题切片：12 rows / 10 unique BN formulas
-- grouped split：
-  - train = 5101 rows / 3505 formulas
-  - val = 618 rows / 438 formulas
-  - test = 632 rows / 438 formulas
-- validation MAE：
-  - `basic_formula_composition + hist_gradient_boosting`: `0.9410`
-  - `basic_formula_composition + linear_regression`: `0.9986`
-  - `basic_formula_composition + torch_mlp`: `0.8240`
-  - `basic_formula_composition + torch_mlp_ensemble`: `0.8238`
-  - `matminer_composition + hist_gradient_boosting`: `0.6006`
-  - `matminer_composition + linear_regression`: `0.8303`
-  - `matminer_composition + torch_mlp`: `0.6852`
-  - `matminer_composition + torch_mlp_ensemble`: `0.6766`
-  - `fractional_composition_vector + hist_gradient_boosting`: `0.7582`
-  - `fractional_composition_vector + linear_regression`: `0.8422`
-  - `fractional_composition_vector + torch_mlp`: `0.6803`
-  - `fractional_composition_vector + torch_mlp_ensemble`: `0.6580`
-  - `matminer_composition_plus_structure_summary + hist_gradient_boosting`: `0.5724`
-  - `matminer_composition_plus_structure_summary + linear_regression`: `0.8151`
-  - `matminer_composition_plus_structure_summary + torch_mlp`: `0.6111`
-  - `matminer_composition_plus_structure_summary + torch_mlp_ensemble`: `0.6004`
-- best overall evaluation combo：
-  - `matminer_composition_plus_structure_summary + hist_gradient_boosting`
-- best formula-only screening combo：
-  - `matminer_composition + hist_gradient_boosting`
-- 两者是否一致：
-  - `False`
-- 当前测试集指标（best overall evaluation combo）：
-  - `MAE = 0.5568`
-  - `RMSE = 0.8218`
-  - `R² = 0.6302`
-- 当前测试集 benchmark：
-  - `matminer_composition_plus_structure_summary + hist_gradient_boosting`: `MAE = 0.5568`
-  - `matminer_composition_plus_structure_summary + torch_mlp_ensemble`: `MAE = 0.5744`
-  - `matminer_composition_plus_structure_summary + torch_mlp`: `MAE = 0.5858`
-  - `matminer_composition + hist_gradient_boosting`: `MAE = 0.5822`
-  - `matminer_composition + torch_mlp_ensemble`: `MAE = 0.6444`
-  - `matminer_composition + torch_mlp`: `MAE = 0.6410`
-  - `fractional_composition_vector + torch_mlp_ensemble`: `MAE = 0.6750`
-  - `fractional_composition_vector + torch_mlp`: `MAE = 0.6888`
-  - `basic_formula_composition + torch_mlp_ensemble`: `MAE = 0.8606`
-  - `basic_formula_composition + torch_mlp`: `MAE = 0.8745`
-  - `dummy_mean`: `MAE = 1.1118`
-- 当前 grouped robustness（`group_kfold_by_formula`, 5 folds）：
-  - `matminer_composition_plus_structure_summary + hist_gradient_boosting`: `MAE_mean = 0.6050 ± 0.0176`
-  - `matminer_composition + hist_gradient_boosting`: `MAE_mean = 0.6321 ± 0.0192`
-  - `basic_formula_composition + hist_gradient_boosting`: `MAE_mean = 1.0116 ± 0.0173`
-  - `dummy_mean`: `MAE_mean = 1.1527 ± 0.0233`
-- 当前 BN-focused benchmark（`leave_one_bn_formula_out`, 10 BN formulas / 12 rows）：
-  - 标准 grouped split 下 BN rows 分布：`train = 12`, `val = 0`, `test = 0`
-  - `matminer_composition_plus_structure_summary + hist_gradient_boosting`（selected model）：`MAE = 1.6397`
-  - `matminer_composition + hist_gradient_boosting`（screening model）：`MAE = 1.6383`
-  - `matminer_composition + torch_mlp_ensemble`（当前 BN-slice best candidate-compatible combo）：`MAE = 1.1257`
-  - `matminer_composition_plus_structure_summary + torch_mlp`（当前 BN-slice best overall combo）：`MAE = 1.0693`
-  - `dummy_mean`（global dummy baseline）：`MAE = 1.3257`
-  - `bn_local_knn_mean`（BN-local reference baseline）：`MAE = 2.2142`
-- 当前 BN-family holdout benchmark（`leave_one_bn_family_out`, 5 BN families / 10 BN formulas / 12 rows）：
-  - `matminer_composition_plus_structure_summary + hist_gradient_boosting`（selected model）：`MAE = 1.5588`
-  - `matminer_composition + hist_gradient_boosting`（screening model）：`MAE = 1.4923`
-  - `matminer_composition + torch_mlp_ensemble`（当前 family-holdout best candidate-compatible combo）：`MAE = 1.1382`
-  - `matminer_composition_plus_structure_summary + torch_mlp`（当前 family-holdout best overall combo）：`MAE = 1.0991`
-  - `dummy_mean`（global dummy baseline）：`MAE = 1.3255`
-  - 结论：selected / screening 仍未打赢 dummy，但 new neural ensemble candidate-compatible combo 已清楚打赢 dummy
-- 当前 BN vs non-BN stratified error 结果（`group_kfold_bn_vs_non_bn_formula_stratified_error`, 5 folds）：
-  - `selected model`：`BN MAE = 1.7908` vs `non-BN MAE = 0.5670`，`ratio = 3.16`
-  - `screening model`：`BN MAE = 1.5004` vs `non-BN MAE = 0.5830`，`ratio = 2.57`
-  - `matminer_composition + torch_mlp_ensemble`：`BN MAE = 1.2128` vs `non-BN MAE = 0.6697`，`ratio = 1.81`
-  - `dummy_mean baseline`：`BN MAE = 1.3251` vs `non-BN MAE = 1.1162`，`ratio = 1.19`
-  - 结论：新 neural ensemble candidate-compatible combo 没有让 BN 问题消失，但明显缩小了 BN 子域相对旧 screening combo 的误差劣势
-- 当前结果的准确解读：
-  - structure-aware 路径相对最佳 formula-only 路径的提升是**小幅但一致**的；
-  - test MAE 从 `0.5822` 降到 `0.5568`，绝对改善约 `0.0254`，相对改善约 `4.4%`；
-  - grouped robustness 下，`MAE_mean` 也从 `0.6321` 降到 `0.6050`，说明这一优势不只来自单次 holdout split；
-  - 但 BN-focused leave-one-formula-out 诊断揭示了更尖锐的问题：当前 overall selected model 与 formula-only screening model 在 BN slice 上都**没有打赢**最基本的 global dummy mean baseline；
-  - family-holdout 结果把这个结论再往前推了一步：即使按 BN chemical family 聚合留出，selected / screening 仍未打赢 dummy，说明问题不只是“某几个 BN 公式偶然难”，而是 BN 局部家族外推整体仍偏弱；
-  - stratified error 则把 BN 与非 BN 的误差差距量化出来，但新 `matminer_composition + torch_mlp_ensemble` 已把 candidate-compatible BN/non-BN MAE ratio 压到约 `1.81`，明显优于旧 screening combo 的 `2.57`；
-  - 同时，`matminer_composition + torch_mlp_ensemble` 现在成为 BN-slice / family-holdout 下最强的 candidate-compatible 组合，而 `matminer_composition_plus_structure_summary + hist_gradient_boosting` 仍是 overall best，这说明“overall best”“screening best”“BN-centered best”现在是三个不同角色；
-  - 这让当前 artifact 更诚实，也更适合导师追问，但同样说明 BN-centered generalization 还没有被真正解决，只是终于出现了一个在严格 BN 诊断下能明确打赢 dummy、而且不只是单个 seed 的 candidate-compatible neural baseline。
-- 当前新增的 BN-centered alternative ranking：
-  - 选择来源：从 `bn_slice_benchmark_results.csv` 里挑出 **candidate-compatible 且 BN-slice MAE 最低** 的组合；
-  - 当前选中：`matminer_composition + torch_mlp_ensemble`；
-  - 导出 artifact：`artifacts/demo_candidate_bn_centered_ranking.csv`；
-  - 打分口径：**单模型 BN-centered ranking**，不用 general ranking 的小模型池 disagreement 视角；
-  - 当前与 general ranking 的关系：top-20 overlap = `18 / 20`，top-3 / top-5 / top-10 overlap 分别为 `2 / 3`、`3 / 5`、`9 / 10`；
-  - 当前 source-count 已上升到 `28`，因为 uncertainty 层开始吸收 ensemble member-level 预测来源；
-  - 当前 family-aware proposal shortlist 的 `10` 个成员不变，但 BN-centered 前列排序更明显地向 `TlBN2 / BN / SnBN2 / BCN2 / AlBN2` 这类候选偏移。
-- 当前新增的 structure-generation bridge：
-  - 导出 artifacts：`artifacts/demo_candidate_structure_generation_seeds.csv`、`artifacts/demo_candidate_structure_generation_handoff.json`、`artifacts/demo_candidate_structure_generation_reference_records.json`、`artifacts/demo_candidate_structure_generation_job_plan.json`、`artifacts/demo_candidate_structure_generation_first_pass_queue.json`、`artifacts/demo_candidate_structure_generation_followup_shortlist.csv`、`artifacts/demo_candidate_structure_generation_followup_extrapolation_shortlist.csv`；
-  - candidate scope：`proposal_shortlist_plus_extrapolation_shortlist_plus_bn_centered_top_n`；
-  - 每个候选当前保留 `3` 条 seed；
-  - 当前 `11` 个桥接候选全部成功连到了 BN analog reference records，`candidates_without_seed_rows = 0`；
-  - 当前 job-plan 共有 `33` 个 jobs，其中 `12` 个带有明确的一对一 substitution mapping，但 `simple_relabeling_job_count = 0`，说明这些 substitution cases 仍然都需要 stoichiometry adjustment，而不是单纯替换元素标签就结束；
-  - 当前 action labels 会显式区分 `reference_reuse_control / stoichiometry_adjustment_enumeration / element_substitution_plus_stoichiometry_adjustment / element_insertion_enumeration / element_removal_enumeration / mixed_formula_edit_enumeration`；
-  - 当前 first-pass queue 同样覆盖 `33` 个 jobs，`mean_edit_complexity_score = 8.49`，`max_edit_complexity_score = 19.2`，最靠前的 first-pass jobs 目前集中在 `BCN2 / BC2N / BCN` 这类更值得优先尝试的候选上；
-  - 新增的 follow-up shortlist 当前收敛为 `5` 个 candidate-level follow-up targets：`BCN2`、`BC2N`、`BCN`、`Si2BN`、`BN`；其中 readiness 分布为 `reference_reuse_control_available = 3`、`low_complexity_stoichiometry_adjustment = 2`；
-  - 新增的 novelty-aware follow-up extrapolation shortlist 当前进一步收敛到 `4` 个“新且可做”的对象：`BCN2`、`BCN`、`SiBN`、`SiBN2`；它们当前全部对应 `low_complexity_stoichiometry_adjustment` 路径；
-  - 在此基础上，当前又新增 first-pass execution artifacts：`artifacts/demo_candidate_structure_generation_first_pass_execution.json`、`artifacts/demo_candidate_structure_generation_first_pass_execution_summary.csv`、`artifacts/demo_candidate_structure_generation_first_pass_execution_variants.csv` 与 `artifacts/demo_candidate_structure_generation_first_pass_structures/`；
-  - 当前 first-pass execution 已覆盖 `5` 个公式：`BCN2`、`BC2N`、`BCN`、`Si2BN`、`BN`；共 materialize `9` 个 variants，`9` 个全部执行成功且 geometry sanity 通过；
-  - 当前 selected final status 分布为：`reference_control_ready = 3`、`ready_for_external_relaxation = 2`；这意味着当前桥接层已经不只是在“计划下一步”，而是已经产出了可交给后续 relaxation / validation workflow 的 unrelaxed prototype 起点；
-  - 它把 `BCN2 / BCN / BC2N / AlBN2 / BN / Al2BN` 这类当前最值得跟进的公式，明确连到了真实 BN 参考公式与 record id，而不是停留在“只有 formula 排名”的状态。
-- 当前候选排序摘要：
-  - `ranking_basis = composition_only_mean_band_gap_minus_model_disagreement_low_support_and_bn_support_and_grouped_robustness_and_bn_analog_validation_penalties`
-  - `ranking_feature_set = matminer_composition`
-  - `ranking_model_type = hist_gradient_boosting`
-  - `ranking_uncertainty_method = small_feature_model_disagreement`
-  - `chemical_plausibility_method = pymatgen_common_oxidation_state_balance`
-  - `chemical_plausibility_selection_policy = annotate_and_prioritize_passing_candidates`
-  - `candidate_generation_strategy = bn_anchored_formula_family_grid`
-  - `candidate_rows = 25`
-  - `screening_selected_for_top_k = 20`
-  - `chemical_plausibility_passed_rows = 23`
-  - `chemical_plausibility_failed_rows = 2`
-  - `domain_support_enabled = True`
-  - `domain_support_penalized_rows = 12`
-  - `bn_support_enabled = True`
-  - `bn_support_reference_formula_count = 10`
-  - `bn_support_penalized_rows = 15`
-  - `grouped_robustness_uncertainty_enabled = True`
-  - `grouped_robustness_penalty_weight = 0.15`
-  - `grouped_robustness_prediction_fold_count = 5`
-  - `grouped_robustness_prediction_std_mean = 0.36601793676809036`
-  - `grouped_robustness_penalized_rows = 25`
-  - `bn_analog_evidence_enabled = True`
-  - `bn_analog_reference_formula_count = 10`
-  - `bn_analog_reference_exfoliation_energy_median = 0.07173938218750031`
-  - `bn_analog_reference_energy_per_atom_median = -7.929051850789474`
-  - `bn_analog_reference_abs_total_magnetization_median = 0.0`
-  - `bn_analog_exfoliation_available_rows = 25`
-  - `bn_analog_lower_or_equal_reference_rows = 2`
-  - `bn_analog_higher_reference_rows = 23`
-  - `bn_analog_reference_like_rows = 2`
-  - `bn_analog_mixed_alignment_rows = 2`
-  - `bn_analog_reference_divergent_rows = 21`
-  - `bn_analog_validation_penalty_weight = 0.12`
-  - `bn_analog_validation_penalized_rows = 23`
-  - `novelty_bucket_counts = {train_plus_val_rediscovery: 3, held_out_known_formula: 0, formula_level_extrapolation: 22}`
-  - `standard_top_k_novelty_bucket_counts = {train_plus_val_rediscovery: 3, held_out_known_formula: 0, formula_level_extrapolation: 17}`
-  - `proposal_shortlist_selected_rows = 10`
-  - `proposal_shortlist_novelty_bucket_counts = {train_plus_val_rediscovery: 3, held_out_known_formula: 0, formula_level_extrapolation: 7}`
-  - `bn_centered_alternative.enabled = True`
-  - `bn_centered_alternative.ranking_feature_set = matminer_composition`
-  - `bn_centered_alternative.ranking_model_type = torch_mlp_ensemble`
-  - `bn_centered_alternative.bn_slice_mae = 1.1257`
-  - `bn_centered_alternative.top_k_overlap_count = 18 / 20`
-  - `bn_centered_alternative.mean_absolute_rank_shift = 2.24`
-  - `bn_centered_alternative.max_absolute_rank_shift = 6`（当前是 `GeBN2`）
-  - `ranking_stability.source_count = 28`
-  - `ranking_stability.top_3_overlap = 2 / 3`
-  - `ranking_stability.top_5_overlap = 3 / 5`
-  - `ranking_stability.top_10_overlap = 9 / 10`
-  - `ranking_stability.spearman_rank_correlation = 0.9208`
-  - `ranking_stability.kendall_tau = 0.7600`
-  - `decision_policy.abstained_candidate_count = 21`
-  - 当前 policy 仍然明显保守；新 neural ensemble BN-centered control view 让前列重排更明显，但默认决策层没有因此突然放宽
-  - `bn_candidate_compatible_evaluation.csv` 当前有 `11` 行 screening-compatible 视图，其中最优 candidate-compatible 组合 `matminer_composition + torch_mlp_ensemble` 已能同时在 formula holdout、family holdout 与 grouped BN/non-BN ratio 上给出更完整的单表证据
-  - `extrapolation_shortlist_selected_rows = 5`
-  - `extrapolation_shortlist_target_novelty_bucket = formula_level_extrapolation`
-  - failed formulas：`AlBN`, `TlBN`
-  - top-ranked formula-level extrapolation 候选现在包括：`BCN2`, `BCN`, `AlBN2`, `SiBN2`, `SiBN`
-  - 当前 formula-level extrapolation shortlist 则进一步收敛为：`BCN2`, `BCN`, `AlBN2`, `Al2BN`, `Ge2BN`
-  - BN-local nearest anchors 在当前 artifact 里已经可见，例如 `BCN2 -> B2(CN2)3`、`BCN -> BC2N`、`AlBN2 -> Si2BN`
-  - BN analog evidence 也已可见，例如 `BC2N` 的邻近 BN analog exfoliation mean 低于 BN reference median，而 `BCN2 / BCN / AlBN2` 则高于该 reference median
-  - BN analog validation label 也已可见：当前 `reference_like = 2`、`mixed = 2`、`reference_divergent = 21`，其中 `23` 个候选在 ranking 中吃到了非零 validation penalty
-  - grouped candidate robustness penalty 也已激活，并且是 **train+val grouped folds** 上的候选级 split-robustness 信号，不吃 test labels
-  - 当前前列候选里，`BCN2 / BCN / BC2N` 的 grouped robustness penalty 分别约为 `0.0897 / 0.1068 / 0.1247`；`TlBN2` 只有约 `0.0197`，但仍因 BN-support 与 analog-validation 层被压在更后面
-  - 轻量 ranking effect 也已生效：`BCN2 / BCN` 仍在前二，但 `BC2N` 虽然是 `reference_like`，仍会因为更高的 grouped-fold spread 被温和压分；`AlBN2 / SiBN2 / SiBN` 这类 `reference_divergent` 候选则继续被 BN analog validation penalty 压低
-  - 当前更适合解读为 **BN-anchored formula-family demo ranking with BN-local support, grouped candidate robustness, BN analog evidence, and active heuristic penalty layers**，而不是新候选发现
-  - 现在可以明确说：BN 不再只是报表标题，至少已经开始作为 screening 逻辑中的显式参考层、analog-evidence 层和轻量 validation-proxy / ranking-penalty 层出现；同时候选排序也不再只依赖一次 `train+val` 拟合
+## 当前 live working tree 状态
+当前 dirty tree 主要包含以下实验性改动：
+- `configs/default.py`
+- `src/pipeline/features.py`
+- `src/pipeline/torch_models.py`
+- `tests/test_config_default.py`
+- `tests/test_features_pipeline.py`
+- `tasks/literature_mining/MODEL_UPGRADE_RESEARCH_2026-04-20.md`
+- `artifacts/pilot/`
 
-## 当前目录重点
-- `main.py`：线性主入口；保持 notebook-friendly。
-- `configs/default.py`：默认 split / feature / model / screening 配置。
-- `src/pipeline/data.py`：数据规范化、cached raw JSON 复用、结构摘要派生。
-- `src/pipeline/features.py`：特征构造、联合选模、benchmark、候选 chemical plausibility annotation 与 ranking。
-- `src/pipeline/reporting.py`：artifact 输出与实验摘要。
-- `artifacts/metrics.json`：当前 best overall combo 的测试指标与元数据。
-- `artifacts/benchmark_results.csv`：测试集 feature/model benchmark。
-- `artifacts/robustness_results.csv`：grouped-by-formula cross-validation robustness benchmark。
-- `artifacts/bn_slice_benchmark_results.csv`：BN-focused leave-one-BN-formula-out benchmark，含 selected / screening / candidate / dummy / BN-local baseline 对照。
-- `artifacts/bn_slice_predictions.csv`：BN-focused benchmark 的逐公式预测记录，用来检查每个 held-out BN formula 的误差来源。
-- `artifacts/bn_family_benchmark_results.csv`：BN family holdout benchmark summary，按 BN-local chemical family 留出。
-- `artifacts/bn_family_predictions.csv`：BN family holdout 的逐样本预测记录，用来检查 family-level holdout 时具体哪一类 BN family 误差更大。
-- `artifacts/bn_stratified_error_results.csv`：按 grouped folds 汇总的 BN vs non-BN stratified error 表，直接量化 BN 子域是否显著更难。
-- `artifacts/bn_evaluation_matrix.csv`：把 formula-holdout、family-holdout 与 grouped BN/non-BN error 合并到一个 advisor-facing 对照矩阵里。
-- `artifacts/experiment_summary.json`：数据、split、选择、robustness、BN-slice / BN-family / stratified BN error 与 screening 摘要。
-- `artifacts/demo_candidate_ranking.csv`：当前完整 formula-only source-space ranking artifact，含 general ensemble/disagreement 视角下的 plausibility pass/fail 与 top-k decision。
-- `artifacts/demo_candidate_bn_centered_ranking.csv`：BN-centered alternative ranking artifact，使用 BN-slice 里最优的 candidate-compatible 单模型视角。
-- `artifacts/demo_candidate_ranking_uncertainty.csv`：候选级 ranking-stability / uncertainty / abstention / final-action artifact，含 prediction interval、rank spread、top-k selection frequency、abstention reasons 与 final action labels。
-- `artifacts/bn_candidate_compatible_evaluation.csv`：把 BN-slice benchmark 重新投影到 screening-compatible 组合后的 honesty table，用来回答“真正能拿来给无结构公式打分的组合，在 BN slice 上到底表现如何”。
-- `artifacts/demo_candidate_structure_generation_seeds.csv`：structure-generation bridge artifact，把 shortlisted BN 候选连到 observed BN analog reference structures / records，供后续结构枚举与松弛任务接手。
-- `artifacts/demo_candidate_structure_generation_handoff.json`：machine-readable structure-generation handoff payload，按 candidate 聚合 seed，并附带 formula-edit hints，方便后续 prototype substitution / enumeration workflow 直接消费。
-- `artifacts/demo_candidate_structure_generation_reference_records.json`：当前 seed 实际引用到的唯一 reference records payload，包含原始 `atoms` 结构对象，方便 downstream structure workflow 直接取用。
-- `artifacts/demo_candidate_structure_generation_job_plan.json`：machine-readable prototype workflow plan，把每个 candidate-seed pairing 变成 job-level action spec，含 action label、workflow steps、direct substitution hints，以及到 reference-record payload 的交叉链接。
-- `artifacts/demo_candidate_structure_generation_first_pass_queue.json`：在 job-plan 之上再加一层 deterministic first-pass queue，显式给出 element-count deltas、edit operations、edit complexity heuristic，以及 candidate-seed jobs 的优先顺序。
-- `artifacts/demo_candidate_structure_generation_followup_shortlist.csv`：把 first-pass queue 聚合回 candidate 层得到的 prototype-grounded follow-up shortlist，用于优先决定哪些公式最值得先进入后续结构工作流。
-- `artifacts/demo_candidate_structure_generation_followup_extrapolation_shortlist.csv`：在 prototype-grounded follow-up shortlist 之上再叠加 `formula_level_extrapolation` 过滤得到的 novelty-aware structure follow-up shortlist，用于优先决定哪些“新且可做”的对象值得先推进。
-- `artifacts/demo_candidate_structure_generation_first_pass_execution.json`：candidate-level first-pass execution payload，按公式记录 selected variant、状态统计、materialized atoms/cif 与可选 structure-aware proxy。
-- `artifacts/demo_candidate_structure_generation_first_pass_execution_summary.csv`：candidate-level first-pass execution summary，便于快速看哪些候选已经变成 `reference_control_ready` 或 `ready_for_external_relaxation`。
-- `artifacts/demo_candidate_structure_generation_first_pass_execution_variants.csv`：variant-level first-pass execution table，逐条写出 relabel / removal edits、geometry sanity 指标、final status 与 cif 路径。
-- `artifacts/demo_candidate_structure_generation_first_pass_structures/`：first-pass execution 输出的 `.cif` 原型目录，供后续 relaxation / validation workflow 直接接手。
-- `artifacts/demo_candidate_proposal_shortlist.csv`：family-aware advisor-facing proposal shortlist。
-- `artifacts/demo_candidate_extrapolation_shortlist.csv`：只保留 formula-level extrapolation 的 advisor-facing shortlist。
-- `PY_FILES_SUMMARY.md`：AI-facing Python summary。
-- `给见微的说明.md`：面向见微的项目说明。
-- `项目汇报.md`：面向导师/评审的汇报稿。
+另有以下 **非本轮应编辑对象** 也在 working tree 中呈现 dirty 状态：
+- `skill.txt`
+- `skills.txt`
+- `skills_ai.txt`
 
-## 仍然明确的限制
-- 当前已经不是纯 composition-only evaluation，但**也远不是成熟的 structure-aware 材料模型**。
-- 结构路径只用了 cached JARVIS atoms 导出的轻量结构摘要，不是 crystal graph、3D/2D 几何编码、形成能或稳定性建模。
-- grouped robustness 虽然比单次 split 更可信，但它仍然只是当前数据表上的 grouped cross-validation，不等于跨数据源外部验证或真实 prospective validation。
-- 新增 BN-focused benchmark 虽然让 BN 成为显式评估对象，但它的样本仍然很小，当前只有 `10` 个 BN formulas / `12` 行，并且它已经暴露出 selected / screening 模型在 BN slice 上不如 global dummy 的问题，因此这层更像关键诊断，而不是“BN 已经被解决”的证据。
-- 新增 BN-family holdout 与 BN-vs-non-BN stratified error 虽然把 BN 问题讲得更完整了，但它们主要提升的是**诊断清晰度**，不是实质上把 BN generalization 做强；当前 artifact 仍然表明 BN 子域明显更难。
-- formula-only 候选空间虽然新增了基础 oxidation-state / charge-balance plausibility layer，但**仍然没有结构、形成能、热力学稳定性、声子稳定性、合成可行性约束**。
-- 当前 plausibility screen 只是轻量公式级可信度边界，不等于“材料可存在”判断；例如某些边缘氧化态解释仍可能通过。
-- 当前 domain-support 层在新候选空间上已经开始真正触发惩罚，当前 `domain_support_penalized_rows = 12`，说明它不再只是装饰性注释。
-- 当前 BN-local support 层也已经开始真正触发惩罚，当前 `bn_support_penalized_rows = 15`，说明 BN 现在不仅是题目标签，也开始进入 screening 逻辑。
-- 当前 BN analog evidence / analog validation 层已经接入观测属性，并把它们压缩成更可读的 validation label，甚至开始进入 ranking penalty；但它仍然只是 retrieval-style analog evidence / validation proxy，不是对 unseen candidate 的直接稳定性预测或结构验证。
-- BN slice 仍然很小，当前训练主体仍是全体 2D 数据，不是 BN-only 学习。
-- general ranking 使用的仍是小模型池 disagreement heuristic，加上 grouped-fold candidate robustness spread；这些都不是校准不确定性。
-- 新增的 ranking-stability / decision-policy 层虽然已经把不确定性、abstention 与 action labels 明确写出来，但它本质上仍是**heuristic ranking-honesty layer**，不是 calibrated confidence，也不是 Bayesian / conformal-style uncertainty quantification。
-- 新增的 BN-centered alternative ranking 虽然让 BN-slice 选模真正反馈到候选排序，但它仍然只是**单模型 formula-only 对照视图**，不是结构验证，也不是新的 discovery 证明。
-- 当前 BN-anchored candidate space 中只有 `3/25` 公式已在 dataset 中出现，`22/25` 已经是 dataset 未见公式；但这依然只是 formula-level extrapolation，不是结构级 discovery。
-- 新增的 proposal shortlist / extrapolation shortlist 只是更诚实的 advisor-facing 选择层，不是结构验证、稳定性筛选或真实实验优先级证明。
-- 新增的 structure-generation bridge 虽然把当前工作从 formula ranking 推进到了 prototype handoff，但它仍然**不是**真正的结构生成、结构搜索、DFT/ML relaxation、形成能筛选或实验可合成性证明。
-- 新增的 first-pass execution 虽然已经把 `5` 个高优先候选 materialize 成 unrelaxed prototype `.cif`，但它本质上仍是 deterministic reference-reuse / species-edit 起点，不是 relaxation 后结构、不是稳定性证明，也不能被表述成 discovery evidence。
-- 仍未做 train / inference API 解耦。
+注意：
+- 这些 skill 文件本轮**只读取，不应编辑**。
+- 若之后要 commit，必须先检查并排除这些不该一起提交的改动。
+
+## 当前默认主线与实验分界
+### 默认主线仍保持不变
+默认 `model.candidate_types` 仍应视为：
+- `linear_regression`
+- `hist_gradient_boosting`
+- `torch_mlp`
+- `torch_mlp_ensemble`
+
+这意味着当前主线默认 sweep **没有**把下面这些模型并入：
+- `torch_fractional_attention`
+- `torch_sparse_fractional_attention`
+- `torch_roost_like`
+
+### 实验模型的定位
+当前代码里已经有以下实验模型实现，但它们都应视为 **pilot-only / experimental**：
+- `torch_fractional_attention`
+- `torch_sparse_fractional_attention`
+- `torch_roost_like`
+
+它们当前都只允许和：
+- `fractional_composition_vector`
+搭配。
+
+不要把这些实验模型误写成已经进入默认主线。
+
+## 本轮新增但尚未主线化的实验结论
+### 1) Dense fractional attention pilot
+相关 artifacts：
+- `artifacts/pilot/fractional_attention_pilot_summary.json`
+- `artifacts/pilot/fractional_attention_pilot_benchmark_results.csv`
+- `artifacts/pilot/fractional_attention_pilot_bn_slice_results.csv`
+
+结论：
+- 在短 BN-slice pilot 上没有打赢更强的现有 candidate-compatible control。
+- 不值得主线化。
+
+### 2) Sparse fractional attention pilot
+相关 artifacts：
+- `artifacts/pilot/sparse_fractional_attention_pilot_summary.json`
+- `artifacts/pilot/sparse_fractional_attention_pilot_benchmark_results.csv`
+- `artifacts/pilot/sparse_fractional_attention_pilot_bn_slice_results.csv`
+
+结论：
+- 在小 pilot 上出现了 validation selection 与 BN-slice evidence 不一致的问题。
+- 不只是“本机算力不够”，而是模型本身没有形成稳定正信号。
+- 继续在这条 attention 变体线上投入不划算。
+
+### 3) Roost-like 短 pilot
+相关 artifacts：
+- `artifacts/pilot/roost_like_pilot_summary.json`
+- `artifacts/pilot/roost_like_pilot_benchmark_results.csv`
+- `artifacts/pilot/roost_like_pilot_bn_slice_results.csv`
+
+本次小 pilot（`341 rows / 240 formulas / 10 BN formulas`）的关键信息：
+- test benchmark：
+  - `matminer_composition + hist_gradient_boosting`: `MAE = 0.5717`
+  - `fractional_composition_vector + torch_mlp_ensemble`: `MAE = 0.8246`
+  - `fractional_composition_vector + torch_roost_like`: `MAE = 0.8405`
+- BN-slice：
+  - `dummy_mean`: `MAE = 1.3439`
+  - `matminer_composition + hist_gradient_boosting`: `MAE = 1.6158`
+  - `fractional_composition_vector + torch_mlp_ensemble`: `MAE = 1.4772`
+  - `fractional_composition_vector + torch_roost_like`: `MAE = 1.3784`
+
+解读：
+- `torch_roost_like` 比同批 fractional neural controls 更接近真正的 BN-slice 目标。
+- 但它**仍然没有打赢 dummy**。
+- 因此它最多算“有一点方向感”，**还不能主线化**。
+
+### 4) Roost-like 配置小扫
+相关 artifact：
+- `artifacts/pilot/roost_like_config_sweep_summary.json`
+
+关键结果：
+- `roost_like_small`: `MAE = 1.3784`，未过 dummy
+- `roost_like_medium`: `MAE = 1.3984`，未过 dummy
+- `roost_like_wider`: `MAE = 2.0710`，明显更差
+
+结论：
+- 更宽/更重的局部配置并没有把 BN-slice 拉起来。
+- 当前还没有“已经证明需要更重算力才会成功”的证据。
+
+### 5) 零改代码 kNN 小 pilot
+相关 artifacts：
+- `artifacts/pilot/knn_bn_slice_pilot_summary.json`
+- `artifacts/pilot/knn_bn_slice_pilot_results.csv`
+
+最佳结果：
+- `fractional_composition_vector + k=7 + distance`
+- `BN-slice MAE = 1.8808`
+
+结论：
+- 比 Roost-like 更差。
+- “局部传统基线”不是这轮的解。
+
+### 6) TabPFN 可行性检查
+当前环境中已完成：
+- `quant` 环境已安装 `tabpfn==7.1.1`
+
+但当前 blocker 是：
+- `TabPFNLicenseError`
+- 本地权重下载需要先接受 license，并设置 `TABPFN_TOKEN`
+- 这是 **license / auth blocker**，不是算力 blocker
+
+因此当前状态应写成：
+- **TabPFN 已完成安装，但尚未完成真正 pilot**
+- 缺的不是 GPU，而是 `TABPFN_TOKEN`
+
+## 当前最可信的项目结论
+截至目前，最可信的项目结论仍然是：
+1. 主线方法学修补已经基本到位，项目不再是“只会报一个漂亮 test MAE 的 PoC”。
+2. BN-centered 诊断已经比早期清楚很多，但 BN 子域仍然明显更难。
+3. 当前最可信的 candidate-compatible neural baseline 仍然是：
+   - `matminer_composition + torch_mlp_ensemble`
+4. 当前实验 dirty tree 里的新模型方向：
+   - dense attention：负面
+   - sparse attention：负面
+   - Roost-like：略有希望，但仍未过 dummy
+   - kNN：负面
+   - TabPFN：还没开始真正评估，卡在 license token
+5. 因此当前**不应**把实验 dirty tree 叙述成“已经找到比现有主线更强的新路线”。
+
+## 当前验证状态
+本轮为了整理文档并确认 live tree 状态，已经做过两层验证：
+
+1. 极窄实验验证：
+- 先清缓存：`file_utils.delete_cache('.')`
+- 再跑：
+  - `tests/test_config_default.py::test_default_config_has_expected_poc_defaults`
+  - `tests/test_features_pipeline.py::test_select_feature_model_combo_marks_attention_models_as_feature_specific`
+  - `tests/test_features_pipeline.py::test_fractional_composition_feature_table_and_torch_models_fit_predict`
+- 结果：`3 passed, 1 warning in 4.26s`
+
+2. 当前 live experimental tree 的完整 `pytest -q`：
+- 同样先清缓存后运行
+- 结果：`32 passed, 6 warnings in 20.10s`
+
+重要说明：
+- 本轮曾尝试重新跑一次 `python main.py` 来满足旧的提交前检查习惯
+- 该进程一直在真实占用 CPU，不是假挂，但在完成前被中断
+- 随后用户已明确要求：**这一轮只做文档/状态整理，不再继续跑程序；若要跑也只做快速 dry run**
+- 因此当前 live experimental tree 的最新状态应描述为：
+  - **完整 `pytest -q` 已通过**
+  - **`python main.py` 本轮未完成，不应表述成已重新验证通过**
+- 所以这个 dirty tree 仍应看作“文档已同步、测试已过、但主流程未重新完整验证”的实验树，而不是新的 fully re-verified stable checkpoint
+
+## 当前最重要的记录文件
+### 应继续保留并视为主状态文件
+- `HANDOFF.md`：中文交接与当前状态摘要
+- `PY_FILES_SUMMARY.md`：AI-facing Python surface 摘要
+- `tasks/literature_mining/MODEL_UPGRADE_RESEARCH_2026-04-20.md`：AI-facing 建模方向技术备忘
+
+### 当前实验 artifacts
+- `artifacts/pilot/fractional_attention_pilot_*`
+- `artifacts/pilot/sparse_fractional_attention_pilot_*`
+- `artifacts/pilot/roost_like_pilot_*`
+- `artifacts/pilot/roost_like_small_bn_slice_results.csv`
+- `artifacts/pilot/roost_like_medium_bn_slice_results.csv`
+- `artifacts/pilot/roost_like_wider_bn_slice_results.csv`
+- `artifacts/pilot/roost_like_config_sweep_summary.json`
+- `artifacts/pilot/knn_bn_slice_pilot_summary.json`
+- `artifacts/pilot/knn_bn_slice_pilot_results.csv`
 
 ## 恢复工作时的直接起点
-- 不需要重做 wave-3 设计，也不需要回滚当前 dirty tree。
-- 若继续推进，优先从以下方向里选一个：
-  - 基于当前 `demo_candidate_structure_generation_seeds.csv` 与 first-pass `.cif` 输出，做真正的 prototype substitution / structure enumeration / relaxation workflow；
-  - 更强、真正材料导向的 structure-aware 表示，尤其是能改善 BN family holdout / stratified BN error 的表示；
-  - 把 candidate source space 从“几乎全是已知公式”推进到包含更多真正 dataset 未见公式；
-  - 在更真实的 candidate space 上加入结构 / 稳定性约束；
-  - 比 disagreement heuristic 更可信的不确定性处理；
-  - train / inference 解耦
-- 保持 `main.py` 线性，不要把当前流程抽象成重启动器。
-- 继续验证时遵守当前顺序：
-  - 先用 `clear_project_cache('.')` 清缓存
-  - 再跑 `pytest -q`
-  - 再跑 `quant` 环境下的 `python main.py`
+当前用户要求是：
+- **先把状态记录清楚**
+- **目前有其他更重要的工作，先不要继续在这里推进长建模波次**
+
+因此恢复时的默认动作应是：
+1. 先读：
+   - `skill.txt`
+   - `skills.txt`
+   - `skills_ai.txt`
+   - `HANDOFF.md`
+2. 先确认当前工作目标是不是继续建模，还是只做文档/状态维护。
+3. 如果恢复建模：
+   - 不要直接把 experimental models 并入主线
+   - 先决定是否要继续 TabPFN 路线
+   - 若继续 TabPFN，本地还需要 `TABPFN_TOKEN`
+4. 若未来要形成 checkpoint：
+   - 先排除不该提交的 skill 文件改动
+   - 先清缓存
+   - 再跑 `pytest -q`
+   - 再跑 `python main.py`
+   - 全通过后再 `git add / commit`
+
+## 当前不应丢失的判断
+- 不要因为本机不是 CUDA 机器就自动退缩换方向。
+- 但也不要在没有正向证据时，仅因为“模型更重”就要求 GPU。
+- 当前实验结论还不足以说明“只要上 GPU 就能赢”。
+- 目前真正的下一个 blocker 不是 GPU，而是：
+  - **TabPFN license/token**
+- 在用户没有明确要求恢复建模前，当前最合理动作就是：
+  - **把状态文件维护清楚，保留现场，停止继续扩散实验面。**

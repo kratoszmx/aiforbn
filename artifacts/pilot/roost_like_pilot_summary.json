@@ -1,0 +1,87 @@
+{
+  "subset_rows": 341,
+  "subset_unique_formulas": 240,
+  "subset_bn_formula_count": 10,
+  "selected_feature_set": "fractional_composition_vector",
+  "selected_model_type": "hist_gradient_boosting",
+  "screening_selected_feature_set": "fractional_composition_vector",
+  "screening_selected_model_type": "hist_gradient_boosting",
+  "benchmark_artifact": "artifacts/pilot/roost_like_pilot_benchmark_results.csv",
+  "bn_slice_artifact": "artifacts/pilot/roost_like_pilot_bn_slice_results.csv",
+  "models": {
+    "matminer_hgb": {
+      "feature_set": "matminer_composition",
+      "model_type": "hist_gradient_boosting",
+      "benchmark_role": "candidate_model",
+      "mae": 0.571666372726648,
+      "rmse": 0.7679151719985379,
+      "r2": 0.5454030791523823
+    },
+    "fractional_hgb": {
+      "feature_set": "fractional_composition_vector",
+      "model_type": "hist_gradient_boosting",
+      "benchmark_role": "selected_model",
+      "mae": 0.8362872944330444,
+      "rmse": 1.0173870662660744,
+      "r2": 0.2020559918389243
+    },
+    "torch_mlp_ensemble": {
+      "feature_set": "fractional_composition_vector",
+      "model_type": "torch_mlp_ensemble",
+      "benchmark_role": "candidate_model",
+      "mae": 0.8246481203946698,
+      "rmse": 1.0631159031287305,
+      "r2": 0.12871302255596528
+    },
+    "torch_roost_like": {
+      "feature_set": "fractional_composition_vector",
+      "model_type": "torch_roost_like",
+      "benchmark_role": "candidate_model",
+      "mae": 0.8405153462795831,
+      "rmse": 1.156752332792579,
+      "r2": -0.03152738323055049
+    }
+  },
+  "bn_slice_models": {
+    "matminer_hgb": {
+      "feature_set": "matminer_composition",
+      "model_type": "hist_gradient_boosting",
+      "benchmark_role": "candidate_model",
+      "mae": 1.6158135114215646,
+      "rmse": 1.9051293691884297,
+      "r2": -0.1157775708592439
+    },
+    "fractional_hgb": {
+      "feature_set": "fractional_composition_vector",
+      "model_type": "hist_gradient_boosting",
+      "benchmark_role": "selected_model",
+      "mae": 1.7491040406008227,
+      "rmse": 2.047151739205604,
+      "r2": -0.2883348423759229
+    },
+    "torch_mlp_ensemble": {
+      "feature_set": "fractional_composition_vector",
+      "model_type": "torch_mlp_ensemble",
+      "benchmark_role": "candidate_model",
+      "mae": 1.4771887164078747,
+      "rmse": 2.046779920100983,
+      "r2": -0.28786689073747773
+    },
+    "torch_roost_like": {
+      "feature_set": "fractional_composition_vector",
+      "model_type": "torch_roost_like",
+      "benchmark_role": "candidate_model",
+      "mae": 1.3783800869032148,
+      "rmse": 1.9306215924846926,
+      "r2": -0.1458374201905428
+    },
+    "dummy_mean": {
+      "feature_set": "fractional_composition_vector",
+      "model_type": "dummy_mean",
+      "benchmark_role": "global_dummy_mean_baseline",
+      "mae": 1.3438901393433114,
+      "rmse": 1.884247058797638,
+      "r2": -0.09145133132255623
+    }
+  }
+}

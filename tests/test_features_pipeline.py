@@ -447,6 +447,119 @@ def test_select_feature_model_combo_separates_structure_aware_evaluation_from_fo
     assert 'falls back to the best candidate-compatible validation combo' in summary['screening_selection_note']
 
 
+def test_select_feature_model_combo_marks_attention_models_as_feature_specific():
+    pytest.importorskip('torch')
+
+    selection_cfg = copy.deepcopy(CFG)
+    selection_cfg['features']['candidate_sets'] = [
+        'basic_formula_composition',
+        'matminer_composition',
+        FRACTIONAL_COMPOSITION_FEATURE_SET,
+    ]
+    selection_cfg['model']['candidate_types'] = [
+        'linear_regression',
+        'torch_fractional_attention',
+        'torch_sparse_fractional_attention',
+        'torch_roost_like',
+    ]
+    selection_cfg['model']['torch_fractional_attention'] = {
+        'embedding_dim': 32,
+        'num_heads': 4,
+        'num_layers': 2,
+        'head_hidden_dim': 32,
+        'dropout': 0.0,
+        'learning_rate': 0.01,
+        'weight_decay': 0.0,
+        'max_epochs': 8,
+        'patience': 2,
+        'min_delta': 0.0,
+        'val_fraction': 0.2,
+        'device': 'cpu',
+        'random_seed': 42,
+        'expected_input_dim': 118,
+    }
+    selection_cfg['model']['torch_sparse_fractional_attention'] = {
+        'embedding_dim': 32,
+        'num_heads': 4,
+        'num_layers': 2,
+        'head_hidden_dim': 32,
+        'dropout': 0.0,
+        'learning_rate': 0.01,
+        'weight_decay': 0.0,
+        'max_epochs': 8,
+        'patience': 2,
+        'min_delta': 0.0,
+        'val_fraction': 0.2,
+        'device': 'cpu',
+        'random_seed': 42,
+        'expected_input_dim': 118,
+    }
+    selection_cfg['model']['torch_roost_like'] = {
+        'embedding_dim': 32,
+        'num_message_layers': 2,
+        'message_hidden_dim': 48,
+        'head_hidden_dim': 32,
+        'dropout': 0.0,
+        'learning_rate': 0.01,
+        'weight_decay': 0.0,
+        'max_epochs': 8,
+        'patience': 2,
+        'min_delta': 0.0,
+        'val_fraction': 0.2,
+        'device': 'cpu',
+        'random_seed': 42,
+        'expected_input_dim': 118,
+    }
+    dataset_df = _sample_training_df()
+    feature_tables = build_feature_tables(dataset_df, selection_cfg)
+    split_masks = make_split_masks(dataset_df, selection_cfg)
+    summary = select_feature_model_combo(feature_tables, split_masks, selection_cfg)
+
+    for model_type in [
+        'torch_fractional_attention',
+        'torch_sparse_fractional_attention',
+        'torch_roost_like',
+    ]:
+        incompatible_rows = [
+            row for row in summary['validation_results']
+            if row['model_type'] == model_type
+            and row['status'] == 'skipped_model_feature_incompatible'
+        ]
+        assert {
+            row['feature_set']
+            for row in incompatible_rows
+        } == {'basic_formula_composition', 'matminer_composition'}
+        assert any(
+            row['feature_set'] == FRACTIONAL_COMPOSITION_FEATURE_SET
+            and row['model_type'] == model_type
+            and row['status'] == 'ok'
+            for row in summary['validation_results']
+        )
+
+
+def test_select_feature_model_combo_defaults_to_compatible_model_when_validation_disabled():
+    selection_cfg = copy.deepcopy(CFG)
+    selection_cfg['features']['feature_set'] = 'basic_formula_composition'
+    selection_cfg['features']['candidate_sets'] = [
+        'basic_formula_composition',
+        FRACTIONAL_COMPOSITION_FEATURE_SET,
+    ]
+    selection_cfg['model']['type'] = 'torch_fractional_attention'
+    selection_cfg['model']['candidate_types'] = ['linear_regression', 'torch_fractional_attention']
+    selection_cfg['model']['use_validation_selection'] = False
+
+    dataset_df = _sample_training_df()
+    feature_tables = build_feature_tables(dataset_df, selection_cfg)
+    split_masks = make_split_masks(dataset_df, selection_cfg)
+    summary = select_feature_model_combo(feature_tables, split_masks, selection_cfg)
+
+    assert summary['selected_feature_set'] == 'basic_formula_composition'
+    assert summary['selected_model_type'] == 'linear_regression'
+    assert summary['screening_selected_feature_set'] == 'basic_formula_composition'
+    assert summary['screening_selected_model_type'] == 'linear_regression'
+    assert summary['screening_selection_matches_overall'] is True
+
+
 def test_grouped_robustness_benchmark_summarizes_group_kfold_results():
     dataset_df = _stoichiometry_signal_df()
     feature_tables = build_feature_tables(dataset_df, CFG)
@@ -1376,6 +1489,54 @@ def test_fractional_composition_feature_table_and_torch_models_fit_predict():
         'random_seed': 42,
         'member_seeds': [42, 43],
     }
+    cfg['model']['torch_fractional_attention'] = {
+        'embedding_dim': 32,
+        'num_heads': 4,
+        'num_layers': 2,
+        'head_hidden_dim': 32,
+        'dropout': 0.0,
+        'learning_rate': 0.01,
+        'weight_decay': 0.0,
+        'max_epochs': 10,
+        'patience': 2,
+        'min_delta': 0.0,
+        'val_fraction': 0.2,
+        'device': 'cpu',
+        'random_seed': 42,
+        'expected_input_dim': 118,
+    }
+    cfg['model']['torch_sparse_fractional_attention'] = {
+        'embedding_dim': 32,
+        'num_heads': 4,
+        'num_layers': 2,
+        'head_hidden_dim': 32,
+        'dropout': 0.0,
+        'learning_rate': 0.01,
+        'weight_decay': 0.0,
+        'max_epochs': 10,
+        'patience': 2,
+        'min_delta': 0.0,
+        'val_fraction': 0.2,
+        'device': 'cpu',
+        'random_seed': 42,
+        'expected_input_dim': 118,
+    }
+    cfg['model']['torch_roost_like'] = {
+        'embedding_dim': 32,
+        'num_message_layers': 2,
+        'message_hidden_dim': 48,
+        'head_hidden_dim': 32,
+        'dropout': 0.0,
+        'learning_rate': 0.01,
+        'weight_decay': 0.0,
+        'max_epochs': 10,
+        'patience': 2,
+        'min_delta': 0.0,
+        'val_fraction': 0.2,
+        'device': 'cpu',
+        'random_seed': 42,
+        'expected_input_dim': 118,
+    }
 
     dataset_df = _sample_training_df()
     split_masks = make_split_masks(dataset_df, cfg)
@@ -1388,7 +1549,13 @@ def test_fractional_composition_feature_table_and_torch_models_fit_predict():
     assert feature_df['frac_b'].sum() > 0.0
     assert feature_df['frac_n'].sum() > 0.0
 
-    for model_type in ['torch_mlp', 'torch_mlp_ensemble']:
+    for model_type in [
+        'torch_mlp',
+        'torch_mlp_ensemble',
+        'torch_fractional_attention',
+        'torch_sparse_fractional_attention',
+        'torch_roost_like',
+    ]:
         model, feature_columns = train_baseline_model(
             feature_df,
             split_masks,
@@ -1408,6 +1575,21 @@ def test_fractional_composition_feature_table_and_torch_models_fit_predict():
     member_predictions = ensemble_model.predict_members(feature_df[feature_columns])
     assert member_predictions.shape[0] == 2
     assert member_predictions.shape[1] == len(feature_df)
+
+    attention_model = make_model(cfg, model_type='torch_fractional_attention')
+    attention_model.fit(feature_df[feature_columns], feature_df['target'])
+    attention_predictions = attention_model.predict(feature_df[feature_columns])
+    assert np.isfinite(attention_predictions).all()
+
+    sparse_attention_model = make_model(cfg, model_type='torch_sparse_fractional_attention')
+    sparse_attention_model.fit(feature_df[feature_columns], feature_df['target'])
+    sparse_attention_predictions = sparse_attention_model.predict(feature_df[feature_columns])
+    assert np.isfinite(sparse_attention_predictions).all()
+
+    roost_like_model = make_model(cfg, model_type='torch_roost_like')
+    roost_like_model.fit(feature_df[feature_columns], feature_df['target'])
+    roost_like_predictions = roost_like_model.predict(feature_df[feature_columns])
+    assert np.isfinite(roost_like_predictions).all()
 
 
 def test_torch_mlp_ensemble_expands_candidate_uncertainty_sources():
@@ -1453,6 +1635,97 @@ def test_torch_mlp_ensemble_expands_candidate_uncertainty_sources():
     assert prediction_df['prediction_source'].nunique() == 2
     assert set(prediction_df['prediction_source_family']) == {'full_fit_candidate_model_member'}
     assert prediction_df.groupby('formula').size().eq(2).all()
+
+
+def test_candidate_prediction_members_skip_incompatible_attention_feature_pairs():
+    pytest.importorskip('torch')
+
+    cfg = copy.deepcopy(CFG)
+    cfg['features']['candidate_sets'] = [
+        'basic_formula_composition',
+        FRACTIONAL_COMPOSITION_FEATURE_SET,
+    ]
+    cfg['model']['candidate_types'] = ['linear_regression', 'torch_fractional_attention']
+    cfg['model']['torch_fractional_attention'] = {
+        'embedding_dim': 32,
+        'num_heads': 4,
+        'num_layers': 2,
+        'head_hidden_dim': 32,
+        'dropout': 0.0,
+        'learning_rate': 0.01,
+        'weight_decay': 0.0,
+        'max_epochs': 8,
+        'patience': 2,
+        'min_delta': 0.0,
+        'val_fraction': 0.2,
+        'device': 'cpu',
+        'random_seed': 42,
+        'expected_input_dim': 118,
+    }
+
+    dataset_df = _sample_training_df()
+    split_masks = make_split_masks(dataset_df, cfg)
+    feature_tables = {
+        'basic_formula_composition': build_feature_table(
+            dataset_df,
+            feature_set='basic_formula_composition',
+        ),
+        FRACTIONAL_COMPOSITION_FEATURE_SET: build_feature_table(
+            dataset_df,
+            feature_set=FRACTIONAL_COMPOSITION_FEATURE_SET,
+        ),
+    }
+    candidate_df = pd.DataFrame({'formula': ['BN', 'BCN', 'B2N2']})
+
+    prediction_df = build_candidate_prediction_members(
+        candidate_df,
+        feature_tables,
+        split_masks,
+        cfg,
+        candidate_feature_sets=[
+            'basic_formula_composition',
+            FRACTIONAL_COMPOSITION_FEATURE_SET,
+        ],
+    )
+
+    incompatible_mask = (
+        prediction_df['feature_set'].eq('basic_formula_composition')
+        & prediction_df['model_type'].eq('torch_fractional_attention')
+    )
+    assert not incompatible_mask.any()
+    assert (
+        prediction_df['feature_set'].eq(FRACTIONAL_COMPOSITION_FEATURE_SET)
+        & prediction_df['model_type'].eq('torch_fractional_attention')
+    ).any()
+
+
+def test_grouped_candidate_robustness_predictions_skip_incompatible_attention_feature_pairs():
+    cfg = copy.deepcopy(CFG)
+    cfg['features']['candidate_sets'] = ['basic_formula_composition']
+
+    dataset_df = _sample_training_df()
+    split_masks = make_split_masks(dataset_df, cfg)
+    feature_df = build_feature_table(dataset_df, feature_set='basic_formula_composition')
+    candidate_df = pd.DataFrame({'formula': ['BN', 'BCN', 'B2N2']})
+
+    prediction_df = build_candidate_grouped_robustness_predictions(
+        candidate_df,
+        feature_df,
+        split_masks,
+        cfg,
+        feature_set='basic_formula_composition',
+        model_type='torch_fractional_attention',
+    )
+
+    assert prediction_df['formula'].tolist() == ['BN', 'BCN', 'B2N2']
+    assert prediction_df['grouped_robustness_prediction_enabled'].eq(False).all()
+    assert prediction_df['grouped_robustness_prediction_fold_count'].eq(0).all()
+    assert prediction_df['grouped_robustness_predicted_band_gap_std'].eq(0.0).all()
+    assert prediction_df['grouped_robustness_predicted_band_gap_mean'].isna().all()
+    assert prediction_df['grouped_robustness_prediction_note'].str.contains(
+        'fractional_composition_vector',
+        regex=False,
+    ).all()
 
 
 def test_make_model_rejects_unknown_model_type():

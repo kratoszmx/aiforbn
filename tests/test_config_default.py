@@ -25,6 +25,8 @@ def test_default_config_has_expected_poc_defaults():
     ]
     assert cfg['features']['feature_family'] == 'mixed_formula_and_structure'
     assert cfg['model']['candidate_types'] == ['linear_regression', 'hist_gradient_boosting', 'torch_mlp', 'torch_mlp_ensemble']
+    assert 'torch_sparse_fractional_attention' not in cfg['model']['candidate_types']
+    assert 'torch_roost_like' not in cfg['model']['candidate_types']
     assert cfg['model']['torch_mlp']['hidden_dim'] == 128
     assert cfg['model']['torch_mlp']['depth'] == 3
     assert cfg['model']['torch_mlp']['max_epochs'] == 40
@@ -32,6 +34,18 @@ def test_default_config_has_expected_poc_defaults():
     assert cfg['model']['torch_mlp_ensemble']['hidden_dim'] == 128
     assert cfg['model']['torch_mlp_ensemble']['member_seeds'] == [42, 43, 44]
     assert cfg['model']['torch_mlp_ensemble']['device'] == 'auto'
+    assert cfg['model']['torch_fractional_attention']['embedding_dim'] == 128
+    assert cfg['model']['torch_fractional_attention']['num_heads'] == 4
+    assert cfg['model']['torch_fractional_attention']['num_layers'] == 2
+    assert cfg['model']['torch_fractional_attention']['expected_input_dim'] == 118
+    assert cfg['model']['torch_sparse_fractional_attention']['embedding_dim'] == 128
+    assert cfg['model']['torch_sparse_fractional_attention']['num_heads'] == 4
+    assert cfg['model']['torch_sparse_fractional_attention']['num_layers'] == 2
+    assert cfg['model']['torch_sparse_fractional_attention']['expected_input_dim'] == 118
+    assert cfg['model']['torch_roost_like']['embedding_dim'] == 96
+    assert cfg['model']['torch_roost_like']['num_message_layers'] == 2
+    assert cfg['model']['torch_roost_like']['message_hidden_dim'] == 128
+    assert cfg['model']['torch_roost_like']['expected_input_dim'] == 118
     assert cfg['robustness']['enabled'] is True
     assert cfg['robustness']['method'] == 'group_kfold_by_formula'
     assert cfg['robustness']['group_column'] == 'formula'

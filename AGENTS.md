@@ -5,7 +5,7 @@ Repository-local guidance for coding agents working on `ai_for_bn`.
 ## Read first
 Before coding, reread these files in this order:
 1. `skills.txt`
-2. `../myutils/generalskill.txt`
+2. `../myutils/skills/generalskill.txt`
 3. `../myutils/skills.txt`
 4. `HANDOFF.md`
 5. `chat/老師回覆.txt`
@@ -22,6 +22,23 @@ Current standing priorities:
 - strengthen candidate-validation credibility
 - preserve transparent baselines and controls
 - avoid overclaiming discovery
+
+## Current model-state notes
+- The last fully verified mainline still centers on:
+  - overall best evaluation model separated from
+  - best candidate-compatible screening model
+- The strongest currently verified candidate-compatible neural control remains:
+  - `matminer_composition + torch_mlp_ensemble`
+- Experimental composition models now exist in code, but are **not** default-rollout winners:
+  - `torch_fractional_attention`
+  - `torch_sparse_fractional_attention`
+  - `torch_roost_like`
+- Current short-pilot evidence says:
+  - dense attention: not strong enough
+  - sparse attention: not strong enough
+  - Roost-like: mildly interesting, but still below dummy on BN-slice
+  - kNN sanity check: worse still
+- `TabPFN` has been installed for future feasibility work, but actual pilot execution is currently blocked by Prior Labs license/token setup, not by local compute.
 
 ## Hard constraints
 - Keep `main.py` linear, readable, and notebook-friendly.

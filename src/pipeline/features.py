@@ -324,6 +324,11 @@ FEATURE_SET_METADATA = {
         'Dummy regressor baseline that ignores composition features.',
     ),
 }
+MODEL_FEATURE_SET_COMPATIBILITY = {
+    'torch_fractional_attention': {FRACTIONAL_COMPOSITION_FEATURE_SET},
+    'torch_sparse_fractional_attention': {FRACTIONAL_COMPOSITION_FEATURE_SET},
+    'torch_roost_like': {FRACTIONAL_COMPOSITION_FEATURE_SET},
+}
 BASIC_FEATURE_COLUMNS = (
     'n_elements',
     'sum_z',
@@ -1435,6 +1440,49 @@ def get_candidate_model_types(cfg: dict) -> list[str]:
     return _ordered_values([default_model_type] + candidate_types)
 
 
+def compatible_model_types_for_feature_set(cfg: dict, feature_set: str) -> list[str]:
+    return [
+        model_type
+        for model_type in get_candidate_model_types(cfg)
+        if model_type_supports_feature_set(model_type, feature_set)
+    ]
+
+
+def model_type_supports_feature_set(model_type: str, feature_set: str) -> bool:
+    allowed_feature_sets = MODEL_FEATURE_SET_COMPATIBILITY.get(str(model_type))
+    if allowed_feature_sets is None:
+        return True
+    return str(feature_set) in set(allowed_feature_sets)
+
+
+def incompatible_model_feature_note(model_type: str, feature_set: str) -> str:
+    if str(model_type) in {
+        'torch_fractional_attention',
+        'torch_sparse_fractional_attention',
+        'torch_roost_like',
+    }:
+        return (
+            f'Skipped because {model_type} is currently defined only for the '
+            'fractional_composition_vector feature set.'
+        )
+    return (
+        f'Skipped because model_type={model_type} is not configured for feature_set={feature_set}.'
+    )
+
+
+def _default_model_type_for_feature_set(cfg: dict, feature_set: str) -> str:
+    compatible_model_types = compatible_model_types_for_feature_set(cfg, feature_set)
+    if not compatible_model_types:
+        raise ValueError(
+            'No compatible candidate model type is available for '
+            f'feature_set={feature_set}.'
+        )
+    configured_default_model_type = str(cfg['model'].get('type', compatible_model_types[0]))
+    if configured_default_model_type in compatible_model_types:
+        return configured_default_model_type
+    return compatible_model_types[0]
+
+
 def get_feature_family(feature_set: str) -> str:
     return FEATURE_SET_METADATA.get(feature_set, ('unknown', False, ''))[0]
 
@@ -1882,6 +1930,20 @@ def make_model(cfg: dict, model_type: str | None = None):
         from pipeline.torch_models import TorchMLPEnsembleRegressor
 
         return TorchMLPEnsembleRegressor(**cfg['model'].get('torch_mlp_ensemble', {}))
+    if model_type == 'torch_fractional_attention':
+        from pipeline.torch_models import TorchFractionalAttentionRegressor
+
+        return TorchFractionalAttentionRegressor(**cfg['model'].get('torch_fractional_attention', {}))
+    if model_type == 'torch_sparse_fractional_attention':
+        from pipeline.torch_models import TorchSparseFractionalAttentionRegressor
+
+        return TorchSparseFractionalAttentionRegressor(
+            **cfg['model'].get('torch_sparse_fractional_attention', {})
+        )
+    if model_type == 'torch_roost_like':
+        from pipeline.torch_models import TorchRoostLikeRegressor
+
+        return TorchRoostLikeRegressor(**cfg['model'].get('torch_roost_like', {}))
     if model_type == 'dummy_mean':
         return DummyRegressor(**cfg['model'].get('dummy_mean', {'strategy': 'mean'}))
     raise ValueError(f'Unsupported model type: {model_type}')
@@ -2090,6 +2152,18 @@ def select_feature_model_combo(feature_tables: dict[str, pd.DataFrame], split_ma
         raise ValueError('No candidate feature set could featurize the full dataset')
     if not screening_candidate_feature_sets:
         raise ValueError('No candidate-compatible feature set is available for formula-only screening')
+    if not any(
+        compatible_model_types_for_feature_set(cfg, feature_set)
+        for feature_set in eligible_feature_sets
+    ):
+        raise ValueError('No compatible feature/model combination could featurize the full dataset')
+    if not any(
+        compatible_model_types_for_feature_set(cfg, feature_set)
+        for feature_set in screening_candidate_feature_sets
+    ):
+        raise ValueError(
+            'No candidate-compatible feature/model combination is available for formula-only screening'
+        )
 
     if default_feature_set not in eligible_feature_sets:
         default_feature_set = eligible_feature_sets[0]
@@ -2097,6 +2171,11 @@ def select_feature_model_combo(feature_tables: dict[str, pd.DataFrame], split_ma
         default_feature_set
         if default_feature_set in screening_candidate_feature_sets
         else screening_candidate_feature_sets[0]
+    )
+    default_model_type = _default_model_type_for_feature_set(cfg, default_feature_set)
+    screening_default_model_type = _default_model_type_for_feature_set(
+        cfg,
+        screening_default_feature_set,
     )
 
     summary = {
@@ -2115,7 +2194,7 @@ def select_feature_model_combo(feature_tables: dict[str, pd.DataFrame], split_ma
         'screening_selection_scope': FORMULA_ONLY_SCREENING_SCOPE,
         'screening_candidate_feature_sets': screening_candidate_feature_sets,
         'screening_selected_feature_set': screening_default_feature_set,
-        'screening_selected_model_type': default_model_type,
+        'screening_selected_model_type': screening_default_model_type,
         'screening_selected_feature_family': get_feature_family(screening_default_feature_set),
         'screening_selected_feature_count': int(
             summarize_feature_table(
@@ -2125,7 +2204,7 @@ def select_feature_model_combo(feature_tables: dict[str, pd.DataFrame], split_ma
         ),
         'screening_selection_matches_overall': bool(
             screening_default_feature_set == default_feature_set
-            and default_model_type == default_model_type
+            and screening_default_model_type == default_model_type
         ),
         'feature_set_results': feature_set_results,
         'validation_results': [],
@@ -2166,6 +2245,11 @@ def select_feature_model_combo(feature_tables: dict[str, pd.DataFrame], split_ma
                 result['note'] = (
                     'Skipped because this feature set could not featurize every dataset formula.'
                 )
+                summary['validation_results'].append(result)
+                continue
+            if not model_type_supports_feature_set(model_type, feature_set):
+                result['status'] = 'skipped_model_feature_incompatible'
+                result['note'] = incompatible_model_feature_note(model_type, feature_set)
                 summary['validation_results'].append(result)
                 continue
 
@@ -2286,6 +2370,11 @@ def benchmark_regressors(
                 row['benchmark_note'] = (
                     'Skipped because this feature set could not featurize every dataset formula.'
                 )
+                rows.append(row)
+                continue
+            if not model_type_supports_feature_set(model_type, feature_set):
+                row['benchmark_status'] = 'skipped_model_feature_incompatible'
+                row['benchmark_note'] = incompatible_model_feature_note(model_type, feature_set)
                 rows.append(row)
                 continue
 
@@ -2460,6 +2549,11 @@ def benchmark_grouped_robustness(
                 row['robustness_note'] = (
                     'Skipped because this feature set could not featurize every dataset formula.'
                 )
+                rows.append(row)
+                continue
+            if not model_type_supports_feature_set(model_type, feature_set):
+                row['robustness_status'] = 'skipped_model_feature_incompatible'
+                row['robustness_note'] = incompatible_model_feature_note(model_type, feature_set)
                 rows.append(row)
                 continue
 
@@ -2663,6 +2757,11 @@ def benchmark_bn_slice(
             row['benchmark_note'] = (
                 'Skipped because this feature set could not featurize every dataset formula.'
             )
+            rows.append(row)
+            continue
+        if not model_type_supports_feature_set(model_type, feature_set):
+            row['benchmark_status'] = 'skipped_model_feature_incompatible'
+            row['benchmark_note'] = incompatible_model_feature_note(model_type, feature_set)
             rows.append(row)
             continue
         if bn_formula_count < 2:
@@ -2962,6 +3061,11 @@ def benchmark_bn_family_holdout(
             row['benchmark_note'] = (
                 'Skipped because this feature set could not featurize every dataset formula.'
             )
+            rows.append(row)
+            continue
+        if not model_type_supports_feature_set(model_type, feature_set):
+            row['benchmark_status'] = 'skipped_model_feature_incompatible'
+            row['benchmark_note'] = incompatible_model_feature_note(model_type, feature_set)
             rows.append(row)
             continue
         if bn_family_count < 2 or bn_formula_count < 2:
@@ -3266,6 +3370,11 @@ def benchmark_bn_stratified_errors(
                 row['benchmark_note'] = (
                     'Skipped because this feature set could not featurize every dataset formula.'
                 )
+                rows.append(row)
+                continue
+            if not model_type_supports_feature_set(model_type, feature_set):
+                row['benchmark_status'] = 'skipped_model_feature_incompatible'
+                row['benchmark_note'] = incompatible_model_feature_note(model_type, feature_set)
                 rows.append(row)
                 continue
 
@@ -4020,7 +4129,12 @@ def build_candidate_prediction_members(
             )
 
         feature_columns = _feature_columns(train_feature_df)
-        for model_type in candidate_model_types:
+        compatible_model_types = [
+            model_type
+            for model_type in candidate_model_types
+            if model_type_supports_feature_set(model_type, feature_set)
+        ]
+        for model_type in compatible_model_types:
             model, _ = train_baseline_model(
                 df=train_feature_df,
                 split_masks=split_masks,
@@ -4079,15 +4193,6 @@ def build_candidate_grouped_robustness_predictions(
     model_type: str,
     formula_col: str = 'formula',
 ) -> pd.DataFrame:
-    prediction_df = build_candidate_grouped_robustness_prediction_members(
-        candidate_df,
-        feature_df,
-        split_masks,
-        cfg,
-        feature_set=feature_set,
-        model_type=model_type,
-        formula_col=formula_col,
-    )
     robustness_cfg = _robustness_config(cfg)
     grouped_uncertainty_cfg = _grouped_robustness_uncertainty_config(cfg)
     out = pd.DataFrame({
@@ -4106,6 +4211,23 @@ def build_candidate_grouped_robustness_predictions(
 
     if not bool(robustness_cfg['enabled'] and grouped_uncertainty_cfg['enabled']):
         return out
+    if not model_type_supports_feature_set(model_type, feature_set):
+        out['grouped_robustness_prediction_enabled'] = False
+        out['grouped_robustness_prediction_note'] = incompatible_model_feature_note(
+            model_type,
+            feature_set,
+        )
+        return out
+
+    prediction_df = build_candidate_grouped_robustness_prediction_members(
+        candidate_df,
+        feature_df,
+        split_masks,
+        cfg,
+        feature_set=feature_set,
+        model_type=model_type,
+        formula_col=formula_col,
+    )
 
     aggregated = (
         prediction_df.groupby(formula_col, as_index=False)
@@ -4159,18 +4281,21 @@ def build_candidate_grouped_robustness_prediction_members(
 ) -> pd.DataFrame:
     robustness_cfg = _robustness_config(cfg)
     grouped_uncertainty_cfg = _grouped_robustness_uncertainty_config(cfg)
+    empty_prediction_df = pd.DataFrame(
+        columns=[
+            formula_col,
+            'prediction_source',
+            'prediction_source_family',
+            'feature_set',
+            'model_type',
+            'fold_index',
+            'prediction',
+        ]
+    )
     if not bool(robustness_cfg['enabled'] and grouped_uncertainty_cfg['enabled']):
-        return pd.DataFrame(
-            columns=[
-                formula_col,
-                'prediction_source',
-                'prediction_source_family',
-                'feature_set',
-                'model_type',
-                'fold_index',
-                'prediction',
-            ]
-        )
+        return empty_prediction_df
+    if not model_type_supports_feature_set(model_type, feature_set):
+        return empty_prediction_df
 
     feature_info = summarize_feature_table(feature_df, feature_set=feature_set)
     if not feature_info['selection_eligible']:
@@ -4224,17 +4349,7 @@ def build_candidate_grouped_robustness_prediction_members(
         }))
 
     if not fold_predictions:
-        return pd.DataFrame(
-            columns=[
-                formula_col,
-                'prediction_source',
-                'prediction_source_family',
-                'feature_set',
-                'model_type',
-                'fold_index',
-                'prediction',
-            ]
-        )
+        return empty_prediction_df
     prediction_df = pd.concat(fold_predictions, ignore_index=True)
     return prediction_df.sort_values(
         ['prediction_source_family', 'fold_index', formula_col],

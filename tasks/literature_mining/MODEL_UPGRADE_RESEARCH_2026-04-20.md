@@ -238,9 +238,158 @@ Interpretation:
 - however, it is still **not** evidence that BN-centered generalization is solved
 - it is evidence that the repo has finally produced one credible modern-model direction worth pushing further
 
+## Implementation outcome from the attention-style follow-up pilots
+
+After the initial `torch_mlp` / `torch_mlp_ensemble` wave, two further short pilot-only composition models were tested instead of being dropped blindly into the full pipeline.
+
+### Dense fractional attention pilot
+
+A pilot script was run on a reduced subset (`320` formulas / `455` rows) comparing:
+- `torch_fractional_attention`
+- `torch_mlp_ensemble`
+- classic candidate-compatible controls
+
+Observed BN-slice pilot result:
+- `torch_mlp_ensemble`: `MAE ≈ 1.575`
+- `torch_fractional_attention`: `MAE ≈ 1.689`
+- `dummy_mean`: `MAE ≈ 1.398`
+
+Interpretation:
+- the dense fractional-attention variant did **not** justify broader rollout
+- it should remain experimental only
+- this was **not** a GPU-blocked success case; it was a weak-result case
+
+### Sparse present-elements attention pilot
+
+A second pilot implemented `torch_sparse_fractional_attention`, intended to be more CrabNet-like by attending only over present elements rather than all 118 positions.
+
+Observed short pilot result (`106` formulas / `152` rows):
+- `hist_gradient_boosting`: `MAE ≈ 1.299`
+- `dummy_mean`: `MAE ≈ 1.306`
+- `torch_mlp_ensemble`: `MAE ≈ 1.434`
+- `torch_fractional_attention`: `MAE ≈ 1.442`
+- `torch_sparse_fractional_attention`: `MAE ≈ 1.710`
+
+Interpretation:
+- the sparse attention variant also failed the short BN-slice pilot
+- worse, validation on the tiny pilot selected it, but BN-slice evidence did not support it
+- that suggests a selection-stability problem, not merely underpowered hardware
+- therefore it should remain an experimental code path and should **not** enter the default candidate sweep
+
+### Practical lesson from these two pilots
+
+Short pilots are doing exactly what they are supposed to do in this repo:
+- reject attractive but weak composition-model ideas early
+- avoid wasting time on long `main.py` runs for models that have not yet earned that cost
+- distinguish **needs GPU because promising** from **does not need GPU because not promising enough yet**
+
+The current attention evidence supports the following conclusion:
+- do **not** spend more time on transformer-style fractional-composition variants as the next main wave
+- the better next composition-only direction is a **Roost-style present-elements stoichiometry model** with lightweight message passing / weighted soft-attention over only the elements present in the formula
+- if that Roost-like path later shows clear promise but becomes compute-limited, that is the point where asking for the user's ready GPU machine would be justified
+
+## Updated next-step recommendation
+
+Given the short-pilot failures above, the best current composition-only modeling order is:
+
+1. keep `torch_mlp_ensemble` as the current strongest verified candidate-compatible neural baseline
+2. treat both dense and sparse fractional-attention variants as experimental only
+3. try one compact **Roost-like** repo-local model next
+4. only escalate to GPU-backed heavier work if that Roost-like pilot produces evidence stronger than the current ensemble baseline
+
 ## Bottom line
 
 The literature scan supports a restrained conclusion:
 - yes, this repo is now at the point where a **modern model upgrade is scientifically justified**
 - but the first justified move is **not** “pick the flashiest model”
 - the first justified move is to add a **composition-only modern model** that directly targets the formula-only screening role, while preserving strict BN diagnostics and old baselines as controls
+- short pilot evidence now further narrows that recommendation: the next serious formula-only experiment should be **Roost-like present-elements message passing**, not another fractional-composition transformer variant
+
+## Implementation outcome from the Roost-like follow-up pilots
+
+A repo-local `torch_roost_like` path was added as an experimental present-element stoichiometry model over `fractional_composition_vector`.
+It was evaluated only through short pilots, not promoted directly into the default model sweep.
+
+### First Roost-like pilot
+
+Pilot subset:
+- `341` rows
+- `240` formulas
+- `10` BN formulas in the BN-slice leave-one-formula-out evaluation
+
+Observed test benchmark on the pilot subset:
+- `matminer_composition + hist_gradient_boosting`: `MAE ≈ 0.572`
+- `fractional_composition_vector + torch_mlp_ensemble`: `MAE ≈ 0.825`
+- `fractional_composition_vector + torch_roost_like`: `MAE ≈ 0.841`
+
+Observed BN-slice result on the same pilot subset:
+- `dummy_mean`: `MAE ≈ 1.344`
+- `matminer_composition + hist_gradient_boosting`: `MAE ≈ 1.616`
+- `fractional_composition_vector + torch_mlp_ensemble`: `MAE ≈ 1.477`
+- `fractional_composition_vector + torch_roost_like`: `MAE ≈ 1.378`
+
+Interpretation:
+- the Roost-like model was **more promising than the earlier fractional attention variants**
+- it also slightly improved over the same-pilot `torch_mlp_ensemble`
+- but it still **did not beat the dummy baseline** on BN-slice
+- therefore it did **not** earn default rollout
+
+### Small Roost-like config sweep
+
+A tiny configuration sweep tested three short-run settings:
+- `roost_like_small`
+- `roost_like_medium`
+- `roost_like_wider`
+
+Observed BN-slice MAE:
+- `small`: `≈ 1.378`
+- `medium`: `≈ 1.398`
+- `wider`: `≈ 2.071`
+- `dummy_mean`: `≈ 1.344`
+
+Interpretation:
+- increasing local capacity did **not** rescue the model
+- the current evidence does **not** support the claim that Roost-like is merely “GPU-blocked but otherwise ready”
+- the more honest conclusion is that this direction showed **some signal**, but still not enough signal
+
+## Implementation outcome from a zero-code local-baseline pilot
+
+A no-integration kNN pilot was run as a cheap sanity check before adding more code.
+
+Best result found:
+- `fractional_composition_vector + k=7 + distance`
+- test `MAE ≈ 0.858`
+- BN-slice `MAE ≈ 1.881`
+
+Interpretation:
+- local traditional-neighborhood regression is **not** the next meaningful upgrade path here
+- this pilot usefully ruled out a low-cost alternative without complicating the codebase
+
+## Implementation outcome from TabPFN feasibility checking
+
+A more modern small-tabular route, **TabPFN**, was checked next because its design is far better aligned with the repo's current bottleneck than continuing to hand-design small composition architectures.
+
+What was completed:
+- `tabpfn==7.1.1` was installed successfully in the `quant` environment
+- the Python API import succeeded
+
+What blocked actual pilot execution:
+- local model-weight download raised `TabPFNLicenseError`
+- the issue was **not** local compute
+- the issue was a one-time Prior Labs license acceptance plus missing `TABPFN_TOKEN`
+
+Practical interpretation:
+- TabPFN remains a plausible next short pilot
+- but the repo cannot honestly claim to have evaluated it yet
+- the next requirement is user-side license/token setup, not GPU escalation
+
+## Updated decision guidance after the Roost-like / kNN / TabPFN checks
+
+The modeling order should now be read as:
+
+1. keep `matminer_composition + torch_mlp_ensemble` as the strongest currently verified candidate-compatible neural control
+2. keep dense attention, sparse attention, and Roost-like as **experimental evidence-gathering paths**, not default-rollout winners
+3. do **not** spend more time on kNN-style local baselines
+4. if a next small-tabular modern baseline is desired, `TabPFN` is the cleanest currently identified candidate
+5. if `TabPFN` later shows strong BN-slice signal but becomes compute-limited, *that* would be a justified moment to ask for a GPU machine
+6. until then, the current blocker is license/token access, not hardware

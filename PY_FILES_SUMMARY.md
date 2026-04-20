@@ -138,6 +138,14 @@ Current default search space:
 - `torch_mlp`
 - `torch_mlp_ensemble`
 
+Important current nuance:
+- the config also contains experimental model blocks for:
+  - `torch_fractional_attention`
+  - `torch_sparse_fractional_attention`
+  - `torch_roost_like`
+- but these are **not** in the default `candidate_types` sweep
+- they currently exist only for short pilot work unless future evidence justifies rollout
+
 ### `build_feature_table(df, formula_col='formula', feature_set='basic_formula_composition')`
 Builds one feature table for one configured feature representation.
 Adds:
@@ -184,8 +192,21 @@ Currently supports:
 - `hist_gradient_boosting`
 - `torch_mlp`
 - `torch_mlp_ensemble`
+- `torch_fractional_attention`
+- `torch_sparse_fractional_attention`
+- `torch_roost_like`
 - `random_forest`
 - `dummy_mean`
+
+Important:
+- `torch_fractional_attention`
+- `torch_sparse_fractional_attention`
+- `torch_roost_like`
+are currently defined only for `feature_set='fractional_composition_vector'`
+- this compatibility is enforced explicitly by helper functions such as:
+  - `model_type_supports_feature_set(...)`
+  - `compatible_model_types_for_feature_set(...)`
+  - `incompatible_model_feature_note(...)`
 
 ### `train_baseline_model(df, split_masks, cfg, model_type=None, include_validation=False)`
 Fits a regressor on the requested split scope and returns:
@@ -229,11 +250,50 @@ Why it exists:
 - to reduce the chance that the BN-facing result is driven by one lucky seed
 - to strengthen the candidate-compatible neural line without jumping straight to a much heavier model family
 
-### `make_model(..., model_type='torch_mlp' | 'torch_mlp_ensemble')`
-The existing factory in `features.py` now lazily imports these PyTorch regressors from this module.
+### `TorchFractionalAttentionRegressor`
+An experimental dense attention model over the full 118-dimensional fractional-composition vector.
+
+What it does:
+- interprets the fractional composition vector as element-token inputs
+- combines learned element embeddings with stoichiometric signals
+- applies a compact Transformer encoder and weighted pooling
+
+Important:
+- candidate-compatible, because it uses only composition-derived inputs
+- experimental only, not part of the default sweep
+- under `device='auto'`, it prefers `cpu` instead of `mps` because the current transformer padding-mask path is not reliable on this macOS/PyTorch stack
+
+### `TorchSparseFractionalAttentionRegressor`
+An experimental sparse-token attention variant.
+
+What it does:
+- builds tokens only for the elements actually present in the formula
+- sorts them by fraction, pads within batch, and applies a compact Transformer encoder
+- pools token states with normalized fraction weights
+
+Important:
+- candidate-compatible
+- experimental only, not part of the default sweep
+- also restricted to `fractional_composition_vector`
+
+### `TorchRoostLikeRegressor`
+An experimental present-element stoichiometry network inspired by Roost.
+
+What it does:
+- converts the 118-dimensional fraction vector into present-element tokens
+- applies lightweight message passing over token pairs using stoichiometric edge features
+- pools the final token states with fraction weights to predict the target
+
+Important:
+- candidate-compatible
+- experimental only, not part of the default sweep
+- currently intended for short BN-slice pilots rather than mainline rollout
+
+### `make_model(..., model_type='torch_mlp' | 'torch_mlp_ensemble' | 'torch_fractional_attention' | 'torch_sparse_fractional_attention' | 'torch_roost_like')`
+The existing factory in `features.py` lazily imports these PyTorch regressors from this module.
 
 ### `fractional_composition_vector`
-The new composition-only feature set is designed to pair naturally with `torch_mlp` and `torch_mlp_ensemble`.
+The new composition-only feature set is designed to pair naturally with `torch_mlp`, `torch_mlp_ensemble`, and the current experimental present-element / attention baselines.
 It exposes a 118-dimensional periodic-table fraction vector so the neural baseline can learn directly from raw composition fractions rather than only from hand-crafted descriptors.
 
 ### `select_feature_model_combo(feature_tables, split_masks, cfg)`
