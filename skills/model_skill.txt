@@ -1,0 +1,1 @@
+../../myutils/skills/model_skill.txt

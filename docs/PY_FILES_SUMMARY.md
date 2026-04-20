@@ -34,6 +34,44 @@ Important:
 
 ---
 
+## Current src layout
+
+### config and test bootstrap
+- `src/default.py`
+  - actual default `CONFIG` payload used by `main.py` and tests
+- `src/conftest.py`
+  - shared pytest bootstrap after tests were moved under `src/**/tests`
+
+### top-level modules
+- `src/core/`
+  - runtime helpers and schema models
+- `src/dataset/`
+  - normalized dataset loading / caching / manifest logic
+- `src/features/`
+  - candidate space, feature building, modeling, selection, benchmarking, screening
+- `src/reporting/`
+  - summary/artifact/plot/report-table writers
+- `src/structure_execution/`
+  - prototype-grounded structure first-pass execution logic
+- `src/torch_models/`
+  - repo-local PyTorch model implementations
+- `src/ui/`
+  - Streamlit UI
+
+There are no longer `src/pipeline/*.py` façade modules.
+
+### test layout
+- `src/core/tests/`
+- `src/dataset/tests/`
+- `src/features/tests/`
+- `src/reporting/tests/`
+- `src/ui/tests/`
+- `src/tests/`
+
+Root `tests/` has been removed.
+
+---
+
 ## src/core/io_utils.py
 
 Purpose:
@@ -58,7 +96,7 @@ Use these instead of ad hoc `json.loads(path.read_text())` or `path.write_text(j
 
 ---
 
-## src/pipeline/data.py
+## src/dataset/data.py
 
 ### `load_or_build_dataset(cfg)`
 Builds the normalized dataframe from raw JARVIS / 2DMatPedia data or reloads the processed cache.
@@ -95,7 +133,17 @@ Important normalized columns include:
 
 ---
 
-## src/pipeline/features.py
+## src/features/
+
+Main top-level feature module package.
+Implementation is split across:
+- `src/features/constants.py`
+- `src/features/candidate_space.py`
+- `src/features/feature_building.py`
+- `src/features/modeling.py`
+- `src/features/selection.py`
+- `src/features/benchmarking.py`
+- `src/features/screening.py`
 
 ### `extract_elements(formula)`
 Regex-based element-token extraction from a chemical formula string.
@@ -232,7 +280,15 @@ Fails loudly if the requested feature set cannot evaluate every row in that spli
 
 ---
 
-## src/pipeline/torch_models.py
+## src/torch_models/
+
+Repo-local PyTorch model package.
+Implementation is split across:
+- `src/torch_models/base.py`
+- `src/torch_models/attention.py`
+- `src/torch_models/sparse_attention.py`
+- `src/torch_models/roost_like.py`
+- `src/torch_models/ensemble.py`
 
 ### `TorchMLPRegressor`
 A repo-local PyTorch neural regressor with a sklearn-like `fit` / `predict` interface.
@@ -466,7 +522,12 @@ Important:
 
 ---
 
-## src/pipeline/structure_execution.py
+## src/structure_execution/
+
+Top-level structure-execution package.
+Implementation is split across:
+- `src/structure_execution/helpers.py`
+- `src/structure_execution/execution.py`
 
 ### `build_structure_first_pass_execution_artifacts(structure_generation_seed_df, cfg=None, formula_col='formula', structure_model=None, structure_feature_columns=None, structure_feature_set=None, structure_model_type=None)`
 Builds the current **first-pass structure execution layer** from the prototype-grounded shortlist / queue view.
@@ -683,7 +744,16 @@ Note:
 
 ---
 
-## src/pipeline/reporting.py
+## src/reporting/
+
+Top-level reporting package.
+Implementation is split across:
+- `src/reporting/common.py`
+- `src/reporting/ranking_tables.py`
+- `src/reporting/structure_artifacts.py`
+- `src/reporting/summary.py`
+- `src/reporting/artifacts.py`
+- `src/reporting/plots.py`
 
 ### `build_experiment_summary(dataset_df, bn_df, candidate_df, split_masks, selection_summary, cfg, robustness_df=None, bn_slice_benchmark_df=None, bn_centered_candidate_df=None, bn_centered_screening_selection=None, structure_generation_seed_df=None)`
 Builds the structured experiment summary dict written to `artifacts/experiment_summary.json`.
@@ -748,10 +818,10 @@ Writes the parity plot.
 
 ---
 
-## src/streamlit_app.py
+## src/ui/streamlit_app.py
 
 No reusable exported functions.
-It is a simple artifact viewer that now reads JSON artifacts via shared `core.io_utils.read_json_file(...)` rather than local ad hoc `json.loads(path.read_text())` calls.
+It is the actual artifact viewer and reads JSON artifacts via shared `core.io_utils.read_json_file(...)` rather than local ad hoc `json.loads(path.read_text())` calls.
 It displays:
 - `metrics.json`
 - `experiment_summary.json`
@@ -789,5 +859,5 @@ It displays:
 - Human-facing docs should track verified runtime behavior, not planned behavior.
 - Before any commit or stage-worthy milestone, run:
   - cache clear via `clear_project_cache('.')` (or directly via the latest `myutils/file_utils/filesystem.delete_cache(...)` path)
-  - `pytest -q`
-  - `quant/bin/python main.py`
+  - `pytest -q src`
+  - `python3 main.py` from the user's zsh / `quant` environment

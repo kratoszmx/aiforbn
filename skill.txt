@@ -1,2 +1,2 @@
-1. 本项目专注于 AI for BN 的科研級別demo項目；通用复用规则参考 `skill.txt`，模型相关复用规则参考 'skills_ai.txt'。
+1. 本项目专注于 AI for BN 的科研級別demo項目；总规则参考 `skill.txt`，项目规则参考skills/ai_project_skill.txt, 详细规则参考skills文件夹下的所有skill。
 2. assets/deep-research-report.md是深度研究GPT對於如何做本項目的研究。而poc_workflow_brief是其他agent根據這個report製作的poc coding計劃，妳允許在coding過程中隨時更改這個poc_workflow_brief

@@ -31,20 +31,61 @@
   - 不可把二者混成一个“AI 发现 BN 新材料”的强 claim
 
 ## 当前 live working tree 状态
-当前 dirty tree 主要包含以下实验性改动：
-- `configs/default.py`
-- `src/pipeline/features.py`
-- `src/pipeline/torch_models.py`
-- `tests/test_config_default.py`
-- `tests/test_features_pipeline.py`
-- `tasks/literature_mining/MODEL_UPGRADE_RESEARCH_2026-04-20.md`
-- `artifacts/pilot/`
+当前 live tree 已完成一轮 **去掉 wrapper 的 src 顶层模块化重排**，目标是不改行为，但把主要模块都上提到 `src` 顶层，避免继续藏在 `pipeline/` 下面。
 
-另外，后续又做了四项轻量仓库整理：
-- Streamlit artifact viewer 已从 `apps/streamlit_app.py` 移到 `src/streamlit_app.py`
+当前代码组织已经变成：
+- `src/default.py`
+  - 实际默认配置文件，`main.py` 和测试直接使用它，不再经过 `config.py` wrapper
+- `src/conftest.py`
+  - 迁移后测试共享的 pytest bootstrap
+- `src/core/`
+  - 顶层独立 module，保留 `io_utils.py` 和 `schema.py`
+- `src/dataset/`
+  - `data.py`
+- `src/features/`
+  - `constants.py`
+  - `candidate_space.py`
+  - `feature_building.py`
+  - `modeling.py`
+  - `selection.py`
+  - `benchmarking.py`
+  - `screening.py`
+- `src/reporting/`
+  - `common.py`
+  - `ranking_tables.py`
+  - `structure_artifacts.py`
+  - `summary.py`
+  - `artifacts.py`
+  - `plots.py`
+- `src/structure_execution/`
+  - `helpers.py`
+  - `execution.py`
+- `src/torch_models/`
+  - `base.py`
+  - `attention.py`
+  - `sparse_attention.py`
+  - `roost_like.py`
+  - `ensemble.py`
+- `src/ui/`
+  - `streamlit_app.py`
+
+测试也已经跟随模块归位迁移到 `src` 下：
+- `src/core/tests/`
+- `src/dataset/tests/`
+- `src/features/tests/`
+- `src/reporting/tests/`
+- `src/ui/tests/`
+- `src/tests/`
+
+根目录 `tests/` 已移除，`src/pipeline/` 也已移除。
+
+另外，本轮还顺手完成了几项必要整理：
+- `main.py` 的导入链已改成直接指向新的顶层模块，不再经过 façade
+- `src/default.py` 已恢复为真实配置文件，不再保留 `src/config.py` 兼容层
+- Streamlit UI 现在直接放在 `src/ui/streamlit_app.py`，不再保留 `src/streamlit_app.py` bootstrap
 - `src/core/io_utils.py` 的 `ensure_runtime_dirs(...)` 已去掉对 `apps/`、`tests/`、`notebooks/` 这类非运行时目录的自动创建逻辑，因此旧的 notebook/notebooks 自动生成来源已经移除
 - `src/core/io_utils.py` 已从“兼容旧 shim”进一步收敛到当前 `myutils` 的真实目录式布局，直接对齐 `file_utils/`、`ai_utils/`、`net_utils/` 等子目录的导入方式
-- 顺手把项目里重复出现的 JSON 读写 / JSON-safe 转换逻辑收拢到 `myutils/file_utils/json_io.py`，并在 `ai_for_bn` 的 `data` / `reporting` / `streamlit_app` / `structure_execution` 中开始复用
+- 项目里重复出现的 JSON 读写 / JSON-safe 转换逻辑继续复用 `myutils/file_utils/json_io.py`
 
 另有以下 **非本轮应编辑对象** 也在 working tree 中呈现 dirty 状态：
 - `skill.txt`
@@ -178,28 +219,33 @@
 5. 因此当前**不应**把实验 dirty tree 叙述成“已经找到比现有主线更强的新路线”。
 
 ## 当前验证状态
-本轮为了整理文档并确认 live tree 状态，已经做过两层验证：
+本轮围绕“模块拆分后兼容性”已经做过这些验证：
 
-1. 极窄实验验证：
-- 先清缓存：`clear_project_cache('.')`（底层已对齐到最新 `myutils/file_utils/filesystem.delete_cache(...)`）
-- 再跑：
-  - `tests/test_config_default.py::test_default_config_has_expected_poc_defaults`
-  - `tests/test_features_pipeline.py::test_select_feature_model_combo_marks_attention_models_as_feature_specific`
-  - `tests/test_features_pipeline.py::test_fractional_composition_feature_table_and_torch_models_fit_predict`
-- 结果：`3 passed, 1 warning in 4.26s`
+1. 语法级验证：
+- `python3 -m compileall src main.py`
+- 结果：通过
 
-2. 当前 live experimental tree 的完整 `pytest -q`：
-- 同样先清缓存后运行
-- 结果：`32 passed, 6 warnings in 20.10s`
+2. 定向回归验证：
+- `pytest -q src/features/tests/test_features_pipeline.py -k "feature_pipeline_can_train_evaluate_benchmark_and_rank_demo_candidates or screen_candidates_can_apply_bn_local_band_gap_alignment_penalty"`
+- 结果：通过
 
-重要说明：
-- 本轮曾尝试重新跑一次 `python main.py` 来满足旧的提交前检查习惯
-- 该进程一直在真实占用 CPU，不是假挂，但在完成前被中断
-- 随后用户已明确要求：**这一轮只做文档/状态整理，不再继续跑程序；若要跑也只做快速 dry run**
-- 因此当前 live experimental tree 的最新状态应描述为：
-  - **完整 `pytest -q` 已通过**
-  - **`python main.py` 本轮未完成，不应表述成已重新验证通过**
-- 所以这个 dirty tree 仍应看作“文档已同步、测试已过、但主流程未重新完整验证”的实验树，而不是新的 fully re-verified stable checkpoint
+3. 入口与配置兼容验证：
+- `pytest -q src/tests/test_default_config.py src/tests/test_main.py`
+- 结果：`2 passed`
+
+4. 模块拆分后的完整 src 测试：
+- `pytest -q src`
+- 结果：`35 passed, 6 warnings in 5.87s`
+
+5. `main.py` 烟测：
+- 在用户 zsh / `quant` 环境里实际启动过 `python3 main.py`
+- 修复 `src/default.py` 缺失后，程序已不再在入口阶段立即因 import/config 路径报错
+- 该运行随后进入持续计算阶段，未在本轮等待到完整结束
+
+因此当前最准确的表述应是：
+- **模块拆分后的 `pytest -q src` 已通过**
+- **`main.py` 已确认能启动并进入主流程，但本轮未等待到完整跑完**
+- 这更接近“结构重构已验证、主流程做过短烟测”的状态，而不是“完整重算后的新稳定 checkpoint”
 
 ## 当前最重要的记录文件
 ### 应继续保留并视为主状态文件

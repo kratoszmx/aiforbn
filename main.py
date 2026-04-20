@@ -11,41 +11,38 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from core.io_utils import clear_project_cache, ensure_runtime_dirs, load_config
-from pipeline.data import load_or_build_dataset
-from pipeline.features import (
-    STRUCTURE_AWARE_FEATURE_SET,
+from dataset.data import load_or_build_dataset
+from features.benchmarking import (
     benchmark_bn_family_holdout,
     benchmark_bn_slice,
     benchmark_bn_stratified_errors,
     benchmark_grouped_robustness,
     benchmark_regressors,
+    select_bn_centered_candidate_screening_combo,
+)
+from features.candidate_space import filter_bn, generate_bn_candidates
+from features.constants import STRUCTURE_AWARE_FEATURE_SET
+from features.feature_building import build_feature_tables, make_split_masks
+from features.modeling import evaluate_predictions, train_baseline_model
+from features.screening import (
     build_candidate_grouped_robustness_prediction_members,
     build_candidate_grouped_robustness_predictions,
     build_candidate_prediction_ensemble,
     build_candidate_prediction_members,
     build_candidate_structure_generation_seeds,
-    build_feature_tables,
-    evaluate_predictions,
-    filter_bn,
-    generate_bn_candidates,
-    make_split_masks,
-    select_bn_centered_candidate_screening_combo,
-    select_feature_model_combo,
     screen_candidates,
-    train_baseline_model,
 )
-from pipeline.reporting import (
-    build_experiment_summary,
-    save_basic_plots,
-    save_metrics_and_predictions,
-)
-from pipeline.structure_execution import build_structure_first_pass_execution_artifacts
+from features.selection import select_feature_model_combo
+from reporting.artifacts import save_metrics_and_predictions
+from reporting.plots import save_basic_plots
+from reporting.summary import build_experiment_summary
+from structure_execution.execution import build_structure_first_pass_execution_artifacts
 
 
 def main() -> None:
     clear_project_cache('.')
 
-    config_path = Path('configs/default.py')
+    config_path = Path('src/default.py')
     cfg = load_config(config_path)
 
     ensure_runtime_dirs(cfg)
