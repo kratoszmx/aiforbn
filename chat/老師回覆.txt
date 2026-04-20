@@ -1,184 +1,472 @@
-見微，
+見微，我讀完了你的項目匯報。先給結論：7.1 / 10。
+不是差，但也遠不到可以讓我放心放你去講“BN-centered discovery”的程度。
 
-我看完了。先說結論：這不是一份“做出結果”的博士階段匯報，而是一份“把框架搭起來了”的 PoC 匯報。 兩者差很多。你這份東西最危險的地方，不是做得差，而是很容易把“流程閉環”包裝成“研究進展”。你自己在文中其實也承認了這一點：目前核心價值是 workflow，而不是高可信材料結論；模型弱、評估可能泄漏、候選缺乏約束，這些你都寫了
+我只根據你這份 markdown 匯報評分，沒有直接驗證你的倉庫、metrics.json、CSV artifact 或 pytest 結果。你在報告中聲稱目前數據規模為 6351 條、4381 個唯一公式，BN slice 只有 12 條記錄、10 個唯一 BN 公式；主 benchmark、5-fold grouped robustness、BN-slice leave-one-BN-formula-out 診斷與候選 ranking/structure bridge 都已生成 artifact 。我以下評價以這些匯報內容為準。
 
-1. 打分
-5.9 / 10
+一、總分：7.1 / 10
+評分項	分數	評語
+工程完整性	1.6 / 2	主流程、artifact、測試、分層輸出都有，比你之前那種“跑通就算做完”的東西像樣很多。
+評估協議	1.5 / 2	group_by_formula、5-fold grouped benchmark、BN-slice 診斷是正確方向。這部分是你這版最像博士工作的地方。
+問題邊界意識	1.4 / 2	你知道不能把 formula-only screening、structure-aware evaluation、BN generalization 混在一起講，這點值得肯定。
+科學主張強度	0.6 / 2	BN-centered generalization 基本沒有站住。selected model 和 screening model 在 BN-slice 上都沒有打贏 dummy，這是核心傷口。
+候選篩選可信度	0.8 / 2	ranking 層次很多，但目前更像“有註釋的候選列表”，不是可靠 discovery pipeline。
+報告表達	1.2 / 2	邏輯清楚，但有些地方開始自我表揚，像在替自己辯護，而不是冷靜呈現證據。
 
-這個分數已經是看在你確實完成了一條 end-to-end pipeline、而且你沒有把它硬吹成 discovery 的份上給的。你有完整數據流、特徵、訓練、評估、候選打分、artifact 落盤和展示層，這說明你不是空想，你至少把東西跑起來了
+總評：這是一個方法學上變誠實的 PoC，不是一個強科研結果。
 
-但你是博士生，不是課程作業。對博士階段而言：
+你最大的進步是：你終於開始把問題拆開，而不是把所有好看的數字混成一坨。
+你最大的問題是：你拆開之後，發現核心 BN 問題其實還沒解決，但你仍然在報告裡用了不少讓人以為它已經比較可靠的措辭。
 
-“能跑”不是亮點，是最低交付。
-“有分數”不是證據，尤其當分數本身可能被 leakage 污染。
-“有候選排序”也不是研究價值，尤其當候選空間本身沒有基本物理/化學可行性約束。
+二、這份匯報裡明顯站不住腳的 idea
+1. “BN-centered screening”這個主張目前很虛
 
-你報告裡的數字是 MAE 0.9752、RMSE 1.3371、R² 0.1589，但同時你自己又承認是隨機行級切分，而且 6351 條記錄只有 4381 個唯一 formula，還有 3002 條重複 formula 行。在 composition-only 特徵下，這個設計有很明顯的信息洩漏風險，所以這個分數的可信度本身就是打折的
+你自己報告裡寫得很清楚：標準 grouped split 裡 BN rows 全在 train，val/test 裡都是 0；所以標準 test benchmark 根本沒有測到 BN 公式外推 。這已經直接削弱了整個 BN-centered narrative。
 
-所以，這個項目現在的狀態是：
+更致命的是 BN-slice leave-one-BN-formula-out：
 
-工程 PoC 基本成立；研究結論基本還站不住。
+模型	BN-slice MAE	BN-slice R²
+selected structure-aware HGB	1.6397	-0.2220
+formula-only screening HGB	1.6383	-0.2662
+dummy baseline	1.3257	-0.1021
 
-這就是 5.9，不是 8 分以上。
+也就是說：你現在主力模型在你最關心的 BN 診斷上輸給 dummy。
 
-2. 這份匯報裡明顯站不住腳的 idea
+這不是小瑕疵。這是你整個項目的中心命題沒有被證明。
 
-我直接挑最關鍵的，不跟你客氣。
+你可以說：
 
-A. 你把它叫做 “AI for BN”，但實際上 BN 只是報告敘事，不是訓練主體
+“我已經建立了 BN-centered evaluation 的診斷框架。”
 
-你文中明確寫了：
+你不能說：
 
-全部數據有 6351 條；
-唯一 formula 有 4381；
-真正的 BN slice 只有 12 條；
-而且 模型訓練仍然使用整個標準化數據表，BN slice 主要只是“主題聚焦和展示”
+“我已經建立了可靠的 BN-centered screening system。”
 
-那麼問題來了：
-你這個項目到底是在做 BN，還是在做 general 2D materials 的 composition-only band gap regression，然後拿 BN 當展示切口？
+這兩句差非常遠。博士生如果在這裡滑過去，就是不誠實。
 
-如果答案是後者，那你題目和敘事就有誤導性。
-因為目前看來，BN 並沒有真正作為方法學核心約束進入模型設計或評估設計。你只是選了一個 BN 標籤，然後用全域數據訓練，再回頭對 BN/III-V 候選做打分。
+2. top-20 overlap = 20/20 幾乎沒有你說的那麼有力
 
-這個 idea 站不住的地方在於：研究對象和建模對象並不一致。
+你候選總數只有 25 個，然後說 general ranking 和 BN-centered ranking 的 top-20 重合度是 20/20，用來說明 top candidate set 不完全依賴單一模型偶然產生 。
 
-B. “候選篩選”這個說法現在太大了，實際上只是玩具候選空間上的打分
+見微，這個說服力很弱。
 
-你目前的候選生成是：
+25 個裡取 20 個，本來就很容易重合。這種 overlap 不能證明 ranking robust。你至少應該報：
 
-Group 13: B, Al, Ga, In, Tl
-Group 15: N, P, As, Sb, Bi
-兩兩組合 25 個 formula
-再輸出 top-k 20
+top-3 / top-5 / top-10 overlap；
+Kendall tau 或 Spearman rank correlation；
+bootstrap rank variance；
+每個 candidate 的 rank confidence interval；
+不同 split、不同 seed、不同模型族下的 rank stability。
 
-這在工程 PoC 上可以接受，因為它確實能演示 ranking pipeline。
-但從研究上看，這個候選空間太假了。你自己也寫了，沒有穩定性、結構合理性、合成可行性約束，因此不能當可靠 discovery claim
+現在這個 20/20 更像是你想找一個好看的穩定性指標，而不是最能暴露問題的穩定性指標。
 
-我要再往前推一步：
-不只是“不能當 discovery claim”，而是連“candidate screening”這個詞都最好收斂。
+3. chemical plausibility 這層太薄，不應該被賦予太多意義
 
-因為現在這不是 screening in any serious sense。這只是：
+你用 pymatgen common oxidation-state guess 做公式級 plausibility 篩查，得到 23/25 通過，AlBN 和 TlBN 未通過 。這只能算一個非常粗糙的 hygiene check。
 
-在一個人為枚舉、極度簡化、缺少物理先驗的空間裡，讓一個弱基線模型打分。
+它不能支持：
 
-這個東西最多叫：
+結構穩定；
+可合成；
+二維相存在；
+動力學穩定；
+熱力學接近 convex hull；
+band gap prediction 有意義。
 
-toy candidate ranking
-或者 pipeline-level screening demo
+你報告裡有承認這點，這是對的。但你後面又把它放進 candidate ranking 的解釋層裡，容易讓人誤以為這是“化學可信”的證據。不是。它只是“不明顯離譜”的最低門檻。
 
-你現在把它說成候選篩選，學術上太寬鬆。
+而且我不太懂化學，所以我都能看出這層薄。真正懂材料的人會問得更狠。
 
-C. 你的測試集結果不能用來支撐“模型已有可用信號”這句話，至少現在不能
+4. formula-level novelty 不等於 materials discovery
 
-你文中說，R² 為正，說明存在一定可學信號，系統不是完全失效
-這句話不是完全錯，但它目前不夠硬。
+你把候選分成：
 
-原因很簡單：
+train_plus_val_rediscovery: 3
+held_out_known_formula: 0
+formula_level_extrapolation: 22
 
-切分方式有泄漏風險：隨機行級切分 + 重複 formula。
-特徵是 composition-only：本質上幾乎貼著 formula 在學。
-沒有和 naive baseline 比：你沒有給 mean predictor、median predictor、簡單線性模型、甚至 dummy regressor 的對照。
-沒有 target 分佈語境：不知道 band gap 標籤的尺度、方差、尾部情況，MAE 0.9752 到底算什麼，你沒有交代清楚。
-validation set 幾乎沒被真正用起來：你自己也承認 val 掩碼構造了，但沒有充分用於系統化調參
+這個分層是有用的 。但你不能讓讀者覺得 formula_level_extrapolation 就接近“新材料發現”。
 
-所以現在這個結果只能說：
+原因很簡單：材料不是只有化學式。
+同一 formula 可以有不同結構、不同相、不同 band gap、不同穩定性。你的模型主要在 formula/composition 層面做 screening，最多只能說：
 
-你得到了一個非零、非崩潰的 baseline output。
+“這些是未在當前 train/val 中出現過的公式級候選。”
 
-但還不能嚴格推出：
+不能說：
 
-這個模型已經捕捉到了有決策價值的 band gap signal。
+“這些是有希望的新材料。”
 
-這兩句差很多。你在報告裡有點踩線了。
+這個措辭必須壓低。
 
-D. 你把 “vertical slice 完整” 當成了主要貢獻，但對博士研究來說，這只能算工程骨架完成
+5. structure bridge 目前只是 workflow planning，不是 scientific evidence
 
-你強調完整鏈路：數據、特徵、訓練、評估、候選、展示、artifact，都有了
-這個我承認，是這份匯報裡最像樣的部分。
+你現在導出了很多 structure follow-up artifact，例如 seed、handoff、reference records、job plan、queue、follow-up shortlist 等 。這比以前只輸出 ranking 好，因為至少下一步知道怎麼接。
 
-但你要清楚：
+但你要清楚：多輸出幾個 JSON/CSV 文件，不等於結構問題被解決。
 
-對產品原型來說，vertical slice 很重要；
-對博士研究來說，vertical slice 只是讓你有資格開始做方法學問題。
+目前這一層只能支持：
 
-也就是說，這不是“成果”，而是“進場券”。
+“我已經把候選 ranking 接到後續結構工作流的計劃層。”
 
-你如果下次還把“我把 main.py、notebook、streamlit 都串好了”當成核心進展來講，我會直接打斷你。因為那不是研究突破，那只是工程 hygiene。
+不能支持：
 
-E. 配置裡有 matminer，但實際沒接上，這件事非常傷 credibility
+“候選已經有結構可行性證據。”
 
-你自己明確寫了：
+你報告裡雖然有說它不是 structure validation，但語氣仍然偏滿。博士匯報裡，這種地方要更冷。
 
-use_matminer = True
-但當前代碼路徑中並沒有真正接入 matminer 特徵
-因此應被準確描述為基於化學式的基礎組成特徵基線，而不是 matminer-enhanced baseline
+6. “BN-centered alternative ranking”選模邏輯不夠清楚
 
-你能主動寫出來，算你誠實。
-但這件事本身仍然很糟。
+你前面說 BN-slice benchmark 裡 best BN-slice combo 是：
 
-因為這暴露了一個更大的問題：
-你的配置、命名、系統能力陳述和真實執行路徑之間還沒有完全對齊。
+matminer_composition_plus_structure_summary + linear_regression
 
-這種不對齊在博士工作裡非常要命。不是因為它技術上多難，而是因為它讓人懷疑你到底清不清楚自己真正做了什麼。
-一旦導師或答辯委員察覺到這種“名義能力 > 實際能力”的傾向，對你的信任會掉得很快。
+但後面 BN-centered alternative ranking 又說選中：
 
-F. 你現在的 top candidates 更像“常識回放”，不是“候選發現”
+matminer_composition + linear_regression
 
-你列出的前幾個候選包括：
+原因是 candidate screening 不能用 structure features，這個方向我理解。但你沒有清楚報出 matminer_composition + linear_regression 在 BN-slice 上到底表現如何。
 
+這裡缺一張關鍵表：
+
+role	feature set	model	BN-slice MAE	BN-slice R²	candidate-compatible?
+best BN overall	structure + composition	linear	?	?	no
+best BN screening-compatible	composition only	linear	?	?	yes
+default screening	composition only	HGB	?	?	yes
+dummy	none	mean	?	?	yes
+
+沒有這張表，你的 BN-centered ranking 選模理由不夠硬。
+
+7. 你還沒有定義清楚 ranking 的真正目標
+
+你一直在說 band-gap screening，但我沒有看到你把目標講到足夠精確。
+
+你到底要找什麼？
+
+最大 band gap？
+某個 band gap window？
+接近 BN 的 wide-gap 類材料？
+用於絕緣層？
+用於半導體？
+是 PBE gap 還是某種更接近實驗的 gap？
+ranking 高是因為 predicted band gap 高，還是因為 predicted band gap + plausibility + novelty 的綜合分數高？
+
+如果目標函數不清楚，ranking 就只是排序遊戲。
+博士項目不能停在“我把候選排了名”。你要說清楚為什麼這個排序對材料決策有用。
+
+三、為什麼我不給 8 分以上
+
+因為這份工作現在的強點是“評估更誠實”，不是“科學結論更強”。
+
+你已經做到了：
+
+formula leakage 控制；
+grouped robustness；
+evaluation/screening 分離；
+BN-slice 診斷；
+candidate ranking 多層輸出；
+structure follow-up planning。
+
+這些讓它從工程 demo 變成研究型 PoC。
+
+但是你沒有做到：
+
+證明 BN-centered generalization；
+證明 candidate ranking 對 BN 候選可靠；
+證明 formula-level novelty 對應結構級可行性；
+證明 top candidates 在合理的不確定性下仍然穩定；
+證明 structure bridge 真的落地到結構生成與驗證。
+
+所以我給 7.1。
+你如果來我辦公室講這份匯報，我會說：可以繼續，但不能畢業式吹。
+
+四、全面改進方案
+
+下面這部分你照著改。不要再加花哨 artifact。你現在不是缺文件數量，是缺關鍵證據。
+
+1. 先重寫項目 claim hierarchy
+
+你現在的敘事應該拆成四層，不要混在一起。
+
+Level 1：general 2D band-gap predictor
+
+可支持的 claim：
+
+在公開二維材料數據上，composition-only 和 lightweight structure-aware baseline 可以優於 dummy，且 grouped split 下有穩定內部表現。
+
+這個目前基本站得住。
+
+Level 2：BN-centered diagnostic framework
+
+可支持的 claim：
+
+本項目設計了 BN-slice leave-one-formula-out 診斷，能揭示 general benchmark 無法暴露的 BN-domain weakness。
+
+這個也站得住。
+
+Level 3：BN-centered predictive model
+
+目前不能支持。
+
+你現在應該明確寫：
+
+BN-centered predictive generalization has not yet been demonstrated.
+
+不要寫得像“只是還差一點”。
+selected/screening model 輸給 dummy，這不是“還差一點”，這是當前主模型在核心 slice 上失效。
+
+Level 4：BN candidate discovery
+
+目前更不能支持。
+
+你只能說：
+
+formula-level candidate prioritization for follow-up.
+
+不能說：
+
+discovery。
+
+2. 補一個真正嚴格的 BN 評估矩陣
+
+你現在只有 leave-one-BN-formula-out，但 BN slice 太小。下一版要做一個專門 BN evaluation table。
+
+至少包含：
+
+評估	目的	必須報告
+leave-one-BN-formula-out	測 BN 公式外推	MAE, RMSE, R², 每個 formula 的 error
+leave-one-BN-family-out	測 family-level 外推	按 BCN / BC2N / SiBN 類 family 分組
+BN vs non-BN stratified error	看模型是否對 BN 系統性失效	BN MAE, non-BN MAE, error ratio
+candidate-compatible BN model comparison	避免用 structure model 偷渡	只比較 formula-only 模型
+dummy / kNN / linear / tree ensemble baseline	防止 HGB 單點敘事	每個都報
+
+你要把 BN 問題做成一個獨立 section，而不是附屬在 general benchmark 後面。
+
+3. 如果 BN 數據仍然只有 12 條，就不要硬做“BN model”
+
+BN slice 目前只有 12 rows / 10 formulas 。這個規模非常尷尬。
+
+你有兩條路：
+
+路線 A：擴充 BN-relevant dataset
+
+你需要主動補 BN、BCN、BC2N、SiBN、AlBN、GaBN 等相關 family 的數據。來源可以是其他公開材料庫、文獻表格、你自己後續計算得到的結構結果。重點不是來源名字，而是你要形成一個能測 generalization 的 BN-related evaluation set。
+
+最低要求：
+
+不只 10 個 BN formulas；
+不只一兩個 prototype；
+有結構級對應；
+band gap 計算 protocol 盡量一致；
+明確標記數據來源與計算方法。
+路線 B：承認 BN 只是 case study，不是建模 domain
+
+如果你短期內不補數據，就把 BN 定位降級：
+
+BN-themed case study for candidate workflow demonstration.
+
+不要再把它叫做 BN-centered generalization system。
+
+兩條路二選一。不要卡在中間，又想講 BN，又沒有 BN 證據。
+
+4. ranking 必須加入不確定性與 abstention
+
+你現在的 ranking 太像 deterministic leaderboard。這對材料篩選很危險。
+
+下一版每個 candidate 至少要有：
+
+欄位	用途
+predicted_band_gap_mean	平均預測
+predicted_band_gap_std / interval	模型不確定性
+distance_to_training_domain	是否遠離訓練分佈
+BN-local support score	BN 鄰域支持
+rank_mean	平均排名
+rank_std	排名波動
+abstain_flag	是否不應該給強 ranking
+reason_for_abstention	拒絕原因
+
+尤其是 BN-slice 已經暴露模型不可靠，你不能再只給一個排名。
+你需要讓系統會說：
+
+“這個候選我不確定，不應該作為高信心推薦。”
+
+這比硬排 top-5 更像博士工作。
+
+5. 把 candidate shortlist 改成 decision policy，而不是漂亮列表
+
+現在你有 raw ranking、family-aware shortlist、extrapolation shortlist、BN-centered ranking、structure follow-up shortlist。層次很多，但還不夠像 decision policy。
+
+你應該定義一個明確決策流程：
+
+Step 1: remove chemically invalid formulas
+Step 2: remove candidates outside global domain support
+Step 3: flag candidates outside BN-local support
+Step 4: estimate prediction uncertainty
+Step 5: apply novelty category
+Step 6: apply family diversity constraint
+Step 7: check prototype availability
+Step 8: assign action label
+
+最後每個候選不要只給 rank，要給 action label：
+
+action label	意義
+reuse_reference_control	已知或近似已知，做 sanity/control
+low_risk_followup	有 prototype、有低不確定性，可優先做結構
+uncertain_but_interesting	novelty 高但模型不確定，需要低優先級探索
+abstain_model_unreliable	模型在該區域不可靠，不推薦
+reject_formula_level	公式層面已不合理
+
+這樣你的 ranking 才會像一個篩選系統，而不是一個 CSV 排序練習。
+
+6. 修正 top-k robustness 的評估方式
+
+不要再拿 top-20/25 overlap 當核心穩定性證據。
+
+下一版要報：
+
+指標	建議
+top-3 overlap	最能看出高優先級是否穩
+top-5 overlap	候選篩選最常用
+top-10 overlap	中等 shortlist 穩定性
+Kendall tau	全局排序一致性
+Spearman correlation	排名相關
+rank std across folds	每個 candidate 的排名波動
+selection frequency	candidate 被選入 shortlist 的頻率
+
+而且要畫出或列出：
+
+candidate	mean rank	rank std	selected frequency	uncertainty	final action
+
+這樣我才知道你推薦 BCN2、BCN、AlBN2 這些候選到底是穩，還是某個 split/model 偶然把它們推上去。
+
+7. structure bridge 要從 planning 進入 first-pass execution
+
+你現在的 structure bridge 只到 job plan / queue / handoff。下一步要真的做 first-pass structure workflow。
+
+至少做 5 個 prototype-grounded candidates：
+
+BCN2
+BC2N
+BCN
+Si2BN
 BN
-AlP
-AlN
-GaN
-InN
 
-問題是，這些東西看上去更像是常見的 III-V/相關化合物體系回放，不是什麼有說服力的新 leads。
-這對 PoC 沒問題，因為 baseline 本來就常常先學會“把常識撿回來”。但你不能把這件事暗示成 screening 的有效性證明。
+這些已經在你的 prototype-grounded shortlist 裡 。不要再擴大清單，先把這 5 個做實。
 
-最多只能說：
+每個 candidate 至少要交：
 
-模型還沒有完全胡來；它打出的前列結果至少沒有一眼荒謬。
+項目	要求
+seed structure source	來自哪個 reference formula/prototype
+substitution / stoichiometry rule	怎麼從 reference 變到 candidate
+generated structures count	生成多少個候選結構
+relaxation status	是否收斂
+basic geometry sanity	是否有明顯不合理鍵長/重疊
+post-relax band gap	結構後 band gap
+stability proxy	至少要有一個初級穩定性指標
+final status	keep / reject / uncertain
 
-但這個和“模型有能力發現值得追的候選”不是一回事。
+現在這一步不做，你的 project 仍然卡在 formula-level ML。
 
-G. 你下一步規劃基本是對的，但也反過來證明：真正的研究還沒開始
+8. 報告語氣要降溫
 
-你後面的 roadmap 寫得比前面的結果更像博士工作：
+你現在有些句子太像自己給自己寫推薦信。例如：
 
-修正 split 協議；
-做更可信基線；
-真接 matminer；
-引入結構特徵；
-解耦 train / inference；
-加入 uncertainty-aware ranking
+“更適合导师阅读”
+“研究型 PoC”
+“已经有可继续推进的研究骨架”
 
-這些方向我基本同意。
-但你知道這意味著什麼嗎？
+這些可以保留一點，但不能成為主調。你是博士生，不是項目公關。
 
-這意味著你現在最有價值的部分，不是你已經證明了什麼；
-而是你終於看清楚下一步真正該做什麼。
+下一版請改成更硬的格式：
 
-也就是說，這份匯報的研究產出更多是問題診斷，不是問題解決。
+Claim:
+Evidence:
+Limitation:
+Decision consequence:
+Next required validation:
 
-3. 我作為導師，怎麼概括你這次匯報
-你做對了的地方
-你沒有空談，確實把 pipeline 跑通了。
-你能誠實承認 composition-only、split leakage、candidate constraint 缺失、uncertainty 缺失這些問題。
-你對下一步的優先級排序大致正確：先修評估，再升表示，再談 screening credibility。
-你做得不夠的地方
-研究問題定義還不夠乾淨：BN 是題目，還是方法約束？現在其實說不清。
-評估說服力不足：你連最基本的可信 baseline 都還沒有。
-screening 敘事過大：現在只能叫 demo，不該叫候選發現能力。
-指標解釋不足：沒有 baseline comparison，就談不上 metric interpretation。
-系統能力陳述還有虛胖：配置在，功能不在。
-4. 最後給你的導師式判詞
+例如：
 
-見微，你這份東西不是沒價值。
-它的價值在於：你終於不是在原地空轉了。
+Claim:
+The general 2D band-gap predictor outperforms dummy under grouped formula split.
 
-但你也不要自我感動。因為以博士標準看，這還只是：
+Evidence:
+Formula-only HGB obtains MAE = 0.5822 vs dummy MAE = 1.1118 on the standard test split.
 
-把研究舞台搭好了，演出還沒開始。
+Limitation:
+This does not validate BN-centered extrapolation because BN rows are absent from val/test in the standard split.
 
-你這次能過關的地方，是你至少誠實地承認了它只是 PoC；
-你這次拿不到高分的地方，是因為你還沒有拿出一個可信的、可辯護的、方法學上站得住的結果。
+Decision consequence:
+Use this model only for general candidate pre-ranking, not high-confidence BN discovery.
+
+Next required validation:
+Candidate-compatible BN-slice benchmark and rank uncertainty analysis.
+
+這種寫法比你現在的敘事更像博士匯報。
+
+9. 重新設計摘要頁
+
+你現在的一句話結論還是偏包裝。下一版首頁應該直接寫：
+
+建議新版摘要
+
+This project builds a formula-level and lightweight structure-aware band-gap screening PoC for 2D materials, with a BN-themed candidate workflow. General grouped-split performance is clearly better than dummy baselines, and the evaluation protocol now separates overall prediction, candidate-compatible screening, and BN-specific diagnostics. However, BN-centered generalization is not yet demonstrated: the selected and screening models fail to outperform dummy on the leave-one-BN-formula-out benchmark. Therefore, current candidate rankings should be treated as low-confidence prioritization for structure follow-up, not as evidence of BN material discovery.
+
+這段比你原來的版本更冷，也更安全。
+
+五、你下一版要交什麼
+
+不要再給我一份“新增了更多 artifact”的報告。我要看到下面這些東西。
+
+必交 1：BN evaluation table
+
+包括所有 candidate-compatible 模型在 BN-slice 上的結果。尤其補上：
+
+matminer_composition + linear_regression
+matminer_composition + hist_gradient_boosting
+dummy
+kNN/local baseline
+如果有 ensemble，也一起報
+必交 2：candidate ranking uncertainty table
+
+對 top candidates 報：
+
+mean prediction；
+uncertainty；
+rank variance；
+selection frequency；
+BN-local support；
+final action label。
+必交 3：top-k robustness，不准再只報 top-20
+
+至少報：
+
+top-3 overlap；
+top-5 overlap；
+top-10 overlap；
+Kendall tau；
+candidate rank std。
+必交 4：first-pass structure follow-up 結果
+
+從你目前 shortlist 裡選 5 個，不要貪多。
+每個 candidate 至少給 seed、生成方式、relaxation status、初步 band gap、初步穩定性/幾何 sanity。
+
+必交 5：改寫 claim
+
+明確把目前結論降到：
+
+BN-themed formula-level screening PoC with honest diagnostics.
+
+不要寫成：
+
+BN-centered generalization system.
+
+六、我對你這份工作的最終評語
+
+見微，這次不是垃圾。你至少開始知道哪些話不能亂講，也開始把 evaluation、screening、BN diagnostic、structure follow-up 分開。這是博士訓練裡重要的一步。
+
+但我不會因為你終於誠實了就給高分。
+你現在最大的成果是：你證明了自己原來想講的 BN-centered generalization 其實還沒有被證明。
+
+這是有價值的，但它不是終點。
+
+7.1 / 10。
+下一版如果你能把 BN candidate-compatible evaluation、ranking uncertainty、top-k robustness 和 first-pass structure validation 補上，這個項目才有資格往 8 分以上走。
