@@ -1,0 +1,1 @@
+../myutils/skills/ai_project_skill.txt

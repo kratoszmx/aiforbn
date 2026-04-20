@@ -1,1 +1,1 @@
-../myutils/generalskill.txt
+../myutils/skills/generalskill.txt
