@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 import sys
 
@@ -10,7 +9,7 @@ SRC_DIR = ROOT / 'src'
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from core.io_utils import clear_project_cache
+from core.io_utils import clear_project_cache, read_json_file
 
 clear_project_cache('.')
 
@@ -66,13 +65,13 @@ st.write('Minimal PoC UI for BN property prediction, grouped evaluation, and dem
 
 if metrics_path.exists():
     st.subheader('Metrics')
-    st.json(json.loads(metrics_path.read_text()))
+    st.json(read_json_file(metrics_path))
 else:
     st.info('Run `python main.py` first to generate artifacts.')
 
 if summary_path.exists():
     st.subheader('Experiment summary')
-    st.json(json.loads(summary_path.read_text()))
+    st.json(read_json_file(summary_path))
 
 if benchmark_path.exists():
     st.subheader('Benchmark results')
@@ -132,19 +131,19 @@ if structure_generation_seed_path.exists():
 
 if structure_generation_handoff_path.exists():
     st.subheader('Structure-generation handoff JSON')
-    st.json(json.loads(structure_generation_handoff_path.read_text()))
+    st.json(read_json_file(structure_generation_handoff_path))
 
 if structure_generation_reference_records_path.exists():
     st.subheader('Structure-generation reference records JSON')
-    st.json(json.loads(structure_generation_reference_records_path.read_text()))
+    st.json(read_json_file(structure_generation_reference_records_path))
 
 if structure_generation_job_plan_path.exists():
     st.subheader('Structure-generation job-plan JSON')
-    st.json(json.loads(structure_generation_job_plan_path.read_text()))
+    st.json(read_json_file(structure_generation_job_plan_path))
 
 if structure_generation_first_pass_queue_path.exists():
     st.subheader('Structure-generation first-pass queue JSON')
-    st.json(json.loads(structure_generation_first_pass_queue_path.read_text()))
+    st.json(read_json_file(structure_generation_first_pass_queue_path))
 
 if structure_generation_followup_shortlist_path.exists():
     st.subheader('Structure-grounded follow-up shortlist')
@@ -173,7 +172,7 @@ if structure_generation_first_pass_execution_variants_path.exists():
 
 if structure_generation_first_pass_execution_path.exists():
     st.subheader('Structure first-pass execution JSON')
-    st.json(json.loads(structure_generation_first_pass_execution_path.read_text()))
+    st.json(read_json_file(structure_generation_first_pass_execution_path))
 
 if proposal_shortlist_path.exists():
     st.subheader('Proposal shortlist')

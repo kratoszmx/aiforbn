@@ -69,7 +69,7 @@ def test_streamlit_app_reads_generated_artifacts(tmp_path, monkeypatch):
     monkeypatch.setitem(sys.modules, 'streamlit', fake_streamlit)
     monkeypatch.chdir(tmp_path)
 
-    app_path = Path(__file__).resolve().parents[1] / 'apps' / 'streamlit_app.py'
+    app_path = Path(__file__).resolve().parents[1] / 'src' / 'streamlit_app.py'
     spec = spec_from_file_location('streamlit_app_test', app_path)
     module = module_from_spec(spec)
     assert spec is not None and spec.loader is not None

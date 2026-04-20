@@ -36,15 +36,25 @@ Important:
 
 ## src/core/io_utils.py
 
+Purpose:
+- bootstraps the latest `../myutils` directory-style module layout by adding its classified subdirectories to `sys.path`
+- exposes the repo's config loading / runtime-dir / cache-clear helpers
+- reuses shared JSON helpers from `myutils/file_utils/json_io.py`
+
 ### `load_config(path)`
 Loads the Python config module and returns its `CONFIG` dict.
 
 ### `ensure_runtime_dirs(cfg)`
-Creates runtime directories such as the artifact folder if missing.
+Creates only the configured runtime directories if missing.
+Currently this means the config-driven data/cache/artifact directories, rather than legacy source-tree folders like `apps/` or `notebooks/`.
 
 ### `clear_project_cache(project_root_path='.')`
-Delegates cache cleanup for this repo.
+Delegates cache cleanup for this repo via the current `myutils/file_utils/filesystem.py` implementation.
 Use before tests or batch runs, per project skill requirements.
+
+### `read_json_file(path)` / `write_json_file(payload, path, ...)` / `make_json_safe(value)`
+Re-exported shared JSON helpers from `myutils`.
+Use these instead of ad hoc `json.loads(path.read_text())` or `path.write_text(json.dumps(...))` patterns when reading/writing repo artifacts.
 
 ---
 
@@ -738,10 +748,11 @@ Writes the parity plot.
 
 ---
 
-## apps/streamlit_app.py
+## src/streamlit_app.py
 
 No reusable exported functions.
-It is a simple artifact viewer for:
+It is a simple artifact viewer that now reads JSON artifacts via shared `core.io_utils.read_json_file(...)` rather than local ad hoc `json.loads(path.read_text())` calls.
+It displays:
 - `metrics.json`
 - `experiment_summary.json`
 - `benchmark_results.csv`
@@ -777,6 +788,6 @@ It is a simple artifact viewer for:
 - Keep `main.py` linear and notebook-friendly.
 - Human-facing docs should track verified runtime behavior, not planned behavior.
 - Before any commit or stage-worthy milestone, run:
-  - cache clear via `clear_project_cache('.')`
+  - cache clear via `clear_project_cache('.')` (or directly via the latest `myutils/file_utils/filesystem.delete_cache(...)` path)
   - `pytest -q`
   - `quant/bin/python main.py`

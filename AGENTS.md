@@ -43,7 +43,7 @@ Current standing priorities:
 ## Hard constraints
 - Keep `main.py` linear, readable, and notebook-friendly.
 - Use the existing `quant` environment only. Do not create a new Python environment.
-- Before tests or batch runs, clear cache via `../myutils/file_utils.delete_cache('.')` or equivalent.
+- Before tests or batch runs, clear cache via `clear_project_cache('.')` or directly via the latest `../myutils/file_utils/filesystem.delete_cache('.')` path.
 - Before any commit, both of these must pass:
   - `pytest -q`
   - `/opt/homebrew/Caskroom/miniforge/base/envs/quant/bin/python main.py`

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import os
 from pathlib import Path
 import re
@@ -11,6 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from core.io_utils import make_json_safe, write_json_file
 from pipeline.data import load_cached_raw_record_lookup
 from pipeline.features import (
     _bn_family_benchmark_config,
@@ -1174,20 +1174,7 @@ def _collect_structure_generation_seed_summary(
 
 
 def _json_safe_value(value):
-    if pd.isna(value):
-        return None
-    if isinstance(value, (str, bool)):
-        return value
-    if isinstance(value, int):
-        return int(value)
-    if isinstance(value, float):
-        return float(value)
-    if hasattr(value, 'item'):
-        try:
-            return _json_safe_value(value.item())
-        except Exception:
-            pass
-    return value
+    return make_json_safe(value)
 
 
 def _split_pipe_delimited_values(value: object) -> list[str]:
@@ -3550,7 +3537,7 @@ def save_metrics_and_predictions(
         else structure_first_pass_execution_summary_df.copy()
     )
     structure_first_pass_execution_payload = dict(structure_first_pass_execution_payload or {})
-    (artifact_dir / 'metrics.json').write_text(json.dumps(metrics, indent=2))
+    write_json_file(metrics, artifact_dir / 'metrics.json', indent=2)
     prediction_df.to_csv(artifact_dir / 'predictions.csv', index=False)
     bn_df.to_csv(artifact_dir / 'bn_slice.csv', index=False)
     screened_df.to_csv(artifact_dir / 'demo_candidate_ranking.csv', index=False)
@@ -3609,31 +3596,43 @@ def save_metrics_and_predictions(
             formula_col=formula_col,
             cfg_defaults=structure_generation_seed_cfg,
         )
-        structure_generation_handoff_path.write_text(
-            json.dumps(structure_generation_handoff, indent=2, ensure_ascii=False)
+        write_json_file(
+            structure_generation_handoff,
+            structure_generation_handoff_path,
+            indent=2,
+            ensure_ascii=False,
         )
         structure_generation_reference_records = _build_structure_generation_reference_record_payload(
             structure_generation_seed_df,
             cfg=cfg,
         )
-        structure_generation_reference_records_path.write_text(
-            json.dumps(structure_generation_reference_records, indent=2, ensure_ascii=False)
+        write_json_file(
+            structure_generation_reference_records,
+            structure_generation_reference_records_path,
+            indent=2,
+            ensure_ascii=False,
         )
         structure_generation_job_plan = _build_structure_generation_job_plan_payload(
             structure_generation_seed_df,
             formula_col=formula_col,
             cfg_defaults=structure_generation_seed_cfg,
         )
-        structure_generation_job_plan_path.write_text(
-            json.dumps(structure_generation_job_plan, indent=2, ensure_ascii=False)
+        write_json_file(
+            structure_generation_job_plan,
+            structure_generation_job_plan_path,
+            indent=2,
+            ensure_ascii=False,
         )
         structure_generation_first_pass_queue = _build_structure_generation_first_pass_queue_payload(
             structure_generation_seed_df,
             formula_col=formula_col,
             cfg_defaults=structure_generation_seed_cfg,
         )
-        structure_generation_first_pass_queue_path.write_text(
-            json.dumps(structure_generation_first_pass_queue, indent=2, ensure_ascii=False)
+        write_json_file(
+            structure_generation_first_pass_queue,
+            structure_generation_first_pass_queue_path,
+            indent=2,
+            ensure_ascii=False,
         )
         structure_followup_shortlist_cfg = _structure_followup_shortlist_config(cfg)
         structure_followup_shortlist_df = _build_structure_generation_followup_shortlist_df(
@@ -3753,9 +3752,11 @@ def save_metrics_and_predictions(
             **structure_first_pass_execution_payload,
             'candidates': sanitized_candidates,
         }
-        structure_first_pass_execution_path.write_text(
-            json.dumps(sanitized_payload, indent=2, ensure_ascii=False),
-            encoding='utf-8',
+        write_json_file(
+            sanitized_payload,
+            structure_first_pass_execution_path,
+            indent=2,
+            ensure_ascii=False,
         )
     else:
         for cleanup_path in (
@@ -3857,10 +3858,13 @@ def save_metrics_and_predictions(
         bn_slice_prediction_df.to_csv(bn_slice_prediction_path, index=False)
     elif bn_slice_prediction_path.exists():
         bn_slice_prediction_path.unlink()
-    (artifact_dir / 'experiment_summary.json').write_text(
-        json.dumps(experiment_summary, indent=2, ensure_ascii=False)
+    write_json_file(
+        experiment_summary,
+        artifact_dir / 'experiment_summary.json',
+        indent=2,
+        ensure_ascii=False,
     )
-    (artifact_dir / 'manifest.json').write_text(json.dumps(manifest, indent=2))
+    write_json_file(manifest, artifact_dir / 'manifest.json', indent=2)
     legacy_screen_path = artifact_dir / 'screened_candidates.csv'
     if legacy_screen_path.exists():
         legacy_screen_path.unlink()

@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
-import json
 
 import numpy as np
 import pandas as pd
 
+from core.io_utils import read_json_file, write_json_file
 from core.schema import DatasetManifest
 
 
@@ -200,7 +200,7 @@ def _has_required_normalized_columns(df: pd.DataFrame) -> bool:
 def _load_cached_raw(raw_path: Path) -> list[dict] | None:
     if not raw_path.exists():
         return None
-    payload = json.loads(raw_path.read_text())
+    payload = read_json_file(raw_path)
     return payload if isinstance(payload, list) else None
 
 
@@ -237,7 +237,7 @@ def _write_dataset_artifacts(
     df = _normalize(raw, target_col)
     df.to_parquet(processed_path, index=False)
     manifest = _build_manifest(dataset_name, version_hint=version_hint)
-    manifest_path.write_text(json.dumps(manifest, indent=2))
+    write_json_file(manifest, manifest_path, indent=2)
     return df, manifest
 
 
@@ -252,7 +252,7 @@ def load_or_build_dataset(cfg: dict) -> tuple[pd.DataFrame, dict]:
 
     if processed_path.exists() and manifest_path.exists():
         cached_df = pd.read_parquet(processed_path)
-        cached_manifest = json.loads(manifest_path.read_text())
+        cached_manifest = read_json_file(manifest_path)
         if _has_required_normalized_columns(cached_df):
             return cached_df, cached_manifest
 
@@ -282,7 +282,7 @@ def load_or_build_dataset(cfg: dict) -> tuple[pd.DataFrame, dict]:
 
     raw = jarvis_data(dataset_name)
     if cfg['data'].get('cache_raw_json', True):
-        raw_path.write_text(json.dumps(raw))
+        write_json_file(raw, raw_path, indent=None)
 
     return _write_dataset_artifacts(
         raw=raw,

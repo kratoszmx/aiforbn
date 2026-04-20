@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 from pymatgen.core import Composition, Element, Structure
 
+from core.io_utils import make_json_safe
 from pipeline.data import STRUCTURE_SUMMARY_COLUMNS, _structure_summary_from_atoms
 from pipeline.features import (
     STRUCTURE_AWARE_FEATURE_SET,
@@ -127,15 +128,7 @@ def _canonical_formula(formula: str | None) -> str | None:
 
 
 def _json_safe_value(value):
-    if isinstance(value, (np.integer, np.int64)):
-        return int(value)
-    if isinstance(value, (np.floating, np.float64)):
-        if np.isnan(value):
-            return None
-        return float(value)
-    if pd.isna(value):
-        return None
-    return value
+    return make_json_safe(value)
 
 
 def _structure_from_atoms(atoms: dict) -> Structure:

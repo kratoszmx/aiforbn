@@ -40,6 +40,12 @@
 - `tasks/literature_mining/MODEL_UPGRADE_RESEARCH_2026-04-20.md`
 - `artifacts/pilot/`
 
+另外，后续又做了四项轻量仓库整理：
+- Streamlit artifact viewer 已从 `apps/streamlit_app.py` 移到 `src/streamlit_app.py`
+- `src/core/io_utils.py` 的 `ensure_runtime_dirs(...)` 已去掉对 `apps/`、`tests/`、`notebooks/` 这类非运行时目录的自动创建逻辑，因此旧的 notebook/notebooks 自动生成来源已经移除
+- `src/core/io_utils.py` 已从“兼容旧 shim”进一步收敛到当前 `myutils` 的真实目录式布局，直接对齐 `file_utils/`、`ai_utils/`、`net_utils/` 等子目录的导入方式
+- 顺手把项目里重复出现的 JSON 读写 / JSON-safe 转换逻辑收拢到 `myutils/file_utils/json_io.py`，并在 `ai_for_bn` 的 `data` / `reporting` / `streamlit_app` / `structure_execution` 中开始复用
+
 另有以下 **非本轮应编辑对象** 也在 working tree 中呈现 dirty 状态：
 - `skill.txt`
 - `skills.txt`
@@ -175,7 +181,7 @@
 本轮为了整理文档并确认 live tree 状态，已经做过两层验证：
 
 1. 极窄实验验证：
-- 先清缓存：`file_utils.delete_cache('.')`
+- 先清缓存：`clear_project_cache('.')`（底层已对齐到最新 `myutils/file_utils/filesystem.delete_cache(...)`）
 - 再跑：
   - `tests/test_config_default.py::test_default_config_has_expected_poc_defaults`
   - `tests/test_features_pipeline.py::test_select_feature_model_combo_marks_attention_models_as_feature_specific`

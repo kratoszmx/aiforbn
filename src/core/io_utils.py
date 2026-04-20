@@ -4,11 +4,21 @@ import importlib.util
 from pathlib import Path
 import sys
 
-_MYUTILS_DIR = Path(__file__).resolve().parents[3] / 'myutils'
-if str(_MYUTILS_DIR) not in sys.path:
-    sys.path.insert(0, str(_MYUTILS_DIR))
+_MYUTILS_ROOT = Path(__file__).resolve().parents[3] / 'myutils'
+_MYUTILS_MODULE_DIRS = (
+    _MYUTILS_ROOT / 'file_utils',
+    _MYUTILS_ROOT / 'ai_utils',
+    _MYUTILS_ROOT / 'net_utils',
+    _MYUTILS_ROOT / 'other_utils',
+    _MYUTILS_ROOT / 'viz_utils',
+)
+for module_dir in _MYUTILS_MODULE_DIRS:
+    module_dir_str = str(module_dir)
+    if module_dir_str not in sys.path:
+        sys.path.insert(0, module_dir_str)
 
-from file_utils import delete_cache as delete_cache_dirs, ensure_dirs
+from filesystem import delete_cache as delete_cache_dirs, ensure_dirs
+from json_io import make_json_safe, read_json_file, write_json_file
 
 
 RUNTIME_DIR_KEYS = (
@@ -35,7 +45,6 @@ def load_config(path: str | Path) -> dict:
 
 def ensure_runtime_dirs(cfg: dict) -> None:
     runtime_dirs = [cfg[section][key] for section, key in RUNTIME_DIR_KEYS]
-    runtime_dirs.extend(['tasks', 'apps', 'tests', 'notebooks'])
     ensure_dirs(runtime_dirs)
 
 
