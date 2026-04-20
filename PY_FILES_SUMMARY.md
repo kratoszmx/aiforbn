@@ -310,6 +310,11 @@ Useful output fields include:
 - `seed_formula_element_count_l1_distance`
 - `seed_formula_edit_strategy`
 - `simple_element_relabeling_feasible` (in the job-plan JSON, not the seed CSV)
+- `candidate_formula_element_counts` (job-plan JSON)
+- `seed_formula_element_counts` (job-plan JSON)
+- `element_count_deltas` (job-plan JSON)
+- `edit_operations` (job-plan JSON)
+- `edit_complexity_score` (job-plan JSON)
 - `seed_reference_energy_per_atom`
 - `seed_reference_exfoliation_energy_per_atom`
 - `seed_reference_structure_n_sites`
@@ -518,7 +523,7 @@ Important:
 - now also summarizes grouped-by-formula robustness results for the selected model, screening fallback, and dummy baseline
 - now also summarizes the BN-slice benchmark, including standard-split BN row placement, selected/screening/baseline BN metrics, and the current BN-slice best configured combo
 - now also summarizes the BN-centered alternative ranking view, including the chosen candidate-compatible combo, rank-shift statistics, and top-k overlap against the default ranking
-- now also summarizes the structure-generation bridge artifact, including seeded candidate count, seed row count, unique BN reference prototype count, the JSON handoff artifact path, the reference-record payload artifact path, and the job-plan artifact path plus job-action counts
+- now also summarizes the structure-generation bridge artifact, including seeded candidate count, seed row count, unique BN reference prototype count, the JSON handoff artifact path, the reference-record payload artifact path, the job-plan artifact path, the first-pass queue artifact path, and the candidate-level follow-up shortlist artifact path plus job-action counts / complexity stats
 - now also summarizes grouped candidate-robustness penalty settings, fold count, average spread, and penalized-row count
 - now also summarizes the family-aware proposal shortlist and the formula-level extrapolation shortlist as separate advisor-facing outputs
 
@@ -532,6 +537,8 @@ This now includes both shortlist CSVs, BN-slice benchmark artifacts, the BN-cent
 - `demo_candidate_structure_generation_handoff.json`
 - `demo_candidate_structure_generation_reference_records.json`
 - `demo_candidate_structure_generation_job_plan.json`
+- `demo_candidate_structure_generation_first_pass_queue.json`
+- `demo_candidate_structure_generation_followup_shortlist.csv`
 - `demo_candidate_proposal_shortlist.csv`
 - `demo_candidate_extrapolation_shortlist.csv`
 
@@ -557,6 +564,8 @@ It is a simple artifact viewer for:
 - `demo_candidate_structure_generation_handoff.json`
 - `demo_candidate_structure_generation_reference_records.json`
 - `demo_candidate_structure_generation_job_plan.json`
+- `demo_candidate_structure_generation_first_pass_queue.json`
+- `demo_candidate_structure_generation_followup_shortlist.csv`
 - `demo_candidate_proposal_shortlist.csv`
 - `demo_candidate_extrapolation_shortlist.csv`
 

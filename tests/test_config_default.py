@@ -136,4 +136,14 @@ def test_default_config_has_expected_poc_defaults():
     )
     assert cfg['screening']['structure_generation_seeds']['per_candidate_seed_limit'] == 3
     assert cfg['screening']['structure_generation_seeds']['bn_centered_top_n'] == 10
+    assert cfg['screening']['structure_followup_shortlist']['enabled'] is True
+    assert (
+        cfg['screening']['structure_followup_shortlist']['label']
+        == 'prototype_grounded_followup_shortlist'
+    )
+    assert (
+        cfg['screening']['structure_followup_shortlist']['method']
+        == 'first_pass_queue_candidate_aggregation'
+    )
+    assert cfg['screening']['structure_followup_shortlist']['shortlist_size'] == 5
     assert cfg['ui']['streamlit_enabled'] is True

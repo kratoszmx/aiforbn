@@ -8,6 +8,7 @@ import re
 os.environ.setdefault('MPLBACKEND', 'Agg')
 os.environ.setdefault('MPLCONFIGDIR', '/tmp/ai_for_bn_mplconfig')
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 
 from pipeline.data import load_cached_raw_record_lookup
@@ -17,6 +18,7 @@ from pipeline.features import (
     _proposal_shortlist_config,
     _structure_generation_seed_config,
     _structure_seed_edit_metadata,
+    _formula_amount_map,
     BN_ANALOG_EVIDENCE_RANKING_NOTE,
     BN_BAND_GAP_ALIGNMENT_RANKING_NOTE,
     BN_SUPPORT_RANKING_NOTE,
@@ -70,6 +72,36 @@ STRUCTURE_GENERATION_JOB_PLAN_NOTE = (
     'for prototype substitution, enumeration, and relaxation. This is a planning artifact, '
     'not a generated-structure or validated-structure claim.'
 )
+STRUCTURE_GENERATION_FIRST_PASS_QUEUE_LABEL = 'prototype_edit_recipe_first_pass_queue'
+STRUCTURE_GENERATION_FIRST_PASS_QUEUE_METHOD = 'job_plan_complexity_ranked_queue'
+STRUCTURE_GENERATION_FIRST_PASS_QUEUE_NOTE = (
+    'Builds a deterministic first-pass queue for downstream prototype work by combining '
+    'candidate ranking context, seed rank, edit complexity, and reference readiness. '
+    'This is still a planning artifact, not generated-structure output.'
+)
+STRUCTURE_GENERATION_FOLLOWUP_SHORTLIST_LABEL = 'prototype_grounded_followup_shortlist'
+STRUCTURE_GENERATION_FOLLOWUP_SHORTLIST_METHOD = 'first_pass_queue_candidate_aggregation'
+STRUCTURE_GENERATION_FOLLOWUP_SHORTLIST_NOTE = (
+    'Aggregates the structure-generation first-pass queue back to the candidate level so '
+    'advisor-facing follow-up can prioritize formulas that are not only high-ranked, but '
+    'also better supported by prototype references and lower-complexity edit paths. This '
+    'remains a planning artifact, not a validated structure result.'
+)
+
+
+def _structure_followup_shortlist_config(cfg: dict | None = None) -> dict[str, object]:
+    screening_cfg = {} if cfg is None else cfg.get('screening', {})
+    shortlist_cfg = screening_cfg.get('structure_followup_shortlist', {})
+    out = {
+        'enabled': bool(shortlist_cfg.get('enabled', True)),
+        'label': str(shortlist_cfg.get('label', STRUCTURE_GENERATION_FOLLOWUP_SHORTLIST_LABEL)),
+        'method': str(shortlist_cfg.get('method', STRUCTURE_GENERATION_FOLLOWUP_SHORTLIST_METHOD)),
+        'shortlist_size': int(shortlist_cfg.get('shortlist_size', 5)),
+        'note': str(shortlist_cfg.get('note', STRUCTURE_GENERATION_FOLLOWUP_SHORTLIST_NOTE)),
+    }
+    if out['shortlist_size'] <= 0:
+        raise ValueError('structure_followup_shortlist.shortlist_size must be positive')
+    return out
 
 
 def _robustness_row_payload(robustness_df: pd.DataFrame, mask) -> dict | None:
@@ -281,6 +313,71 @@ def _slugify_structure_generation_job_component(value: object) -> str:
     return slug or 'unknown'
 
 
+def _compact_formula_amount_map(formula: str | None) -> dict[str, object]:
+    if not formula:
+        return {}
+    amount_map = _formula_amount_map(str(formula))
+    compacted: dict[str, object] = {}
+    for element, amount in sorted(amount_map.items()):
+        numeric_amount = float(amount)
+        compacted[element] = int(round(numeric_amount)) if numeric_amount.is_integer() else numeric_amount
+    return compacted
+
+
+def _formula_delta_map(candidate_formula: str | None, seed_formula: str | None) -> dict[str, object]:
+    candidate_map = _compact_formula_amount_map(candidate_formula)
+    seed_map = _compact_formula_amount_map(seed_formula)
+    deltas: dict[str, object] = {}
+    for element in sorted(set(candidate_map) | set(seed_map)):
+        delta = float(candidate_map.get(element, 0)) - float(seed_map.get(element, 0))
+        if abs(delta) < 1e-12:
+            continue
+        deltas[element] = int(round(delta)) if float(delta).is_integer() else float(delta)
+    return deltas
+
+
+def _structure_generation_edit_operations(
+    *,
+    action_label: str,
+    substitution_pairs: list[dict[str, object]],
+    element_count_deltas: dict[str, object],
+) -> list[dict[str, object]]:
+    if action_label == 'reference_reuse_control':
+        return [{'operation': 'reuse_reference_control'}]
+    if action_label == 'manual_reference_recovery':
+        return [{'operation': 'recover_reference_record'}]
+
+    operations: list[dict[str, object]] = []
+    for pair in substitution_pairs:
+        operations.append(
+            {
+                'operation': 'substitute_element',
+                'from_element': pair['from_element'],
+                'to_element': pair['to_element'],
+            }
+        )
+    for element, delta in element_count_deltas.items():
+        numeric_delta = float(delta)
+        if numeric_delta > 0:
+            operations.append(
+                {
+                    'operation': 'increase_element_count',
+                    'element': element,
+                    'delta': int(round(numeric_delta)) if numeric_delta.is_integer() else numeric_delta,
+                }
+            )
+        elif numeric_delta < 0:
+            positive_delta = abs(numeric_delta)
+            operations.append(
+                {
+                    'operation': 'decrease_element_count',
+                    'element': element,
+                    'delta': int(round(positive_delta)) if positive_delta.is_integer() else positive_delta,
+                }
+            )
+    return operations
+
+
 def _structure_generation_job_workflow_steps(action_label: str) -> list[str]:
     workflow_map = {
         'reference_reuse_control': [
@@ -425,10 +522,30 @@ def _structure_generation_job_payload(row: pd.Series, *, formula_col: str) -> di
     else:
         action_label = 'mixed_formula_edit_enumeration'
 
+    candidate_formula_element_counts = _compact_formula_amount_map(candidate_formula)
+    seed_formula_element_counts = _compact_formula_amount_map(
+        str(seed_formula) if seed_formula is not None else None
+    )
+    element_count_deltas = _formula_delta_map(
+        candidate_formula,
+        str(seed_formula) if seed_formula is not None else None,
+    )
+    edit_operations = _structure_generation_edit_operations(
+        action_label=action_label,
+        substitution_pairs=substitution_pairs,
+        element_count_deltas=element_count_deltas,
+    )
+
     workflow_steps = _structure_generation_job_workflow_steps(action_label)
     direct_substitution_feasible = bool(substitution_pairs)
     simple_element_relabeling_feasible = bool(substitution_pairs) and not requires_stoichiometry_adjustment
     requires_enumeration = action_label != 'reference_reuse_control'
+    edit_complexity_score = float(
+        len(substitution_pairs) * 1.5
+        + sum(abs(float(delta)) for delta in element_count_deltas.values())
+        + (0.5 if not bool(_json_safe_value(row.get('seed_reference_has_structure_summary'))) else 0.0)
+        + (0.1 * max(int(seed_rank or 1) - 1, 0))
+    )
 
     return {
         'job_id': '__'.join(
@@ -443,10 +560,15 @@ def _structure_generation_job_payload(row: pd.Series, *, formula_col: str) -> di
         'job_status': seed_status,
         'candidate_formula': candidate_formula,
         'ranking_rank': _json_safe_value(row.get('ranking_rank')),
+        'ranking_score': _json_safe_value(row.get('ranking_score')),
         'bn_centered_ranking_rank': _json_safe_value(row.get('bn_centered_ranking_rank')),
         'candidate_family': _json_safe_value(row.get('candidate_family')),
         'candidate_novelty_bucket': _json_safe_value(row.get('candidate_novelty_bucket')),
         'chemical_plausibility_pass': _json_safe_value(row.get('chemical_plausibility_pass')),
+        'proposal_shortlist_selected': _json_safe_value(row.get('proposal_shortlist_selected')),
+        'proposal_shortlist_rank': _json_safe_value(row.get('proposal_shortlist_rank')),
+        'extrapolation_shortlist_selected': _json_safe_value(row.get('extrapolation_shortlist_selected')),
+        'extrapolation_shortlist_rank': _json_safe_value(row.get('extrapolation_shortlist_rank')),
         'structure_generation_candidate_priority_reason': _json_safe_value(
             row.get('structure_generation_candidate_priority_reason')
         ),
@@ -462,6 +584,12 @@ def _structure_generation_job_payload(row: pd.Series, *, formula_col: str) -> di
         'seed_formula_candidate_only_elements': candidate_only_elements,
         'seed_formula_seed_only_elements': seed_only_elements,
         'seed_formula_element_count_l1_distance': element_count_l1_distance,
+        'candidate_formula_element_counts': candidate_formula_element_counts,
+        'seed_formula_element_counts': seed_formula_element_counts,
+        'element_count_deltas': element_count_deltas,
+        'edit_operations': edit_operations,
+        'edit_operation_count': len(edit_operations),
+        'edit_complexity_score': edit_complexity_score,
         'suggested_element_substitutions': substitution_pairs,
         'direct_element_substitution_feasible': direct_substitution_feasible,
         'simple_element_relabeling_feasible': simple_element_relabeling_feasible,
@@ -503,6 +631,8 @@ def _build_structure_generation_job_plan_payload(
         return payload
 
     seed_df = structure_generation_seed_df.copy()
+    if 'structure_generation_seed_rank' not in seed_df.columns:
+        seed_df['structure_generation_seed_rank'] = seed_df.groupby(formula_col).cumcount() + 1
     payload['candidate_count'] = int(seed_df[formula_col].astype(str).nunique())
     payload['job_count'] = int(len(seed_df))
 
@@ -548,6 +678,253 @@ def _build_structure_generation_job_plan_payload(
     return payload
 
 
+def _build_structure_generation_first_pass_queue_payload(
+    structure_generation_seed_df: pd.DataFrame,
+    *,
+    formula_col: str,
+    cfg_defaults: dict[str, object],
+) -> dict[str, object]:
+    payload = {
+        'label': STRUCTURE_GENERATION_FIRST_PASS_QUEUE_LABEL,
+        'method': STRUCTURE_GENERATION_FIRST_PASS_QUEUE_METHOD,
+        'candidate_scope': str(cfg_defaults['candidate_scope']),
+        'per_candidate_seed_limit': int(cfg_defaults['per_candidate_seed_limit']),
+        'bn_centered_top_n': int(cfg_defaults['bn_centered_top_n']),
+        'note': STRUCTURE_GENERATION_FIRST_PASS_QUEUE_NOTE,
+        'source_job_plan_artifact': 'demo_candidate_structure_generation_job_plan.json',
+        'reference_record_payload_artifact': 'demo_candidate_structure_generation_reference_records.json',
+        'candidate_count': 0,
+        'queue_entry_count': 0,
+        'direct_substitution_job_count': 0,
+        'simple_relabeling_job_count': 0,
+        'mean_edit_complexity_score': None,
+        'max_edit_complexity_score': None,
+        'queue': [],
+    }
+    if structure_generation_seed_df is None or structure_generation_seed_df.empty:
+        return payload
+
+    seed_df = structure_generation_seed_df.copy()
+    if 'structure_generation_seed_rank' not in seed_df.columns:
+        seed_df['structure_generation_seed_rank'] = seed_df.groupby(formula_col).cumcount() + 1
+    payload['candidate_count'] = int(seed_df[formula_col].astype(str).nunique())
+
+    queue_entries: list[dict[str, object]] = []
+    for _, row in seed_df.iterrows():
+        job = _structure_generation_job_payload(row, formula_col=formula_col)
+        ranking_rank = int(job['ranking_rank']) if job['ranking_rank'] is not None else 999999
+        job_rank = int(job['job_rank']) if job['job_rank'] is not None else 999999
+        structure_bonus = 0.5 if job['seed_reference_has_structure_summary'] else 0.0
+        plausibility_bonus = 0.25 if job['chemical_plausibility_pass'] else 0.0
+        substitution_bonus = 0.25 if job['direct_element_substitution_feasible'] else 0.0
+        first_pass_priority_score = float(
+            5.0 / max(ranking_rank, 1)
+            + 2.0 / max(job_rank, 1)
+            + structure_bonus
+            + plausibility_bonus
+            + substitution_bonus
+            - float(job['edit_complexity_score'])
+        )
+        queue_entry = {
+            **job,
+            'first_pass_priority_score': first_pass_priority_score,
+        }
+        queue_entries.append(queue_entry)
+
+    queue_entries.sort(
+        key=lambda item: (
+            -float(item['first_pass_priority_score']),
+            float(item['edit_complexity_score']),
+            int(item['ranking_rank']) if item['ranking_rank'] is not None else 999999,
+            int(item['job_rank']) if item['job_rank'] is not None else 999999,
+            str(item['job_id']),
+        )
+    )
+
+    candidate_rank_tracker: dict[str, int] = {}
+    for queue_rank, entry in enumerate(queue_entries, start=1):
+        candidate_formula = str(entry['candidate_formula'])
+        candidate_rank_tracker[candidate_formula] = candidate_rank_tracker.get(candidate_formula, 0) + 1
+        entry['queue_rank'] = queue_rank
+        entry['candidate_first_pass_rank'] = candidate_rank_tracker[candidate_formula]
+
+    complexity_scores = [float(entry['edit_complexity_score']) for entry in queue_entries]
+    payload['queue_entry_count'] = len(queue_entries)
+    payload['direct_substitution_job_count'] = int(
+        sum(1 for entry in queue_entries if entry['direct_element_substitution_feasible'])
+    )
+    payload['simple_relabeling_job_count'] = int(
+        sum(1 for entry in queue_entries if entry['simple_element_relabeling_feasible'])
+    )
+    payload['mean_edit_complexity_score'] = float(np.mean(complexity_scores)) if complexity_scores else None
+    payload['max_edit_complexity_score'] = float(np.max(complexity_scores)) if complexity_scores else None
+    payload['queue'] = queue_entries
+    return payload
+
+
+def _structure_followup_readiness_label(
+    *,
+    best_action_label: str,
+    min_edit_complexity_score: float,
+    direct_substitution_job_count: int,
+    simple_relabeling_job_count: int,
+    has_reference_reuse_control: bool,
+) -> str:
+    if has_reference_reuse_control:
+        return 'reference_reuse_control_available'
+    if simple_relabeling_job_count > 0:
+        return 'simple_relabeling_available'
+    if best_action_label == 'stoichiometry_adjustment_enumeration' and min_edit_complexity_score <= 2.5:
+        return 'low_complexity_stoichiometry_adjustment'
+    if direct_substitution_job_count > 0:
+        return 'substitution_plus_adjustment_required'
+    if min_edit_complexity_score <= 4.0:
+        return 'moderate_formula_edit_required'
+    return 'heavy_formula_edit_required'
+
+
+def _build_structure_generation_followup_shortlist_df(
+    structure_generation_first_pass_queue: dict[str, object] | None,
+    *,
+    formula_col: str,
+    cfg_defaults: dict[str, object],
+) -> pd.DataFrame:
+    columns = [
+        formula_col,
+        'candidate_family',
+        'candidate_novelty_bucket',
+        'chemical_plausibility_pass',
+        'ranking_rank',
+        'ranking_score',
+        'bn_centered_ranking_rank',
+        'proposal_shortlist_selected',
+        'proposal_shortlist_rank',
+        'extrapolation_shortlist_selected',
+        'extrapolation_shortlist_rank',
+        'structure_generation_candidate_priority_reason',
+        'structure_followup_priority_score',
+        'structure_followup_best_queue_rank',
+        'structure_followup_best_action_label',
+        'structure_followup_best_seed_reference_formula',
+        'structure_followup_best_seed_reference_record_id',
+        'structure_followup_reference_formula_count',
+        'structure_followup_reference_formulas',
+        'structure_followup_job_action_labels',
+        'structure_followup_min_edit_complexity_score',
+        'structure_followup_mean_edit_complexity_score',
+        'structure_followup_direct_substitution_job_count',
+        'structure_followup_simple_relabeling_job_count',
+        'structure_followup_readiness_label',
+        'structure_followup_shortlist_selected',
+        'structure_followup_shortlist_rank',
+        'structure_followup_shortlist_decision',
+    ]
+    queue_rows = [] if structure_generation_first_pass_queue is None else structure_generation_first_pass_queue.get('queue', [])
+    if not queue_rows:
+        return pd.DataFrame(columns=columns)
+
+    queue_df = pd.DataFrame(queue_rows).copy()
+    queue_df[formula_col] = queue_df['candidate_formula'].astype(str)
+    aggregated_rows: list[dict[str, object]] = []
+    for candidate_formula, group_df in queue_df.groupby(formula_col, sort=False):
+        candidate_group = group_df.sort_values(
+            ['queue_rank', 'edit_complexity_score', 'job_id'],
+            ascending=[True, True, True],
+            kind='stable',
+        ).reset_index(drop=True)
+        best_row = candidate_group.iloc[0]
+        reference_formulas = sorted(
+            {str(value) for value in candidate_group['seed_reference_formula'].dropna().astype(str)}
+        )
+        action_labels = list(dict.fromkeys(candidate_group['job_action_label'].astype(str).tolist()))
+        direct_substitution_job_count = int(
+            candidate_group['direct_element_substitution_feasible'].fillna(False).astype(bool).sum()
+        )
+        simple_relabeling_job_count = int(
+            candidate_group['simple_element_relabeling_feasible'].fillna(False).astype(bool).sum()
+        )
+        has_reference_reuse_control = bool(
+            candidate_group['job_action_label'].astype(str).eq('reference_reuse_control').any()
+        )
+        min_edit_complexity_score = float(candidate_group['edit_complexity_score'].min())
+        mean_edit_complexity_score = float(candidate_group['edit_complexity_score'].mean())
+        aggregated_rows.append(
+            {
+                formula_col: str(candidate_formula),
+                'candidate_family': _json_safe_value(best_row.get('candidate_family')),
+                'candidate_novelty_bucket': _json_safe_value(best_row.get('candidate_novelty_bucket')),
+                'chemical_plausibility_pass': _json_safe_value(best_row.get('chemical_plausibility_pass')),
+                'ranking_rank': _json_safe_value(best_row.get('ranking_rank')),
+                'ranking_score': _json_safe_value(best_row.get('ranking_score')),
+                'bn_centered_ranking_rank': _json_safe_value(best_row.get('bn_centered_ranking_rank')),
+                'proposal_shortlist_selected': _json_safe_value(best_row.get('proposal_shortlist_selected')),
+                'proposal_shortlist_rank': _json_safe_value(best_row.get('proposal_shortlist_rank')),
+                'extrapolation_shortlist_selected': _json_safe_value(
+                    best_row.get('extrapolation_shortlist_selected')
+                ),
+                'extrapolation_shortlist_rank': _json_safe_value(
+                    best_row.get('extrapolation_shortlist_rank')
+                ),
+                'structure_generation_candidate_priority_reason': _json_safe_value(
+                    best_row.get('structure_generation_candidate_priority_reason')
+                ),
+                'structure_followup_priority_score': float(best_row['first_pass_priority_score']),
+                'structure_followup_best_queue_rank': int(best_row['queue_rank']),
+                'structure_followup_best_action_label': str(best_row['job_action_label']),
+                'structure_followup_best_seed_reference_formula': _json_safe_value(
+                    best_row.get('seed_reference_formula')
+                ),
+                'structure_followup_best_seed_reference_record_id': _json_safe_value(
+                    best_row.get('seed_reference_record_id')
+                ),
+                'structure_followup_reference_formula_count': int(len(reference_formulas)),
+                'structure_followup_reference_formulas': '|'.join(reference_formulas),
+                'structure_followup_job_action_labels': '|'.join(action_labels),
+                'structure_followup_min_edit_complexity_score': min_edit_complexity_score,
+                'structure_followup_mean_edit_complexity_score': mean_edit_complexity_score,
+                'structure_followup_direct_substitution_job_count': direct_substitution_job_count,
+                'structure_followup_simple_relabeling_job_count': simple_relabeling_job_count,
+                'structure_followup_readiness_label': _structure_followup_readiness_label(
+                    best_action_label=str(best_row['job_action_label']),
+                    min_edit_complexity_score=min_edit_complexity_score,
+                    direct_substitution_job_count=direct_substitution_job_count,
+                    simple_relabeling_job_count=simple_relabeling_job_count,
+                    has_reference_reuse_control=has_reference_reuse_control,
+                ),
+            }
+        )
+
+    shortlist_df = pd.DataFrame(aggregated_rows)
+    if shortlist_df.empty:
+        return pd.DataFrame(columns=columns)
+
+    shortlist_df = shortlist_df.sort_values(
+        [
+            'structure_followup_priority_score',
+            'structure_followup_min_edit_complexity_score',
+            'ranking_rank',
+            'structure_followup_best_queue_rank',
+            formula_col,
+        ],
+        ascending=[False, True, True, True, True],
+        kind='stable',
+    ).reset_index(drop=True)
+    shortlist_df['structure_followup_shortlist_selected'] = False
+    shortlist_df['structure_followup_shortlist_rank'] = pd.Series([None] * len(shortlist_df), dtype='object')
+    shortlist_df['structure_followup_shortlist_decision'] = 'not_selected_for_structure_followup_shortlist'
+    if bool(cfg_defaults['enabled']) and not shortlist_df.empty:
+        selected_count = min(int(cfg_defaults['shortlist_size']), len(shortlist_df))
+        selected_index = shortlist_df.index[:selected_count]
+        shortlist_df.loc[selected_index, 'structure_followup_shortlist_selected'] = True
+        shortlist_df.loc[selected_index, 'structure_followup_shortlist_rank'] = np.arange(
+            1, selected_count + 1, dtype=int
+        )
+        shortlist_df.loc[
+            selected_index, 'structure_followup_shortlist_decision'
+        ] = 'selected_for_structure_followup_shortlist'
+    return shortlist_df[columns]
+
+
 def _build_structure_generation_handoff_payload(
     structure_generation_seed_df: pd.DataFrame,
     *,
@@ -569,6 +946,8 @@ def _build_structure_generation_handoff_payload(
         return payload
 
     seed_df = structure_generation_seed_df.copy()
+    if 'structure_generation_seed_rank' not in seed_df.columns:
+        seed_df['structure_generation_seed_rank'] = seed_df.groupby(formula_col).cumcount() + 1
     payload['candidate_count'] = int(seed_df[formula_col].astype(str).nunique())
     payload['seed_row_count'] = int(len(seed_df))
 
@@ -875,6 +1254,7 @@ def build_experiment_summary(
     proposal_shortlist_cfg = _proposal_shortlist_config(cfg)
     extrapolation_shortlist_cfg = _extrapolation_shortlist_config(cfg)
     structure_generation_seed_cfg = _structure_generation_seed_config(cfg)
+    structure_followup_shortlist_cfg = _structure_followup_shortlist_config(cfg)
     ranking_config_metadata = get_screening_ranking_metadata(cfg)
     robustness_cfg = cfg.get('robustness', {})
     robustness_enabled = bool(robustness_cfg.get('enabled', False))
@@ -1386,6 +1766,48 @@ def build_experiment_summary(
         structure_generation_seed_summary['simple_relabeling_job_count'] = int(
             structure_generation_job_plan['simple_relabeling_job_count']
         )
+        structure_generation_first_pass_queue = _build_structure_generation_first_pass_queue_payload(
+            structure_generation_seed_df,
+            formula_col=formula_col,
+            cfg_defaults=structure_generation_seed_cfg,
+        )
+        structure_generation_seed_summary['first_pass_queue_artifact'] = (
+            'demo_candidate_structure_generation_first_pass_queue.json'
+        )
+        structure_generation_seed_summary['first_pass_queue_size'] = int(
+            structure_generation_first_pass_queue['queue_entry_count']
+        )
+        structure_generation_seed_summary['mean_edit_complexity_score'] = (
+            structure_generation_first_pass_queue['mean_edit_complexity_score']
+        )
+        structure_generation_seed_summary['max_edit_complexity_score'] = (
+            structure_generation_first_pass_queue['max_edit_complexity_score']
+        )
+        structure_followup_shortlist_df = _build_structure_generation_followup_shortlist_df(
+            structure_generation_first_pass_queue,
+            formula_col=formula_col,
+            cfg_defaults=structure_followup_shortlist_cfg,
+        )
+        if bool(structure_followup_shortlist_cfg['enabled']):
+            structure_generation_seed_summary['followup_shortlist_artifact'] = (
+                'demo_candidate_structure_generation_followup_shortlist.csv'
+            )
+        selected_followup_df = structure_followup_shortlist_df.loc[
+            structure_followup_shortlist_df['structure_followup_shortlist_selected'].fillna(False).astype(bool)
+        ].copy() if not structure_followup_shortlist_df.empty else pd.DataFrame()
+        structure_generation_seed_summary['followup_shortlist_size'] = int(len(selected_followup_df))
+        structure_generation_seed_summary['followup_shortlist_formulas'] = (
+            selected_followup_df.sort_values('structure_followup_shortlist_rank', ascending=True)[
+                formula_col
+            ].astype(str).tolist()
+            if not selected_followup_df.empty
+            else []
+        )
+        structure_generation_seed_summary['followup_readiness_counts'] = (
+            selected_followup_df['structure_followup_readiness_label'].astype(str).value_counts().to_dict()
+            if not selected_followup_df.empty
+            else {}
+        )
 
     return {
         'dataset': {
@@ -1785,6 +2207,12 @@ def save_metrics_and_predictions(
     structure_generation_job_plan_path = (
         artifact_dir / 'demo_candidate_structure_generation_job_plan.json'
     )
+    structure_generation_first_pass_queue_path = (
+        artifact_dir / 'demo_candidate_structure_generation_first_pass_queue.json'
+    )
+    structure_generation_followup_shortlist_path = (
+        artifact_dir / 'demo_candidate_structure_generation_followup_shortlist.csv'
+    )
     if structure_generation_seed_df is not None and not structure_generation_seed_df.empty:
         structure_generation_seed_df.to_csv(structure_generation_seed_path, index=False)
         structure_generation_seed_cfg = _structure_generation_seed_config(cfg)
@@ -1812,6 +2240,37 @@ def save_metrics_and_predictions(
         structure_generation_job_plan_path.write_text(
             json.dumps(structure_generation_job_plan, indent=2, ensure_ascii=False)
         )
+        structure_generation_first_pass_queue = _build_structure_generation_first_pass_queue_payload(
+            structure_generation_seed_df,
+            formula_col=formula_col,
+            cfg_defaults=structure_generation_seed_cfg,
+        )
+        structure_generation_first_pass_queue_path.write_text(
+            json.dumps(structure_generation_first_pass_queue, indent=2, ensure_ascii=False)
+        )
+        structure_followup_shortlist_cfg = _structure_followup_shortlist_config(cfg)
+        structure_followup_shortlist_df = _build_structure_generation_followup_shortlist_df(
+            structure_generation_first_pass_queue,
+            formula_col=formula_col,
+            cfg_defaults=structure_followup_shortlist_cfg,
+        )
+        selected_followup_df = (
+            structure_followup_shortlist_df.loc[
+                structure_followup_shortlist_df['structure_followup_shortlist_selected']
+                .fillna(False)
+                .astype(bool)
+            ].copy()
+            if not structure_followup_shortlist_df.empty
+            else pd.DataFrame()
+        )
+        if not selected_followup_df.empty:
+            if 'structure_followup_shortlist_rank' in selected_followup_df.columns:
+                selected_followup_df = selected_followup_df.sort_values(
+                    'structure_followup_shortlist_rank', ascending=True
+                )
+            selected_followup_df.to_csv(structure_generation_followup_shortlist_path, index=False)
+        elif structure_generation_followup_shortlist_path.exists():
+            structure_generation_followup_shortlist_path.unlink()
     else:
         if structure_generation_seed_path.exists():
             structure_generation_seed_path.unlink()
@@ -1821,6 +2280,10 @@ def save_metrics_and_predictions(
             structure_generation_reference_records_path.unlink()
         if structure_generation_job_plan_path.exists():
             structure_generation_job_plan_path.unlink()
+        if structure_generation_first_pass_queue_path.exists():
+            structure_generation_first_pass_queue_path.unlink()
+        if structure_generation_followup_shortlist_path.exists():
+            structure_generation_followup_shortlist_path.unlink()
     for selected_column, rank_column, artifact_name in (
         (
             'proposal_shortlist_selected',

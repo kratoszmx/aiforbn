@@ -495,6 +495,18 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     }
     structure_generation_seed_df = pd.DataFrame({
         'formula': ['BN', 'AlBN'],
+        'ranking_rank': [1, 2],
+        'ranking_score': [4.8, 1.2],
+        'bn_centered_ranking_rank': [2, 1],
+        'candidate_family': ['bn_binary_anchor', 'group13_bn_111_family'],
+        'candidate_novelty_bucket': ['train_plus_val_rediscovery', 'formula_level_extrapolation'],
+        'chemical_plausibility_pass': [True, False],
+        'proposal_shortlist_selected': [True, False],
+        'proposal_shortlist_rank': [1, None],
+        'extrapolation_shortlist_selected': [False, True],
+        'extrapolation_shortlist_rank': [None, 1],
+        'structure_generation_candidate_priority_reason': ['proposal_shortlist', 'extrapolation_shortlist'],
+        'structure_generation_seed_rank': [1, 1],
         'structure_generation_seed_status': ['ok', 'ok'],
         'seed_reference_formula': ['BN', 'B2N'],
         'seed_reference_record_id': ['jid-1', 'jid-2'],
@@ -648,6 +660,11 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     assert experiment_summary['screening']['structure_generation_bridge']['seed_rows'] == 2
     assert experiment_summary['screening']['structure_generation_bridge']['job_count'] == 2
     assert (
+        experiment_summary['screening']['structure_generation_bridge']['first_pass_queue_artifact']
+        == 'demo_candidate_structure_generation_first_pass_queue.json'
+    )
+    assert experiment_summary['screening']['structure_generation_bridge']['first_pass_queue_size'] == 2
+    assert (
         experiment_summary['screening']['structure_generation_bridge']['direct_substitution_job_count']
         == 0
     )
@@ -655,9 +672,21 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         experiment_summary['screening']['structure_generation_bridge']['simple_relabeling_job_count']
         == 0
     )
+    assert experiment_summary['screening']['structure_generation_bridge']['mean_edit_complexity_score'] == 1.5
+    assert experiment_summary['screening']['structure_generation_bridge']['max_edit_complexity_score'] == 2.5
     assert experiment_summary['screening']['structure_generation_bridge']['job_action_counts'] == {
         'reference_reuse_control': 1,
         'element_insertion_enumeration': 1,
+    }
+    assert (
+        experiment_summary['screening']['structure_generation_bridge']['followup_shortlist_artifact']
+        == 'demo_candidate_structure_generation_followup_shortlist.csv'
+    )
+    assert experiment_summary['screening']['structure_generation_bridge']['followup_shortlist_size'] == 2
+    assert experiment_summary['screening']['structure_generation_bridge']['followup_shortlist_formulas'] == ['BN', 'AlBN']
+    assert experiment_summary['screening']['structure_generation_bridge']['followup_readiness_counts'] == {
+        'reference_reuse_control_available': 1,
+        'moderate_formula_edit_required': 1,
     }
     assert experiment_summary['screening']['structure_generation_bridge']['unique_seed_reference_formulas'] == 2
     assert experiment_summary['screening']['ranking_matches_best_overall_evaluation'] is True
@@ -921,6 +950,8 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     assert (artifact_dir / 'demo_candidate_structure_generation_handoff.json').exists()
     assert (artifact_dir / 'demo_candidate_structure_generation_reference_records.json').exists()
     assert (artifact_dir / 'demo_candidate_structure_generation_job_plan.json').exists()
+    assert (artifact_dir / 'demo_candidate_structure_generation_first_pass_queue.json').exists()
+    assert (artifact_dir / 'demo_candidate_structure_generation_followup_shortlist.csv').exists()
     handoff_payload = json.loads(
         (artifact_dir / 'demo_candidate_structure_generation_handoff.json').read_text()
     )
@@ -929,6 +960,12 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     )
     job_plan_payload = json.loads(
         (artifact_dir / 'demo_candidate_structure_generation_job_plan.json').read_text()
+    )
+    first_pass_queue_payload = json.loads(
+        (artifact_dir / 'demo_candidate_structure_generation_first_pass_queue.json').read_text()
+    )
+    followup_shortlist_df = pd.read_csv(
+        artifact_dir / 'demo_candidate_structure_generation_followup_shortlist.csv'
     )
     assert handoff_payload['candidate_count'] == 2
     assert handoff_payload['seed_row_count'] == 2
@@ -949,11 +986,35 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         'element_insertion_enumeration': 1,
     }
     assert job_plan_payload['candidates'][0]['jobs'][0]['job_action_label'] == 'reference_reuse_control'
+    assert job_plan_payload['candidates'][0]['jobs'][0]['candidate_formula_element_counts'] == {
+        'B': 1,
+        'N': 1,
+    }
     assert job_plan_payload['candidates'][1]['jobs'][0]['workflow_steps'][0] == 'load_reference_atoms'
     assert job_plan_payload['candidates'][1]['jobs'][0]['simple_element_relabeling_feasible'] is False
+    assert job_plan_payload['candidates'][1]['jobs'][0]['element_count_deltas'] == {'Al': 1, 'B': -1}
+    assert job_plan_payload['candidates'][1]['jobs'][0]['edit_operations'][0] == {
+        'operation': 'increase_element_count',
+        'element': 'Al',
+        'delta': 1,
+    }
     assert job_plan_payload['candidates'][1]['jobs'][0]['reference_record_payload_artifact'] == (
         'demo_candidate_structure_generation_reference_records.json'
     )
+    assert first_pass_queue_payload['queue_entry_count'] == 2
+    assert first_pass_queue_payload['simple_relabeling_job_count'] == 0
+    assert first_pass_queue_payload['queue'][0]['job_id'] == 'bn__seed_1__jid_1'
+    assert first_pass_queue_payload['queue'][1]['candidate_first_pass_rank'] == 1
+    assert followup_shortlist_df['formula'].tolist() == ['BN', 'AlBN']
+    assert followup_shortlist_df['structure_followup_shortlist_rank'].tolist() == [1, 2]
+    assert followup_shortlist_df['structure_followup_best_action_label'].tolist() == [
+        'reference_reuse_control',
+        'element_insertion_enumeration',
+    ]
+    assert followup_shortlist_df['structure_followup_readiness_label'].tolist() == [
+        'reference_reuse_control_available',
+        'moderate_formula_edit_required',
+    ]
     assert (artifact_dir / 'demo_candidate_proposal_shortlist.csv').exists()
     assert (artifact_dir / 'demo_candidate_extrapolation_shortlist.csv').exists()
     assert (artifact_dir / 'benchmark_results.csv').exists()

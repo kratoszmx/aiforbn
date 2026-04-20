@@ -10,6 +10,8 @@ The main handoff artifacts are:
 - `artifacts/demo_candidate_structure_generation_handoff.json`
 - `artifacts/demo_candidate_structure_generation_reference_records.json`
 - `artifacts/demo_candidate_structure_generation_job_plan.json`
+- `artifacts/demo_candidate_structure_generation_first_pass_queue.json`
+- `artifacts/demo_candidate_structure_generation_followup_shortlist.csv`
 
 They are produced by `main.py` after candidate ranking.
 
@@ -27,16 +29,18 @@ The reference-record payload JSON now also carries the unique raw `atoms` object
 
 ## Recommended downstream workflow
 
-For each candidate in `demo_candidate_structure_generation_job_plan.json`:
+Start from `demo_candidate_structure_generation_followup_shortlist.csv` when choosing which candidate formulas deserve attention first, then use `demo_candidate_structure_generation_first_pass_queue.json` for job ordering and `demo_candidate_structure_generation_job_plan.json` for richer per-job context.
 
-1. Start from the candidate's top 1-3 jobs rather than only the flat seed rows.
-2. Inspect `job_action_label`, `workflow_steps`, and the linked `seed_reference_record_id` / `seed_reference_formula`.
-3. Pull the corresponding raw structure from `demo_candidate_structure_generation_reference_records.json`.
+For each candidate/job pair:
+
+1. Start from the queue's top 1-3 jobs rather than only the flat seed rows.
+2. Inspect `job_action_label`, `workflow_steps`, `element_count_deltas`, `edit_operations`, and `edit_complexity_score`.
+3. Pull the linked `seed_reference_record_id` / `seed_reference_formula`, then fetch the raw structure from `demo_candidate_structure_generation_reference_records.json`.
 4. If `direct_element_substitution_feasible` is true, inspect the suggested substitution pairs, but only treat it as pure relabeling when `simple_element_relabeling_feasible` is also true.
 5. Otherwise follow the planned path, e.g. substitution plus stoichiometry adjustment, insertion/decoration, removal/vacancy, or mixed edit enumeration.
 6. Enumerate a small set of plausible decorated structures rather than trusting a single prototype.
 7. Run geometry relaxation / stability screening before making any scientific claim.
-8. Keep provenance from candidate formula to job id and seed record id.
+8. Keep provenance from candidate formula to queue rank, job id, and seed record id.
 
 ## Minimum metadata to preserve
 
@@ -51,6 +55,10 @@ When creating downstream structure jobs, keep at least:
 - seed reference source
 - seed reference band gap / energy / exfoliation values
 - seed reference structure summary columns
+- queue rank / candidate first-pass rank
+- element count deltas
+- edit operations
+- edit complexity score
 
 ## Interpretation boundary
 

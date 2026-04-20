@@ -221,6 +221,18 @@ CONFIG = {
                 'substitution, enumeration, or relaxation workflows.'
             ),
         },
+        'structure_followup_shortlist': {
+            'enabled': True,
+            'label': 'prototype_grounded_followup_shortlist',
+            'method': 'first_pass_queue_candidate_aggregation',
+            'shortlist_size': 5,
+            'note': (
+                'Aggregates the structure-generation first-pass queue back to the candidate '
+                'level so advisor-facing follow-up can prioritize formulas that combine strong '
+                'screening ranks with lower-complexity prototype-edit paths. This is still a '
+                'planning artifact, not validated structure output.'
+            ),
+        },
     },
     'llm': {
         'enabled': False,

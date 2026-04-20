@@ -542,7 +542,24 @@
         "element_removal_enumeration": 2
       },
       "direct_substitution_job_count": 12,
-      "simple_relabeling_job_count": 0
+      "simple_relabeling_job_count": 0,
+      "first_pass_queue_artifact": "demo_candidate_structure_generation_first_pass_queue.json",
+      "first_pass_queue_size": 33,
+      "mean_edit_complexity_score": 8.493939393939392,
+      "max_edit_complexity_score": 19.2,
+      "followup_shortlist_artifact": "demo_candidate_structure_generation_followup_shortlist.csv",
+      "followup_shortlist_size": 5,
+      "followup_shortlist_formulas": [
+        "BCN2",
+        "BC2N",
+        "BCN",
+        "Si2BN",
+        "BN"
+      ],
+      "followup_readiness_counts": {
+        "reference_reuse_control_available": 3,
+        "low_complexity_stoichiometry_adjustment": 2
+      }
     },
     "proposal_shortlist_enabled": true,
     "proposal_shortlist_artifact": "demo_candidate_proposal_shortlist.csv",

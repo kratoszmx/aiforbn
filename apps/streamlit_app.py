@@ -35,6 +35,12 @@ structure_generation_reference_records_path = (
 structure_generation_job_plan_path = (
     artifact_dir / 'demo_candidate_structure_generation_job_plan.json'
 )
+structure_generation_first_pass_queue_path = (
+    artifact_dir / 'demo_candidate_structure_generation_first_pass_queue.json'
+)
+structure_generation_followup_shortlist_path = (
+    artifact_dir / 'demo_candidate_structure_generation_followup_shortlist.csv'
+)
 proposal_shortlist_path = artifact_dir / 'demo_candidate_proposal_shortlist.csv'
 extrapolation_shortlist_path = artifact_dir / 'demo_candidate_extrapolation_shortlist.csv'
 
@@ -93,6 +99,14 @@ if structure_generation_reference_records_path.exists():
 if structure_generation_job_plan_path.exists():
     st.subheader('Structure-generation job-plan JSON')
     st.json(json.loads(structure_generation_job_plan_path.read_text()))
+
+if structure_generation_first_pass_queue_path.exists():
+    st.subheader('Structure-generation first-pass queue JSON')
+    st.json(json.loads(structure_generation_first_pass_queue_path.read_text()))
+
+if structure_generation_followup_shortlist_path.exists():
+    st.subheader('Structure-grounded follow-up shortlist')
+    st.dataframe(pd.read_csv(structure_generation_followup_shortlist_path), use_container_width=True)
 
 if proposal_shortlist_path.exists():
     st.subheader('Proposal shortlist')
