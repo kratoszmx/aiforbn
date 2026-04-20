@@ -374,6 +374,8 @@ def _candidate_ranking_comparison_payload(
 
 def _build_bn_candidate_compatible_evaluation_table(
     bn_slice_benchmark_df: pd.DataFrame,
+    bn_family_benchmark_df: pd.DataFrame | None = None,
+    bn_stratified_error_df: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
     columns = [
         'benchmark_role',
@@ -392,8 +394,16 @@ def _build_bn_candidate_compatible_evaluation_table(
         'global_dummy_mae',
         'mae_minus_global_dummy',
         'beats_global_dummy',
+        'family_holdout_mae',
+        'family_holdout_rmse',
+        'family_holdout_r2',
+        'family_holdout_beats_global_dummy',
+        'grouped_bn_mae',
+        'grouped_non_bn_mae',
+        'grouped_bn_to_non_bn_mae_ratio',
         'screening_eligible',
         'is_best_candidate_compatible',
+        'is_best_candidate_compatible_family_holdout',
     ]
     if bn_slice_benchmark_df is None or bn_slice_benchmark_df.empty:
         return pd.DataFrame(columns=columns)
@@ -445,9 +455,71 @@ def _build_bn_candidate_compatible_evaluation_table(
         best_idx = candidate_rows['mae'].astype(float).idxmin()
         evaluation_df.loc[best_idx, 'is_best_candidate_compatible'] = True
 
+    key_columns = ['benchmark_role', 'feature_set', 'feature_family', 'model_type']
+    if bn_family_benchmark_df is not None and not bn_family_benchmark_df.empty:
+        family_df = bn_family_benchmark_df.copy()
+        family_keep = key_columns + [
+            'mae',
+            'rmse',
+            'r2',
+            'family_holdout_beats_global_dummy',
+        ]
+        available_family_keep = [column for column in family_keep if column in family_df.columns]
+        family_df = family_df[available_family_keep].rename(
+            columns={
+                'mae': 'family_holdout_mae',
+                'rmse': 'family_holdout_rmse',
+                'r2': 'family_holdout_r2',
+            }
+        )
+        evaluation_df = evaluation_df.merge(family_df, on=key_columns, how='left')
+    else:
+        evaluation_df['family_holdout_mae'] = np.nan
+        evaluation_df['family_holdout_rmse'] = np.nan
+        evaluation_df['family_holdout_r2'] = np.nan
+        evaluation_df['family_holdout_beats_global_dummy'] = pd.NA
+
+    evaluation_df['is_best_candidate_compatible_family_holdout'] = False
+    if 'family_holdout_mae' in evaluation_df.columns:
+        family_candidate_rows = evaluation_df.loc[
+            evaluation_df['candidate_compatible'].fillna(False).astype(bool)
+            & ~evaluation_df['benchmark_role'].astype(str).isin(
+                ['global_dummy_mean_baseline', 'bn_local_reference_baseline']
+            )
+            & pd.to_numeric(evaluation_df['family_holdout_mae'], errors='coerce').notna()
+        ].copy()
+        if not family_candidate_rows.empty:
+            family_best_idx = pd.to_numeric(
+                family_candidate_rows['family_holdout_mae'], errors='coerce'
+            ).idxmin()
+            evaluation_df.loc[family_best_idx, 'is_best_candidate_compatible_family_holdout'] = True
+
+    if bn_stratified_error_df is not None and not bn_stratified_error_df.empty:
+        stratified_df = bn_stratified_error_df.copy()
+        stratified_keep = key_columns + [
+            'grouped_bn_mae',
+            'grouped_non_bn_mae',
+            'grouped_bn_to_non_bn_mae_ratio',
+        ]
+        available_stratified_keep = [column for column in stratified_keep if column in stratified_df.columns]
+        stratified_df = stratified_df[available_stratified_keep]
+        evaluation_df = evaluation_df.merge(stratified_df, on=key_columns, how='left')
+    else:
+        evaluation_df['grouped_bn_mae'] = np.nan
+        evaluation_df['grouped_non_bn_mae'] = np.nan
+        evaluation_df['grouped_bn_to_non_bn_mae_ratio'] = np.nan
+
     evaluation_df = evaluation_df.sort_values(
-        ['screening_eligible', 'candidate_compatible', 'mae', 'benchmark_role', 'feature_set', 'model_type'],
-        ascending=[False, False, True, True, True, True],
+        [
+            'screening_eligible',
+            'candidate_compatible',
+            'mae',
+            'family_holdout_mae',
+            'benchmark_role',
+            'feature_set',
+            'model_type',
+        ],
+        ascending=[False, False, True, True, True, True, True],
         kind='stable',
     ).reset_index(drop=True)
     for column in columns:
@@ -2856,7 +2928,9 @@ def build_experiment_summary(
             )
 
     bn_candidate_compatible_evaluation_df = _build_bn_candidate_compatible_evaluation_table(
-        bn_slice_benchmark_df
+        bn_slice_benchmark_df,
+        bn_family_benchmark_df=bn_family_benchmark_df,
+        bn_stratified_error_df=bn_stratified_error_df,
     )
     bn_evaluation_matrix_df = _build_bn_evaluation_matrix_table(
         bn_slice_benchmark_df,
@@ -3679,7 +3753,9 @@ def save_metrics_and_predictions(
         elif shortlist_path.exists():
             shortlist_path.unlink()
     bn_candidate_compatible_evaluation_df = _build_bn_candidate_compatible_evaluation_table(
-        bn_slice_benchmark_df
+        bn_slice_benchmark_df,
+        bn_family_benchmark_df=bn_family_benchmark_df,
+        bn_stratified_error_df=bn_stratified_error_df,
     )
     if not bn_candidate_compatible_evaluation_df.empty:
         bn_candidate_compatible_evaluation_df.to_csv(

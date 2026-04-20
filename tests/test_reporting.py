@@ -1088,6 +1088,9 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     assert (artifact_dir / 'demo_candidate_ranking.csv').exists()
     assert (artifact_dir / 'demo_candidate_bn_centered_ranking.csv').exists()
     assert (artifact_dir / 'bn_candidate_compatible_evaluation.csv').exists()
+    bn_candidate_compatible_df = pd.read_csv(artifact_dir / 'bn_candidate_compatible_evaluation.csv')
+    assert 'family_holdout_mae' in bn_candidate_compatible_df.columns
+    assert 'grouped_bn_to_non_bn_mae_ratio' in bn_candidate_compatible_df.columns
     assert (artifact_dir / 'demo_candidate_ranking_uncertainty.csv').exists()
     assert (artifact_dir / 'demo_candidate_structure_generation_seeds.csv').exists()
     assert (artifact_dir / 'demo_candidate_structure_generation_handoff.json').exists()
