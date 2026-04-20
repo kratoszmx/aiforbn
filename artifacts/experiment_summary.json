@@ -559,7 +559,15 @@
       "followup_readiness_counts": {
         "reference_reuse_control_available": 3,
         "low_complexity_stoichiometry_adjustment": 2
-      }
+      },
+      "followup_extrapolation_shortlist_artifact": "demo_candidate_structure_generation_followup_extrapolation_shortlist.csv",
+      "followup_extrapolation_shortlist_size": 4,
+      "followup_extrapolation_shortlist_formulas": [
+        "BCN2",
+        "BCN",
+        "SiBN",
+        "SiBN2"
+      ]
     },
     "proposal_shortlist_enabled": true,
     "proposal_shortlist_artifact": "demo_candidate_proposal_shortlist.csv",

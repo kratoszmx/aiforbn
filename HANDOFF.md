@@ -10,7 +10,7 @@
 - 当前工作已恢复到**已重新验证**的节点。
 - 在当前 dirty working tree 上，以下命令已通过：
   - 清缓存：通过从 `../myutils` 注入 `file_utils.delete_cache('.')`
-  - `pytest -q` → `24 passed in 3.34s`
+  - `pytest -q` → `24 passed in 2.60s`
   - `/opt/homebrew/Caskroom/miniforge/base/envs/quant/bin/python main.py` → 运行成功（当前输出含 `bn slice benchmark rows: 8`、`bn-centered alternative ranking rows: 25` 与 `structure-generation seed rows: 33`）
 - 主任务仍是 `band_gap` 预测与 BN 主题下的候选排序演示。
 - 训练数据仍来自 JARVIS / 2DMatPedia 的 `twod_matpd`。
@@ -54,6 +54,7 @@
   - 现在又进一步导出 `demo_candidate_structure_generation_job_plan.json`，把每个 candidate-seed pairing 变成更接近可执行的 downstream workflow plan，包含 job action label、workflow steps、direct substitution hints，以及对 reference-record payload 的交叉链接；
   - 本轮又新增 `demo_candidate_structure_generation_first_pass_queue.json`，把 job-plan 再整理成 deterministic first-pass queue，显式给出 composition delta、edit operations、edit complexity heuristic，以及 candidate-seed jobs 的优先顺序；
   - 进一步新增 `demo_candidate_structure_generation_followup_shortlist.csv`，把 queue 重新聚合回 candidate 层，形成真正面向后续 structure workflow 的 prototype-grounded follow-up shortlist；
+  - 在此之上，又新增 `demo_candidate_structure_generation_followup_extrapolation_shortlist.csv`，把 follow-up view 进一步收敛到 formula-level extrapolation candidates，避免后续结构工作被 rediscovery 主导；
   - 明确声明这不是结构生成、结构验证或稳定性证明，只是把 formula ranking 正式桥接到下一阶段 structure-aware follow-up。
 
 ## 本轮已确认完成
@@ -221,7 +222,7 @@
   - 目前最明显的顺序变化：`BN` 从第 `9` 升到第 `4`，`Al2BN` 从第 `16` 升到第 `10`；
   - 当前 family-aware proposal shortlist 的 `10` 个成员不变，说明 shortlist 成员本身对这两种 ranking view 相对稳定，只是内部顺序更偏 BN-centered。
 - 当前新增的 structure-generation bridge：
-  - 导出 artifacts：`artifacts/demo_candidate_structure_generation_seeds.csv`、`artifacts/demo_candidate_structure_generation_handoff.json`、`artifacts/demo_candidate_structure_generation_reference_records.json`、`artifacts/demo_candidate_structure_generation_job_plan.json`、`artifacts/demo_candidate_structure_generation_first_pass_queue.json`、`artifacts/demo_candidate_structure_generation_followup_shortlist.csv`；
+  - 导出 artifacts：`artifacts/demo_candidate_structure_generation_seeds.csv`、`artifacts/demo_candidate_structure_generation_handoff.json`、`artifacts/demo_candidate_structure_generation_reference_records.json`、`artifacts/demo_candidate_structure_generation_job_plan.json`、`artifacts/demo_candidate_structure_generation_first_pass_queue.json`、`artifacts/demo_candidate_structure_generation_followup_shortlist.csv`、`artifacts/demo_candidate_structure_generation_followup_extrapolation_shortlist.csv`；
   - candidate scope：`proposal_shortlist_plus_extrapolation_shortlist_plus_bn_centered_top_n`；
   - 每个候选当前保留 `3` 条 seed；
   - 当前 `11` 个桥接候选全部成功连到了 BN analog reference records，`candidates_without_seed_rows = 0`；
@@ -229,6 +230,7 @@
   - 当前 action labels 会显式区分 `reference_reuse_control / stoichiometry_adjustment_enumeration / element_substitution_plus_stoichiometry_adjustment / element_insertion_enumeration / element_removal_enumeration / mixed_formula_edit_enumeration`；
   - 当前 first-pass queue 同样覆盖 `33` 个 jobs，`mean_edit_complexity_score = 8.49`，`max_edit_complexity_score = 19.2`，最靠前的 first-pass jobs 目前集中在 `BCN2 / BC2N / BCN` 这类更值得优先尝试的候选上；
   - 新增的 follow-up shortlist 当前收敛为 `5` 个 candidate-level follow-up targets：`BCN2`、`BC2N`、`BCN`、`Si2BN`、`BN`；其中 readiness 分布为 `reference_reuse_control_available = 3`、`low_complexity_stoichiometry_adjustment = 2`；
+  - 新增的 novelty-aware follow-up extrapolation shortlist 当前进一步收敛到 `4` 个“新且可做”的对象：`BCN2`、`BCN`、`SiBN`、`SiBN2`；它们当前全部对应 `low_complexity_stoichiometry_adjustment` 路径；
   - 它把 `BCN2 / BCN / BC2N / AlBN2 / BN / Al2BN` 这类当前最值得跟进的公式，明确连到了真实 BN 参考公式与 record id，而不是停留在“只有 formula 排名”的状态。
 - 当前候选排序摘要：
   - `ranking_basis = composition_only_mean_band_gap_minus_model_disagreement_low_support_and_bn_support_and_grouped_robustness_and_bn_analog_validation_penalties`
@@ -310,6 +312,7 @@
 - `artifacts/demo_candidate_structure_generation_job_plan.json`：machine-readable prototype workflow plan，把每个 candidate-seed pairing 变成 job-level action spec，含 action label、workflow steps、direct substitution hints，以及到 reference-record payload 的交叉链接。
 - `artifacts/demo_candidate_structure_generation_first_pass_queue.json`：在 job-plan 之上再加一层 deterministic first-pass queue，显式给出 element-count deltas、edit operations、edit complexity heuristic，以及 candidate-seed jobs 的优先顺序。
 - `artifacts/demo_candidate_structure_generation_followup_shortlist.csv`：把 first-pass queue 聚合回 candidate 层得到的 prototype-grounded follow-up shortlist，用于优先决定哪些公式最值得先进入后续结构工作流。
+- `artifacts/demo_candidate_structure_generation_followup_extrapolation_shortlist.csv`：在 prototype-grounded follow-up shortlist 之上再叠加 `formula_level_extrapolation` 过滤得到的 novelty-aware structure follow-up shortlist，用于优先决定哪些“新且可做”的对象值得先推进。
 - `artifacts/demo_candidate_proposal_shortlist.csv`：family-aware advisor-facing proposal shortlist。
 - `artifacts/demo_candidate_extrapolation_shortlist.csv`：只保留 formula-level extrapolation 的 advisor-facing shortlist。
 - `PY_FILES_SUMMARY.md`：AI-facing Python summary。

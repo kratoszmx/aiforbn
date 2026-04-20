@@ -41,6 +41,9 @@ structure_generation_first_pass_queue_path = (
 structure_generation_followup_shortlist_path = (
     artifact_dir / 'demo_candidate_structure_generation_followup_shortlist.csv'
 )
+structure_generation_followup_extrapolation_shortlist_path = (
+    artifact_dir / 'demo_candidate_structure_generation_followup_extrapolation_shortlist.csv'
+)
 proposal_shortlist_path = artifact_dir / 'demo_candidate_proposal_shortlist.csv'
 extrapolation_shortlist_path = artifact_dir / 'demo_candidate_extrapolation_shortlist.csv'
 
@@ -107,6 +110,13 @@ if structure_generation_first_pass_queue_path.exists():
 if structure_generation_followup_shortlist_path.exists():
     st.subheader('Structure-grounded follow-up shortlist')
     st.dataframe(pd.read_csv(structure_generation_followup_shortlist_path), use_container_width=True)
+
+if structure_generation_followup_extrapolation_shortlist_path.exists():
+    st.subheader('Novelty-aware structure follow-up shortlist')
+    st.dataframe(
+        pd.read_csv(structure_generation_followup_extrapolation_shortlist_path),
+        use_container_width=True,
+    )
 
 if proposal_shortlist_path.exists():
     st.subheader('Proposal shortlist')

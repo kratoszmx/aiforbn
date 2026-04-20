@@ -12,6 +12,7 @@ The main handoff artifacts are:
 - `artifacts/demo_candidate_structure_generation_job_plan.json`
 - `artifacts/demo_candidate_structure_generation_first_pass_queue.json`
 - `artifacts/demo_candidate_structure_generation_followup_shortlist.csv`
+- `artifacts/demo_candidate_structure_generation_followup_extrapolation_shortlist.csv`
 
 They are produced by `main.py` after candidate ranking.
 
@@ -29,7 +30,7 @@ The reference-record payload JSON now also carries the unique raw `atoms` object
 
 ## Recommended downstream workflow
 
-Start from `demo_candidate_structure_generation_followup_shortlist.csv` when choosing which candidate formulas deserve attention first, then use `demo_candidate_structure_generation_first_pass_queue.json` for job ordering and `demo_candidate_structure_generation_job_plan.json` for richer per-job context.
+Start from `demo_candidate_structure_generation_followup_shortlist.csv` when choosing which candidate formulas deserve attention first. If you specifically want new formulas rather than rediscovery controls, start from `demo_candidate_structure_generation_followup_extrapolation_shortlist.csv` instead. Then use `demo_candidate_structure_generation_first_pass_queue.json` for job ordering and `demo_candidate_structure_generation_job_plan.json` for richer per-job context.
 
 For each candidate/job pair:
 

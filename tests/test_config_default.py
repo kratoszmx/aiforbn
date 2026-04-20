@@ -146,4 +146,18 @@ def test_default_config_has_expected_poc_defaults():
         == 'first_pass_queue_candidate_aggregation'
     )
     assert cfg['screening']['structure_followup_shortlist']['shortlist_size'] == 5
+    assert cfg['screening']['structure_followup_extrapolation_shortlist']['enabled'] is True
+    assert (
+        cfg['screening']['structure_followup_extrapolation_shortlist']['label']
+        == 'novelty_aware_prototype_followup_shortlist'
+    )
+    assert (
+        cfg['screening']['structure_followup_extrapolation_shortlist']['method']
+        == 'structure_followup_filtered_by_formula_level_extrapolation'
+    )
+    assert cfg['screening']['structure_followup_extrapolation_shortlist']['shortlist_size'] == 4
+    assert (
+        cfg['screening']['structure_followup_extrapolation_shortlist']['required_novelty_bucket']
+        == 'formula_level_extrapolation'
+    )
     assert cfg['ui']['streamlit_enabled'] is True

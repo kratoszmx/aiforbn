@@ -233,6 +233,19 @@ CONFIG = {
                 'planning artifact, not validated structure output.'
             ),
         },
+        'structure_followup_extrapolation_shortlist': {
+            'enabled': True,
+            'label': 'novelty_aware_prototype_followup_shortlist',
+            'method': 'structure_followup_filtered_by_formula_level_extrapolation',
+            'shortlist_size': 4,
+            'required_novelty_bucket': 'formula_level_extrapolation',
+            'note': (
+                'Filters the prototype-grounded follow-up view down to formula-level '
+                'extrapolation candidates so downstream structure work is not dominated by '
+                'rediscovery or replay of already-observed BN formulas. This is still a '
+                'planning artifact, not a discovery proof.'
+            ),
+        },
     },
     'llm': {
         'enabled': False,

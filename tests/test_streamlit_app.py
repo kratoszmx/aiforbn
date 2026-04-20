@@ -52,6 +52,7 @@ def test_streamlit_app_reads_generated_artifacts(tmp_path, monkeypatch):
     (artifact_dir / 'demo_candidate_structure_generation_job_plan.json').write_text(json.dumps({'job_count': 1}), encoding='utf-8')
     (artifact_dir / 'demo_candidate_structure_generation_first_pass_queue.json').write_text(json.dumps({'queue_entry_count': 1}), encoding='utf-8')
     (artifact_dir / 'demo_candidate_structure_generation_followup_shortlist.csv').write_text('formula,structure_followup_shortlist_rank\nBN,1\n', encoding='utf-8')
+    (artifact_dir / 'demo_candidate_structure_generation_followup_extrapolation_shortlist.csv').write_text('formula,structure_followup_extrapolation_shortlist_rank\nBCN2,1\n', encoding='utf-8')
     (artifact_dir / 'demo_candidate_proposal_shortlist.csv').write_text('formula,proposal_shortlist_rank\nBN,1\n', encoding='utf-8')
     (artifact_dir / 'demo_candidate_extrapolation_shortlist.csv').write_text('formula,extrapolation_shortlist_rank\nBCN2,1\n', encoding='utf-8')
 
@@ -81,5 +82,6 @@ def test_streamlit_app_reads_generated_artifacts(tmp_path, monkeypatch):
     assert ('subheader', 'Structure-generation job-plan JSON') in fake_streamlit.calls
     assert ('subheader', 'Structure-generation first-pass queue JSON') in fake_streamlit.calls
     assert ('subheader', 'Structure-grounded follow-up shortlist') in fake_streamlit.calls
+    assert ('subheader', 'Novelty-aware structure follow-up shortlist') in fake_streamlit.calls
     assert ('subheader', 'Proposal shortlist') in fake_streamlit.calls
     assert ('subheader', 'Formula-level extrapolation shortlist') in fake_streamlit.calls

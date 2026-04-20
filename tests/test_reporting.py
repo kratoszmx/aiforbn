@@ -688,6 +688,20 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         'reference_reuse_control_available': 1,
         'moderate_formula_edit_required': 1,
     }
+    assert (
+        experiment_summary['screening']['structure_generation_bridge'][
+            'followup_extrapolation_shortlist_artifact'
+        ]
+        == 'demo_candidate_structure_generation_followup_extrapolation_shortlist.csv'
+    )
+    assert (
+        experiment_summary['screening']['structure_generation_bridge']['followup_extrapolation_shortlist_size']
+        == 1
+    )
+    assert (
+        experiment_summary['screening']['structure_generation_bridge']['followup_extrapolation_shortlist_formulas']
+        == ['AlBN']
+    )
     assert experiment_summary['screening']['structure_generation_bridge']['unique_seed_reference_formulas'] == 2
     assert experiment_summary['screening']['ranking_matches_best_overall_evaluation'] is True
     assert experiment_summary['screening']['best_overall_evaluation_feature_set'] == 'matminer_composition'
@@ -952,6 +966,7 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     assert (artifact_dir / 'demo_candidate_structure_generation_job_plan.json').exists()
     assert (artifact_dir / 'demo_candidate_structure_generation_first_pass_queue.json').exists()
     assert (artifact_dir / 'demo_candidate_structure_generation_followup_shortlist.csv').exists()
+    assert (artifact_dir / 'demo_candidate_structure_generation_followup_extrapolation_shortlist.csv').exists()
     handoff_payload = json.loads(
         (artifact_dir / 'demo_candidate_structure_generation_handoff.json').read_text()
     )
@@ -966,6 +981,9 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     )
     followup_shortlist_df = pd.read_csv(
         artifact_dir / 'demo_candidate_structure_generation_followup_shortlist.csv'
+    )
+    followup_extrapolation_shortlist_df = pd.read_csv(
+        artifact_dir / 'demo_candidate_structure_generation_followup_extrapolation_shortlist.csv'
     )
     assert handoff_payload['candidate_count'] == 2
     assert handoff_payload['seed_row_count'] == 2
@@ -1015,6 +1033,10 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         'reference_reuse_control_available',
         'moderate_formula_edit_required',
     ]
+    assert followup_extrapolation_shortlist_df['formula'].tolist() == ['AlBN']
+    assert followup_extrapolation_shortlist_df[
+        'structure_followup_extrapolation_shortlist_rank'
+    ].tolist() == [1]
     assert (artifact_dir / 'demo_candidate_proposal_shortlist.csv').exists()
     assert (artifact_dir / 'demo_candidate_extrapolation_shortlist.csv').exists()
     assert (artifact_dir / 'benchmark_results.csv').exists()

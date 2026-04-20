@@ -87,6 +87,17 @@ STRUCTURE_GENERATION_FOLLOWUP_SHORTLIST_NOTE = (
     'also better supported by prototype references and lower-complexity edit paths. This '
     'remains a planning artifact, not a validated structure result.'
 )
+STRUCTURE_GENERATION_FOLLOWUP_EXTRAPOLATION_SHORTLIST_LABEL = (
+    'novelty_aware_prototype_followup_shortlist'
+)
+STRUCTURE_GENERATION_FOLLOWUP_EXTRAPOLATION_SHORTLIST_METHOD = (
+    'structure_followup_filtered_by_formula_level_extrapolation'
+)
+STRUCTURE_GENERATION_FOLLOWUP_EXTRAPOLATION_SHORTLIST_NOTE = (
+    'Filters the prototype-grounded follow-up view down to formula-level extrapolation '
+    'candidates so downstream structure work is not dominated by rediscovery or replay of '
+    'already-observed BN formulas. This remains a planning artifact, not a discovery proof.'
+)
 
 
 def _structure_followup_shortlist_config(cfg: dict | None = None) -> dict[str, object]:
@@ -101,6 +112,38 @@ def _structure_followup_shortlist_config(cfg: dict | None = None) -> dict[str, o
     }
     if out['shortlist_size'] <= 0:
         raise ValueError('structure_followup_shortlist.shortlist_size must be positive')
+    return out
+
+
+def _structure_followup_extrapolation_shortlist_config(cfg: dict | None = None) -> dict[str, object]:
+    screening_cfg = {} if cfg is None else cfg.get('screening', {})
+    shortlist_cfg = screening_cfg.get('structure_followup_extrapolation_shortlist', {})
+    out = {
+        'enabled': bool(shortlist_cfg.get('enabled', True)),
+        'label': str(
+            shortlist_cfg.get(
+                'label', STRUCTURE_GENERATION_FOLLOWUP_EXTRAPOLATION_SHORTLIST_LABEL
+            )
+        ),
+        'method': str(
+            shortlist_cfg.get(
+                'method', STRUCTURE_GENERATION_FOLLOWUP_EXTRAPOLATION_SHORTLIST_METHOD
+            )
+        ),
+        'shortlist_size': int(shortlist_cfg.get('shortlist_size', 4)),
+        'required_novelty_bucket': str(
+            shortlist_cfg.get(
+                'required_novelty_bucket', NOVELTY_BUCKET_FORMULA_LEVEL_EXTRAPOLATION
+            )
+        ),
+        'note': str(
+            shortlist_cfg.get(
+                'note', STRUCTURE_GENERATION_FOLLOWUP_EXTRAPOLATION_SHORTLIST_NOTE
+            )
+        ),
+    }
+    if out['shortlist_size'] <= 0:
+        raise ValueError('structure_followup_extrapolation_shortlist.shortlist_size must be positive')
     return out
 
 
@@ -925,6 +968,57 @@ def _build_structure_generation_followup_shortlist_df(
     return shortlist_df[columns]
 
 
+def _build_structure_generation_followup_extrapolation_shortlist_df(
+    structure_followup_shortlist_df: pd.DataFrame,
+    *,
+    formula_col: str,
+    cfg_defaults: dict[str, object],
+) -> pd.DataFrame:
+    if structure_followup_shortlist_df is None or structure_followup_shortlist_df.empty:
+        return pd.DataFrame(columns=list(structure_followup_shortlist_df.columns) if structure_followup_shortlist_df is not None else [formula_col])
+
+    shortlist_df = structure_followup_shortlist_df.copy()
+    required_novelty_bucket = str(cfg_defaults['required_novelty_bucket'])
+    filtered_df = shortlist_df.loc[
+        shortlist_df['candidate_novelty_bucket'].astype(str).eq(required_novelty_bucket)
+    ].copy()
+    if filtered_df.empty:
+        filtered_df['structure_followup_extrapolation_shortlist_selected'] = pd.Series(dtype=bool)
+        filtered_df['structure_followup_extrapolation_shortlist_rank'] = pd.Series(dtype='object')
+        filtered_df['structure_followup_extrapolation_shortlist_decision'] = pd.Series(dtype='object')
+        return filtered_df
+
+    filtered_df = filtered_df.sort_values(
+        [
+            'structure_followup_priority_score',
+            'structure_followup_min_edit_complexity_score',
+            'ranking_rank',
+            'structure_followup_best_queue_rank',
+            formula_col,
+        ],
+        ascending=[False, True, True, True, True],
+        kind='stable',
+    ).reset_index(drop=True)
+    filtered_df['structure_followup_extrapolation_shortlist_selected'] = False
+    filtered_df['structure_followup_extrapolation_shortlist_rank'] = pd.Series(
+        [None] * len(filtered_df), dtype='object'
+    )
+    filtered_df['structure_followup_extrapolation_shortlist_decision'] = (
+        'not_selected_for_structure_followup_extrapolation_shortlist'
+    )
+    if bool(cfg_defaults['enabled']):
+        selected_count = min(int(cfg_defaults['shortlist_size']), len(filtered_df))
+        selected_index = filtered_df.index[:selected_count]
+        filtered_df.loc[selected_index, 'structure_followup_extrapolation_shortlist_selected'] = True
+        filtered_df.loc[selected_index, 'structure_followup_extrapolation_shortlist_rank'] = np.arange(
+            1, selected_count + 1, dtype=int
+        )
+        filtered_df.loc[
+            selected_index, 'structure_followup_extrapolation_shortlist_decision'
+        ] = 'selected_for_structure_followup_extrapolation_shortlist'
+    return filtered_df
+
+
 def _build_structure_generation_handoff_payload(
     structure_generation_seed_df: pd.DataFrame,
     *,
@@ -1255,6 +1349,9 @@ def build_experiment_summary(
     extrapolation_shortlist_cfg = _extrapolation_shortlist_config(cfg)
     structure_generation_seed_cfg = _structure_generation_seed_config(cfg)
     structure_followup_shortlist_cfg = _structure_followup_shortlist_config(cfg)
+    structure_followup_extrapolation_shortlist_cfg = (
+        _structure_followup_extrapolation_shortlist_config(cfg)
+    )
     ranking_config_metadata = get_screening_ranking_metadata(cfg)
     robustness_cfg = cfg.get('robustness', {})
     robustness_enabled = bool(robustness_cfg.get('enabled', False))
@@ -1808,6 +1905,32 @@ def build_experiment_summary(
             if not selected_followup_df.empty
             else {}
         )
+        structure_followup_extrapolation_shortlist_df = (
+            _build_structure_generation_followup_extrapolation_shortlist_df(
+                structure_followup_shortlist_df,
+                formula_col=formula_col,
+                cfg_defaults=structure_followup_extrapolation_shortlist_cfg,
+            )
+        )
+        selected_followup_extrapolation_df = structure_followup_extrapolation_shortlist_df.loc[
+            structure_followup_extrapolation_shortlist_df[
+                'structure_followup_extrapolation_shortlist_selected'
+            ].fillna(False).astype(bool)
+        ].copy() if not structure_followup_extrapolation_shortlist_df.empty else pd.DataFrame()
+        if bool(structure_followup_extrapolation_shortlist_cfg['enabled']):
+            structure_generation_seed_summary['followup_extrapolation_shortlist_artifact'] = (
+                'demo_candidate_structure_generation_followup_extrapolation_shortlist.csv'
+            )
+        structure_generation_seed_summary['followup_extrapolation_shortlist_size'] = int(
+            len(selected_followup_extrapolation_df)
+        )
+        structure_generation_seed_summary['followup_extrapolation_shortlist_formulas'] = (
+            selected_followup_extrapolation_df.sort_values(
+                'structure_followup_extrapolation_shortlist_rank', ascending=True
+            )[formula_col].astype(str).tolist()
+            if not selected_followup_extrapolation_df.empty
+            else []
+        )
 
     return {
         'dataset': {
@@ -2213,6 +2336,9 @@ def save_metrics_and_predictions(
     structure_generation_followup_shortlist_path = (
         artifact_dir / 'demo_candidate_structure_generation_followup_shortlist.csv'
     )
+    structure_generation_followup_extrapolation_shortlist_path = (
+        artifact_dir / 'demo_candidate_structure_generation_followup_extrapolation_shortlist.csv'
+    )
     if structure_generation_seed_df is not None and not structure_generation_seed_df.empty:
         structure_generation_seed_df.to_csv(structure_generation_seed_path, index=False)
         structure_generation_seed_cfg = _structure_generation_seed_config(cfg)
@@ -2271,6 +2397,35 @@ def save_metrics_and_predictions(
             selected_followup_df.to_csv(structure_generation_followup_shortlist_path, index=False)
         elif structure_generation_followup_shortlist_path.exists():
             structure_generation_followup_shortlist_path.unlink()
+        structure_followup_extrapolation_shortlist_cfg = (
+            _structure_followup_extrapolation_shortlist_config(cfg)
+        )
+        structure_followup_extrapolation_shortlist_df = (
+            _build_structure_generation_followup_extrapolation_shortlist_df(
+                structure_followup_shortlist_df,
+                formula_col=formula_col,
+                cfg_defaults=structure_followup_extrapolation_shortlist_cfg,
+            )
+        )
+        selected_followup_extrapolation_df = (
+            structure_followup_extrapolation_shortlist_df.loc[
+                structure_followup_extrapolation_shortlist_df[
+                    'structure_followup_extrapolation_shortlist_selected'
+                ].fillna(False).astype(bool)
+            ].copy()
+            if not structure_followup_extrapolation_shortlist_df.empty
+            else pd.DataFrame()
+        )
+        if not selected_followup_extrapolation_df.empty:
+            if 'structure_followup_extrapolation_shortlist_rank' in selected_followup_extrapolation_df.columns:
+                selected_followup_extrapolation_df = selected_followup_extrapolation_df.sort_values(
+                    'structure_followup_extrapolation_shortlist_rank', ascending=True
+                )
+            selected_followup_extrapolation_df.to_csv(
+                structure_generation_followup_extrapolation_shortlist_path, index=False
+            )
+        elif structure_generation_followup_extrapolation_shortlist_path.exists():
+            structure_generation_followup_extrapolation_shortlist_path.unlink()
     else:
         if structure_generation_seed_path.exists():
             structure_generation_seed_path.unlink()
@@ -2284,6 +2439,8 @@ def save_metrics_and_predictions(
             structure_generation_first_pass_queue_path.unlink()
         if structure_generation_followup_shortlist_path.exists():
             structure_generation_followup_shortlist_path.unlink()
+        if structure_generation_followup_extrapolation_shortlist_path.exists():
+            structure_generation_followup_extrapolation_shortlist_path.unlink()
     for selected_column, rank_column, artifact_name in (
         (
             'proposal_shortlist_selected',
