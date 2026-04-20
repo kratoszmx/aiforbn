@@ -861,6 +861,73 @@ def test_feature_pipeline_can_train_evaluate_benchmark_and_rank_demo_candidates(
     assert screened_df['ranking_model_type'].eq(selection_summary['selected_model_type']).all()
     assert screened_df['ranking_uncertainty_method'].eq('small_feature_model_disagreement').all()
     assert screened_df['ranking_feature_family'].eq('composition_only').all()
+    assert screened_df['objective_name'].eq(
+        'bn_themed_formula_level_wide_gap_followup_prioritization'
+    ).all()
+    assert screened_df['objective_target_property'].eq('band_gap').all()
+    assert screened_df['objective_target_direction'].eq('maximize').all()
+    assert screened_df['objective_decision_unit'].eq('formula_level_candidate').all()
+    assert screened_df['objective_decision_consequence'].eq(
+        'low_confidence_prioritization_for_structure_followup'
+    ).all()
+    assert screened_df['ranking_signal_property'].eq('band_gap').all()
+    assert screened_df['ranking_signal_direction'].eq('maximize').all()
+    assert screened_df['ranking_signal_source'].eq('ensemble_predicted_band_gap_mean').all()
+    assert np.allclose(
+        screened_df['ranking_signal_value'].to_numpy(dtype=float),
+        screened_df['ensemble_predicted_band_gap_mean'].to_numpy(dtype=float),
+    )
+    assert np.allclose(
+        screened_df['ranking_uncertainty_penalty_component'].to_numpy(dtype=float),
+        screened_df['ranking_uncertainty_penalty'].to_numpy(dtype=float)
+        * screened_df['ensemble_predicted_band_gap_std'].to_numpy(dtype=float),
+    )
+    assert screened_df['ranking_signal_rank'].between(1, len(screened_df)).all()
+    assert screened_df['ranking_signal_rank'].nunique() == len(screened_df)
+    assert screened_df['ranking_signal_selected_for_top_k'].sum() == CFG['screening']['top_k']
+    assert np.allclose(
+        screened_df['ranking_total_penalty'].to_numpy(dtype=float),
+        screened_df['ranking_uncertainty_penalty_component'].to_numpy(dtype=float)
+        + screened_df['grouped_robustness_uncertainty_penalty'].to_numpy(dtype=float)
+        + screened_df['domain_support_penalty'].to_numpy(dtype=float)
+        + screened_df['bn_support_penalty'].to_numpy(dtype=float)
+        + screened_df['bn_band_gap_alignment_penalty'].to_numpy(dtype=float)
+        + screened_df['bn_analog_validation_penalty'].to_numpy(dtype=float),
+    )
+    assert screened_df['ranking_score_formula'].eq(
+        'ranking_signal_value - ranking_uncertainty_penalty_component - '
+        'grouped_robustness_uncertainty_penalty - domain_support_penalty - '
+        'bn_support_penalty - bn_band_gap_alignment_penalty - '
+        'bn_analog_validation_penalty'
+    ).all()
+    assert screened_df['ranking_main_penalty_driver'].isin({
+        'model_disagreement_penalty',
+        'grouped_robustness_penalty',
+        'domain_support_penalty',
+        'bn_support_penalty',
+        'bn_band_gap_alignment_penalty',
+        'bn_analog_validation_penalty',
+        'none',
+    }).all()
+    assert screened_df['ranking_active_penalty_terms'].astype(str).str.len().gt(0).all()
+    assert screened_df['ranking_penalty_impact_label'].isin({
+        'rank_unchanged_after_penalties',
+        'moved_down_after_penalties',
+        'moved_up_after_penalties',
+    }).all()
+    assert np.array_equal(
+        screened_df['ranking_penalty_rank_shift'].to_numpy(dtype=int),
+        screened_df['ranking_rank'].to_numpy(dtype=int)
+        - screened_df['ranking_signal_rank'].to_numpy(dtype=int),
+    )
+    assert screened_df['ranking_decision_summary'].astype(str).str.contains('rank=').all()
+    assert screened_df['ranking_decision_summary'].astype(str).str.contains('signal_rank=').all()
+    assert screened_df['ranking_decision_summary'].astype(str).str.contains('selection=').all()
+    assert np.allclose(
+        screened_df['ranking_score'].to_numpy(dtype=float),
+        screened_df['ranking_signal_value'].to_numpy(dtype=float)
+        - screened_df['ranking_total_penalty'].to_numpy(dtype=float),
+    )
     assert screened_df['ensemble_member_count'].eq(4).all()
     assert screened_df['domain_support_enabled'].eq(True).all()
     assert screened_df['domain_support_method'].eq(

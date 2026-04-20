@@ -2008,6 +2008,61 @@ def _screening_selection_note(
     )
 
 
+def _format_optional_float(value, digits: int = 3) -> str:
+    if value is None or pd.isna(value):
+        return 'na'
+    return f'{float(value):.{digits}f}'
+
+
+def _ranking_penalty_items(row: pd.Series) -> list[tuple[str, float]]:
+    penalty_columns = [
+        ('model_disagreement_penalty', 'ranking_uncertainty_penalty_component'),
+        ('grouped_robustness_penalty', 'grouped_robustness_uncertainty_penalty'),
+        ('domain_support_penalty', 'domain_support_penalty'),
+        ('bn_support_penalty', 'bn_support_penalty'),
+        ('bn_band_gap_alignment_penalty', 'bn_band_gap_alignment_penalty'),
+        ('bn_analog_validation_penalty', 'bn_analog_validation_penalty'),
+    ]
+    items = []
+    for label, column in penalty_columns:
+        value = pd.to_numeric(pd.Series([row.get(column, 0.0)]), errors='coerce').iloc[0]
+        items.append((label, 0.0 if pd.isna(value) else float(value)))
+    return items
+
+
+def _ranking_active_penalty_terms(row: pd.Series) -> str:
+    active_terms = [label for label, value in _ranking_penalty_items(row) if value > 0.0]
+    return '|'.join(active_terms) if active_terms else 'none'
+
+
+def _ranking_main_penalty_driver(row: pd.Series) -> str:
+    items = _ranking_penalty_items(row)
+    if not items:
+        return 'none'
+    label, value = max(items, key=lambda item: item[1])
+    return label if value > 0.0 else 'none'
+
+
+def _ranking_decision_summary(row: pd.Series) -> str:
+    plausibility_label = (
+        'pass' if bool(row.get('chemical_plausibility_pass', True)) else 'fail'
+    )
+    novelty_bucket = row.get('candidate_novelty_bucket', 'unannotated')
+    selection_decision = row.get('screening_selection_decision', 'unassigned')
+    return (
+        f"rank={int(row.get('ranking_rank', -1))}; "
+        f"signal_rank={int(row.get('ranking_signal_rank', -1))}; "
+        f"rank_shift={int(row.get('ranking_penalty_rank_shift', 0))}; "
+        f"score={_format_optional_float(row.get('ranking_score'))}; "
+        f"signal={str(row.get('ranking_signal_source', 'predicted_band_gap'))}"
+        f"({_format_optional_float(row.get('ranking_signal_value'))}); "
+        f"penalty_total={_format_optional_float(row.get('ranking_total_penalty'))}; "
+        f"main_penalty={str(row.get('ranking_main_penalty_driver', 'none'))}; "
+        f"active_penalties={str(row.get('ranking_active_penalty_terms', 'none'))}; "
+        f"selection={selection_decision}; novelty={novelty_bucket}; plausibility={plausibility_label}"
+    )
+
+
 def select_feature_model_combo(feature_tables: dict[str, pd.DataFrame], split_masks, cfg: dict) -> dict:
     candidate_feature_sets = [value for value in get_candidate_feature_sets(cfg) if value in feature_tables]
     candidate_model_types = get_candidate_model_types(cfg)
@@ -4868,13 +4923,30 @@ def screen_candidates(
     ranking_config_metadata = get_screening_ranking_metadata(cfg)
     uncertainty_penalty = float(ranking_config_metadata['ranking_uncertainty_penalty'])
     use_model_disagreement = bool(cfg['screening'].get('use_model_disagreement', False))
+    target_property = cfg['screening'].get(
+        'objective_target_property',
+        (cfg.get('data') or {}).get('target_column', 'band_gap'),
+    )
+    out['ranking_signal_property'] = target_property
+    out['ranking_signal_direction'] = cfg['screening'].get('objective_target_direction', 'maximize')
+    out['ranking_signal_source'] = (
+        'ensemble_predicted_band_gap_mean'
+        if use_model_disagreement and ensemble_prediction_df is not None
+        else 'predicted_band_gap'
+    )
     if use_model_disagreement and ensemble_prediction_df is not None:
+        out['ranking_signal_value'] = out['ensemble_predicted_band_gap_mean']
+        out['ranking_uncertainty_penalty_component'] = (
+            uncertainty_penalty * out['ensemble_predicted_band_gap_std']
+        )
         out['ranking_score'] = (
-            out['ensemble_predicted_band_gap_mean']
-            - uncertainty_penalty * out['ensemble_predicted_band_gap_std']
+            out['ranking_signal_value']
+            - out['ranking_uncertainty_penalty_component']
         )
     else:
-        out['ranking_score'] = out['predicted_band_gap']
+        out['ranking_signal_value'] = out['predicted_band_gap']
+        out['ranking_uncertainty_penalty_component'] = 0.0
+        out['ranking_score'] = out['ranking_signal_value']
     out['ranking_score_before_grouped_robustness_penalty'] = out['ranking_score']
     grouped_robustness_penalty_enabled = bool(
         ranking_config_metadata['grouped_robustness_penalty_enabled']
@@ -5089,6 +5161,42 @@ def screen_candidates(
     out['ranking_feature_family'] = get_feature_family(feature_set)
     out['ranking_uncertainty_method'] = ranking_metadata['ranking_uncertainty_method']
     out['ranking_uncertainty_penalty'] = uncertainty_penalty
+    out['objective_name'] = cfg['screening'].get(
+        'objective_name',
+        'bn_themed_formula_level_wide_gap_followup_prioritization',
+    )
+    out['objective_target_property'] = target_property
+    out['objective_target_direction'] = cfg['screening'].get('objective_target_direction', 'maximize')
+    out['objective_decision_unit'] = cfg['screening'].get(
+        'objective_decision_unit',
+        'formula_level_candidate',
+    )
+    out['objective_decision_consequence'] = cfg['screening'].get(
+        'objective_decision_consequence',
+        'low_confidence_prioritization_for_structure_followup',
+    )
+    out['objective_note'] = cfg['screening'].get(
+        'objective_note',
+        'The screening objective is to prioritize BN-themed formula-level candidates with '
+        'wide predicted band gaps for low-confidence downstream follow-up, not to claim '
+        'validated discovery.',
+    )
+    out['ranking_total_penalty'] = (
+        out['ranking_uncertainty_penalty_component'].fillna(0.0)
+        + out['grouped_robustness_uncertainty_penalty'].fillna(0.0)
+        + out['domain_support_penalty'].fillna(0.0)
+        + out['bn_support_penalty'].fillna(0.0)
+        + out['bn_band_gap_alignment_penalty'].fillna(0.0)
+        + out['bn_analog_validation_penalty'].fillna(0.0)
+    )
+    out['ranking_score_formula'] = (
+        'ranking_signal_value - ranking_uncertainty_penalty_component - '
+        'grouped_robustness_uncertainty_penalty - domain_support_penalty - '
+        'bn_support_penalty - bn_band_gap_alignment_penalty - '
+        'bn_analog_validation_penalty'
+    )
+    out['ranking_active_penalty_terms'] = out.apply(_ranking_active_penalty_terms, axis=1)
+    out['ranking_main_penalty_driver'] = out.apply(_ranking_main_penalty_driver, axis=1)
     out['best_overall_evaluation_feature_set'] = best_overall_feature_set or feature_set
     out['best_overall_evaluation_model_type'] = best_overall_model_type or model_type
     out['screening_matches_best_overall_evaluation'] = bool(
@@ -5111,6 +5219,16 @@ def screen_candidates(
         out['ranking_note'] = out['ranking_note'] + ' ' + BN_ANALOG_EVIDENCE_RANKING_NOTE
     if 'candidate_novelty_bucket' in out.columns:
         out['ranking_note'] = out['ranking_note'] + ' ' + NOVELTY_ANNOTATION_RANKING_NOTE
+    signal_rank_df = out[['formula', 'ranking_signal_value', 'predicted_band_gap']].copy()
+    signal_rank_df = signal_rank_df.sort_values(
+        ['ranking_signal_value', 'predicted_band_gap', 'formula'],
+        ascending=[False, False, True],
+    ).reset_index(drop=True)
+    signal_rank_df['ranking_signal_rank'] = np.arange(1, len(signal_rank_df) + 1, dtype=int)
+    out = out.merge(signal_rank_df[['formula', 'ranking_signal_rank']], on='formula', how='left')
+    out['ranking_signal_selected_for_top_k'] = (
+        out['ranking_signal_rank'] <= int(cfg['screening']['top_k'])
+    )
     chemical_plausibility_enabled = bool(out.get('chemical_plausibility_enabled', True).fillna(True).all())
     if chemical_plausibility_enabled:
         out['chemical_plausibility_pass'] = out['chemical_plausibility_pass'].fillna(False).astype(bool)
@@ -5134,6 +5252,18 @@ def screen_candidates(
             out.loc[novel_mask, 'novelty_rank_within_bucket'].astype(int).to_numpy()
         )
     out['screening_selected_for_top_k'] = out['ranking_rank'] <= int(cfg['screening']['top_k'])
+    out['ranking_penalty_rank_shift'] = (
+        out['ranking_rank'].astype(int) - out['ranking_signal_rank'].astype(int)
+    )
+    out['ranking_penalty_impact_label'] = 'rank_unchanged_after_penalties'
+    out.loc[
+        out['ranking_penalty_rank_shift'] > 0,
+        'ranking_penalty_impact_label',
+    ] = 'moved_down_after_penalties'
+    out.loc[
+        out['ranking_penalty_rank_shift'] < 0,
+        'ranking_penalty_impact_label',
+    ] = 'moved_up_after_penalties'
     out['screening_selection_decision'] = 'not_selected_top_k'
     out.loc[out['screening_selected_for_top_k'], 'screening_selection_decision'] = 'selected_top_k'
     if chemical_plausibility_enabled:
@@ -5141,6 +5271,7 @@ def screen_candidates(
             ~out['screening_selected_for_top_k'] & ~out['chemical_plausibility_pass'],
             'screening_selection_decision',
         ] = 'failed_chemical_plausibility'
+    out['ranking_decision_summary'] = out.apply(_ranking_decision_summary, axis=1)
     out = annotate_candidate_proposal_shortlist(out, cfg=cfg)
     out = annotate_candidate_extrapolation_shortlist(out, cfg=cfg)
 

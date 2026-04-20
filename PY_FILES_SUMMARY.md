@@ -569,6 +569,7 @@ Current behavior:
 - optionally applies a mild BN analog-validation penalty in ranking space from the analog vote fraction
 - adds novelty / rediscovery annotations from the overlap fields
 - computes `ranking_score` and preserves `ranking_score_before_grouped_robustness_penalty`, `ranking_score_before_domain_support_penalty`, `ranking_score_before_bn_support_penalty`, and `ranking_score_before_bn_analog_validation_penalty`
+- now also writes explicit ranking-objective / score-decomposition fields, including `objective_*`, `ranking_signal_*`, `ranking_uncertainty_penalty_component`, `ranking_total_penalty`, `ranking_score_formula`, `ranking_active_penalty_terms`, `ranking_main_penalty_driver`, `ranking_penalty_rank_shift`, `ranking_penalty_impact_label`, and `ranking_decision_summary`
 - writes explicit honesty fields about whether screening matches the overall best evaluation combo
 - annotates a family-aware proposal shortlist without replacing the raw ranking artifact
 - annotates a second formula-level extrapolation shortlist for discovery-style follow-up inside the current demo space
@@ -579,6 +580,12 @@ Useful output columns include:
 - `ensemble_predicted_band_gap_mean`
 - `ensemble_predicted_band_gap_std`
 - `ranking_score`
+- `ranking_signal_value`
+- `ranking_signal_rank`
+- `ranking_total_penalty`
+- `ranking_penalty_rank_shift`
+- `ranking_penalty_impact_label`
+- `ranking_decision_summary`
 - `grouped_robustness_predicted_band_gap_std`
 - `grouped_robustness_uncertainty_penalty`
 - `domain_support_percentile`

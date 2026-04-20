@@ -102,6 +102,12 @@
   - `best_overall_evaluation_model_type`
   - `screening_matches_best_overall_evaluation`
   - `screening_selection_note`
+  - `objective_name / objective_target_property / objective_target_direction / objective_decision_unit / objective_decision_consequence`
+  - `ranking_signal_source / ranking_signal_value / ranking_signal_rank`
+  - `ranking_uncertainty_penalty_component / ranking_total_penalty / ranking_score_formula`
+  - `ranking_active_penalty_terms / ranking_main_penalty_driver`
+  - `ranking_penalty_rank_shift / ranking_penalty_impact_label`
+  - `ranking_decision_summary`
   - disagreement heuristic、dataset overlap、domain-support、BN-local support、BN analog evidence 与 novelty bucket 标注
 - `generate_bn_candidates()` 现在生成 25 个 BN-anchored demo 候选公式，并为每个候选写入：
   - `candidate_generation_strategy`
@@ -118,7 +124,11 @@
   - `candidate_chemical_system`
 - `screen_candidates()` 现在不再隐式截断成只剩 top-k，而是输出**完整 source-space ranking artifact**，并显式标注：
   - `ranking_rank`
+  - `ranking_signal_rank`
+  - `ranking_penalty_rank_shift`
+  - `ranking_penalty_impact_label`
   - `screening_selected_for_top_k`
+  - `ranking_signal_selected_for_top_k`
   - `screening_selection_decision`
   - `domain_support_nearest_formula`
   - `domain_support_percentile`
