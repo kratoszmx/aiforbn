@@ -1,1 +1,1 @@
-../myutils/skills/ai_project_skill.txt
+../../myutils/skills/ai_project_skill.txt
