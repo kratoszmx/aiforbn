@@ -246,6 +246,22 @@ CONFIG = {
                 'planning artifact, not a discovery proof.'
             ),
         },
+        'structure_first_pass_execution': {
+            'enabled': True,
+            'label': 'prototype_first_pass_execution',
+            'method': 'deterministic_unrelaxed_reference_reuse_species_edit',
+            'max_candidates': 5,
+            'max_variants_per_candidate': 3,
+            'geometry_min_distance_ratio_pass_threshold': 0.75,
+            'geometry_min_distance_ratio_overlap_threshold': 0.6,
+            'note': (
+                'Materializes low-complexity follow-up candidates into unrelaxed prototype '
+                'structures by reusing reference cells and applying deterministic species '
+                'relabeling and/or vacancy edits when the formula scales cleanly to the '
+                'reference record. This is first-pass execution, not ionic/cell relaxation, '
+                'stability validation, or a discovery claim.'
+            ),
+        },
         'ranking_stability': {
             'enabled': True,
             'top_k_values': [3, 5, 10],

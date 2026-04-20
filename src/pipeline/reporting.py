@@ -1808,6 +1808,8 @@ def build_experiment_summary(
     candidate_prediction_member_df=None,
     candidate_grouped_robustness_member_df=None,
     bn_centered_grouped_robustness_member_df=None,
+    structure_first_pass_execution_summary_df=None,
+    structure_first_pass_execution_payload=None,
 ):
     formula_col = cfg['data']['formula_column']
     target_col = cfg['data']['target_column']
@@ -1871,6 +1873,12 @@ def build_experiment_summary(
         if bn_centered_grouped_robustness_member_df is None
         else bn_centered_grouped_robustness_member_df.copy()
     )
+    structure_first_pass_execution_summary_df = (
+        pd.DataFrame()
+        if structure_first_pass_execution_summary_df is None
+        else structure_first_pass_execution_summary_df.copy()
+    )
+    structure_first_pass_execution_payload = dict(structure_first_pass_execution_payload or {})
 
     plausibility_pass_count = None
     plausibility_fail_count = None
@@ -2438,6 +2446,55 @@ def build_experiment_summary(
             if not selected_followup_extrapolation_df.empty
             else []
         )
+        if structure_first_pass_execution_payload:
+            structure_generation_seed_summary['first_pass_execution_artifact'] = (
+                structure_first_pass_execution_payload.get('artifact')
+            )
+            structure_generation_seed_summary['first_pass_execution_summary_artifact'] = (
+                structure_first_pass_execution_payload.get('summary_artifact')
+            )
+            structure_generation_seed_summary['first_pass_execution_variants_artifact'] = (
+                structure_first_pass_execution_payload.get('variants_artifact')
+            )
+            structure_generation_seed_summary['first_pass_execution_structure_dir'] = (
+                structure_first_pass_execution_payload.get('structure_dir')
+            )
+            structure_generation_seed_summary['first_pass_execution_method'] = (
+                structure_first_pass_execution_payload.get('method')
+            )
+            structure_generation_seed_summary['first_pass_execution_note'] = (
+                structure_first_pass_execution_payload.get('note')
+            )
+            structure_generation_seed_summary['first_pass_execution_candidate_count'] = int(
+                structure_first_pass_execution_payload.get(
+                    'candidate_count',
+                    len(structure_first_pass_execution_summary_df),
+                )
+                or 0
+            )
+            structure_generation_seed_summary['first_pass_execution_variant_count'] = int(
+                structure_first_pass_execution_payload.get('variant_count', 0) or 0
+            )
+            structure_generation_seed_summary['first_pass_execution_successful_variant_count'] = int(
+                structure_first_pass_execution_payload.get('successful_variant_count', 0) or 0
+            )
+            structure_generation_seed_summary['first_pass_execution_status_counts'] = {
+                str(key): int(value)
+                for key, value in (structure_first_pass_execution_payload.get('status_counts') or {}).items()
+            }
+            structure_generation_seed_summary['first_pass_execution_executed_formulas'] = [
+                str(value)
+                for value in (structure_first_pass_execution_payload.get('executed_formulas') or [])
+            ]
+            structure_generation_seed_summary['first_pass_execution_model_feature_set'] = (
+                structure_first_pass_execution_payload.get('model_feature_set')
+            )
+            structure_generation_seed_summary['first_pass_execution_model_type'] = (
+                structure_first_pass_execution_payload.get('model_type')
+            )
+            structure_generation_seed_summary['first_pass_execution_model_available'] = bool(
+                structure_first_pass_execution_payload.get('model_available', False)
+            )
 
     bn_candidate_compatible_evaluation_df = _build_bn_candidate_compatible_evaluation_table(
         bn_slice_benchmark_df
@@ -2928,9 +2985,23 @@ def save_metrics_and_predictions(
     candidate_prediction_member_df=None,
     candidate_grouped_robustness_member_df=None,
     bn_centered_grouped_robustness_member_df=None,
+    structure_first_pass_execution_variant_df=None,
+    structure_first_pass_execution_summary_df=None,
+    structure_first_pass_execution_payload=None,
 ):
     artifact_dir = Path(cfg['project']['artifact_dir'])
     artifact_dir.mkdir(parents=True, exist_ok=True)
+    structure_first_pass_execution_variant_df = (
+        pd.DataFrame()
+        if structure_first_pass_execution_variant_df is None
+        else structure_first_pass_execution_variant_df.copy()
+    )
+    structure_first_pass_execution_summary_df = (
+        pd.DataFrame()
+        if structure_first_pass_execution_summary_df is None
+        else structure_first_pass_execution_summary_df.copy()
+    )
+    structure_first_pass_execution_payload = dict(structure_first_pass_execution_payload or {})
     (artifact_dir / 'metrics.json').write_text(json.dumps(metrics, indent=2))
     prediction_df.to_csv(artifact_dir / 'predictions.csv', index=False)
     bn_df.to_csv(artifact_dir / 'bn_slice.csv', index=False)
@@ -2959,6 +3030,23 @@ def save_metrics_and_predictions(
     structure_generation_followup_extrapolation_shortlist_path = (
         artifact_dir / 'demo_candidate_structure_generation_followup_extrapolation_shortlist.csv'
     )
+    structure_first_pass_execution_path = None
+    structure_first_pass_execution_summary_path = None
+    structure_first_pass_execution_variants_path = None
+    structure_first_pass_execution_structure_dir = None
+    if structure_first_pass_execution_payload:
+        structure_first_pass_execution_path = artifact_dir / str(
+            structure_first_pass_execution_payload.get('artifact')
+        )
+        structure_first_pass_execution_summary_path = artifact_dir / str(
+            structure_first_pass_execution_payload.get('summary_artifact')
+        )
+        structure_first_pass_execution_variants_path = artifact_dir / str(
+            structure_first_pass_execution_payload.get('variants_artifact')
+        )
+        structure_first_pass_execution_structure_dir = artifact_dir / str(
+            structure_first_pass_execution_payload.get('structure_dir')
+        )
     selected_followup_df = pd.DataFrame()
     if structure_generation_seed_df is not None and not structure_generation_seed_df.empty:
         structure_generation_seed_df.to_csv(structure_generation_seed_path, index=False)
@@ -3062,6 +3150,72 @@ def save_metrics_and_predictions(
             structure_generation_followup_shortlist_path.unlink()
         if structure_generation_followup_extrapolation_shortlist_path.exists():
             structure_generation_followup_extrapolation_shortlist_path.unlink()
+    if (
+        structure_first_pass_execution_payload
+        and structure_first_pass_execution_summary_path is not None
+        and structure_first_pass_execution_variants_path is not None
+        and structure_first_pass_execution_path is not None
+        and not structure_first_pass_execution_summary_df.empty
+    ):
+        structure_first_pass_execution_summary_df.to_csv(
+            structure_first_pass_execution_summary_path,
+            index=False,
+        )
+        structure_first_pass_execution_variant_df.to_csv(
+            structure_first_pass_execution_variants_path,
+            index=False,
+        )
+        if structure_first_pass_execution_structure_dir is not None:
+            structure_first_pass_execution_structure_dir.mkdir(parents=True, exist_ok=True)
+            for existing_cif_path in structure_first_pass_execution_structure_dir.glob('*.cif'):
+                existing_cif_path.unlink()
+        sanitized_candidates = []
+        for candidate_payload in structure_first_pass_execution_payload.get('candidates', []):
+            sanitized_candidate = {
+                key: value
+                for key, value in candidate_payload.items()
+                if key != 'variants'
+            }
+            sanitized_variants = []
+            for variant_payload in candidate_payload.get('variants', []):
+                cif_text = variant_payload.get('_cif_text')
+                cif_relative_path = variant_payload.get('generated_structure_cif_path')
+                if (
+                    cif_text
+                    and cif_relative_path
+                    and structure_first_pass_execution_structure_dir is not None
+                ):
+                    cif_output_path = artifact_dir / str(cif_relative_path)
+                    cif_output_path.parent.mkdir(parents=True, exist_ok=True)
+                    cif_output_path.write_text(str(cif_text), encoding='utf-8')
+                sanitized_variants.append(
+                    {
+                        key: value
+                        for key, value in variant_payload.items()
+                        if key != '_cif_text'
+                    }
+                )
+            sanitized_candidate['variants'] = sanitized_variants
+            sanitized_candidates.append(sanitized_candidate)
+        sanitized_payload = {
+            **structure_first_pass_execution_payload,
+            'candidates': sanitized_candidates,
+        }
+        structure_first_pass_execution_path.write_text(
+            json.dumps(sanitized_payload, indent=2, ensure_ascii=False),
+            encoding='utf-8',
+        )
+    else:
+        for cleanup_path in (
+            structure_first_pass_execution_summary_path,
+            structure_first_pass_execution_variants_path,
+            structure_first_pass_execution_path,
+        ):
+            if cleanup_path is not None and cleanup_path.exists():
+                cleanup_path.unlink()
+        if structure_first_pass_execution_structure_dir is not None and structure_first_pass_execution_structure_dir.exists():
+            for existing_cif_path in structure_first_pass_execution_structure_dir.glob('*.cif'):
+                existing_cif_path.unlink()
     for selected_column, rank_column, artifact_name in (
         (
             'proposal_shortlist_selected',

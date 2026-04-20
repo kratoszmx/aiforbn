@@ -54,6 +54,9 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
     })
     ranked_candidate_df = pd.DataFrame({'formula': ['BN'], 'predicted_band_gap': [4.9], 'ranking_score': [4.8]})
     structure_generation_seed_df = pd.DataFrame({'formula': ['BN'], 'seed_reference_formula': ['BN']})
+    structure_first_pass_variant_df = pd.DataFrame({'formula': ['BN'], 'execution_variant_id': ['bn__variant_01']})
+    structure_first_pass_summary_df = pd.DataFrame({'formula': ['BN'], 'first_pass_execution_status': ['executed']})
+    structure_first_pass_payload = {'artifact': 'demo_candidate_structure_generation_first_pass_execution.json'}
     benchmark_df = pd.DataFrame({
         'feature_set': ['matminer_composition'],
         'model_type': ['linear_regression'],
@@ -197,6 +200,15 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
     )
     monkeypatch.setattr(
         main_module,
+        'build_structure_first_pass_execution_artifacts',
+        lambda structure_generation_seed_df, cfg, formula_col='formula', structure_model=None, structure_feature_columns=None, structure_feature_set=None, structure_model_type=None: calls.append('build_structure_first_pass_execution_artifacts') or (
+            structure_first_pass_variant_df,
+            structure_first_pass_summary_df,
+            structure_first_pass_payload,
+        ),
+    )
+    monkeypatch.setattr(
+        main_module,
         'build_experiment_summary',
         lambda dataset_df, bn_df, candidate_df, split_masks, selection_summary, cfg, robustness_df=None, bn_slice_benchmark_df=None, bn_centered_candidate_df=None, bn_centered_screening_selection=None, structure_generation_seed_df=None: calls.append('build_experiment_summary') or experiment_summary,
     )
@@ -231,6 +243,7 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
         'build_candidate_grouped_robustness_predictions',
         'screen_candidates',
         'build_candidate_structure_generation_seeds',
+        'build_structure_first_pass_execution_artifacts',
         'build_experiment_summary',
         'save_metrics_and_predictions',
         'save_basic_plots',

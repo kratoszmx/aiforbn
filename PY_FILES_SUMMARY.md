@@ -23,7 +23,8 @@ What it does, in order:
 10. runs a dedicated BN-focused leave-one-BN-formula-out benchmark across configured combos plus baselines
 11. builds full-fit candidate-member predictions plus grouped-fold candidate-member predictions for ranking-stability analysis
 12. ranks candidates with the best candidate-compatible combo
-13. writes metrics / plots / benchmark / robustness / BN-benchmark / ranking / uncertainty / abstention / shortlist artifacts
+13. builds deterministic structure first-pass execution artifacts for the highest-priority follow-up candidates
+14. writes metrics / plots / benchmark / robustness / BN-benchmark / ranking / uncertainty / abstention / shortlist / structure-execution artifacts
 
 Important:
 - overall evaluation combo and formula-only screening combo may differ
@@ -325,6 +326,41 @@ Important:
 - this does **not** generate or validate new structures
 - it is a handoff artifact that makes the pipeline less purely formula-only by surfacing concrete BN analog prototypes for follow-up work
 
+---
+
+## src/pipeline/structure_execution.py
+
+### `build_structure_first_pass_execution_artifacts(structure_generation_seed_df, cfg=None, formula_col='formula', structure_model=None, structure_feature_columns=None, structure_feature_set=None, structure_model_type=None)`
+Builds the current **first-pass structure execution layer** from the prototype-grounded shortlist / queue view.
+Current behavior:
+- takes the top follow-up candidates implied by the structure-generation bridge
+- reuses reference cells when the candidate formula already matches the seed reference formula
+- otherwise applies deterministic low-complexity species relabeling and/or vacancy-style edits when the reduced formula scales cleanly to the reference record
+- computes lightweight geometry sanity heuristics from pair-distance statistics
+- optionally attaches a structure-aware band-gap proxy when a real `STRUCTURE_AWARE_FEATURE_SET` model is available
+- emits three outputs:
+  - candidate-level execution summary dataframe
+  - variant-level execution dataframe
+  - machine-readable JSON-safe payload including atoms + CIF text for writing
+
+Useful output fields include:
+- `execution_variant_id`
+- `execution_plan_type`
+- `relabel_site_indices`
+- `relabel_target_elements`
+- `removed_site_indices`
+- `geometry_min_distance_ratio`
+- `geometry_sanity_pass`
+- `relaxation_status`
+- `final_status`
+- `generated_structure_cif_path`
+- `structure_band_gap_proxy`
+
+Important:
+- this is **not** structure relaxation or stability validation
+- successful first-pass execution only means the candidate could be materialized as an explicit unrelaxed prototype under the current deterministic edit rules
+- `reference_control_ready` and `ready_for_external_relaxation` are workflow states, not discovery claims
+
 ### `build_candidate_prediction_ensemble(candidate_df, feature_tables, split_masks, cfg, candidate_feature_sets=None)`
 Trains the tiny candidate-compatible feature/model pool on `train + val` and computes candidate-level ensemble prediction statistics:
 - `ensemble_predicted_band_gap_mean`
@@ -530,6 +566,7 @@ Important:
 - now also summarizes the heuristic decision policy / abstention layer, including abstained candidate count and final action counts
 - now also summarizes the BN-slice candidate-compatible evaluation view and the `bn_candidate_compatible_evaluation.csv` artifact path
 - now also summarizes the structure-generation bridge artifact, including seeded candidate count, seed row count, unique BN reference prototype count, the JSON handoff artifact path, the reference-record payload artifact path, the job-plan artifact path, the first-pass queue artifact path, the candidate-level follow-up shortlist artifact path, and the novelty-aware follow-up extrapolation shortlist artifact path plus job-action counts / complexity stats
+- now also summarizes the first-pass structure execution layer, including artifact paths, executed formula count, variant count, success counts, status counts, selected model metadata, and the structure output directory
 - now also summarizes grouped candidate-robustness penalty settings, fold count, average spread, and penalized-row count
 - now also summarizes the family-aware proposal shortlist and the formula-level extrapolation shortlist as separate advisor-facing outputs
 
@@ -548,6 +585,9 @@ This now includes both shortlist CSVs, BN-slice benchmark artifacts, the BN-cent
 - `demo_candidate_structure_generation_first_pass_queue.json`
 - `demo_candidate_structure_generation_followup_shortlist.csv`
 - `demo_candidate_structure_generation_followup_extrapolation_shortlist.csv`
+- `demo_candidate_structure_generation_first_pass_execution.json`
+- `demo_candidate_structure_generation_first_pass_execution_summary.csv`
+- `demo_candidate_structure_generation_first_pass_execution_variants.csv`
 - `demo_candidate_proposal_shortlist.csv`
 - `demo_candidate_extrapolation_shortlist.csv`
 
@@ -578,6 +618,9 @@ It is a simple artifact viewer for:
 - `demo_candidate_structure_generation_first_pass_queue.json`
 - `demo_candidate_structure_generation_followup_shortlist.csv`
 - `demo_candidate_structure_generation_followup_extrapolation_shortlist.csv`
+- `demo_candidate_structure_generation_first_pass_execution.json`
+- `demo_candidate_structure_generation_first_pass_execution_summary.csv`
+- `demo_candidate_structure_generation_first_pass_execution_variants.csv`
 - `demo_candidate_proposal_shortlist.csv`
 - `demo_candidate_extrapolation_shortlist.csv`
 

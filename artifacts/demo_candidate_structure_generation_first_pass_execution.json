@@ -1,0 +1,1154 @@
+{
+  "enabled": true,
+  "label": "prototype_first_pass_execution",
+  "method": "deterministic_unrelaxed_reference_reuse_species_edit",
+  "note": "Materializes low-complexity follow-up candidates into unrelaxed prototype structures by reusing reference cells and applying deterministic species relabeling and/or vacancy edits when the formula scales cleanly to the reference record. This is first-pass execution, not ionic/cell relaxation, stability validation, or a discovery claim.",
+  "artifact": "demo_candidate_structure_generation_first_pass_execution.json",
+  "summary_artifact": "demo_candidate_structure_generation_first_pass_execution_summary.csv",
+  "variants_artifact": "demo_candidate_structure_generation_first_pass_execution_variants.csv",
+  "structure_dir": "demo_candidate_structure_generation_first_pass_structures",
+  "candidate_count": 5,
+  "variant_count": 9,
+  "successful_variant_count": 9,
+  "status_counts": {
+    "executed": 5
+  },
+  "executed_formulas": [
+    "BCN2",
+    "BC2N",
+    "BCN",
+    "Si2BN",
+    "BN"
+  ],
+  "model_feature_set": "matminer_composition_plus_structure_summary",
+  "model_type": "hist_gradient_boosting",
+  "model_available": true,
+  "candidates": [
+    {
+      "formula": "BCN2",
+      "structure_followup_shortlist_rank": 1,
+      "seed_reference_formula": "BC2N",
+      "seed_reference_record_id": "3010",
+      "job_action_label": "stoichiometry_adjustment_enumeration",
+      "candidate_status": "executed",
+      "selected_variant_id": "bcn2__variant_01",
+      "variants": [
+        {
+          "formula": "BCN2",
+          "structure_followup_shortlist_rank": 1,
+          "queue_rank": 1,
+          "seed_reference_formula": "BC2N",
+          "seed_reference_record_id": "3010",
+          "job_action_label": "stoichiometry_adjustment_enumeration",
+          "execution_variant_id": "bcn2__variant_01",
+          "execution_variant_rank": 1,
+          "execution_status": "ok",
+          "execution_message": null,
+          "execution_plan_type": "edited_structure",
+          "execution_variant_selection_score": 2.8489559919594187,
+          "relabel_site_indices": "2|5",
+          "relabel_target_elements": "N|N",
+          "removed_site_indices": "",
+          "relabeled_site_count": 2,
+          "removed_site_count": 0,
+          "generated_formula": "BCN2",
+          "formula_matches_candidate": true,
+          "generated_structure_n_sites": 8.0,
+          "geometry_min_distance": 1.3953306925281121,
+          "geometry_mean_distance": 2.0795373456921227,
+          "geometry_min_distance_ratio": 0.8914227017739805,
+          "geometry_overlap_pair_count": 0,
+          "geometry_sanity_pass": true,
+          "structure_band_gap_proxy": 2.0796687200790736,
+          "structure_band_gap_proxy_error": null,
+          "structure_band_gap_proxy_feature_set": "matminer_composition_plus_structure_summary",
+          "structure_band_gap_proxy_model_type": "hist_gradient_boosting",
+          "relaxation_status": "not_run_unrelaxed_species_edit",
+          "final_status": "ready_for_external_relaxation",
+          "generated_structure_cif_path": "demo_candidate_structure_generation_first_pass_structures/bcn2__variant_01.cif",
+          "structure_n_sites": 8.0,
+          "structure_lattice_a": 4.994619820065248,
+          "structure_lattice_b": 5.023872670836537,
+          "structure_lattice_c": 20.541333,
+          "structure_lattice_gamma": 119.80510421796497,
+          "structure_inplane_area": 21.773149600288885,
+          "structure_cell_height": 20.541333000000005,
+          "structure_thickness": 0.012543564996448708,
+          "structure_vacuum": 20.528789435003556,
+          "structure_areal_number_density": 0.36742502333671817,
+          "structure_thickness_fraction": 0.0006106499999999369,
+          "atoms": {
+            "elements": [
+              "B",
+              "B",
+              "N",
+              "C",
+              "C",
+              "N",
+              "N",
+              "N"
+            ],
+            "coords": [
+              [
+                0.32364749,
+                0.15779349,
+                0.49968814
+              ],
+              [
+                0.50156344,
+                0.51358855,
+                0.50029879
+              ],
+              [
+                0.50118403,
+                0.99299112,
+                0.49986242
+              ],
+              [
+                0.00533386,
+                0.50882062,
+                0.50010469
+              ],
+              [
+                0.83221424,
+                0.16263253,
+                0.49990009
+              ],
+              [
+                0.84390596,
+                0.67843801,
+                0.50014087
+              ],
+              [
+                0.99570304,
+                0.99837818,
+                0.49984331
+              ],
+              [
+                0.33304394,
+                0.67303851,
+                0.50016269
+              ]
+            ],
+            "lattice_mat": [
+              [
+                4.99461982,
+                -2.553e-05,
+                0.0
+              ],
+              [
+                -2.49709998,
+                4.35933347,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                20.541333
+              ]
+            ],
+            "abc": [
+              4.994619820065248,
+              5.023872670836537,
+              20.541333
+            ],
+            "angles": [
+              90.0,
+              90.0,
+              119.80510421796497
+            ],
+            "cartesian": false
+          }
+        },
+        {
+          "formula": "BCN2",
+          "structure_followup_shortlist_rank": 1,
+          "queue_rank": 1,
+          "seed_reference_formula": "BC2N",
+          "seed_reference_record_id": "3010",
+          "job_action_label": "stoichiometry_adjustment_enumeration",
+          "execution_variant_id": "bcn2__variant_02",
+          "execution_variant_rank": 2,
+          "execution_status": "ok",
+          "execution_message": null,
+          "execution_plan_type": "edited_structure",
+          "execution_variant_selection_score": 2.4620837171369243,
+          "relabel_site_indices": "4|5",
+          "relabel_target_elements": "N|N",
+          "removed_site_indices": "",
+          "relabeled_site_count": 2,
+          "removed_site_count": 0,
+          "generated_formula": "BCN2",
+          "formula_matches_candidate": true,
+          "generated_structure_n_sites": 8.0,
+          "geometry_min_distance": 1.3953306925281121,
+          "geometry_mean_distance": 2.0795373456921227,
+          "geometry_min_distance_ratio": 0.8914227017739805,
+          "geometry_overlap_pair_count": 0,
+          "geometry_sanity_pass": true,
+          "structure_band_gap_proxy": 2.0796687200790736,
+          "structure_band_gap_proxy_error": null,
+          "structure_band_gap_proxy_feature_set": "matminer_composition_plus_structure_summary",
+          "structure_band_gap_proxy_model_type": "hist_gradient_boosting",
+          "relaxation_status": "not_run_unrelaxed_species_edit",
+          "final_status": "ready_for_external_relaxation",
+          "generated_structure_cif_path": "demo_candidate_structure_generation_first_pass_structures/bcn2__variant_02.cif",
+          "structure_n_sites": 8.0,
+          "structure_lattice_a": 4.994619820065248,
+          "structure_lattice_b": 5.023872670836537,
+          "structure_lattice_c": 20.541333,
+          "structure_lattice_gamma": 119.80510421796497,
+          "structure_inplane_area": 21.773149600288885,
+          "structure_cell_height": 20.541333000000005,
+          "structure_thickness": 0.012543564996448708,
+          "structure_vacuum": 20.528789435003556,
+          "structure_areal_number_density": 0.36742502333671817,
+          "structure_thickness_fraction": 0.0006106499999999369,
+          "atoms": {
+            "elements": [
+              "B",
+              "B",
+              "C",
+              "C",
+              "N",
+              "N",
+              "N",
+              "N"
+            ],
+            "coords": [
+              [
+                0.32364749,
+                0.15779349,
+                0.49968814
+              ],
+              [
+                0.50156344,
+                0.51358855,
+                0.50029879
+              ],
+              [
+                0.50118403,
+                0.99299112,
+                0.49986242
+              ],
+              [
+                0.00533386,
+                0.50882062,
+                0.50010469
+              ],
+              [
+                0.83221424,
+                0.16263253,
+                0.49990009
+              ],
+              [
+                0.84390596,
+                0.67843801,
+                0.50014087
+              ],
+              [
+                0.99570304,
+                0.99837818,
+                0.49984331
+              ],
+              [
+                0.33304394,
+                0.67303851,
+                0.50016269
+              ]
+            ],
+            "lattice_mat": [
+              [
+                4.99461982,
+                -2.553e-05,
+                0.0
+              ],
+              [
+                -2.49709998,
+                4.35933347,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                20.541333
+              ]
+            ],
+            "abc": [
+              4.994619820065248,
+              5.023872670836537,
+              20.541333
+            ],
+            "angles": [
+              90.0,
+              90.0,
+              119.80510421796497
+            ],
+            "cartesian": false
+          }
+        },
+        {
+          "formula": "BCN2",
+          "structure_followup_shortlist_rank": 1,
+          "queue_rank": 1,
+          "seed_reference_formula": "BC2N",
+          "seed_reference_record_id": "3010",
+          "job_action_label": "stoichiometry_adjustment_enumeration",
+          "execution_variant_id": "bcn2__variant_03",
+          "execution_variant_rank": 3,
+          "execution_status": "ok",
+          "execution_message": null,
+          "execution_plan_type": "edited_structure",
+          "execution_variant_selection_score": 2.462025693129833,
+          "relabel_site_indices": "2|3",
+          "relabel_target_elements": "N|N",
+          "removed_site_indices": "",
+          "relabeled_site_count": 2,
+          "removed_site_count": 0,
+          "generated_formula": "BCN2",
+          "formula_matches_candidate": true,
+          "generated_structure_n_sites": 8.0,
+          "geometry_min_distance": 1.3953306925281121,
+          "geometry_mean_distance": 2.0795373456921227,
+          "geometry_min_distance_ratio": 0.8914227017739805,
+          "geometry_overlap_pair_count": 0,
+          "geometry_sanity_pass": true,
+          "structure_band_gap_proxy": 2.0796687200790736,
+          "structure_band_gap_proxy_error": null,
+          "structure_band_gap_proxy_feature_set": "matminer_composition_plus_structure_summary",
+          "structure_band_gap_proxy_model_type": "hist_gradient_boosting",
+          "relaxation_status": "not_run_unrelaxed_species_edit",
+          "final_status": "ready_for_external_relaxation",
+          "generated_structure_cif_path": "demo_candidate_structure_generation_first_pass_structures/bcn2__variant_03.cif",
+          "structure_n_sites": 8.0,
+          "structure_lattice_a": 4.994619820065248,
+          "structure_lattice_b": 5.023872670836537,
+          "structure_lattice_c": 20.541333,
+          "structure_lattice_gamma": 119.80510421796497,
+          "structure_inplane_area": 21.773149600288885,
+          "structure_cell_height": 20.541333000000005,
+          "structure_thickness": 0.012543564996448708,
+          "structure_vacuum": 20.528789435003556,
+          "structure_areal_number_density": 0.36742502333671817,
+          "structure_thickness_fraction": 0.0006106499999999369,
+          "atoms": {
+            "elements": [
+              "B",
+              "B",
+              "N",
+              "N",
+              "C",
+              "C",
+              "N",
+              "N"
+            ],
+            "coords": [
+              [
+                0.32364749,
+                0.15779349,
+                0.49968814
+              ],
+              [
+                0.50156344,
+                0.51358855,
+                0.50029879
+              ],
+              [
+                0.50118403,
+                0.99299112,
+                0.49986242
+              ],
+              [
+                0.00533386,
+                0.50882062,
+                0.50010469
+              ],
+              [
+                0.83221424,
+                0.16263253,
+                0.49990009
+              ],
+              [
+                0.84390596,
+                0.67843801,
+                0.50014087
+              ],
+              [
+                0.99570304,
+                0.99837818,
+                0.49984331
+              ],
+              [
+                0.33304394,
+                0.67303851,
+                0.50016269
+              ]
+            ],
+            "lattice_mat": [
+              [
+                4.99461982,
+                -2.553e-05,
+                0.0
+              ],
+              [
+                -2.49709998,
+                4.35933347,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                20.541333
+              ]
+            ],
+            "abc": [
+              4.994619820065248,
+              5.023872670836537,
+              20.541333
+            ],
+            "angles": [
+              90.0,
+              90.0,
+              119.80510421796497
+            ],
+            "cartesian": false
+          }
+        }
+      ]
+    },
+    {
+      "formula": "BC2N",
+      "structure_followup_shortlist_rank": 2,
+      "seed_reference_formula": "BC2N",
+      "seed_reference_record_id": "3010",
+      "job_action_label": "reference_reuse_control",
+      "candidate_status": "executed",
+      "selected_variant_id": "bc2n__variant_01",
+      "variants": [
+        {
+          "formula": "BC2N",
+          "structure_followup_shortlist_rank": 2,
+          "queue_rank": 2,
+          "seed_reference_formula": "BC2N",
+          "seed_reference_record_id": "3010",
+          "job_action_label": "reference_reuse_control",
+          "execution_variant_id": "bc2n__variant_01",
+          "execution_variant_rank": 1,
+          "execution_status": "ok",
+          "execution_message": null,
+          "execution_plan_type": "reference_reuse",
+          "execution_variant_selection_score": 0.0,
+          "relabel_site_indices": "",
+          "relabel_target_elements": "",
+          "removed_site_indices": "",
+          "relabeled_site_count": 0,
+          "removed_site_count": 0,
+          "generated_formula": "BC2N",
+          "formula_matches_candidate": true,
+          "generated_structure_n_sites": 8.0,
+          "geometry_min_distance": 1.3953306925281121,
+          "geometry_mean_distance": 2.0795373456921227,
+          "geometry_min_distance_ratio": 0.8914227017739805,
+          "geometry_overlap_pair_count": 0,
+          "geometry_sanity_pass": true,
+          "structure_band_gap_proxy": 1.9100519761464432,
+          "structure_band_gap_proxy_error": null,
+          "structure_band_gap_proxy_feature_set": "matminer_composition_plus_structure_summary",
+          "structure_band_gap_proxy_model_type": "hist_gradient_boosting",
+          "relaxation_status": "not_run_reference_geometry_reused",
+          "final_status": "reference_control_ready",
+          "generated_structure_cif_path": "demo_candidate_structure_generation_first_pass_structures/bc2n__variant_01.cif",
+          "structure_n_sites": 8.0,
+          "structure_lattice_a": 4.994619820065248,
+          "structure_lattice_b": 5.023872670836537,
+          "structure_lattice_c": 20.541333,
+          "structure_lattice_gamma": 119.80510421796497,
+          "structure_inplane_area": 21.773149600288885,
+          "structure_cell_height": 20.541333000000005,
+          "structure_thickness": 0.012543564996448708,
+          "structure_vacuum": 20.528789435003556,
+          "structure_areal_number_density": 0.36742502333671817,
+          "structure_thickness_fraction": 0.0006106499999999369,
+          "atoms": {
+            "elements": [
+              "B",
+              "B",
+              "C",
+              "C",
+              "C",
+              "C",
+              "N",
+              "N"
+            ],
+            "coords": [
+              [
+                0.32364749,
+                0.15779349,
+                0.49968814
+              ],
+              [
+                0.50156344,
+                0.51358855,
+                0.50029879
+              ],
+              [
+                0.50118403,
+                0.99299112,
+                0.49986242
+              ],
+              [
+                0.00533386,
+                0.50882062,
+                0.50010469
+              ],
+              [
+                0.83221424,
+                0.16263253,
+                0.49990009
+              ],
+              [
+                0.84390596,
+                0.67843801,
+                0.50014087
+              ],
+              [
+                0.99570304,
+                0.99837818,
+                0.49984331
+              ],
+              [
+                0.33304394,
+                0.67303851,
+                0.50016269
+              ]
+            ],
+            "lattice_mat": [
+              [
+                4.99461982,
+                -2.553e-05,
+                0.0
+              ],
+              [
+                -2.49709998,
+                4.35933347,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                20.541333
+              ]
+            ],
+            "abc": [
+              4.994619820065248,
+              5.023872670836537,
+              20.541333
+            ],
+            "angles": [
+              90.0,
+              90.0,
+              119.80510421796497
+            ],
+            "cartesian": false
+          }
+        }
+      ]
+    },
+    {
+      "formula": "BCN",
+      "structure_followup_shortlist_rank": 3,
+      "seed_reference_formula": "BC2N",
+      "seed_reference_record_id": "3010",
+      "job_action_label": "stoichiometry_adjustment_enumeration",
+      "candidate_status": "executed",
+      "selected_variant_id": "bcn__variant_01",
+      "variants": [
+        {
+          "formula": "BCN",
+          "structure_followup_shortlist_rank": 3,
+          "queue_rank": 3,
+          "seed_reference_formula": "BC2N",
+          "seed_reference_record_id": "3010",
+          "job_action_label": "stoichiometry_adjustment_enumeration",
+          "execution_variant_id": "bcn__variant_01",
+          "execution_variant_rank": 1,
+          "execution_status": "ok",
+          "execution_message": null,
+          "execution_plan_type": "edited_structure",
+          "execution_variant_selection_score": 2.8489559919594187,
+          "relabel_site_indices": "",
+          "relabel_target_elements": "",
+          "removed_site_indices": "2|5",
+          "relabeled_site_count": 0,
+          "removed_site_count": 2,
+          "generated_formula": "BCN",
+          "formula_matches_candidate": true,
+          "generated_structure_n_sites": 6.0,
+          "geometry_min_distance": 1.4203215612621378,
+          "geometry_mean_distance": 2.139579059035676,
+          "geometry_min_distance_ratio": 0.8914227017739805,
+          "geometry_overlap_pair_count": 0,
+          "geometry_sanity_pass": true,
+          "structure_band_gap_proxy": 2.072380986320649,
+          "structure_band_gap_proxy_error": null,
+          "structure_band_gap_proxy_feature_set": "matminer_composition_plus_structure_summary",
+          "structure_band_gap_proxy_model_type": "hist_gradient_boosting",
+          "relaxation_status": "not_run_unrelaxed_species_edit",
+          "final_status": "ready_for_external_relaxation",
+          "generated_structure_cif_path": "demo_candidate_structure_generation_first_pass_structures/bcn__variant_01.cif",
+          "structure_n_sites": 6.0,
+          "structure_lattice_a": 4.994619820065248,
+          "structure_lattice_b": 5.023872670836537,
+          "structure_lattice_c": 20.541333,
+          "structure_lattice_gamma": 119.80510421796497,
+          "structure_inplane_area": 21.773149600288885,
+          "structure_cell_height": 20.541333000000005,
+          "structure_thickness": 0.012543564996448708,
+          "structure_vacuum": 20.528789435003556,
+          "structure_areal_number_density": 0.2755687675025386,
+          "structure_thickness_fraction": 0.0006106499999999369,
+          "atoms": {
+            "elements": [
+              "B",
+              "B",
+              "C",
+              "C",
+              "N",
+              "N"
+            ],
+            "coords": [
+              [
+                0.32364749,
+                0.15779349,
+                0.49968814
+              ],
+              [
+                0.50156344,
+                0.51358855,
+                0.50029879
+              ],
+              [
+                0.00533386,
+                0.50882062,
+                0.50010469
+              ],
+              [
+                0.83221424,
+                0.16263253,
+                0.49990009
+              ],
+              [
+                0.99570304,
+                0.99837818,
+                0.49984331
+              ],
+              [
+                0.33304394,
+                0.67303851,
+                0.50016269
+              ]
+            ],
+            "lattice_mat": [
+              [
+                4.99461982,
+                -2.553e-05,
+                0.0
+              ],
+              [
+                -2.49709998,
+                4.35933347,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                20.541333
+              ]
+            ],
+            "abc": [
+              4.994619820065248,
+              5.023872670836537,
+              20.541333
+            ],
+            "angles": [
+              90.0,
+              90.0,
+              119.80510421796497
+            ],
+            "cartesian": false
+          }
+        },
+        {
+          "formula": "BCN",
+          "structure_followup_shortlist_rank": 3,
+          "queue_rank": 3,
+          "seed_reference_formula": "BC2N",
+          "seed_reference_record_id": "3010",
+          "job_action_label": "stoichiometry_adjustment_enumeration",
+          "execution_variant_id": "bcn__variant_02",
+          "execution_variant_rank": 2,
+          "execution_status": "ok",
+          "execution_message": null,
+          "execution_plan_type": "edited_structure",
+          "execution_variant_selection_score": 2.4620837171369243,
+          "relabel_site_indices": "",
+          "relabel_target_elements": "",
+          "removed_site_indices": "4|5",
+          "relabeled_site_count": 0,
+          "removed_site_count": 2,
+          "generated_formula": "BCN",
+          "formula_matches_candidate": true,
+          "generated_structure_n_sites": 6.0,
+          "geometry_min_distance": 1.3953873080583685,
+          "geometry_mean_distance": 2.106079103036388,
+          "geometry_min_distance_ratio": 0.8914227017739805,
+          "geometry_overlap_pair_count": 0,
+          "geometry_sanity_pass": true,
+          "structure_band_gap_proxy": 2.072380986320649,
+          "structure_band_gap_proxy_error": null,
+          "structure_band_gap_proxy_feature_set": "matminer_composition_plus_structure_summary",
+          "structure_band_gap_proxy_model_type": "hist_gradient_boosting",
+          "relaxation_status": "not_run_unrelaxed_species_edit",
+          "final_status": "ready_for_external_relaxation",
+          "generated_structure_cif_path": "demo_candidate_structure_generation_first_pass_structures/bcn__variant_02.cif",
+          "structure_n_sites": 6.0,
+          "structure_lattice_a": 4.994619820065248,
+          "structure_lattice_b": 5.023872670836537,
+          "structure_lattice_c": 20.541333,
+          "structure_lattice_gamma": 119.80510421796497,
+          "structure_inplane_area": 21.773149600288885,
+          "structure_cell_height": 20.541333000000005,
+          "structure_thickness": 0.012543564996448708,
+          "structure_vacuum": 20.528789435003556,
+          "structure_areal_number_density": 0.2755687675025386,
+          "structure_thickness_fraction": 0.0006106499999999369,
+          "atoms": {
+            "elements": [
+              "B",
+              "B",
+              "C",
+              "C",
+              "N",
+              "N"
+            ],
+            "coords": [
+              [
+                0.32364749,
+                0.15779349,
+                0.49968814
+              ],
+              [
+                0.50156344,
+                0.51358855,
+                0.50029879
+              ],
+              [
+                0.50118403,
+                0.99299112,
+                0.49986242
+              ],
+              [
+                0.00533386,
+                0.50882062,
+                0.50010469
+              ],
+              [
+                0.99570304,
+                0.99837818,
+                0.49984331
+              ],
+              [
+                0.33304394,
+                0.67303851,
+                0.50016269
+              ]
+            ],
+            "lattice_mat": [
+              [
+                4.99461982,
+                -2.553e-05,
+                0.0
+              ],
+              [
+                -2.49709998,
+                4.35933347,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                20.541333
+              ]
+            ],
+            "abc": [
+              4.994619820065248,
+              5.023872670836537,
+              20.541333
+            ],
+            "angles": [
+              90.0,
+              90.0,
+              119.80510421796497
+            ],
+            "cartesian": false
+          }
+        },
+        {
+          "formula": "BCN",
+          "structure_followup_shortlist_rank": 3,
+          "queue_rank": 3,
+          "seed_reference_formula": "BC2N",
+          "seed_reference_record_id": "3010",
+          "job_action_label": "stoichiometry_adjustment_enumeration",
+          "execution_variant_id": "bcn__variant_03",
+          "execution_variant_rank": 3,
+          "execution_status": "ok",
+          "execution_message": null,
+          "execution_plan_type": "edited_structure",
+          "execution_variant_selection_score": 2.462025693129833,
+          "relabel_site_indices": "",
+          "relabel_target_elements": "",
+          "removed_site_indices": "2|3",
+          "relabeled_site_count": 0,
+          "removed_site_count": 2,
+          "generated_formula": "BCN",
+          "formula_matches_candidate": true,
+          "generated_structure_n_sites": 6.0,
+          "geometry_min_distance": 1.3953306925281121,
+          "geometry_mean_distance": 2.1061172710366676,
+          "geometry_min_distance_ratio": 0.8914227017739805,
+          "geometry_overlap_pair_count": 0,
+          "geometry_sanity_pass": true,
+          "structure_band_gap_proxy": 2.072380986320649,
+          "structure_band_gap_proxy_error": null,
+          "structure_band_gap_proxy_feature_set": "matminer_composition_plus_structure_summary",
+          "structure_band_gap_proxy_model_type": "hist_gradient_boosting",
+          "relaxation_status": "not_run_unrelaxed_species_edit",
+          "final_status": "ready_for_external_relaxation",
+          "generated_structure_cif_path": "demo_candidate_structure_generation_first_pass_structures/bcn__variant_03.cif",
+          "structure_n_sites": 6.0,
+          "structure_lattice_a": 4.994619820065248,
+          "structure_lattice_b": 5.023872670836537,
+          "structure_lattice_c": 20.541333,
+          "structure_lattice_gamma": 119.80510421796497,
+          "structure_inplane_area": 21.773149600288885,
+          "structure_cell_height": 20.541333000000005,
+          "structure_thickness": 0.012543564996448708,
+          "structure_vacuum": 20.528789435003556,
+          "structure_areal_number_density": 0.2755687675025386,
+          "structure_thickness_fraction": 0.0006106499999999369,
+          "atoms": {
+            "elements": [
+              "B",
+              "B",
+              "C",
+              "C",
+              "N",
+              "N"
+            ],
+            "coords": [
+              [
+                0.32364749,
+                0.15779349,
+                0.49968814
+              ],
+              [
+                0.50156344,
+                0.51358855,
+                0.50029879
+              ],
+              [
+                0.83221424,
+                0.16263253,
+                0.49990009
+              ],
+              [
+                0.84390596,
+                0.67843801,
+                0.50014087
+              ],
+              [
+                0.99570304,
+                0.99837818,
+                0.49984331
+              ],
+              [
+                0.33304394,
+                0.67303851,
+                0.50016269
+              ]
+            ],
+            "lattice_mat": [
+              [
+                4.99461982,
+                -2.553e-05,
+                0.0
+              ],
+              [
+                -2.49709998,
+                4.35933347,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                20.541333
+              ]
+            ],
+            "abc": [
+              4.994619820065248,
+              5.023872670836537,
+              20.541333
+            ],
+            "angles": [
+              90.0,
+              90.0,
+              119.80510421796497
+            ],
+            "cartesian": false
+          }
+        }
+      ]
+    },
+    {
+      "formula": "Si2BN",
+      "structure_followup_shortlist_rank": 4,
+      "seed_reference_formula": "Si2BN",
+      "seed_reference_record_id": "5977",
+      "job_action_label": "reference_reuse_control",
+      "candidate_status": "executed",
+      "selected_variant_id": "si2bn__variant_01",
+      "variants": [
+        {
+          "formula": "Si2BN",
+          "structure_followup_shortlist_rank": 4,
+          "queue_rank": 4,
+          "seed_reference_formula": "Si2BN",
+          "seed_reference_record_id": "5977",
+          "job_action_label": "reference_reuse_control",
+          "execution_variant_id": "si2bn__variant_01",
+          "execution_variant_rank": 1,
+          "execution_status": "ok",
+          "execution_message": null,
+          "execution_plan_type": "reference_reuse",
+          "execution_variant_selection_score": 0.0,
+          "relabel_site_indices": "",
+          "relabel_target_elements": "",
+          "removed_site_indices": "",
+          "relabeled_site_count": 0,
+          "removed_site_count": 0,
+          "generated_formula": "Si2BN",
+          "formula_matches_candidate": true,
+          "generated_structure_n_sites": 8.0,
+          "geometry_min_distance": 1.462884436862405,
+          "geometry_mean_distance": 2.562087420761185,
+          "geometry_min_distance_ratio": 0.9864075888459829,
+          "geometry_overlap_pair_count": 0,
+          "geometry_sanity_pass": true,
+          "structure_band_gap_proxy": 1.560670517302648,
+          "structure_band_gap_proxy_error": null,
+          "structure_band_gap_proxy_feature_set": "matminer_composition_plus_structure_summary",
+          "structure_band_gap_proxy_model_type": "hist_gradient_boosting",
+          "relaxation_status": "not_run_reference_geometry_reused",
+          "final_status": "reference_control_ready",
+          "generated_structure_cif_path": "demo_candidate_structure_generation_first_pass_structures/si2bn__variant_01.cif",
+          "structure_n_sites": 8.0,
+          "structure_lattice_a": 6.368559000194085,
+          "structure_lattice_b": 6.456246496860532,
+          "structure_lattice_c": 20.0,
+          "structure_lattice_gamma": 119.5508610486717,
+          "structure_inplane_area": 35.768416415943804,
+          "structure_cell_height": 20.000000000000007,
+          "structure_thickness": 0.0003751999999987987,
+          "structure_vacuum": 19.999624800000007,
+          "structure_areal_number_density": 0.22366100603866804,
+          "structure_thickness_fraction": 1.875999999993993e-05,
+          "atoms": {
+            "elements": [
+              "Si",
+              "Si",
+              "Si",
+              "Si",
+              "B",
+              "B",
+              "N",
+              "N"
+            ],
+            "coords": [
+              [
+                0.1909008,
+                0.36685437,
+                0.38536046
+              ],
+              [
+                0.99070774,
+                0.96648104,
+                0.38535813
+              ],
+              [
+                0.67595709,
+                0.3668487,
+                0.38535338
+              ],
+              [
+                0.47576964,
+                0.96647458,
+                0.38535794
+              ],
+              [
+                0.02789937,
+                0.5557884,
+                0.38535465
+              ],
+              [
+                0.63877129,
+                0.77754174,
+                0.38535414
+              ],
+              [
+                0.15812989,
+                0.81625668,
+                0.38537214
+              ],
+              [
+                0.50854318,
+                0.51707548,
+                0.38536916
+              ]
+            ],
+            "lattice_mat": [
+              [
+                6.368559,
+                4.972e-05,
+                0.0
+              ],
+              [
+                -3.18423863,
+                5.61638168,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                20.0
+              ]
+            ],
+            "abc": [
+              6.368559000194085,
+              6.456246496860532,
+              20.0
+            ],
+            "angles": [
+              90.0,
+              90.0,
+              119.5508610486717
+            ],
+            "cartesian": false
+          }
+        }
+      ]
+    },
+    {
+      "formula": "BN",
+      "structure_followup_shortlist_rank": 5,
+      "seed_reference_formula": "BN",
+      "seed_reference_record_id": "4980",
+      "job_action_label": "reference_reuse_control",
+      "candidate_status": "executed",
+      "selected_variant_id": "bn__variant_01",
+      "variants": [
+        {
+          "formula": "BN",
+          "structure_followup_shortlist_rank": 5,
+          "queue_rank": 5,
+          "seed_reference_formula": "BN",
+          "seed_reference_record_id": "4980",
+          "job_action_label": "reference_reuse_control",
+          "execution_variant_id": "bn__variant_01",
+          "execution_variant_rank": 1,
+          "execution_status": "ok",
+          "execution_message": null,
+          "execution_plan_type": "reference_reuse",
+          "execution_variant_selection_score": 0.0,
+          "relabel_site_indices": "",
+          "relabel_target_elements": "",
+          "removed_site_indices": "",
+          "relabeled_site_count": 0,
+          "removed_site_count": 0,
+          "generated_formula": "BN",
+          "formula_matches_candidate": true,
+          "generated_structure_n_sites": 2.0,
+          "geometry_min_distance": 1.4485675734769943,
+          "geometry_mean_distance": 1.4485675734769943,
+          "geometry_min_distance_ratio": 1.0129843171167792,
+          "geometry_overlap_pair_count": 0,
+          "geometry_sanity_pass": true,
+          "structure_band_gap_proxy": 1.5746105492842162,
+          "structure_band_gap_proxy_error": null,
+          "structure_band_gap_proxy_feature_set": "matminer_composition_plus_structure_summary",
+          "structure_band_gap_proxy_model_type": "hist_gradient_boosting",
+          "relaxation_status": "not_run_reference_geometry_reused",
+          "final_status": "reference_control_ready",
+          "generated_structure_cif_path": "demo_candidate_structure_generation_first_pass_structures/bn__variant_01.cif",
+          "structure_n_sites": 2.0,
+          "structure_lattice_a": 2.50899515,
+          "structure_lattice_b": 2.508995128362185,
+          "structure_lattice_c": 20.0,
+          "structure_lattice_gamma": 120.00000041712737,
+          "structure_inplane_area": 5.451678918250477,
+          "structure_cell_height": 19.999999999999993,
+          "structure_thickness": 0.0,
+          "structure_vacuum": 19.999999999999993,
+          "structure_areal_number_density": 0.36685946292703336,
+          "structure_thickness_fraction": 0.0,
+          "atoms": {
+            "elements": [
+              "B",
+              "N"
+            ],
+            "coords": [
+              [
+                0.0,
+                0.0,
+                0.5
+              ],
+              [
+                0.333333,
+                0.666667,
+                0.5
+              ]
+            ],
+            "lattice_mat": [
+              [
+                2.50899515,
+                0.0,
+                0.0
+              ],
+              [
+                -1.25449758,
+                2.17285351,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                20.0
+              ]
+            ],
+            "abc": [
+              2.50899515,
+              2.508995128362185,
+              20.0
+            ],
+            "angles": [
+              90.0,
+              90.0,
+              120.00000041712737
+            ],
+            "cartesian": false
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -684,7 +684,29 @@
         "BCN",
         "SiBN",
         "SiBN2"
-      ]
+      ],
+      "first_pass_execution_artifact": "demo_candidate_structure_generation_first_pass_execution.json",
+      "first_pass_execution_summary_artifact": "demo_candidate_structure_generation_first_pass_execution_summary.csv",
+      "first_pass_execution_variants_artifact": "demo_candidate_structure_generation_first_pass_execution_variants.csv",
+      "first_pass_execution_structure_dir": "demo_candidate_structure_generation_first_pass_structures",
+      "first_pass_execution_method": "deterministic_unrelaxed_reference_reuse_species_edit",
+      "first_pass_execution_note": "Materializes low-complexity follow-up candidates into unrelaxed prototype structures by reusing reference cells and applying deterministic species relabeling and/or vacancy edits when the formula scales cleanly to the reference record. This is first-pass execution, not ionic/cell relaxation, stability validation, or a discovery claim.",
+      "first_pass_execution_candidate_count": 5,
+      "first_pass_execution_variant_count": 9,
+      "first_pass_execution_successful_variant_count": 9,
+      "first_pass_execution_status_counts": {
+        "executed": 5
+      },
+      "first_pass_execution_executed_formulas": [
+        "BCN2",
+        "BC2N",
+        "BCN",
+        "Si2BN",
+        "BN"
+      ],
+      "first_pass_execution_model_feature_set": "matminer_composition_plus_structure_summary",
+      "first_pass_execution_model_type": "hist_gradient_boosting",
+      "first_pass_execution_model_available": true
     },
     "ranking_stability": {
       "enabled": true,

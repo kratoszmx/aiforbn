@@ -160,6 +160,25 @@ def test_default_config_has_expected_poc_defaults():
         cfg['screening']['structure_followup_extrapolation_shortlist']['required_novelty_bucket']
         == 'formula_level_extrapolation'
     )
+    assert cfg['screening']['structure_first_pass_execution']['enabled'] is True
+    assert (
+        cfg['screening']['structure_first_pass_execution']['label']
+        == 'prototype_first_pass_execution'
+    )
+    assert (
+        cfg['screening']['structure_first_pass_execution']['method']
+        == 'deterministic_unrelaxed_reference_reuse_species_edit'
+    )
+    assert cfg['screening']['structure_first_pass_execution']['max_candidates'] == 5
+    assert cfg['screening']['structure_first_pass_execution']['max_variants_per_candidate'] == 3
+    assert (
+        cfg['screening']['structure_first_pass_execution']['geometry_min_distance_ratio_pass_threshold']
+        == 0.75
+    )
+    assert (
+        cfg['screening']['structure_first_pass_execution']['geometry_min_distance_ratio_overlap_threshold']
+        == 0.6
+    )
     assert cfg['screening']['ranking_stability']['enabled'] is True
     assert cfg['screening']['ranking_stability']['top_k_values'] == [3, 5, 10]
     assert cfg['screening']['ranking_stability']['prediction_interval_lower_quantile'] == 0.1

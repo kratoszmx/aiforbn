@@ -10,7 +10,7 @@
 - 当前工作已恢复到**已重新验证**的节点。
 - 在当前 dirty working tree 上，以下命令已通过：
   - 清缓存：通过从 `../myutils` 注入 `file_utils.delete_cache('.')`
-  - `pytest -q` → `24 passed in 3.29s`
+  - `pytest -q` → `24 passed, 5 warnings in 3.70s`
   - `/opt/homebrew/Caskroom/miniforge/base/envs/quant/bin/python main.py` → 运行成功（当前输出含 `bn slice benchmark rows: 8`、`bn-centered alternative ranking rows: 25`、`structure-generation seed rows: 33`）
 - 主任务仍是 `band_gap` 预测与 BN 主题下的候选排序演示。
 - 训练数据仍来自 JARVIS / 2DMatPedia 的 `twod_matpd`。
@@ -57,6 +57,7 @@
   - 本轮又新增 `demo_candidate_structure_generation_first_pass_queue.json`，把 job-plan 再整理成 deterministic first-pass queue，显式给出 composition delta、edit operations、edit complexity heuristic，以及 candidate-seed jobs 的优先顺序；
   - 进一步新增 `demo_candidate_structure_generation_followup_shortlist.csv`，把 queue 重新聚合回 candidate 层，形成真正面向后续 structure workflow 的 prototype-grounded follow-up shortlist；
   - 在此之上，又新增 `demo_candidate_structure_generation_followup_extrapolation_shortlist.csv`，把 follow-up view 进一步收敛到 formula-level extrapolation candidates，避免后续结构工作被 rediscovery 主导；
+  - 本轮进一步新增 `demo_candidate_structure_generation_first_pass_execution.json`、summary / variants CSV 与 `.cif` 结构目录，把最优先的低复杂度候选真正 materialize 成 deterministic unrelaxed prototype，显式写出 geometry sanity、reference-reuse vs species-edit 状态，以及可选的 structure-aware band-gap proxy；
   - 明确声明这不是结构生成、结构验证或稳定性证明，只是把 formula ranking 正式桥接到下一阶段 structure-aware follow-up。
 
 ## 本轮已确认完成
@@ -239,6 +240,9 @@
   - 当前 first-pass queue 同样覆盖 `33` 个 jobs，`mean_edit_complexity_score = 8.49`，`max_edit_complexity_score = 19.2`，最靠前的 first-pass jobs 目前集中在 `BCN2 / BC2N / BCN` 这类更值得优先尝试的候选上；
   - 新增的 follow-up shortlist 当前收敛为 `5` 个 candidate-level follow-up targets：`BCN2`、`BC2N`、`BCN`、`Si2BN`、`BN`；其中 readiness 分布为 `reference_reuse_control_available = 3`、`low_complexity_stoichiometry_adjustment = 2`；
   - 新增的 novelty-aware follow-up extrapolation shortlist 当前进一步收敛到 `4` 个“新且可做”的对象：`BCN2`、`BCN`、`SiBN`、`SiBN2`；它们当前全部对应 `low_complexity_stoichiometry_adjustment` 路径；
+  - 在此基础上，当前又新增 first-pass execution artifacts：`artifacts/demo_candidate_structure_generation_first_pass_execution.json`、`artifacts/demo_candidate_structure_generation_first_pass_execution_summary.csv`、`artifacts/demo_candidate_structure_generation_first_pass_execution_variants.csv` 与 `artifacts/demo_candidate_structure_generation_first_pass_structures/`；
+  - 当前 first-pass execution 已覆盖 `5` 个公式：`BCN2`、`BC2N`、`BCN`、`Si2BN`、`BN`；共 materialize `9` 个 variants，`9` 个全部执行成功且 geometry sanity 通过；
+  - 当前 selected final status 分布为：`reference_control_ready = 3`、`ready_for_external_relaxation = 2`；这意味着当前桥接层已经不只是在“计划下一步”，而是已经产出了可交给后续 relaxation / validation workflow 的 unrelaxed prototype 起点；
   - 它把 `BCN2 / BCN / BC2N / AlBN2 / BN / Al2BN` 这类当前最值得跟进的公式，明确连到了真实 BN 参考公式与 record id，而不是停留在“只有 formula 排名”的状态。
 - 当前候选排序摘要：
   - `ranking_basis = composition_only_mean_band_gap_minus_model_disagreement_low_support_and_bn_support_and_grouped_robustness_and_bn_analog_validation_penalties`
@@ -333,6 +337,10 @@
 - `artifacts/demo_candidate_structure_generation_first_pass_queue.json`：在 job-plan 之上再加一层 deterministic first-pass queue，显式给出 element-count deltas、edit operations、edit complexity heuristic，以及 candidate-seed jobs 的优先顺序。
 - `artifacts/demo_candidate_structure_generation_followup_shortlist.csv`：把 first-pass queue 聚合回 candidate 层得到的 prototype-grounded follow-up shortlist，用于优先决定哪些公式最值得先进入后续结构工作流。
 - `artifacts/demo_candidate_structure_generation_followup_extrapolation_shortlist.csv`：在 prototype-grounded follow-up shortlist 之上再叠加 `formula_level_extrapolation` 过滤得到的 novelty-aware structure follow-up shortlist，用于优先决定哪些“新且可做”的对象值得先推进。
+- `artifacts/demo_candidate_structure_generation_first_pass_execution.json`：candidate-level first-pass execution payload，按公式记录 selected variant、状态统计、materialized atoms/cif 与可选 structure-aware proxy。
+- `artifacts/demo_candidate_structure_generation_first_pass_execution_summary.csv`：candidate-level first-pass execution summary，便于快速看哪些候选已经变成 `reference_control_ready` 或 `ready_for_external_relaxation`。
+- `artifacts/demo_candidate_structure_generation_first_pass_execution_variants.csv`：variant-level first-pass execution table，逐条写出 relabel / removal edits、geometry sanity 指标、final status 与 cif 路径。
+- `artifacts/demo_candidate_structure_generation_first_pass_structures/`：first-pass execution 输出的 `.cif` 原型目录，供后续 relaxation / validation workflow 直接接手。
 - `artifacts/demo_candidate_proposal_shortlist.csv`：family-aware advisor-facing proposal shortlist。
 - `artifacts/demo_candidate_extrapolation_shortlist.csv`：只保留 formula-level extrapolation 的 advisor-facing shortlist。
 - `PY_FILES_SUMMARY.md`：AI-facing Python summary。
@@ -356,6 +364,7 @@
 - 当前 BN-anchored candidate space 中只有 `3/25` 公式已在 dataset 中出现，`22/25` 已经是 dataset 未见公式；但这依然只是 formula-level extrapolation，不是结构级 discovery。
 - 新增的 proposal shortlist / extrapolation shortlist 只是更诚实的 advisor-facing 选择层，不是结构验证、稳定性筛选或真实实验优先级证明。
 - 新增的 structure-generation bridge 虽然把当前工作从 formula ranking 推进到了 prototype handoff，但它仍然**不是**真正的结构生成、结构搜索、DFT/ML relaxation、形成能筛选或实验可合成性证明。
+- 新增的 first-pass execution 虽然已经把 `5` 个高优先候选 materialize 成 unrelaxed prototype `.cif`，但它本质上仍是 deterministic reference-reuse / species-edit 起点，不是 relaxation 后结构、不是稳定性证明，也不能被表述成 discovery evidence。
 - 仍未做 train / inference API 解耦。
 
 ## 恢复工作时的直接起点

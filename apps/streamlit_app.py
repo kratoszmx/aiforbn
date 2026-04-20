@@ -46,6 +46,15 @@ structure_generation_followup_shortlist_path = (
 structure_generation_followup_extrapolation_shortlist_path = (
     artifact_dir / 'demo_candidate_structure_generation_followup_extrapolation_shortlist.csv'
 )
+structure_generation_first_pass_execution_path = (
+    artifact_dir / 'demo_candidate_structure_generation_first_pass_execution.json'
+)
+structure_generation_first_pass_execution_summary_path = (
+    artifact_dir / 'demo_candidate_structure_generation_first_pass_execution_summary.csv'
+)
+structure_generation_first_pass_execution_variants_path = (
+    artifact_dir / 'demo_candidate_structure_generation_first_pass_execution_variants.csv'
+)
 proposal_shortlist_path = artifact_dir / 'demo_candidate_proposal_shortlist.csv'
 extrapolation_shortlist_path = artifact_dir / 'demo_candidate_extrapolation_shortlist.csv'
 
@@ -127,6 +136,24 @@ if structure_generation_followup_extrapolation_shortlist_path.exists():
         pd.read_csv(structure_generation_followup_extrapolation_shortlist_path),
         use_container_width=True,
     )
+
+if structure_generation_first_pass_execution_summary_path.exists():
+    st.subheader('Structure first-pass execution summary')
+    st.dataframe(
+        pd.read_csv(structure_generation_first_pass_execution_summary_path),
+        use_container_width=True,
+    )
+
+if structure_generation_first_pass_execution_variants_path.exists():
+    st.subheader('Structure first-pass execution variants')
+    st.dataframe(
+        pd.read_csv(structure_generation_first_pass_execution_variants_path),
+        use_container_width=True,
+    )
+
+if structure_generation_first_pass_execution_path.exists():
+    st.subheader('Structure first-pass execution JSON')
+    st.json(json.loads(structure_generation_first_pass_execution_path.read_text()))
 
 if proposal_shortlist_path.exists():
     st.subheader('Proposal shortlist')

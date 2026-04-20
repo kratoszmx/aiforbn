@@ -13,6 +13,7 @@ if str(SRC_DIR) not in sys.path:
 from core.io_utils import clear_project_cache, ensure_runtime_dirs, load_config
 from pipeline.data import load_or_build_dataset
 from pipeline.features import (
+    STRUCTURE_AWARE_FEATURE_SET,
     benchmark_bn_slice,
     benchmark_grouped_robustness,
     benchmark_regressors,
@@ -36,6 +37,7 @@ from pipeline.reporting import (
     save_basic_plots,
     save_metrics_and_predictions,
 )
+from pipeline.structure_execution import build_structure_first_pass_execution_artifacts
 
 
 def main() -> None:
@@ -236,6 +238,29 @@ def main() -> None:
         bn_centered_candidate_df=bn_centered_ranked_candidate_df,
         formula_col=cfg['data']['formula_column'],
     )
+    structure_first_pass_variant_df = pd.DataFrame()
+    structure_first_pass_summary_df = pd.DataFrame()
+    structure_first_pass_payload = {}
+    if structure_generation_seed_df is not None and not structure_generation_seed_df.empty:
+        structure_first_pass_variant_df, structure_first_pass_summary_df, structure_first_pass_payload = (
+            build_structure_first_pass_execution_artifacts(
+                structure_generation_seed_df,
+                cfg=cfg,
+                formula_col=cfg['data']['formula_column'],
+                structure_model=(
+                    model if selected_feature_set == STRUCTURE_AWARE_FEATURE_SET else None
+                ),
+                structure_feature_columns=(
+                    feature_columns if selected_feature_set == STRUCTURE_AWARE_FEATURE_SET else None
+                ),
+                structure_feature_set=(
+                    selected_feature_set if selected_feature_set == STRUCTURE_AWARE_FEATURE_SET else None
+                ),
+                structure_model_type=(
+                    selected_model_type if selected_feature_set == STRUCTURE_AWARE_FEATURE_SET else None
+                ),
+            )
+        )
     summary_kwargs = {
         'dataset_df': dataset_df,
         'bn_df': bn_df,
@@ -250,6 +275,8 @@ def main() -> None:
         'candidate_prediction_member_df': candidate_prediction_member_df,
         'candidate_grouped_robustness_member_df': candidate_grouped_robustness_member_df,
         'bn_centered_grouped_robustness_member_df': bn_centered_grouped_robustness_member_df,
+        'structure_first_pass_execution_summary_df': structure_first_pass_summary_df,
+        'structure_first_pass_execution_payload': structure_first_pass_payload,
         'cfg': cfg,
     }
     supported_summary_kwargs = {
@@ -276,6 +303,9 @@ def main() -> None:
         'candidate_prediction_member_df': candidate_prediction_member_df,
         'candidate_grouped_robustness_member_df': candidate_grouped_robustness_member_df,
         'bn_centered_grouped_robustness_member_df': bn_centered_grouped_robustness_member_df,
+        'structure_first_pass_execution_variant_df': structure_first_pass_variant_df,
+        'structure_first_pass_execution_summary_df': structure_first_pass_summary_df,
+        'structure_first_pass_execution_payload': structure_first_pass_payload,
     }
     supported_save_kwargs = {
         key: value

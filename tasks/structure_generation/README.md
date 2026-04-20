@@ -13,6 +13,10 @@ The main handoff artifacts are:
 - `artifacts/demo_candidate_structure_generation_first_pass_queue.json`
 - `artifacts/demo_candidate_structure_generation_followup_shortlist.csv`
 - `artifacts/demo_candidate_structure_generation_followup_extrapolation_shortlist.csv`
+- `artifacts/demo_candidate_structure_generation_first_pass_execution.json`
+- `artifacts/demo_candidate_structure_generation_first_pass_execution_summary.csv`
+- `artifacts/demo_candidate_structure_generation_first_pass_execution_variants.csv`
+- `artifacts/demo_candidate_structure_generation_first_pass_structures/`
 - `artifacts/demo_candidate_ranking_uncertainty.csv`
 
 They are produced by `main.py` after candidate ranking.
@@ -28,10 +32,11 @@ They only provide a deterministic bridge from:
 Each shortlisted candidate is linked to nearby BN-containing `train+val` reference formulas and exemplar records.
 These exemplar records are intended to be starting prototypes for later substitution, enumeration, and relaxation workflows.
 The reference-record payload JSON now also carries the unique raw `atoms` objects needed to start that work directly.
+The new first-pass execution artifacts go one step further: they materialize a small set of deterministic unrelaxed prototype variants, record geometry sanity heuristics, and write `.cif` files that downstream relaxation workflows can pick up directly.
 
 ## Recommended downstream workflow
 
-Start from `demo_candidate_structure_generation_followup_shortlist.csv` when choosing which candidate formulas deserve attention first. If you specifically want new formulas rather than rediscovery controls, start from `demo_candidate_structure_generation_followup_extrapolation_shortlist.csv` instead. Before scheduling actual structure work, cross-check `demo_candidate_ranking_uncertainty.csv` so you can see whether a candidate is currently marked with `abstain_flag`, why it was abstained, and whether its current `final_action_label` is `low_risk_followup`, `reuse_reference_control`, or only a heuristic abstention state. Then use `demo_candidate_structure_generation_first_pass_queue.json` for job ordering and `demo_candidate_structure_generation_job_plan.json` for richer per-job context.
+Start from `demo_candidate_structure_generation_followup_shortlist.csv` when choosing which candidate formulas deserve attention first. If you specifically want new formulas rather than rediscovery controls, start from `demo_candidate_structure_generation_followup_extrapolation_shortlist.csv` instead. Before scheduling actual structure work, cross-check `demo_candidate_ranking_uncertainty.csv` so you can see whether a candidate is currently marked with `abstain_flag`, why it was abstained, and whether its current `final_action_label` is `low_risk_followup`, `reuse_reference_control`, or only a heuristic abstention state. Then use `demo_candidate_structure_generation_first_pass_queue.json` for job ordering, `demo_candidate_structure_generation_job_plan.json` for richer per-job context, and the new first-pass execution summary / variants / `.cif` outputs to see which candidates have already been materialized into explicit prototype structures.
 
 For each candidate/job pair:
 
@@ -68,6 +73,7 @@ When creating downstream structure jobs, keep at least:
 These artifacts are a **prototype handoff layer**, not:
 
 - structure generation proof
+- relaxed-structure validation
 - thermodynamic stability proof
 - synthesis feasibility proof
 - discovery claim

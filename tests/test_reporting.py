@@ -5,6 +5,7 @@ import json
 import pandas as pd
 
 from pipeline.reporting import build_experiment_summary, save_basic_plots, save_metrics_and_predictions
+from pipeline.structure_execution import build_structure_first_pass_execution_artifacts
 
 
 def test_reporting_writes_expected_artifacts(tmp_path):
@@ -163,6 +164,11 @@ def test_reporting_writes_expected_artifacts(tmp_path):
                 'required_novelty_bucket': 'formula_level_extrapolation',
                 'chemical_plausibility_priority': True,
                 'note': 'demo extrapolation shortlist note',
+            },
+            'structure_first_pass_execution': {
+                'enabled': True,
+                'max_candidates': 2,
+                'max_variants_per_candidate': 2,
             },
         },
     }
@@ -550,6 +556,15 @@ def test_reporting_writes_expected_artifacts(tmp_path):
             },
         ],
     }
+    (
+        structure_first_pass_variant_df,
+        structure_first_pass_summary_df,
+        structure_first_pass_payload,
+    ) = build_structure_first_pass_execution_artifacts(
+        structure_generation_seed_df,
+        cfg=cfg,
+        formula_col='formula',
+    )
     experiment_summary = build_experiment_summary(
         dataset_df=prediction_df,
         bn_df=bn_df,
@@ -562,6 +577,8 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         bn_centered_candidate_df=bn_centered_candidate_df,
         bn_centered_screening_selection=bn_centered_screening_selection,
         structure_generation_seed_df=structure_generation_seed_df,
+        structure_first_pass_execution_summary_df=structure_first_pass_summary_df,
+        structure_first_pass_execution_payload=structure_first_pass_payload,
     )
     manifest = {'name': 'twod_matpd'}
 
@@ -579,6 +596,9 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         experiment_summary,
         manifest,
         cfg,
+        structure_first_pass_execution_variant_df=structure_first_pass_variant_df,
+        structure_first_pass_execution_summary_df=structure_first_pass_summary_df,
+        structure_first_pass_execution_payload=structure_first_pass_payload,
     )
     save_basic_plots(prediction_df, cfg)
 
@@ -703,6 +723,57 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         == ['AlBN']
     )
     assert experiment_summary['screening']['structure_generation_bridge']['unique_seed_reference_formulas'] == 2
+    assert (
+        experiment_summary['screening']['structure_generation_bridge']['first_pass_execution_artifact']
+        == 'demo_candidate_structure_generation_first_pass_execution.json'
+    )
+    assert (
+        experiment_summary['screening']['structure_generation_bridge']['first_pass_execution_summary_artifact']
+        == 'demo_candidate_structure_generation_first_pass_execution_summary.csv'
+    )
+    assert (
+        experiment_summary['screening']['structure_generation_bridge']['first_pass_execution_variants_artifact']
+        == 'demo_candidate_structure_generation_first_pass_execution_variants.csv'
+    )
+    assert (
+        experiment_summary['screening']['structure_generation_bridge']['first_pass_execution_structure_dir']
+        == 'demo_candidate_structure_generation_first_pass_structures'
+    )
+    assert (
+        experiment_summary['screening']['structure_generation_bridge']['first_pass_execution_method']
+        == 'deterministic_unrelaxed_reference_reuse_species_edit'
+    )
+    assert (
+        experiment_summary['screening']['structure_generation_bridge']['first_pass_execution_candidate_count']
+        == 2
+    )
+    assert (
+        experiment_summary['screening']['structure_generation_bridge']['first_pass_execution_variant_count']
+        == 3
+    )
+    assert (
+        experiment_summary['screening']['structure_generation_bridge']['first_pass_execution_successful_variant_count']
+        == 3
+    )
+    assert experiment_summary['screening']['structure_generation_bridge']['first_pass_execution_status_counts'] == {
+        'executed': 2,
+    }
+    assert (
+        experiment_summary['screening']['structure_generation_bridge']['first_pass_execution_executed_formulas']
+        == ['BN', 'AlBN']
+    )
+    assert (
+        experiment_summary['screening']['structure_generation_bridge']['first_pass_execution_model_feature_set']
+        is None
+    )
+    assert (
+        experiment_summary['screening']['structure_generation_bridge']['first_pass_execution_model_type']
+        is None
+    )
+    assert (
+        experiment_summary['screening']['structure_generation_bridge']['first_pass_execution_model_available']
+        is False
+    )
     assert experiment_summary['screening']['ranking_matches_best_overall_evaluation'] is True
     assert experiment_summary['screening']['best_overall_evaluation_feature_set'] == 'matminer_composition'
     assert experiment_summary['screening']['ranking_uncertainty_method'] == 'small_feature_model_disagreement'
@@ -1005,6 +1076,9 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     assert (artifact_dir / 'demo_candidate_structure_generation_first_pass_queue.json').exists()
     assert (artifact_dir / 'demo_candidate_structure_generation_followup_shortlist.csv').exists()
     assert (artifact_dir / 'demo_candidate_structure_generation_followup_extrapolation_shortlist.csv').exists()
+    assert (artifact_dir / 'demo_candidate_structure_generation_first_pass_execution.json').exists()
+    assert (artifact_dir / 'demo_candidate_structure_generation_first_pass_execution_summary.csv').exists()
+    assert (artifact_dir / 'demo_candidate_structure_generation_first_pass_execution_variants.csv').exists()
     handoff_payload = json.loads(
         (artifact_dir / 'demo_candidate_structure_generation_handoff.json').read_text()
     )
@@ -1017,11 +1091,20 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     first_pass_queue_payload = json.loads(
         (artifact_dir / 'demo_candidate_structure_generation_first_pass_queue.json').read_text()
     )
+    first_pass_execution_payload = json.loads(
+        (artifact_dir / 'demo_candidate_structure_generation_first_pass_execution.json').read_text()
+    )
     followup_shortlist_df = pd.read_csv(
         artifact_dir / 'demo_candidate_structure_generation_followup_shortlist.csv'
     )
     followup_extrapolation_shortlist_df = pd.read_csv(
         artifact_dir / 'demo_candidate_structure_generation_followup_extrapolation_shortlist.csv'
+    )
+    first_pass_execution_summary_df = pd.read_csv(
+        artifact_dir / 'demo_candidate_structure_generation_first_pass_execution_summary.csv'
+    )
+    first_pass_execution_variant_df = pd.read_csv(
+        artifact_dir / 'demo_candidate_structure_generation_first_pass_execution_variants.csv'
     )
     assert handoff_payload['candidate_count'] == 2
     assert handoff_payload['seed_row_count'] == 2
@@ -1041,6 +1124,29 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         'reference_reuse_control': 1,
         'element_insertion_enumeration': 1,
     }
+    assert first_pass_execution_payload['candidate_count'] == 2
+    assert first_pass_execution_payload['variant_count'] == 3
+    assert first_pass_execution_payload['successful_variant_count'] == 3
+    assert first_pass_execution_payload['status_counts'] == {'executed': 2}
+    assert first_pass_execution_payload['executed_formulas'] == ['BN', 'AlBN']
+    assert first_pass_execution_payload['model_available'] is False
+    assert first_pass_execution_summary_df['first_pass_execution_status'].tolist() == [
+        'executed',
+        'executed',
+    ]
+    assert first_pass_execution_summary_df['first_pass_execution_selected_final_status'].tolist() == [
+        'reference_control_ready',
+        'geometry_sanity_failed',
+    ]
+    assert set(first_pass_execution_variant_df['formula']) == {'BN', 'AlBN'}
+    assert first_pass_execution_variant_df['execution_status'].eq('ok').all()
+    assert first_pass_execution_variant_df.groupby('formula')['geometry_sanity_pass'].agg(lambda values: list(values)).to_dict() == {
+        'AlBN': [False, False],
+        'BN': [True],
+    }
+    structure_dir = artifact_dir / 'demo_candidate_structure_generation_first_pass_structures'
+    assert structure_dir.exists()
+    assert len(list(structure_dir.glob('*.cif'))) == len(first_pass_execution_variant_df)
     assert job_plan_payload['candidates'][0]['jobs'][0]['job_action_label'] == 'reference_reuse_control'
     assert job_plan_payload['candidates'][0]['jobs'][0]['candidate_formula_element_counts'] == {
         'B': 1,
