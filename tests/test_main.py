@@ -29,6 +29,12 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
     })
     feature_tables = {'matminer_composition': feature_df}
     prediction_df = pd.DataFrame({'formula': ['BN'], 'target': [5.0], 'prediction': [4.9]})
+    candidate_prediction_member_df = pd.DataFrame({
+        'formula': ['BN'],
+        'feature_set': ['matminer_composition'],
+        'model_type': ['linear_regression'],
+        'predicted_band_gap': [4.85],
+    })
     candidate_ensemble_df = pd.DataFrame({
         'formula': ['BN'],
         'ensemble_predicted_band_gap_mean': [4.85],
@@ -161,8 +167,18 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
     )
     monkeypatch.setattr(
         main_module,
+        'build_candidate_prediction_members',
+        lambda candidate_df, feature_tables, split_masks, cfg, candidate_feature_sets=None: calls.append('build_candidate_prediction_members') or candidate_prediction_member_df,
+    )
+    monkeypatch.setattr(
+        main_module,
         'build_candidate_prediction_ensemble',
         lambda candidate_df, feature_tables, split_masks, cfg, candidate_feature_sets=None: calls.append('build_candidate_prediction_ensemble') or candidate_ensemble_df,
+    )
+    monkeypatch.setattr(
+        main_module,
+        'build_candidate_grouped_robustness_prediction_members',
+        lambda candidate_df, feature_df, split_masks, cfg, feature_set, model_type: calls.append('build_candidate_grouped_robustness_prediction_members') or candidate_prediction_member_df,
     )
     monkeypatch.setattr(
         main_module,
@@ -209,7 +225,9 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
         'benchmark_grouped_robustness',
         'benchmark_bn_slice',
         'select_bn_centered_candidate_screening_combo',
+        'build_candidate_prediction_members',
         'build_candidate_prediction_ensemble',
+        'build_candidate_grouped_robustness_prediction_members',
         'build_candidate_grouped_robustness_predictions',
         'screen_candidates',
         'build_candidate_structure_generation_seeds',

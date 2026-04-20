@@ -43,8 +43,10 @@ def test_streamlit_app_reads_generated_artifacts(tmp_path, monkeypatch):
     (artifact_dir / 'robustness_results.csv').write_text('model_type,mae_mean\nlinear_regression,1.1\n', encoding='utf-8')
     (artifact_dir / 'bn_slice_benchmark_results.csv').write_text('model_type,mae\nlinear_regression,0.9\n', encoding='utf-8')
     (artifact_dir / 'bn_slice_predictions.csv').write_text('formula,target,prediction\nBN,5.0,4.8\n', encoding='utf-8')
+    (artifact_dir / 'bn_candidate_compatible_evaluation.csv').write_text('model_type,mae\nlinear_regression,0.9\n', encoding='utf-8')
     (artifact_dir / 'predictions.csv').write_text('formula,target,prediction\nBN,5.0,4.8\n', encoding='utf-8')
     (artifact_dir / 'demo_candidate_ranking.csv').write_text('formula,predicted_band_gap\nBN,4.8\n', encoding='utf-8')
+    (artifact_dir / 'demo_candidate_ranking_uncertainty.csv').write_text('formula,rank_mean\nBN,1\n', encoding='utf-8')
     (artifact_dir / 'demo_candidate_bn_centered_ranking.csv').write_text('formula,predicted_band_gap\nAlBN,4.2\n', encoding='utf-8')
     (artifact_dir / 'demo_candidate_structure_generation_seeds.csv').write_text('formula,seed_reference_formula\nBN,BN\n', encoding='utf-8')
     (artifact_dir / 'demo_candidate_structure_generation_handoff.json').write_text(json.dumps({'candidate_count': 1}), encoding='utf-8')
@@ -73,9 +75,11 @@ def test_streamlit_app_reads_generated_artifacts(tmp_path, monkeypatch):
     assert ('subheader', 'Grouped robustness results') in fake_streamlit.calls
     assert ('subheader', 'BN-focused benchmark results') in fake_streamlit.calls
     assert ('subheader', 'BN-focused benchmark predictions') in fake_streamlit.calls
+    assert ('subheader', 'BN candidate-compatible evaluation') in fake_streamlit.calls
     assert ('subheader', 'Prediction samples') in fake_streamlit.calls
     assert ('subheader', 'Top demo candidate ranking') in fake_streamlit.calls
     assert ('subheader', 'BN-centered alternative candidate ranking') in fake_streamlit.calls
+    assert ('subheader', 'Candidate ranking uncertainty and decision policy') in fake_streamlit.calls
     assert ('subheader', 'Structure-generation seed bridge') in fake_streamlit.calls
     assert ('subheader', 'Structure-generation handoff JSON') in fake_streamlit.calls
     assert ('subheader', 'Structure-generation reference records JSON') in fake_streamlit.calls

@@ -390,7 +390,9 @@
     "selected_model_beats_global_dummy": false,
     "screening_model_beats_global_dummy": false,
     "best_candidate_model_beats_global_dummy": true,
-    "selected_model_matches_best_candidate": false
+    "selected_model_matches_best_candidate": false,
+    "candidate_compatible_evaluation_artifact": "bn_candidate_compatible_evaluation.csv",
+    "candidate_compatible_result_row_count": 6
   },
   "screening": {
     "candidate_space_name": "bn_anchored_formula_family_grid",
@@ -499,7 +501,122 @@
       ],
       "mean_absolute_rank_shift": 1.84,
       "max_absolute_rank_shift": 6.0,
-      "max_absolute_rank_shift_formula": "Al2BN"
+      "max_absolute_rank_shift_formula": "Al2BN",
+      "spearman_rank_correlation": 0.9407692307692307,
+      "kendall_tau": 0.8199999999999998,
+      "comparison_top_k_views": {
+        "top_3": {
+          "top_k": 3,
+          "top_k_overlap_count": 3,
+          "top_k_overlap_formulas": [
+            "BCN2",
+            "BCN",
+            "BC2N"
+          ],
+          "top_k_general_only_formulas": [],
+          "top_k_bn_centered_only_formulas": [],
+          "general_top_k_formulas": [
+            "BCN2",
+            "BCN",
+            "BC2N"
+          ],
+          "bn_centered_top_k_formulas": [
+            "BCN2",
+            "BCN",
+            "BC2N"
+          ],
+          "mean_absolute_rank_shift": 1.84,
+          "max_absolute_rank_shift": 6.0,
+          "max_absolute_rank_shift_formula": "Al2BN",
+          "spearman_rank_correlation": 0.9407692307692307,
+          "kendall_tau": 0.8199999999999998
+        },
+        "top_5": {
+          "top_k": 5,
+          "top_k_overlap_count": 4,
+          "top_k_overlap_formulas": [
+            "BCN2",
+            "BCN",
+            "BC2N",
+            "AlBN2"
+          ],
+          "top_k_general_only_formulas": [
+            "SiBN2"
+          ],
+          "top_k_bn_centered_only_formulas": [
+            "BN"
+          ],
+          "general_top_k_formulas": [
+            "BCN2",
+            "BCN",
+            "BC2N",
+            "AlBN2",
+            "SiBN2"
+          ],
+          "bn_centered_top_k_formulas": [
+            "BCN2",
+            "BCN",
+            "BC2N",
+            "BN",
+            "AlBN2"
+          ],
+          "mean_absolute_rank_shift": 1.84,
+          "max_absolute_rank_shift": 6.0,
+          "max_absolute_rank_shift_formula": "Al2BN",
+          "spearman_rank_correlation": 0.9407692307692307,
+          "kendall_tau": 0.8199999999999998
+        },
+        "top_10": {
+          "top_k": 10,
+          "top_k_overlap_count": 9,
+          "top_k_overlap_formulas": [
+            "BCN2",
+            "BCN",
+            "BC2N",
+            "AlBN2",
+            "SiBN2",
+            "SiBN",
+            "Si2BN",
+            "TlBN2",
+            "BN"
+          ],
+          "top_k_general_only_formulas": [
+            "SnBN2"
+          ],
+          "top_k_bn_centered_only_formulas": [
+            "Al2BN"
+          ],
+          "general_top_k_formulas": [
+            "BCN2",
+            "BCN",
+            "BC2N",
+            "AlBN2",
+            "SiBN2",
+            "SiBN",
+            "Si2BN",
+            "TlBN2",
+            "BN",
+            "SnBN2"
+          ],
+          "bn_centered_top_k_formulas": [
+            "BCN2",
+            "BCN",
+            "BC2N",
+            "BN",
+            "AlBN2",
+            "SiBN2",
+            "SiBN",
+            "Si2BN",
+            "TlBN2",
+            "Al2BN"
+          ],
+          "mean_absolute_rank_shift": 1.84,
+          "max_absolute_rank_shift": 6.0,
+          "max_absolute_rank_shift_formula": "Al2BN",
+          "spearman_rank_correlation": 0.9407692307692307,
+          "kendall_tau": 0.8199999999999998
+        }
+      }
     },
     "structure_generation_bridge": {
       "enabled": true,
@@ -568,6 +685,153 @@
         "SiBN",
         "SiBN2"
       ]
+    },
+    "ranking_stability": {
+      "enabled": true,
+      "artifact": "demo_candidate_ranking_uncertainty.csv",
+      "note": "Summarizes candidate-level prediction and rank stability across full-fit candidate-compatible models plus grouped-fold ranking views. This is a ranking-honesty layer, not a calibrated discovery-confidence estimate.",
+      "source_count": 14,
+      "top_k_reference": 20,
+      "top_k_values": [
+        3,
+        5,
+        10,
+        20
+      ],
+      "prediction_interval_lower_quantile": 0.1,
+      "prediction_interval_upper_quantile": 0.9,
+      "prediction_std_abstain_threshold": 0.5274084815550589,
+      "rank_std_abstain_threshold": 5.31843156256751,
+      "comparison_top_k_views": {
+        "top_3": {
+          "top_k": 3,
+          "top_k_overlap_count": 3,
+          "top_k_overlap_formulas": [
+            "BCN2",
+            "BCN",
+            "BC2N"
+          ],
+          "top_k_general_only_formulas": [],
+          "top_k_bn_centered_only_formulas": [],
+          "general_top_k_formulas": [
+            "BCN2",
+            "BCN",
+            "BC2N"
+          ],
+          "bn_centered_top_k_formulas": [
+            "BCN2",
+            "BCN",
+            "BC2N"
+          ],
+          "mean_absolute_rank_shift": 1.84,
+          "max_absolute_rank_shift": 6.0,
+          "max_absolute_rank_shift_formula": "Al2BN",
+          "spearman_rank_correlation": 0.9407692307692307,
+          "kendall_tau": 0.8199999999999998
+        },
+        "top_5": {
+          "top_k": 5,
+          "top_k_overlap_count": 4,
+          "top_k_overlap_formulas": [
+            "BCN2",
+            "BCN",
+            "BC2N",
+            "AlBN2"
+          ],
+          "top_k_general_only_formulas": [
+            "SiBN2"
+          ],
+          "top_k_bn_centered_only_formulas": [
+            "BN"
+          ],
+          "general_top_k_formulas": [
+            "BCN2",
+            "BCN",
+            "BC2N",
+            "AlBN2",
+            "SiBN2"
+          ],
+          "bn_centered_top_k_formulas": [
+            "BCN2",
+            "BCN",
+            "BC2N",
+            "BN",
+            "AlBN2"
+          ],
+          "mean_absolute_rank_shift": 1.84,
+          "max_absolute_rank_shift": 6.0,
+          "max_absolute_rank_shift_formula": "Al2BN",
+          "spearman_rank_correlation": 0.9407692307692307,
+          "kendall_tau": 0.8199999999999998
+        },
+        "top_10": {
+          "top_k": 10,
+          "top_k_overlap_count": 9,
+          "top_k_overlap_formulas": [
+            "BCN2",
+            "BCN",
+            "BC2N",
+            "AlBN2",
+            "SiBN2",
+            "SiBN",
+            "Si2BN",
+            "TlBN2",
+            "BN"
+          ],
+          "top_k_general_only_formulas": [
+            "SnBN2"
+          ],
+          "top_k_bn_centered_only_formulas": [
+            "Al2BN"
+          ],
+          "general_top_k_formulas": [
+            "BCN2",
+            "BCN",
+            "BC2N",
+            "AlBN2",
+            "SiBN2",
+            "SiBN",
+            "Si2BN",
+            "TlBN2",
+            "BN",
+            "SnBN2"
+          ],
+          "bn_centered_top_k_formulas": [
+            "BCN2",
+            "BCN",
+            "BC2N",
+            "BN",
+            "AlBN2",
+            "SiBN2",
+            "SiBN",
+            "Si2BN",
+            "TlBN2",
+            "Al2BN"
+          ],
+          "mean_absolute_rank_shift": 1.84,
+          "max_absolute_rank_shift": 6.0,
+          "max_absolute_rank_shift_formula": "Al2BN",
+          "spearman_rank_correlation": 0.9407692307692307,
+          "kendall_tau": 0.8199999999999998
+        }
+      }
+    },
+    "decision_policy": {
+      "enabled": true,
+      "artifact": "demo_candidate_ranking_uncertainty.csv",
+      "note": "Turns the formula-level ranking into a lightweight decision policy by combining chemical plausibility, domain support, BN-local support, prediction/rank instability, novelty, and prototype readiness into abstention flags plus action labels. This remains heuristic and should not be read as validated discovery confidence.",
+      "global_support_abstain_below_percentile": 25.0,
+      "bn_support_abstain_below_percentile": 25.0,
+      "prediction_std_above_quantile": 0.75,
+      "rank_std_above_quantile": 0.75,
+      "minimum_top_10_selection_frequency": 0.5,
+      "abstained_candidate_count": 20,
+      "final_action_counts": {
+        "abstain_model_unreliable": 18,
+        "reuse_reference_control": 3,
+        "low_risk_followup": 2,
+        "reject_formula_level": 2
+      }
     },
     "proposal_shortlist_enabled": true,
     "proposal_shortlist_artifact": "demo_candidate_proposal_shortlist.csv",
@@ -982,7 +1246,29 @@
       "extrapolation_shortlist_family_count_before_selection",
       "extrapolation_shortlist_selected",
       "extrapolation_shortlist_rank",
-      "extrapolation_shortlist_decision"
+      "extrapolation_shortlist_decision",
+      "ranking_source_count",
+      "predicted_band_gap_mean",
+      "predicted_band_gap_std",
+      "predicted_band_gap_interval_lower",
+      "predicted_band_gap_interval_upper",
+      "rank_mean",
+      "rank_std",
+      "rank_min",
+      "rank_max",
+      "top_3_selection_frequency",
+      "top_5_selection_frequency",
+      "top_10_selection_frequency",
+      "bn_centered_ranking_rank",
+      "structure_followup_priority_score",
+      "structure_followup_best_queue_rank",
+      "structure_followup_best_action_label",
+      "structure_followup_readiness_label",
+      "structure_followup_shortlist_selected",
+      "structure_followup_shortlist_rank",
+      "abstain_flag",
+      "reason_for_abstention",
+      "final_action_label"
     ]
   }
 }

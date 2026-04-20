@@ -160,4 +160,14 @@ def test_default_config_has_expected_poc_defaults():
         cfg['screening']['structure_followup_extrapolation_shortlist']['required_novelty_bucket']
         == 'formula_level_extrapolation'
     )
+    assert cfg['screening']['ranking_stability']['enabled'] is True
+    assert cfg['screening']['ranking_stability']['top_k_values'] == [3, 5, 10]
+    assert cfg['screening']['ranking_stability']['prediction_interval_lower_quantile'] == 0.1
+    assert cfg['screening']['ranking_stability']['prediction_interval_upper_quantile'] == 0.9
+    assert cfg['screening']['decision_policy']['enabled'] is True
+    assert cfg['screening']['decision_policy']['global_support_abstain_below_percentile'] == 25.0
+    assert cfg['screening']['decision_policy']['bn_support_abstain_below_percentile'] == 25.0
+    assert cfg['screening']['decision_policy']['prediction_std_above_quantile'] == 0.75
+    assert cfg['screening']['decision_policy']['rank_std_above_quantile'] == 0.75
+    assert cfg['screening']['decision_policy']['minimum_top_10_selection_frequency'] == 0.5
     assert cfg['ui']['streamlit_enabled'] is True

@@ -24,8 +24,10 @@ benchmark_path = artifact_dir / 'benchmark_results.csv'
 robustness_path = artifact_dir / 'robustness_results.csv'
 bn_slice_benchmark_path = artifact_dir / 'bn_slice_benchmark_results.csv'
 bn_slice_prediction_path = artifact_dir / 'bn_slice_predictions.csv'
+bn_candidate_compatible_evaluation_path = artifact_dir / 'bn_candidate_compatible_evaluation.csv'
 pred_path = artifact_dir / 'predictions.csv'
 screen_path = artifact_dir / 'demo_candidate_ranking.csv'
+candidate_uncertainty_path = artifact_dir / 'demo_candidate_ranking_uncertainty.csv'
 bn_centered_screen_path = artifact_dir / 'demo_candidate_bn_centered_ranking.csv'
 structure_generation_seed_path = artifact_dir / 'demo_candidate_structure_generation_seeds.csv'
 structure_generation_handoff_path = artifact_dir / 'demo_candidate_structure_generation_handoff.json'
@@ -75,6 +77,10 @@ if bn_slice_prediction_path.exists():
     st.subheader('BN-focused benchmark predictions')
     st.dataframe(pd.read_csv(bn_slice_prediction_path), use_container_width=True)
 
+if bn_candidate_compatible_evaluation_path.exists():
+    st.subheader('BN candidate-compatible evaluation')
+    st.dataframe(pd.read_csv(bn_candidate_compatible_evaluation_path), use_container_width=True)
+
 if pred_path.exists():
     st.subheader('Prediction samples')
     st.dataframe(pd.read_csv(pred_path).head(30), use_container_width=True)
@@ -86,6 +92,10 @@ if screen_path.exists():
 if bn_centered_screen_path.exists():
     st.subheader('BN-centered alternative candidate ranking')
     st.dataframe(pd.read_csv(bn_centered_screen_path).head(30), use_container_width=True)
+
+if candidate_uncertainty_path.exists():
+    st.subheader('Candidate ranking uncertainty and decision policy')
+    st.dataframe(pd.read_csv(candidate_uncertainty_path).head(30), use_container_width=True)
 
 if structure_generation_seed_path.exists():
     st.subheader('Structure-generation seed bridge')

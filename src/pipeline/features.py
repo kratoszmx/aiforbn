@@ -1766,7 +1766,12 @@ def train_baseline_model(
     include_validation: bool = False,
 ) -> tuple[object, list[str]]:
     feature_columns = _feature_columns(df)
-    training_mask = split_masks['train'] | split_masks['val'] if include_validation else split_masks['train']
+    train_mask = pd.Series(split_masks['train'], index=df.index, dtype=bool)
+    if include_validation:
+        val_mask = pd.Series(split_masks['val'], index=df.index, dtype=bool)
+        training_mask = train_mask | val_mask
+    else:
+        training_mask = train_mask
     train_df = df.loc[training_mask].copy()
     train_df = train_df[train_df['target'].notna()].copy()
     train_df = train_df.loc[_feature_valid_mask(train_df, feature_columns)].copy()
@@ -1798,7 +1803,8 @@ def evaluate_predictions(
     feature_columns: list[str],
     split_name: str = 'test',
 ):
-    requested_eval_df = df.loc[split_masks[split_name]].copy()
+    eval_mask = pd.Series(split_masks[split_name], index=df.index, dtype=bool)
+    requested_eval_df = df.loc[eval_mask].copy()
     requested_eval_df = requested_eval_df[requested_eval_df['target'].notna()].copy()
     if requested_eval_df.empty:
         raise ValueError(f'No evaluation rows available for split: {split_name}')
@@ -3135,9 +3141,40 @@ def build_candidate_prediction_ensemble(
     cfg: dict,
     candidate_feature_sets: list[str] | None = None,
 ) -> pd.DataFrame:
+    prediction_df = build_candidate_prediction_members(
+        candidate_df,
+        feature_tables,
+        split_masks,
+        cfg,
+        candidate_feature_sets=candidate_feature_sets,
+    )
+    aggregated = (
+        prediction_df
+        .groupby('formula', as_index=False)
+        .agg(
+            ensemble_predicted_band_gap_mean=('prediction', 'mean'),
+            ensemble_predicted_band_gap_std=('prediction', 'std'),
+            ensemble_member_count=('prediction', 'size'),
+        )
+    )
+    aggregated['ensemble_predicted_band_gap_std'] = (
+        aggregated['ensemble_predicted_band_gap_std'].fillna(0.0)
+    )
+    aggregated['ensemble_member_count'] = aggregated['ensemble_member_count'].astype(int)
+    return aggregated
+
+
+def build_candidate_prediction_members(
+    candidate_df: pd.DataFrame,
+    feature_tables: dict[str, pd.DataFrame],
+    split_masks,
+    cfg: dict,
+    candidate_feature_sets: list[str] | None = None,
+) -> pd.DataFrame:
     candidate_feature_sets = candidate_feature_sets or [
         value for value in get_candidate_screening_feature_sets(cfg) if value in feature_tables
     ]
+    candidate_feature_sets = [value for value in candidate_feature_sets if value in feature_tables]
     candidate_feature_tables = {
         feature_set: build_feature_table(candidate_df, formula_col='formula', feature_set=feature_set)
         for feature_set in candidate_feature_sets
@@ -3170,6 +3207,8 @@ def build_candidate_prediction_ensemble(
             )
             prediction_frames.append(pd.DataFrame({
                 'formula': candidate_feature_df['formula'].astype(str),
+                'prediction_source': f'full_fit__{feature_set}__{model_type}',
+                'prediction_source_family': 'full_fit_candidate_model',
                 'feature_set': feature_set,
                 'model_type': model_type,
                 'prediction': model.predict(candidate_feature_df[feature_columns]),
@@ -3179,20 +3218,11 @@ def build_candidate_prediction_ensemble(
         raise ValueError('No candidate feature/model combination was available for uncertainty estimation')
 
     prediction_df = pd.concat(prediction_frames, ignore_index=True)
-    aggregated = (
-        prediction_df
-        .groupby('formula', as_index=False)
-        .agg(
-            ensemble_predicted_band_gap_mean=('prediction', 'mean'),
-            ensemble_predicted_band_gap_std=('prediction', 'std'),
-            ensemble_member_count=('prediction', 'size'),
-        )
-    )
-    aggregated['ensemble_predicted_band_gap_std'] = (
-        aggregated['ensemble_predicted_band_gap_std'].fillna(0.0)
-    )
-    aggregated['ensemble_member_count'] = aggregated['ensemble_member_count'].astype(int)
-    return aggregated
+    return prediction_df.sort_values(
+        ['prediction_source_family', 'feature_set', 'model_type', 'formula'],
+        ascending=[True, True, True, True],
+        kind='stable',
+    ).reset_index(drop=True)
 
 
 def build_candidate_grouped_robustness_predictions(
@@ -3204,6 +3234,15 @@ def build_candidate_grouped_robustness_predictions(
     model_type: str,
     formula_col: str = 'formula',
 ) -> pd.DataFrame:
+    prediction_df = build_candidate_grouped_robustness_prediction_members(
+        candidate_df,
+        feature_df,
+        split_masks,
+        cfg,
+        feature_set=feature_set,
+        model_type=model_type,
+        formula_col=formula_col,
+    )
     robustness_cfg = _robustness_config(cfg)
     grouped_uncertainty_cfg = _grouped_robustness_uncertainty_config(cfg)
     out = pd.DataFrame({
@@ -3222,6 +3261,71 @@ def build_candidate_grouped_robustness_predictions(
 
     if not bool(robustness_cfg['enabled'] and grouped_uncertainty_cfg['enabled']):
         return out
+
+    aggregated = (
+        prediction_df.groupby(formula_col, as_index=False)
+        .agg(
+            grouped_robustness_prediction_fold_count=('prediction', 'size'),
+            grouped_robustness_predicted_band_gap_mean=('prediction', 'mean'),
+            grouped_robustness_predicted_band_gap_std=('prediction', 'std'),
+        )
+        .sort_values(formula_col)
+        .reset_index(drop=True)
+    )
+    aggregated['grouped_robustness_predicted_band_gap_std'] = (
+        aggregated['grouped_robustness_predicted_band_gap_std'].fillna(0.0).astype(float)
+    )
+    aggregated['grouped_robustness_prediction_fold_count'] = (
+        aggregated['grouped_robustness_prediction_fold_count'].astype(int)
+    )
+    return out.merge(aggregated, on=formula_col, how='left', suffixes=('', '_agg')).assign(
+        grouped_robustness_prediction_fold_count=lambda df: (
+            df['grouped_robustness_prediction_fold_count_agg']
+            .fillna(df['grouped_robustness_prediction_fold_count'])
+            .astype(int)
+        ),
+        grouped_robustness_predicted_band_gap_mean=lambda df: (
+            df['grouped_robustness_predicted_band_gap_mean_agg']
+            .fillna(df['grouped_robustness_predicted_band_gap_mean'])
+            .astype(float)
+        ),
+        grouped_robustness_predicted_band_gap_std=lambda df: (
+            df['grouped_robustness_predicted_band_gap_std_agg']
+            .fillna(df['grouped_robustness_predicted_band_gap_std'])
+            .astype(float)
+        ),
+    ).drop(
+        columns=[
+            'grouped_robustness_prediction_fold_count_agg',
+            'grouped_robustness_predicted_band_gap_mean_agg',
+            'grouped_robustness_predicted_band_gap_std_agg',
+        ]
+    )
+
+
+def build_candidate_grouped_robustness_prediction_members(
+    candidate_df: pd.DataFrame,
+    feature_df: pd.DataFrame,
+    split_masks,
+    cfg: dict,
+    feature_set: str,
+    model_type: str,
+    formula_col: str = 'formula',
+) -> pd.DataFrame:
+    robustness_cfg = _robustness_config(cfg)
+    grouped_uncertainty_cfg = _grouped_robustness_uncertainty_config(cfg)
+    if not bool(robustness_cfg['enabled'] and grouped_uncertainty_cfg['enabled']):
+        return pd.DataFrame(
+            columns=[
+                formula_col,
+                'prediction_source',
+                'prediction_source_family',
+                'feature_set',
+                'model_type',
+                'fold_index',
+                'prediction',
+            ]
+        )
 
     feature_info = summarize_feature_table(feature_df, feature_set=feature_set)
     if not feature_info['selection_eligible']:
@@ -3266,50 +3370,32 @@ def build_candidate_grouped_robustness_predictions(
         )
         fold_predictions.append(pd.DataFrame({
             formula_col: candidate_feature_df[formula_col].astype(str),
+            'prediction_source': f'group_kfold__{feature_set}__{model_type}__fold_{fold_idx + 1}',
+            'prediction_source_family': 'group_kfold_candidate_model',
+            'feature_set': feature_set,
+            'model_type': model_type,
             'fold_index': fold_idx,
             'prediction': model.predict(candidate_matrix).astype(float),
         }))
 
-    prediction_df = pd.concat(fold_predictions, ignore_index=True)
-    aggregated = (
-        prediction_df.groupby(formula_col, as_index=False)
-        .agg(
-            grouped_robustness_prediction_fold_count=('prediction', 'size'),
-            grouped_robustness_predicted_band_gap_mean=('prediction', 'mean'),
-            grouped_robustness_predicted_band_gap_std=('prediction', 'std'),
+    if not fold_predictions:
+        return pd.DataFrame(
+            columns=[
+                formula_col,
+                'prediction_source',
+                'prediction_source_family',
+                'feature_set',
+                'model_type',
+                'fold_index',
+                'prediction',
+            ]
         )
-        .sort_values(formula_col)
-        .reset_index(drop=True)
-    )
-    aggregated['grouped_robustness_predicted_band_gap_std'] = (
-        aggregated['grouped_robustness_predicted_band_gap_std'].fillna(0.0).astype(float)
-    )
-    aggregated['grouped_robustness_prediction_fold_count'] = (
-        aggregated['grouped_robustness_prediction_fold_count'].astype(int)
-    )
-    return out.merge(aggregated, on=formula_col, how='left', suffixes=('', '_agg')).assign(
-        grouped_robustness_prediction_fold_count=lambda df: (
-            df['grouped_robustness_prediction_fold_count_agg']
-            .fillna(df['grouped_robustness_prediction_fold_count'])
-            .astype(int)
-        ),
-        grouped_robustness_predicted_band_gap_mean=lambda df: (
-            df['grouped_robustness_predicted_band_gap_mean_agg']
-            .fillna(df['grouped_robustness_predicted_band_gap_mean'])
-            .astype(float)
-        ),
-        grouped_robustness_predicted_band_gap_std=lambda df: (
-            df['grouped_robustness_predicted_band_gap_std_agg']
-            .fillna(df['grouped_robustness_predicted_band_gap_std'])
-            .astype(float)
-        ),
-    ).drop(
-        columns=[
-            'grouped_robustness_prediction_fold_count_agg',
-            'grouped_robustness_predicted_band_gap_mean_agg',
-            'grouped_robustness_predicted_band_gap_std_agg',
-        ]
-    )
+    prediction_df = pd.concat(fold_predictions, ignore_index=True)
+    return prediction_df.sort_values(
+        ['prediction_source_family', 'fold_index', formula_col],
+        ascending=[True, True, True],
+        kind='stable',
+    ).reset_index(drop=True)
 
 
 def annotate_candidate_dataset_overlap(

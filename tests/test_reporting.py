@@ -875,6 +875,20 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     assert 'BN-local analog band-gap window' in experiment_summary['screening']['ranking_note']
     assert 'observed-property evidence from nearby BN-containing train+val formulas' in experiment_summary['screening']['ranking_note']
     assert 'BN analog-validation penalty' in experiment_summary['screening']['ranking_note']
+    assert experiment_summary['bn_slice_benchmark']['candidate_compatible_evaluation_artifact'] == (
+        'bn_candidate_compatible_evaluation.csv'
+    )
+    assert experiment_summary['bn_slice_benchmark']['candidate_compatible_result_row_count'] == 4
+    assert experiment_summary['screening']['ranking_stability']['enabled'] is True
+    assert experiment_summary['screening']['ranking_stability']['artifact'] == (
+        'demo_candidate_ranking_uncertainty.csv'
+    )
+    assert experiment_summary['screening']['ranking_stability']['top_k_values'] == [3, 5, 10]
+    assert experiment_summary['screening']['decision_policy']['enabled'] is True
+    assert experiment_summary['screening']['decision_policy']['artifact'] == (
+        'demo_candidate_ranking_uncertainty.csv'
+    )
+    assert experiment_summary['screening']['decision_policy']['abstained_candidate_count'] >= 0
     assert experiment_summary['screening']['candidate_annotations'] == [
         'candidate_family',
         'candidate_template',
@@ -955,11 +969,35 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         'extrapolation_shortlist_selected',
         'extrapolation_shortlist_rank',
         'extrapolation_shortlist_decision',
+        'ranking_source_count',
+        'predicted_band_gap_mean',
+        'predicted_band_gap_std',
+        'predicted_band_gap_interval_lower',
+        'predicted_band_gap_interval_upper',
+        'rank_mean',
+        'rank_std',
+        'rank_min',
+        'rank_max',
+        'top_3_selection_frequency',
+        'top_5_selection_frequency',
+        'top_10_selection_frequency',
+        'bn_centered_ranking_rank',
+        'structure_followup_priority_score',
+        'structure_followup_best_queue_rank',
+        'structure_followup_best_action_label',
+        'structure_followup_readiness_label',
+        'structure_followup_shortlist_selected',
+        'structure_followup_shortlist_rank',
+        'abstain_flag',
+        'reason_for_abstention',
+        'final_action_label',
     ]
     assert (artifact_dir / 'predictions.csv').exists()
     assert (artifact_dir / 'bn_slice.csv').exists()
     assert (artifact_dir / 'demo_candidate_ranking.csv').exists()
     assert (artifact_dir / 'demo_candidate_bn_centered_ranking.csv').exists()
+    assert (artifact_dir / 'bn_candidate_compatible_evaluation.csv').exists()
+    assert (artifact_dir / 'demo_candidate_ranking_uncertainty.csv').exists()
     assert (artifact_dir / 'demo_candidate_structure_generation_seeds.csv').exists()
     assert (artifact_dir / 'demo_candidate_structure_generation_handoff.json').exists()
     assert (artifact_dir / 'demo_candidate_structure_generation_reference_records.json').exists()

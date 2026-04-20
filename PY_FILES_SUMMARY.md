@@ -21,9 +21,9 @@ What it does, in order:
 8. benchmarks all configured combos on `test`
 9. runs grouped-by-formula robustness benchmarking across configured combos
 10. runs a dedicated BN-focused leave-one-BN-formula-out benchmark across configured combos plus baselines
-11. builds formula-only candidate uncertainty stats
+11. builds full-fit candidate-member predictions plus grouped-fold candidate-member predictions for ranking-stability analysis
 12. ranks candidates with the best candidate-compatible combo
-13. writes metrics / plots / benchmark / robustness / BN-benchmark / ranking / shortlist artifacts
+13. writes metrics / plots / benchmark / robustness / BN-benchmark / ranking / uncertainty / abstention / shortlist artifacts
 
 Important:
 - overall evaluation combo and formula-only screening combo may differ
@@ -497,6 +497,9 @@ Useful output columns include:
 - `screening_matches_best_overall_evaluation`
 - `screening_selection_note`
 
+Note:
+- ranking-stability columns such as `predicted_band_gap_mean/std`, `rank_mean/std`, `top_3_selection_frequency`, `abstain_flag`, `reason_for_abstention`, and `final_action_label` are added downstream in `reporting.py` so they can aggregate multiple prediction-member sources without overloading the ranking function itself.
+
 ---
 
 ## src/pipeline/reporting.py
@@ -522,17 +525,22 @@ Important:
 - now also summarizes whether the BN analog-validation proxy is active in ranking and how many rows were penalized
 - now also summarizes grouped-by-formula robustness results for the selected model, screening fallback, and dummy baseline
 - now also summarizes the BN-slice benchmark, including standard-split BN row placement, selected/screening/baseline BN metrics, and the current BN-slice best configured combo
-- now also summarizes the BN-centered alternative ranking view, including the chosen candidate-compatible combo, rank-shift statistics, and top-k overlap against the default ranking
+- now also summarizes the BN-centered alternative ranking view, including the chosen candidate-compatible combo, rank-shift statistics, Spearman / Kendall correlation, and top-k overlap against the default ranking
+- now also summarizes the ranking-stability / uncertainty layer, including source count, prediction interval settings, rank-spread thresholds, and the `demo_candidate_ranking_uncertainty.csv` artifact path
+- now also summarizes the heuristic decision policy / abstention layer, including abstained candidate count and final action counts
+- now also summarizes the BN-slice candidate-compatible evaluation view and the `bn_candidate_compatible_evaluation.csv` artifact path
 - now also summarizes the structure-generation bridge artifact, including seeded candidate count, seed row count, unique BN reference prototype count, the JSON handoff artifact path, the reference-record payload artifact path, the job-plan artifact path, the first-pass queue artifact path, the candidate-level follow-up shortlist artifact path, and the novelty-aware follow-up extrapolation shortlist artifact path plus job-action counts / complexity stats
 - now also summarizes grouped candidate-robustness penalty settings, fold count, average spread, and penalized-row count
 - now also summarizes the family-aware proposal shortlist and the formula-level extrapolation shortlist as separate advisor-facing outputs
 
 ### `save_metrics_and_predictions(metrics, prediction_df, bn_df, screened_df, benchmark_df, robustness_df, bn_slice_benchmark_df, bn_slice_prediction_df, bn_centered_screened_df, structure_generation_seed_df, experiment_summary, manifest, cfg)`
 Writes the main artifact files under `artifacts/`.
-This now includes both shortlist CSVs, BN-slice benchmark artifacts, the BN-centered alternative ranking artifact, and the structure-generation bridge artifacts in addition to the full ranking artifact:
+This now includes both shortlist CSVs, BN-slice benchmark artifacts, the BN-centered alternative ranking artifact, the ranking-stability / abstention artifact, the BN candidate-compatible evaluation artifact, and the structure-generation bridge artifacts in addition to the full ranking artifact:
 - `bn_slice_benchmark_results.csv`
 - `bn_slice_predictions.csv`
+- `bn_candidate_compatible_evaluation.csv`
 - `demo_candidate_bn_centered_ranking.csv`
+- `demo_candidate_ranking_uncertainty.csv`
 - `demo_candidate_structure_generation_seeds.csv`
 - `demo_candidate_structure_generation_handoff.json`
 - `demo_candidate_structure_generation_reference_records.json`
@@ -558,9 +566,11 @@ It is a simple artifact viewer for:
 - `robustness_results.csv`
 - `bn_slice_benchmark_results.csv`
 - `bn_slice_predictions.csv`
+- `bn_candidate_compatible_evaluation.csv`
 - `predictions.csv`
 - `demo_candidate_ranking.csv`
 - `demo_candidate_bn_centered_ranking.csv`
+- `demo_candidate_ranking_uncertainty.csv`
 - `demo_candidate_structure_generation_seeds.csv`
 - `demo_candidate_structure_generation_handoff.json`
 - `demo_candidate_structure_generation_reference_records.json`

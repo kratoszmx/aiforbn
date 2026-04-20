@@ -1,6 +1,9 @@
 import copy
+import inspect
 from pathlib import Path
 import sys
+
+import pandas as pd
 
 ROOT = Path(__file__).resolve().parent
 SRC_DIR = ROOT / 'src'
@@ -13,8 +16,10 @@ from pipeline.features import (
     benchmark_bn_slice,
     benchmark_grouped_robustness,
     benchmark_regressors,
+    build_candidate_grouped_robustness_prediction_members,
     build_candidate_grouped_robustness_predictions,
     build_candidate_prediction_ensemble,
+    build_candidate_prediction_members,
     build_candidate_structure_generation_seeds,
     build_feature_tables,
     evaluate_predictions,
@@ -119,12 +124,27 @@ def main() -> None:
             model_type=ranking_model_type,
             include_validation=True,
         )
+    candidate_prediction_member_df = build_candidate_prediction_members(
+        candidate_df,
+        feature_tables,
+        split_masks,
+        cfg,
+        candidate_feature_sets=selection_summary.get('screening_candidate_feature_sets'),
+    )
     candidate_ensemble_df = build_candidate_prediction_ensemble(
         candidate_df,
         feature_tables,
         split_masks,
         cfg,
         candidate_feature_sets=selection_summary.get('screening_candidate_feature_sets'),
+    )
+    candidate_grouped_robustness_member_df = build_candidate_grouped_robustness_prediction_members(
+        candidate_df,
+        ranking_feature_df,
+        split_masks,
+        cfg,
+        feature_set=ranking_feature_set,
+        model_type=ranking_model_type,
     )
     candidate_grouped_robustness_df = build_candidate_grouped_robustness_predictions(
         candidate_df,
@@ -153,6 +173,7 @@ def main() -> None:
     )
 
     bn_centered_ranked_candidate_df = None
+    bn_centered_grouped_robustness_member_df = pd.DataFrame()
     if bool(bn_centered_screening_selection.get('enabled')):
         bn_centered_feature_set = str(bn_centered_screening_selection['feature_set'])
         bn_centered_model_type = str(bn_centered_screening_selection['model_type'])
@@ -171,6 +192,16 @@ def main() -> None:
                 model_type=bn_centered_model_type,
                 include_validation=True,
             )
+        bn_centered_grouped_robustness_member_df = (
+            build_candidate_grouped_robustness_prediction_members(
+                candidate_df,
+                bn_centered_feature_df,
+                split_masks,
+                cfg,
+                feature_set=bn_centered_feature_set,
+                model_type=bn_centered_model_type,
+            )
+        )
         bn_centered_grouped_robustness_df = build_candidate_grouped_robustness_predictions(
             candidate_df,
             bn_centered_feature_df,
@@ -205,35 +236,53 @@ def main() -> None:
         bn_centered_candidate_df=bn_centered_ranked_candidate_df,
         formula_col=cfg['data']['formula_column'],
     )
-    experiment_summary = build_experiment_summary(
-        dataset_df=dataset_df,
-        bn_df=bn_df,
-        candidate_df=ranked_candidate_df,
-        split_masks=split_masks,
-        selection_summary=selection_summary,
-        robustness_df=robustness_df,
-        bn_slice_benchmark_df=bn_slice_benchmark_df,
-        bn_centered_candidate_df=bn_centered_ranked_candidate_df,
-        bn_centered_screening_selection=bn_centered_screening_selection,
-        structure_generation_seed_df=structure_generation_seed_df,
-        cfg=cfg,
-    )
+    summary_kwargs = {
+        'dataset_df': dataset_df,
+        'bn_df': bn_df,
+        'candidate_df': ranked_candidate_df,
+        'split_masks': split_masks,
+        'selection_summary': selection_summary,
+        'robustness_df': robustness_df,
+        'bn_slice_benchmark_df': bn_slice_benchmark_df,
+        'bn_centered_candidate_df': bn_centered_ranked_candidate_df,
+        'bn_centered_screening_selection': bn_centered_screening_selection,
+        'structure_generation_seed_df': structure_generation_seed_df,
+        'candidate_prediction_member_df': candidate_prediction_member_df,
+        'candidate_grouped_robustness_member_df': candidate_grouped_robustness_member_df,
+        'bn_centered_grouped_robustness_member_df': bn_centered_grouped_robustness_member_df,
+        'cfg': cfg,
+    }
+    supported_summary_kwargs = {
+        key: value
+        for key, value in summary_kwargs.items()
+        if key in inspect.signature(build_experiment_summary).parameters
+    }
+    experiment_summary = build_experiment_summary(**supported_summary_kwargs)
 
-    save_metrics_and_predictions(
-        metrics,
-        prediction_df,
-        bn_df,
-        ranked_candidate_df,
-        benchmark_df,
-        robustness_df,
-        bn_slice_benchmark_df,
-        bn_slice_prediction_df,
-        bn_centered_ranked_candidate_df,
-        structure_generation_seed_df,
-        experiment_summary,
-        manifest,
-        cfg,
-    )
+    save_kwargs = {
+        'metrics': metrics,
+        'prediction_df': prediction_df,
+        'bn_df': bn_df,
+        'screened_df': ranked_candidate_df,
+        'benchmark_df': benchmark_df,
+        'robustness_df': robustness_df,
+        'bn_slice_benchmark_df': bn_slice_benchmark_df,
+        'bn_slice_prediction_df': bn_slice_prediction_df,
+        'bn_centered_screened_df': bn_centered_ranked_candidate_df,
+        'structure_generation_seed_df': structure_generation_seed_df,
+        'experiment_summary': experiment_summary,
+        'manifest': manifest,
+        'cfg': cfg,
+        'candidate_prediction_member_df': candidate_prediction_member_df,
+        'candidate_grouped_robustness_member_df': candidate_grouped_robustness_member_df,
+        'bn_centered_grouped_robustness_member_df': bn_centered_grouped_robustness_member_df,
+    }
+    supported_save_kwargs = {
+        key: value
+        for key, value in save_kwargs.items()
+        if key in inspect.signature(save_metrics_and_predictions).parameters
+    }
+    save_metrics_and_predictions(**supported_save_kwargs)
     save_basic_plots(prediction_df, cfg)
 
     print('=== BN AI PoC pipeline completed ===')

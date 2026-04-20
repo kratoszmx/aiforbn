@@ -246,6 +246,32 @@ CONFIG = {
                 'planning artifact, not a discovery proof.'
             ),
         },
+        'ranking_stability': {
+            'enabled': True,
+            'top_k_values': [3, 5, 10],
+            'prediction_interval_lower_quantile': 0.1,
+            'prediction_interval_upper_quantile': 0.9,
+            'note': (
+                'Summarizes candidate-level prediction and rank stability across full-fit '
+                'candidate-compatible models plus grouped-fold ranking views. This is a '
+                'ranking-honesty layer, not a calibrated discovery-confidence estimate.'
+            ),
+        },
+        'decision_policy': {
+            'enabled': True,
+            'global_support_abstain_below_percentile': 25.0,
+            'bn_support_abstain_below_percentile': 25.0,
+            'prediction_std_above_quantile': 0.75,
+            'rank_std_above_quantile': 0.75,
+            'minimum_top_10_selection_frequency': 0.5,
+            'note': (
+                'Turns the formula-level ranking into a lightweight decision policy by combining '
+                'chemical plausibility, domain support, BN-local support, prediction/rank '
+                'instability, novelty, and prototype readiness into abstention flags plus '
+                'action labels. This remains heuristic and should not be read as validated '
+                'discovery confidence.'
+            ),
+        },
     },
     'llm': {
         'enabled': False,

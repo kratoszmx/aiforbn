@@ -147,6 +147,65 @@ def _structure_followup_extrapolation_shortlist_config(cfg: dict | None = None) 
     return out
 
 
+def _ranking_stability_config(cfg: dict | None = None) -> dict[str, object]:
+    screening_cfg = {} if cfg is None else cfg.get('screening', {})
+    stability_cfg = screening_cfg.get('ranking_stability', {})
+    top_k_values = [int(value) for value in stability_cfg.get('top_k_values', [3, 5, 10])]
+    top_k_values = sorted({value for value in top_k_values if value > 0})
+    if not top_k_values:
+        raise ValueError('ranking_stability.top_k_values must contain at least one positive integer')
+    lower_quantile = float(stability_cfg.get('prediction_interval_lower_quantile', 0.1))
+    upper_quantile = float(stability_cfg.get('prediction_interval_upper_quantile', 0.9))
+    if not 0.0 <= lower_quantile < upper_quantile <= 1.0:
+        raise ValueError('ranking_stability prediction interval quantiles must satisfy 0 <= lower < upper <= 1')
+    return {
+        'enabled': bool(stability_cfg.get('enabled', True)),
+        'top_k_values': top_k_values,
+        'prediction_interval_lower_quantile': lower_quantile,
+        'prediction_interval_upper_quantile': upper_quantile,
+        'note': str(
+            stability_cfg.get(
+                'note',
+                'Summarizes prediction and rank stability across candidate-compatible full-fit '
+                'models plus grouped-fold ranking views. This is a ranking-honesty layer, not a '
+                'calibrated discovery-confidence estimate.'
+            )
+        ),
+    }
+
+
+
+def _decision_policy_config(cfg: dict | None = None) -> dict[str, object]:
+    screening_cfg = {} if cfg is None else cfg.get('screening', {})
+    policy_cfg = screening_cfg.get('decision_policy', {})
+    return {
+        'enabled': bool(policy_cfg.get('enabled', True)),
+        'global_support_abstain_below_percentile': float(
+            policy_cfg.get('global_support_abstain_below_percentile', 25.0)
+        ),
+        'bn_support_abstain_below_percentile': float(
+            policy_cfg.get('bn_support_abstain_below_percentile', 25.0)
+        ),
+        'prediction_std_above_quantile': float(
+            policy_cfg.get('prediction_std_above_quantile', 0.75)
+        ),
+        'rank_std_above_quantile': float(policy_cfg.get('rank_std_above_quantile', 0.75)),
+        'minimum_top_10_selection_frequency': float(
+            policy_cfg.get('minimum_top_10_selection_frequency', 0.5)
+        ),
+        'note': str(
+            policy_cfg.get(
+                'note',
+                'Turns candidate ranking into a lightweight decision policy by combining '
+                'chemical plausibility, domain support, BN-local support, prediction/rank '
+                'instability, and prototype readiness into abstention flags plus action labels. '
+                'This remains heuristic and should not be interpreted as validated discovery '
+                'confidence.'
+            )
+        ),
+    }
+
+
 def _robustness_row_payload(robustness_df: pd.DataFrame, mask) -> dict | None:
     if robustness_df.empty:
         return None
@@ -199,6 +258,8 @@ def _candidate_ranking_comparison_payload(
             'mean_absolute_rank_shift': None,
             'max_absolute_rank_shift': None,
             'max_absolute_rank_shift_formula': None,
+            'spearman_rank_correlation': None,
+            'kendall_tau': None,
         }
 
     top_k = max(int(top_k), 1)
@@ -233,10 +294,25 @@ def _candidate_ranking_comparison_payload(
     )
     max_absolute_rank_shift = None
     max_absolute_rank_shift_formula = None
+    spearman_rank_correlation = None
+    kendall_tau = None
     if not rank_comparison_df.empty:
         max_idx = rank_comparison_df['absolute_rank_shift'].idxmax()
         max_absolute_rank_shift = float(rank_comparison_df.loc[max_idx, 'absolute_rank_shift'])
         max_absolute_rank_shift_formula = str(rank_comparison_df.loc[max_idx, formula_col])
+        if len(rank_comparison_df) > 1:
+            spearman_value = rank_comparison_df['general_ranking_rank'].corr(
+                rank_comparison_df['bn_centered_ranking_rank'],
+                method='spearman',
+            )
+            kendall_value = rank_comparison_df['general_ranking_rank'].corr(
+                rank_comparison_df['bn_centered_ranking_rank'],
+                method='kendall',
+            )
+            spearman_rank_correlation = (
+                float(spearman_value) if pd.notna(spearman_value) else None
+            )
+            kendall_tau = float(kendall_value) if pd.notna(kendall_value) else None
 
     return {
         'top_k': int(top_k),
@@ -249,7 +325,419 @@ def _candidate_ranking_comparison_payload(
         'mean_absolute_rank_shift': mean_absolute_rank_shift,
         'max_absolute_rank_shift': max_absolute_rank_shift,
         'max_absolute_rank_shift_formula': max_absolute_rank_shift_formula,
+        'spearman_rank_correlation': spearman_rank_correlation,
+        'kendall_tau': kendall_tau,
     }
+
+
+def _build_bn_candidate_compatible_evaluation_table(
+    bn_slice_benchmark_df: pd.DataFrame,
+) -> pd.DataFrame:
+    columns = [
+        'benchmark_role',
+        'feature_set',
+        'feature_family',
+        'model_type',
+        'candidate_compatible',
+        'selected_by_validation',
+        'bn_slice_train_scope',
+        'bn_formula_count',
+        'bn_row_count',
+        'completed_holds',
+        'mae',
+        'rmse',
+        'r2',
+        'global_dummy_mae',
+        'mae_minus_global_dummy',
+        'beats_global_dummy',
+        'screening_eligible',
+        'is_best_candidate_compatible',
+    ]
+    if bn_slice_benchmark_df is None or bn_slice_benchmark_df.empty:
+        return pd.DataFrame(columns=columns)
+
+    evaluation_df = bn_slice_benchmark_df.copy()
+    if 'candidate_compatible' not in evaluation_df.columns:
+        evaluation_df['candidate_compatible'] = evaluation_df['feature_set'].astype(str).map(
+            feature_set_supports_formula_only_screening
+        )
+    evaluation_df['screening_eligible'] = (
+        evaluation_df['candidate_compatible'].fillna(False).astype(bool)
+        | evaluation_df['benchmark_role'].astype(str).isin(
+            ['global_dummy_mean_baseline', 'bn_local_reference_baseline']
+        )
+    )
+    evaluation_df = evaluation_df.loc[
+        evaluation_df['screening_eligible'].fillna(False).astype(bool)
+    ].copy()
+    if evaluation_df.empty:
+        return pd.DataFrame(columns=columns)
+
+    global_dummy_mae = None
+    global_dummy_rows = evaluation_df.loc[
+        evaluation_df['benchmark_role'].astype(str).eq('global_dummy_mean_baseline')
+        & evaluation_df['mae'].notna()
+    ]
+    if not global_dummy_rows.empty:
+        global_dummy_mae = float(global_dummy_rows.iloc[0]['mae'])
+    evaluation_df['global_dummy_mae'] = global_dummy_mae
+    evaluation_df['mae_minus_global_dummy'] = np.nan
+    evaluation_df['beats_global_dummy'] = False
+    if global_dummy_mae is not None:
+        evaluation_df['mae_minus_global_dummy'] = (
+            pd.to_numeric(evaluation_df['mae'], errors='coerce') - global_dummy_mae
+        )
+        evaluation_df['beats_global_dummy'] = (
+            pd.to_numeric(evaluation_df['mae'], errors='coerce') < global_dummy_mae
+        )
+
+    evaluation_df['is_best_candidate_compatible'] = False
+    candidate_rows = evaluation_df.loc[
+        evaluation_df['candidate_compatible'].fillna(False).astype(bool)
+        & ~evaluation_df['benchmark_role'].astype(str).isin(
+            ['global_dummy_mean_baseline', 'bn_local_reference_baseline']
+        )
+        & evaluation_df['mae'].notna()
+    ].copy()
+    if not candidate_rows.empty:
+        best_idx = candidate_rows['mae'].astype(float).idxmin()
+        evaluation_df.loc[best_idx, 'is_best_candidate_compatible'] = True
+
+    evaluation_df = evaluation_df.sort_values(
+        ['screening_eligible', 'candidate_compatible', 'mae', 'benchmark_role', 'feature_set', 'model_type'],
+        ascending=[False, False, True, True, True, True],
+        kind='stable',
+    ).reset_index(drop=True)
+    for column in columns:
+        if column not in evaluation_df.columns:
+            evaluation_df[column] = pd.NA
+    return evaluation_df[columns]
+
+
+
+def _quantile_from_group(values: pd.Series, quantile: float) -> float | None:
+    numeric_values = pd.to_numeric(values, errors='coerce').dropna()
+    if numeric_values.empty:
+        return None
+    return float(numeric_values.quantile(quantile))
+
+
+
+def _build_candidate_ranking_source_predictions(
+    candidate_prediction_member_df: pd.DataFrame | None,
+    candidate_grouped_robustness_member_df: pd.DataFrame | None,
+    bn_centered_grouped_robustness_member_df: pd.DataFrame | None,
+    *,
+    formula_col: str,
+) -> pd.DataFrame:
+    frames: list[pd.DataFrame] = []
+    for source_df, source_family in (
+        (candidate_prediction_member_df, 'candidate_full_fit'),
+        (candidate_grouped_robustness_member_df, 'default_group_kfold'),
+        (bn_centered_grouped_robustness_member_df, 'bn_centered_group_kfold'),
+    ):
+        if source_df is None or source_df.empty:
+            continue
+        working_df = source_df.copy()
+        if formula_col not in working_df.columns and 'formula' in working_df.columns:
+            working_df[formula_col] = working_df['formula'].astype(str)
+        working_df[formula_col] = working_df[formula_col].astype(str)
+        if 'prediction_source' not in working_df.columns:
+            working_df['prediction_source'] = source_family
+        if 'prediction_source_family' not in working_df.columns:
+            working_df['prediction_source_family'] = source_family
+        frames.append(
+            working_df[[
+                formula_col,
+                'prediction_source',
+                'prediction_source_family',
+                'feature_set',
+                'model_type',
+                'prediction',
+            ]].copy()
+        )
+    if not frames:
+        return pd.DataFrame(
+            columns=[
+                formula_col,
+                'prediction_source',
+                'prediction_source_family',
+                'feature_set',
+                'model_type',
+                'prediction',
+                'source_rank',
+            ]
+        )
+    prediction_df = pd.concat(frames, ignore_index=True)
+    prediction_df = prediction_df.sort_values(
+        ['prediction_source', 'prediction', formula_col],
+        ascending=[True, False, True],
+        kind='stable',
+    ).reset_index(drop=True)
+    prediction_df['source_rank'] = prediction_df.groupby('prediction_source').cumcount() + 1
+    return prediction_df
+
+
+
+def _candidate_ranking_uncertainty_table(
+    candidate_df: pd.DataFrame,
+    *,
+    formula_col: str,
+    cfg: dict,
+    candidate_prediction_member_df: pd.DataFrame | None = None,
+    candidate_grouped_robustness_member_df: pd.DataFrame | None = None,
+    bn_centered_grouped_robustness_member_df: pd.DataFrame | None = None,
+    bn_centered_candidate_df: pd.DataFrame | None = None,
+    structure_followup_shortlist_df: pd.DataFrame | None = None,
+) -> tuple[pd.DataFrame, dict[str, object]]:
+    stability_cfg = _ranking_stability_config(cfg)
+    decision_cfg = _decision_policy_config(cfg)
+    top_k_reference = int((cfg.get('screening') or {}).get('top_k', 10))
+    requested_top_k_values = sorted({*stability_cfg['top_k_values'], top_k_reference})
+    source_prediction_df = _build_candidate_ranking_source_predictions(
+        candidate_prediction_member_df,
+        candidate_grouped_robustness_member_df,
+        bn_centered_grouped_robustness_member_df,
+        formula_col=formula_col,
+    )
+    if candidate_df is None or candidate_df.empty:
+        return pd.DataFrame(), {
+            'source_count': 0,
+            'top_k_reference': top_k_reference,
+            'top_k_values': requested_top_k_values,
+            'prediction_std_abstain_threshold': None,
+            'rank_std_abstain_threshold': None,
+            'abstained_candidate_count': 0,
+            'final_action_counts': {},
+        }
+
+    summary_df = candidate_df.copy()
+    summary_df[formula_col] = summary_df[formula_col].astype(str)
+    selected_columns = [
+        formula_col,
+        'ranking_rank',
+        'ranking_score',
+        'predicted_band_gap',
+        'ensemble_predicted_band_gap_mean',
+        'ensemble_predicted_band_gap_std',
+        'grouped_robustness_predicted_band_gap_mean',
+        'grouped_robustness_predicted_band_gap_std',
+        'domain_support_percentile',
+        'domain_support_mean_k_distance',
+        'bn_support_percentile',
+        'bn_support_mean_k_distance',
+        'chemical_plausibility_pass',
+        'candidate_novelty_bucket',
+        'proposal_shortlist_selected',
+        'proposal_shortlist_rank',
+        'extrapolation_shortlist_selected',
+        'extrapolation_shortlist_rank',
+    ]
+    selected_columns = [column for column in selected_columns if column in summary_df.columns]
+    summary_df = summary_df[selected_columns].copy()
+
+    if not source_prediction_df.empty:
+        aggregated_df = source_prediction_df.groupby(formula_col, as_index=False).agg(
+            ranking_source_count=('prediction_source', 'nunique'),
+            predicted_band_gap_mean=('prediction', 'mean'),
+            predicted_band_gap_std=('prediction', 'std'),
+            rank_mean=('source_rank', 'mean'),
+            rank_std=('source_rank', 'std'),
+            rank_min=('source_rank', 'min'),
+            rank_max=('source_rank', 'max'),
+        )
+        aggregated_df['predicted_band_gap_std'] = (
+            aggregated_df['predicted_band_gap_std'].fillna(0.0).astype(float)
+        )
+        aggregated_df['rank_std'] = aggregated_df['rank_std'].fillna(0.0).astype(float)
+        lower_quantile = float(stability_cfg['prediction_interval_lower_quantile'])
+        upper_quantile = float(stability_cfg['prediction_interval_upper_quantile'])
+        lower_df = (
+            source_prediction_df.groupby(formula_col)['prediction']
+            .apply(lambda values: _quantile_from_group(values, lower_quantile))
+            .reset_index(name='predicted_band_gap_interval_lower')
+        )
+        upper_df = (
+            source_prediction_df.groupby(formula_col)['prediction']
+            .apply(lambda values: _quantile_from_group(values, upper_quantile))
+            .reset_index(name='predicted_band_gap_interval_upper')
+        )
+        aggregated_df = aggregated_df.merge(lower_df, on=formula_col, how='left').merge(
+            upper_df,
+            on=formula_col,
+            how='left',
+        )
+        for top_k in requested_top_k_values:
+            selection_df = (
+                source_prediction_df.assign(
+                    _selected=source_prediction_df['source_rank'].le(int(top_k)).astype(float)
+                )
+                .groupby(formula_col, as_index=False)['_selected']
+                .mean()
+                .rename(columns={'_selected': f'top_{int(top_k)}_selection_frequency'})
+            )
+            aggregated_df = aggregated_df.merge(selection_df, on=formula_col, how='left')
+        summary_df = summary_df.merge(aggregated_df, on=formula_col, how='left')
+    else:
+        summary_df['ranking_source_count'] = 0
+        predicted_mean_series = summary_df.get('ensemble_predicted_band_gap_mean')
+        if predicted_mean_series is None:
+            predicted_mean_series = summary_df.get(
+                'predicted_band_gap',
+                pd.Series(np.nan, index=summary_df.index, dtype=float),
+            )
+        predicted_mean_series = pd.to_numeric(predicted_mean_series, errors='coerce')
+        predicted_std_series = summary_df.get('ensemble_predicted_band_gap_std')
+        if predicted_std_series is None:
+            predicted_std_series = pd.Series(0.0, index=summary_df.index, dtype=float)
+        predicted_std_series = pd.to_numeric(predicted_std_series, errors='coerce').fillna(0.0)
+        rank_series = pd.to_numeric(
+            summary_df.get('ranking_rank', pd.Series(np.nan, index=summary_df.index, dtype=float)),
+            errors='coerce',
+        )
+        summary_df['predicted_band_gap_mean'] = predicted_mean_series
+        summary_df['predicted_band_gap_std'] = predicted_std_series
+        summary_df['predicted_band_gap_interval_lower'] = summary_df['predicted_band_gap_mean']
+        summary_df['predicted_band_gap_interval_upper'] = summary_df['predicted_band_gap_mean']
+        summary_df['rank_mean'] = rank_series
+        summary_df['rank_std'] = 0.0
+        summary_df['rank_min'] = rank_series
+        summary_df['rank_max'] = rank_series
+        for top_k in requested_top_k_values:
+            summary_df[f'top_{int(top_k)}_selection_frequency'] = rank_series.le(int(top_k)).astype(float)
+
+    if bn_centered_candidate_df is not None and not bn_centered_candidate_df.empty:
+        bn_centered_df = bn_centered_candidate_df[[formula_col, 'ranking_rank']].copy()
+        bn_centered_df[formula_col] = bn_centered_df[formula_col].astype(str)
+        bn_centered_df = bn_centered_df.rename(columns={'ranking_rank': 'bn_centered_ranking_rank'})
+        summary_df = summary_df.merge(bn_centered_df, on=formula_col, how='left')
+    else:
+        summary_df['bn_centered_ranking_rank'] = pd.NA
+
+    if structure_followup_shortlist_df is not None and not structure_followup_shortlist_df.empty:
+        followup_columns = [
+            formula_col,
+            'structure_followup_priority_score',
+            'structure_followup_best_queue_rank',
+            'structure_followup_best_action_label',
+            'structure_followup_readiness_label',
+            'structure_followup_shortlist_selected',
+            'structure_followup_shortlist_rank',
+        ]
+        available_columns = [column for column in followup_columns if column in structure_followup_shortlist_df.columns]
+        followup_df = structure_followup_shortlist_df[available_columns].copy()
+        followup_df[formula_col] = followup_df[formula_col].astype(str)
+        summary_df = summary_df.merge(followup_df, on=formula_col, how='left')
+    else:
+        summary_df['structure_followup_priority_score'] = np.nan
+        summary_df['structure_followup_best_queue_rank'] = np.nan
+        summary_df['structure_followup_best_action_label'] = pd.NA
+        summary_df['structure_followup_readiness_label'] = pd.NA
+        summary_df['structure_followup_shortlist_selected'] = False
+        summary_df['structure_followup_shortlist_rank'] = pd.NA
+
+    top_10_frequency_column = 'top_10_selection_frequency'
+    if top_10_frequency_column not in summary_df.columns:
+        fallback_top_k = requested_top_k_values[-1]
+        top_10_frequency_column = f'top_{int(fallback_top_k)}_selection_frequency'
+
+    prediction_std_threshold = None
+    rank_std_threshold = None
+    numeric_prediction_std = pd.to_numeric(summary_df['predicted_band_gap_std'], errors='coerce').dropna()
+    if not numeric_prediction_std.empty:
+        prediction_std_threshold = float(
+            numeric_prediction_std.quantile(float(decision_cfg['prediction_std_above_quantile']))
+        )
+    numeric_rank_std = pd.to_numeric(summary_df['rank_std'], errors='coerce').dropna()
+    if not numeric_rank_std.empty:
+        rank_std_threshold = float(
+            numeric_rank_std.quantile(float(decision_cfg['rank_std_above_quantile']))
+        )
+
+    abstain_reasons = []
+    abstain_flags = []
+    final_action_labels = []
+    for _, row in summary_df.iterrows():
+        chemical_plausibility_pass = bool(row.get('chemical_plausibility_pass', True))
+        candidate_novelty_bucket = str(row.get('candidate_novelty_bucket', ''))
+        reasons: list[str] = []
+        domain_support_percentile = pd.to_numeric(
+            pd.Series([row.get('domain_support_percentile')]), errors='coerce'
+        ).iloc[0]
+        bn_support_percentile = pd.to_numeric(
+            pd.Series([row.get('bn_support_percentile')]), errors='coerce'
+        ).iloc[0]
+        prediction_std_value = pd.to_numeric(
+            pd.Series([row.get('predicted_band_gap_std')]), errors='coerce'
+        ).iloc[0]
+        rank_std_value = pd.to_numeric(pd.Series([row.get('rank_std')]), errors='coerce').iloc[0]
+        top_10_frequency = pd.to_numeric(
+            pd.Series([row.get(top_10_frequency_column)]), errors='coerce'
+        ).iloc[0]
+        if chemical_plausibility_pass:
+            if pd.notna(domain_support_percentile) and (
+                float(domain_support_percentile)
+                < float(decision_cfg['global_support_abstain_below_percentile'])
+            ):
+                reasons.append('outside_global_support')
+            if pd.notna(bn_support_percentile) and (
+                float(bn_support_percentile)
+                < float(decision_cfg['bn_support_abstain_below_percentile'])
+            ):
+                reasons.append('outside_bn_local_support')
+            if prediction_std_threshold is not None and pd.notna(prediction_std_value) and (
+                float(prediction_std_value) > prediction_std_threshold
+            ):
+                reasons.append('high_prediction_uncertainty')
+            if rank_std_threshold is not None and pd.notna(rank_std_value) and (
+                float(rank_std_value) > rank_std_threshold
+            ):
+                reasons.append('high_rank_instability')
+            if pd.notna(top_10_frequency) and (
+                float(top_10_frequency) < float(decision_cfg['minimum_top_10_selection_frequency'])
+            ):
+                reasons.append('low_top_10_selection_frequency')
+        abstain_flag = bool(chemical_plausibility_pass and len(reasons) > 0)
+        if not chemical_plausibility_pass:
+            final_action_label = 'reject_formula_level'
+        elif candidate_novelty_bucket == NOVELTY_BUCKET_TRAIN_PLUS_VAL_REDISCOVERY:
+            final_action_label = 'reuse_reference_control'
+        elif abstain_flag:
+            final_action_label = 'abstain_model_unreliable'
+        elif bool(row.get('structure_followup_shortlist_selected', False)):
+            final_action_label = 'low_risk_followup'
+        else:
+            final_action_label = 'uncertain_but_interesting'
+        abstain_reasons.append('|'.join(reasons))
+        abstain_flags.append(abstain_flag)
+        final_action_labels.append(final_action_label)
+
+    summary_df['abstain_flag'] = abstain_flags
+    summary_df['reason_for_abstention'] = abstain_reasons
+    summary_df['final_action_label'] = final_action_labels
+    if 'ranking_rank' not in summary_df.columns:
+        summary_df['ranking_rank'] = np.arange(1, len(summary_df) + 1, dtype=int)
+    summary_df = summary_df.sort_values(
+        ['ranking_rank', formula_col],
+        ascending=[True, True],
+        kind='stable',
+    ).reset_index(drop=True)
+
+    final_action_counts = summary_df['final_action_label'].value_counts().to_dict()
+    final_action_counts = {str(key): int(value) for key, value in final_action_counts.items()}
+    summary = {
+        'source_count': int(source_prediction_df['prediction_source'].nunique()) if not source_prediction_df.empty else 0,
+        'top_k_reference': top_k_reference,
+        'top_k_values': [int(value) for value in requested_top_k_values],
+        'prediction_interval_lower_quantile': float(stability_cfg['prediction_interval_lower_quantile']),
+        'prediction_interval_upper_quantile': float(stability_cfg['prediction_interval_upper_quantile']),
+        'prediction_std_abstain_threshold': prediction_std_threshold,
+        'rank_std_abstain_threshold': rank_std_threshold,
+        'abstained_candidate_count': int(summary_df['abstain_flag'].fillna(False).astype(bool).sum()),
+        'final_action_counts': final_action_counts,
+    }
+    return summary_df, summary
+
 
 
 def _bn_slice_benchmark_row_payload(bn_slice_benchmark_df: pd.DataFrame, mask) -> dict | None:
@@ -1317,6 +1805,9 @@ def build_experiment_summary(
     bn_centered_candidate_df=None,
     bn_centered_screening_selection=None,
     structure_generation_seed_df=None,
+    candidate_prediction_member_df=None,
+    candidate_grouped_robustness_member_df=None,
+    bn_centered_grouped_robustness_member_df=None,
 ):
     formula_col = cfg['data']['formula_column']
     target_col = cfg['data']['target_column']
@@ -1366,6 +1857,19 @@ def build_experiment_summary(
     bn_centered_screening_selection = dict(bn_centered_screening_selection or {})
     structure_generation_seed_df = (
         pd.DataFrame() if structure_generation_seed_df is None else structure_generation_seed_df.copy()
+    )
+    candidate_prediction_member_df = (
+        pd.DataFrame() if candidate_prediction_member_df is None else candidate_prediction_member_df.copy()
+    )
+    candidate_grouped_robustness_member_df = (
+        pd.DataFrame()
+        if candidate_grouped_robustness_member_df is None
+        else candidate_grouped_robustness_member_df.copy()
+    )
+    bn_centered_grouped_robustness_member_df = (
+        pd.DataFrame()
+        if bn_centered_grouped_robustness_member_df is None
+        else bn_centered_grouped_robustness_member_df.copy()
     )
 
     plausibility_pass_count = None
@@ -1813,6 +2317,9 @@ def build_experiment_summary(
         'mean_absolute_rank_shift': None,
         'max_absolute_rank_shift': None,
         'max_absolute_rank_shift_formula': None,
+        'spearman_rank_correlation': None,
+        'kendall_tau': None,
+        'comparison_top_k_views': {},
     }
     if not bn_centered_candidate_df.empty:
         if 'ranking_basis' in bn_centered_candidate_df.columns:
@@ -1932,6 +2439,35 @@ def build_experiment_summary(
             else []
         )
 
+    bn_candidate_compatible_evaluation_df = _build_bn_candidate_compatible_evaluation_table(
+        bn_slice_benchmark_df
+    )
+    candidate_ranking_uncertainty_df, candidate_ranking_uncertainty_summary = (
+        _candidate_ranking_uncertainty_table(
+            candidate_df,
+            formula_col=formula_col,
+            cfg=cfg,
+            candidate_prediction_member_df=candidate_prediction_member_df,
+            candidate_grouped_robustness_member_df=candidate_grouped_robustness_member_df,
+            bn_centered_grouped_robustness_member_df=bn_centered_grouped_robustness_member_df,
+            bn_centered_candidate_df=bn_centered_candidate_df,
+            structure_followup_shortlist_df=(
+                selected_followup_df if 'selected_followup_df' in locals() else pd.DataFrame()
+            ),
+        )
+    )
+    ranking_stability_cfg = _ranking_stability_config(cfg)
+    decision_policy_cfg = _decision_policy_config(cfg)
+    bn_centered_top_k_views = {}
+    for top_k_value in ranking_stability_cfg['top_k_values']:
+        bn_centered_top_k_views[f'top_{int(top_k_value)}'] = _candidate_ranking_comparison_payload(
+            candidate_df,
+            bn_centered_candidate_df,
+            formula_col=formula_col,
+            top_k=int(top_k_value),
+        )
+    bn_centered_summary['comparison_top_k_views'] = bn_centered_top_k_views
+
     return {
         'dataset': {
             'dataset_name': cfg['data']['dataset'],
@@ -2038,6 +2574,12 @@ def build_experiment_summary(
             'screening_model_beats_global_dummy': bn_slice_screening_beats_global_dummy,
             'best_candidate_model_beats_global_dummy': bn_slice_best_candidate_beats_global_dummy,
             'selected_model_matches_best_candidate': bn_slice_selected_matches_best_candidate,
+            'candidate_compatible_evaluation_artifact': (
+                'bn_candidate_compatible_evaluation.csv'
+                if not bn_candidate_compatible_evaluation_df.empty
+                else None
+            ),
+            'candidate_compatible_result_row_count': int(len(bn_candidate_compatible_evaluation_df)),
         },
         'screening': {
             'candidate_space_name': candidate_space_name,
@@ -2051,6 +2593,57 @@ def build_experiment_summary(
             'ranking_artifact': 'demo_candidate_ranking.csv',
             'bn_centered_alternative': bn_centered_summary,
             'structure_generation_bridge': structure_generation_seed_summary,
+            'ranking_stability': {
+                'enabled': bool(ranking_stability_cfg['enabled']),
+                'artifact': (
+                    'demo_candidate_ranking_uncertainty.csv'
+                    if bool(ranking_stability_cfg['enabled'])
+                    else None
+                ),
+                'note': ranking_stability_cfg['note'],
+                'source_count': int(candidate_ranking_uncertainty_summary['source_count']),
+                'top_k_reference': int(candidate_ranking_uncertainty_summary['top_k_reference']),
+                'top_k_values': candidate_ranking_uncertainty_summary['top_k_values'],
+                'prediction_interval_lower_quantile': float(
+                    candidate_ranking_uncertainty_summary['prediction_interval_lower_quantile']
+                ),
+                'prediction_interval_upper_quantile': float(
+                    candidate_ranking_uncertainty_summary['prediction_interval_upper_quantile']
+                ),
+                'prediction_std_abstain_threshold': candidate_ranking_uncertainty_summary[
+                    'prediction_std_abstain_threshold'
+                ],
+                'rank_std_abstain_threshold': candidate_ranking_uncertainty_summary[
+                    'rank_std_abstain_threshold'
+                ],
+                'comparison_top_k_views': bn_centered_top_k_views,
+            },
+            'decision_policy': {
+                'enabled': bool(decision_policy_cfg['enabled']),
+                'artifact': (
+                    'demo_candidate_ranking_uncertainty.csv'
+                    if bool(decision_policy_cfg['enabled'])
+                    else None
+                ),
+                'note': decision_policy_cfg['note'],
+                'global_support_abstain_below_percentile': float(
+                    decision_policy_cfg['global_support_abstain_below_percentile']
+                ),
+                'bn_support_abstain_below_percentile': float(
+                    decision_policy_cfg['bn_support_abstain_below_percentile']
+                ),
+                'prediction_std_above_quantile': float(
+                    decision_policy_cfg['prediction_std_above_quantile']
+                ),
+                'rank_std_above_quantile': float(decision_policy_cfg['rank_std_above_quantile']),
+                'minimum_top_10_selection_frequency': float(
+                    decision_policy_cfg['minimum_top_10_selection_frequency']
+                ),
+                'abstained_candidate_count': int(
+                    candidate_ranking_uncertainty_summary['abstained_candidate_count']
+                ),
+                'final_action_counts': candidate_ranking_uncertainty_summary['final_action_counts'],
+            },
             **proposal_shortlist_summary,
             **extrapolation_shortlist_summary,
             'ranking_basis': ranking_basis,
@@ -2291,6 +2884,28 @@ def build_experiment_summary(
                 'extrapolation_shortlist_selected',
                 'extrapolation_shortlist_rank',
                 'extrapolation_shortlist_decision',
+                'ranking_source_count',
+                'predicted_band_gap_mean',
+                'predicted_band_gap_std',
+                'predicted_band_gap_interval_lower',
+                'predicted_band_gap_interval_upper',
+                'rank_mean',
+                'rank_std',
+                'rank_min',
+                'rank_max',
+                'top_3_selection_frequency',
+                'top_5_selection_frequency',
+                'top_10_selection_frequency',
+                'bn_centered_ranking_rank',
+                'structure_followup_priority_score',
+                'structure_followup_best_queue_rank',
+                'structure_followup_best_action_label',
+                'structure_followup_readiness_label',
+                'structure_followup_shortlist_selected',
+                'structure_followup_shortlist_rank',
+                'abstain_flag',
+                'reason_for_abstention',
+                'final_action_label',
             ],
         },
     }
@@ -2310,6 +2925,9 @@ def save_metrics_and_predictions(
     experiment_summary,
     manifest,
     cfg,
+    candidate_prediction_member_df=None,
+    candidate_grouped_robustness_member_df=None,
+    bn_centered_grouped_robustness_member_df=None,
 ):
     artifact_dir = Path(cfg['project']['artifact_dir'])
     artifact_dir.mkdir(parents=True, exist_ok=True)
@@ -2317,6 +2935,8 @@ def save_metrics_and_predictions(
     prediction_df.to_csv(artifact_dir / 'predictions.csv', index=False)
     bn_df.to_csv(artifact_dir / 'bn_slice.csv', index=False)
     screened_df.to_csv(artifact_dir / 'demo_candidate_ranking.csv', index=False)
+    candidate_uncertainty_path = artifact_dir / 'demo_candidate_ranking_uncertainty.csv'
+    bn_candidate_compatible_evaluation_path = artifact_dir / 'bn_candidate_compatible_evaluation.csv'
     bn_centered_ranking_path = artifact_dir / 'demo_candidate_bn_centered_ranking.csv'
     if bn_centered_screened_df is not None and not bn_centered_screened_df.empty:
         bn_centered_screened_df.to_csv(bn_centered_ranking_path, index=False)
@@ -2339,6 +2959,7 @@ def save_metrics_and_predictions(
     structure_generation_followup_extrapolation_shortlist_path = (
         artifact_dir / 'demo_candidate_structure_generation_followup_extrapolation_shortlist.csv'
     )
+    selected_followup_df = pd.DataFrame()
     if structure_generation_seed_df is not None and not structure_generation_seed_df.empty:
         structure_generation_seed_df.to_csv(structure_generation_seed_path, index=False)
         structure_generation_seed_cfg = _structure_generation_seed_config(cfg)
@@ -2463,6 +3084,32 @@ def save_metrics_and_predictions(
             shortlist_df.to_csv(shortlist_path, index=False)
         elif shortlist_path.exists():
             shortlist_path.unlink()
+    bn_candidate_compatible_evaluation_df = _build_bn_candidate_compatible_evaluation_table(
+        bn_slice_benchmark_df
+    )
+    if not bn_candidate_compatible_evaluation_df.empty:
+        bn_candidate_compatible_evaluation_df.to_csv(
+            bn_candidate_compatible_evaluation_path,
+            index=False,
+        )
+    elif bn_candidate_compatible_evaluation_path.exists():
+        bn_candidate_compatible_evaluation_path.unlink()
+
+    candidate_ranking_uncertainty_df, _ = _candidate_ranking_uncertainty_table(
+        screened_df,
+        formula_col=((cfg.get('data') or {}).get('formula_column') or 'formula'),
+        cfg=cfg,
+        candidate_prediction_member_df=candidate_prediction_member_df,
+        candidate_grouped_robustness_member_df=candidate_grouped_robustness_member_df,
+        bn_centered_grouped_robustness_member_df=bn_centered_grouped_robustness_member_df,
+        bn_centered_candidate_df=bn_centered_screened_df,
+        structure_followup_shortlist_df=selected_followup_df,
+    )
+    if not candidate_ranking_uncertainty_df.empty:
+        candidate_ranking_uncertainty_df.to_csv(candidate_uncertainty_path, index=False)
+    elif candidate_uncertainty_path.exists():
+        candidate_uncertainty_path.unlink()
+
     benchmark_df.to_csv(artifact_dir / 'benchmark_results.csv', index=False)
     robustness_path = artifact_dir / 'robustness_results.csv'
     if robustness_df is not None and not robustness_df.empty:
@@ -2479,7 +3126,9 @@ def save_metrics_and_predictions(
         bn_slice_prediction_df.to_csv(bn_slice_prediction_path, index=False)
     elif bn_slice_prediction_path.exists():
         bn_slice_prediction_path.unlink()
-    (artifact_dir / 'experiment_summary.json').write_text(json.dumps(experiment_summary, indent=2))
+    (artifact_dir / 'experiment_summary.json').write_text(
+        json.dumps(experiment_summary, indent=2, ensure_ascii=False)
+    )
     (artifact_dir / 'manifest.json').write_text(json.dumps(manifest, indent=2))
     legacy_screen_path = artifact_dir / 'screened_candidates.csv'
     if legacy_screen_path.exists():

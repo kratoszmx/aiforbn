@@ -10,8 +10,8 @@
 - 当前工作已恢复到**已重新验证**的节点。
 - 在当前 dirty working tree 上，以下命令已通过：
   - 清缓存：通过从 `../myutils` 注入 `file_utils.delete_cache('.')`
-  - `pytest -q` → `24 passed in 2.60s`
-  - `/opt/homebrew/Caskroom/miniforge/base/envs/quant/bin/python main.py` → 运行成功（当前输出含 `bn slice benchmark rows: 8`、`bn-centered alternative ranking rows: 25` 与 `structure-generation seed rows: 33`）
+  - `pytest -q` → `24 passed in 3.29s`
+  - `/opt/homebrew/Caskroom/miniforge/base/envs/quant/bin/python main.py` → 运行成功（当前输出含 `bn slice benchmark rows: 8`、`bn-centered alternative ranking rows: 25`、`structure-generation seed rows: 33`）
 - 主任务仍是 `band_gap` 预测与 BN 主题下的候选排序演示。
 - 训练数据仍来自 JARVIS / 2DMatPedia 的 `twod_matpd`。
 - 默认评估协议仍是 **按 `formula` 分组切分**，`train/val/test` 的 formula overlap 为 0。
@@ -33,13 +33,15 @@
   - 由 `BCN / h-BCN`、`BC2N` 文献母题，以及数据集中真实出现过的 `Si2BN` 母题共同锚定；
   - 同时保留 `BN` anchor、Group-IV BN ternary families、Group-III BN ternary families；
   - 仍然只是 formula-only demo source space，不代表结构稳定性、可合成性或真实发现结论。
-- 当前候选空间已经带有六层诚实性约束：
+- 当前候选空间已经带有八层诚实性约束：
   - **轻量 chemical plausibility / candidate credibility screen**：`pymatgen` oxidation-state guesses；
   - **domain-support annotation**：用 `train+val` 全局特征空间近邻距离给每个候选写支持度注释；
   - **BN-local support annotation**：用 `train+val` 中已知 BN slice 的近邻距离给每个候选写 BN 主题支持度注释；
   - **BN analog evidence annotation**：把邻近 BN reference formulas 的观测 `band gap / energy_per_atom / exfoliation_energy_per_atom / magnetization` 写进候选解释；
   - **BN analog validation proxy**：把 analog `exfoliation / energy / magnetization` 是否更接近 BN 参考区间，汇总成 `reference_like / mixed / reference_divergent`，并把 vote-fraction 变成轻量 ranking penalty；
-  - **novelty / rediscovery annotation**：显式区分 `train_plus_val_rediscovery`、`held_out_known_formula`、`formula_level_extrapolation`。
+  - **novelty / rediscovery annotation**：显式区分 `train_plus_val_rediscovery`、`held_out_known_formula`、`formula_level_extrapolation`；
+  - **ranking-stability / uncertainty view**：聚合 candidate-compatible full-fit source predictions 与 grouped-fold ranking members，导出 `predicted_band_gap_mean/std`、区间、`rank_mean/std`、`top-3/5/10` 入选频率，以及 general vs BN-centered 的 Spearman / Kendall / top-k overlap；
+  - **heuristic decision policy / abstention layer**：把 chemical plausibility、global support、BN-local support、prediction std、rank std、top-10 selection frequency 合成 `abstain_flag`、`reason_for_abstention` 与 `final_action_label`。
 - 当前默认策略仍是：**保留完整 source space，标注全部候选，再显式写出 top-k 与未入选原因。**
 - 在完整 ranking 之外，当前还额外导出两层 advisor-facing shortlist：
   - **family-aware proposal shortlist**：保留高排位、化学 plausibility 优先、并限制单一 `candidate_family` 过度集中；
@@ -120,6 +122,12 @@
   - `extrapolation_shortlist_selected`
   - `extrapolation_shortlist_rank`
   - `extrapolation_shortlist_decision`
+- `reporting.py` / `main.py` 本轮又把 uncertainty / abstention / BN-screening honesty 变成了一等 artifact：
+  - `artifacts/demo_candidate_ranking_uncertainty.csv`
+  - `artifacts/bn_candidate_compatible_evaluation.csv`
+  - `artifacts/experiment_summary.json` 里的 `screening.ranking_stability`
+  - `artifacts/experiment_summary.json` 里的 `screening.decision_policy`
+  - `artifacts/experiment_summary.json` 里的 `bn_slice_benchmark.candidate_compatible_evaluation_artifact`
 - `build_candidate_structure_generation_seeds()` 已接入主流程：
   - 候选来源为 `proposal shortlist ∪ extrapolation shortlist ∪ BN-centered top-10`
   - 当前 `candidate_rows = 11`
@@ -278,6 +286,16 @@
   - `bn_centered_alternative.top_k_overlap_count = 20 / 20`
   - `bn_centered_alternative.mean_absolute_rank_shift = 1.84`
   - `bn_centered_alternative.max_absolute_rank_shift = 6`（当前是 `Al2BN`）
+  - `ranking_stability.source_count = 14`
+  - `ranking_stability.top_3_overlap = 3 / 3`
+  - `ranking_stability.top_5_overlap = 4 / 5`（`BN` 进入，`SiBN2` 退出）
+  - `ranking_stability.top_10_overlap = 9 / 10`（`Al2BN` 进入，`SnBN2` 退出）
+  - `ranking_stability.spearman_rank_correlation = 0.9408`
+  - `ranking_stability.kendall_tau = 0.82`
+  - `decision_policy.abstained_candidate_count = 20`
+  - `decision_policy.final_action_counts = {abstain_model_unreliable: 18, reuse_reference_control: 3, low_risk_followup: 2, reject_formula_level: 2}`
+  - 当前**非 abstain 且非化学合理性拒绝**的正向 follow-up 只剩 `BCN2`、`SiBN2`、`Si2BN`，说明这层 policy 目前是刻意保守的
+  - `bn_candidate_compatible_evaluation.csv` 当前有 `6` 行 screening-compatible 视图，其中没有任何 candidate-compatible 组合打赢 `global dummy mean` baseline，这一点必须在对导师叙述时保留
   - `extrapolation_shortlist_selected_rows = 5`
   - `extrapolation_shortlist_target_novelty_bucket = formula_level_extrapolation`
   - failed formulas：`AlBN`, `TlBN`
@@ -306,6 +324,8 @@
 - `artifacts/experiment_summary.json`：数据、split、选择、robustness、BN-slice benchmark 与 screening 摘要。
 - `artifacts/demo_candidate_ranking.csv`：当前完整 formula-only source-space ranking artifact，含 general ensemble/disagreement 视角下的 plausibility pass/fail 与 top-k decision。
 - `artifacts/demo_candidate_bn_centered_ranking.csv`：BN-centered alternative ranking artifact，使用 BN-slice 里最优的 candidate-compatible 单模型视角。
+- `artifacts/demo_candidate_ranking_uncertainty.csv`：候选级 ranking-stability / uncertainty / abstention / final-action artifact，含 prediction interval、rank spread、top-k selection frequency、abstention reasons 与 final action labels。
+- `artifacts/bn_candidate_compatible_evaluation.csv`：把 BN-slice benchmark 重新投影到 screening-compatible 组合后的 honesty table，用来回答“真正能拿来给无结构公式打分的组合，在 BN slice 上到底表现如何”。
 - `artifacts/demo_candidate_structure_generation_seeds.csv`：structure-generation bridge artifact，把 shortlisted BN 候选连到 observed BN analog reference structures / records，供后续结构枚举与松弛任务接手。
 - `artifacts/demo_candidate_structure_generation_handoff.json`：machine-readable structure-generation handoff payload，按 candidate 聚合 seed，并附带 formula-edit hints，方便后续 prototype substitution / enumeration workflow 直接消费。
 - `artifacts/demo_candidate_structure_generation_reference_records.json`：当前 seed 实际引用到的唯一 reference records payload，包含原始 `atoms` 结构对象，方便 downstream structure workflow 直接取用。
@@ -331,6 +351,7 @@
 - 当前 BN analog evidence / analog validation 层已经接入观测属性，并把它们压缩成更可读的 validation label，甚至开始进入 ranking penalty；但它仍然只是 retrieval-style analog evidence / validation proxy，不是对 unseen candidate 的直接稳定性预测或结构验证。
 - BN slice 仍然很小，当前训练主体仍是全体 2D 数据，不是 BN-only 学习。
 - general ranking 使用的仍是小模型池 disagreement heuristic，加上 grouped-fold candidate robustness spread；这些都不是校准不确定性。
+- 新增的 ranking-stability / decision-policy 层虽然已经把不确定性、abstention 与 action labels 明确写出来，但它本质上仍是**heuristic ranking-honesty layer**，不是 calibrated confidence，也不是 Bayesian / conformal-style uncertainty quantification。
 - 新增的 BN-centered alternative ranking 虽然让 BN-slice 选模真正反馈到候选排序，但它仍然只是**单模型 formula-only 对照视图**，不是结构验证，也不是新的 discovery 证明。
 - 当前 BN-anchored candidate space 中只有 `3/25` 公式已在 dataset 中出现，`22/25` 已经是 dataset 未见公式；但这依然只是 formula-level extrapolation，不是结构级 discovery。
 - 新增的 proposal shortlist / extrapolation shortlist 只是更诚实的 advisor-facing 选择层，不是结构验证、稳定性筛选或真实实验优先级证明。
