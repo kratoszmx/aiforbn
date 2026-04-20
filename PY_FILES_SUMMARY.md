@@ -120,6 +120,7 @@ Returns the ordered feature-set search space from config.
 Current default search space:
 - `basic_formula_composition`
 - `matminer_composition`
+- `fractional_composition_vector`
 - `matminer_composition_plus_structure_summary`
 
 ### `get_candidate_screening_feature_sets(cfg)`
@@ -127,12 +128,14 @@ Returns only the candidate-compatible feature sets.
 Current default result:
 - `basic_formula_composition`
 - `matminer_composition`
+- `fractional_composition_vector`
 
 ### `get_candidate_model_types(cfg)`
 Returns the ordered model-type search space from config.
 Current default search space:
 - `hist_gradient_boosting`
 - `linear_regression`
+- `torch_mlp`
 
 ### `build_feature_table(df, formula_col='formula', feature_set='basic_formula_composition')`
 Builds one feature table for one configured feature representation.
@@ -145,11 +148,13 @@ Adds:
 Supported feature sets:
 - `basic_formula_composition`
 - `matminer_composition`
+- `fractional_composition_vector`
 - `matminer_composition_plus_structure_summary`
 
 Current feature counts:
 - `basic_formula_composition`: 7
 - `matminer_composition`: 19
+- `fractional_composition_vector`: 118
 - `matminer_composition_plus_structure_summary`: 30
 
 ### `build_feature_tables(df, cfg, formula_col='formula')`
@@ -176,6 +181,7 @@ Factory for supported regressors.
 Currently supports:
 - `linear_regression`
 - `hist_gradient_boosting`
+- `torch_mlp`
 - `random_forest`
 - `dummy_mean`
 
@@ -190,6 +196,31 @@ Runs prediction on one split and returns:
 - row-level prediction dataframe
 
 Fails loudly if the requested feature set cannot evaluate every row in that split.
+
+---
+
+## src/pipeline/torch_models.py
+
+### `TorchMLPRegressor`
+A repo-local PyTorch neural regressor with a sklearn-like `fit` / `predict` interface.
+
+What it does:
+- accepts any numeric feature matrix emitted by the current feature-table pipeline
+- standardizes `X` and `y`
+- trains a small LayerNorm + GELU MLP with AdamW
+- uses an internal deterministic validation split plus early stopping
+- auto-selects device (`cuda`, `mps`, then `cpu`) unless config overrides it
+
+Why it exists:
+- to add a low-dependency learned neural baseline without depending on the old external CrabNet package
+- to keep formula-only screening candidate-compatible while still testing a more modern neural model family
+
+### `make_model(..., model_type='torch_mlp')`
+The existing factory in `features.py` now lazily imports `TorchMLPRegressor` from this module.
+
+### `fractional_composition_vector`
+The new composition-only feature set is designed to pair naturally with `torch_mlp`.
+It exposes a 118-dimensional periodic-table fraction vector so the neural baseline can learn directly from raw composition fractions rather than only from hand-crafted descriptors.
 
 ### `select_feature_model_combo(feature_tables, split_masks, cfg)`
 Core validation-time selection routine.

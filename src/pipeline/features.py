@@ -179,10 +179,16 @@ GROUPED_ROBUSTNESS_UNCERTAINTY_RANKING_NOTE = (
 )
 BASIC_FEATURE_SET = 'basic_formula_composition'
 MATMINER_FEATURE_SET = 'matminer_composition'
+FRACTIONAL_COMPOSITION_FEATURE_SET = 'fractional_composition_vector'
 STRUCTURE_AWARE_FEATURE_SET = 'matminer_composition_plus_structure_summary'
 COMPOSITION_ONLY_FAMILY = 'composition_only'
 STRUCTURE_AWARE_FAMILY = 'structure_aware'
 DUMMY_FEATURE_SET = 'feature_agnostic_dummy'
+PERIODIC_TABLE_SYMBOLS = tuple(str(Element.from_Z(z)) for z in range(1, 119))
+FRACTIONAL_COMPOSITION_COLUMNS = tuple(
+    f'frac_{symbol.lower()}'
+    for symbol in PERIODIC_TABLE_SYMBOLS
+)
 FORMULA_ONLY_SCREENING_SCOPE = 'candidate_compatible_formula_only'
 SELECTED_MODEL_RANKING_BASIS = 'composition_only_selected_model_band_gap'
 SELECTED_MODEL_RANKING_NOTE = (
@@ -298,6 +304,13 @@ FEATURE_SET_METADATA = {
         True,
         'Curated matminer composition descriptors from pymatgen Composition objects using '
         'Stoichiometry plus selected Magpie elemental-property statistics.',
+    ),
+    FRACTIONAL_COMPOSITION_FEATURE_SET: (
+        COMPOSITION_ONLY_FAMILY,
+        True,
+        'Raw fractional-composition vector across the periodic table. This is intended for '
+        'learned neural composition models and keeps hypothetical formula screening candidate-'
+        'compatible without assuming structure inputs.',
     ),
     STRUCTURE_AWARE_FEATURE_SET: (
         STRUCTURE_AWARE_FAMILY,
@@ -1454,6 +1467,27 @@ def _basic_features(formula: str) -> tuple[dict[str, float], str | None]:
     }, None)
 
 
+def _fractional_composition_features(formula: str) -> tuple[dict[str, float], str | None]:
+    empty_row = {column: 0.0 for column in FRACTIONAL_COMPOSITION_COLUMNS}
+    try:
+        composition = Composition(str(formula))
+        fractional = composition.fractional_composition.get_el_amt_dict()
+    except Exception as exc:  # pragma: no cover - exact type depends on parsing failure mode
+        return {column: np.nan for column in FRACTIONAL_COMPOSITION_COLUMNS}, f'{type(exc).__name__}: {exc}'
+
+    feature_row = empty_row.copy()
+    total_fraction = 0.0
+    for symbol, value in fractional.items():
+        column = f'frac_{str(symbol).lower()}'
+        numeric_value = float(value)
+        feature_row[column] = numeric_value
+        total_fraction += numeric_value
+
+    if not np.isfinite(total_fraction) or total_fraction <= 0:
+        return {column: np.nan for column in FRACTIONAL_COMPOSITION_COLUMNS}, 'ValueError: invalid fractional composition'
+    return feature_row, None
+
+
 def _clean_feature_label(label: str, prefix: str) -> str:
     normalized = re.sub(r'[^0-9a-zA-Z]+', '_', label).strip('_').lower()
     return f'{prefix}_{normalized}' if normalized else prefix
@@ -1576,6 +1610,11 @@ def build_feature_table(
     elif feature_set == MATMINER_FEATURE_SET:
         for formula in formula_series:
             feature_row, error = _matminer_features(formula)
+            feature_dicts.append(feature_row)
+            errors.append(error)
+    elif feature_set == FRACTIONAL_COMPOSITION_FEATURE_SET:
+        for formula in formula_series:
+            feature_row, error = _fractional_composition_features(formula)
             feature_dicts.append(feature_row)
             errors.append(error)
     elif feature_set == STRUCTURE_AWARE_FEATURE_SET:
@@ -1835,6 +1874,10 @@ def make_model(cfg: dict, model_type: str | None = None):
         return RandomForestRegressor(**cfg['model']['random_forest'])
     if model_type == 'hist_gradient_boosting':
         return HistGradientBoostingRegressor(**cfg['model']['hist_gradient_boosting'])
+    if model_type == 'torch_mlp':
+        from pipeline.torch_models import TorchMLPRegressor
+
+        return TorchMLPRegressor(**cfg['model'].get('torch_mlp', {}))
     if model_type == 'dummy_mean':
         return DummyRegressor(**cfg['model'].get('dummy_mean', {'strategy': 'mean'}))
     raise ValueError(f'Unsupported model type: {model_type}')

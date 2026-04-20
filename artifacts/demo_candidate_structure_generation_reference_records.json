@@ -390,67 +390,6 @@
       }
     },
     {
-      "record_id": "4980",
-      "formula": "BN",
-      "source": "twod_matpd",
-      "band_gap": 4.6628,
-      "energy_per_atom": -8.78690031,
-      "exfoliation_energy_per_atom": null,
-      "total_magnetization": -0.0,
-      "abs_total_magnetization": 0.0,
-      "has_structure_summary": true,
-      "atoms": {
-        "lattice_mat": [
-          [
-            2.50899515,
-            0.0,
-            0.0
-          ],
-          [
-            -1.25449758,
-            2.17285351,
-            0.0
-          ],
-          [
-            0.0,
-            0.0,
-            20.0
-          ]
-        ],
-        "coords": [
-          [
-            0.0,
-            0.0,
-            0.5
-          ],
-          [
-            0.333333,
-            0.666667,
-            0.5
-          ]
-        ],
-        "elements": [
-          "B",
-          "N"
-        ],
-        "abc": [
-          2.509,
-          2.508993,
-          20.0
-        ],
-        "angles": [
-          90.0,
-          90.0,
-          120.0001
-        ],
-        "cartesian": false,
-        "props": [
-          "",
-          ""
-        ]
-      }
-    },
-    {
       "record_id": "5977",
       "formula": "Si2BN",
       "source": "twod_matpd",
@@ -908,6 +847,67 @@
           "",
           "",
           "",
+          "",
+          ""
+        ]
+      }
+    },
+    {
+      "record_id": "4980",
+      "formula": "BN",
+      "source": "twod_matpd",
+      "band_gap": 4.6628,
+      "energy_per_atom": -8.78690031,
+      "exfoliation_energy_per_atom": null,
+      "total_magnetization": -0.0,
+      "abs_total_magnetization": 0.0,
+      "has_structure_summary": true,
+      "atoms": {
+        "lattice_mat": [
+          [
+            2.50899515,
+            0.0,
+            0.0
+          ],
+          [
+            -1.25449758,
+            2.17285351,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            20.0
+          ]
+        ],
+        "coords": [
+          [
+            0.0,
+            0.0,
+            0.5
+          ],
+          [
+            0.333333,
+            0.666667,
+            0.5
+          ]
+        ],
+        "elements": [
+          "B",
+          "N"
+        ],
+        "abc": [
+          2.509,
+          2.508993,
+          20.0
+        ],
+        "angles": [
+          90.0,
+          90.0,
+          120.0001
+        ],
+        "cartesian": false,
+        "props": [
           "",
           ""
         ]

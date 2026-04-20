@@ -8,6 +8,7 @@ import pytest
 
 from pipeline.data import STRUCTURE_SUMMARY_COLUMNS
 from pipeline.features import (
+    FRACTIONAL_COMPOSITION_FEATURE_SET,
     STRUCTURE_AWARE_FEATURE_SET,
     benchmark_bn_family_holdout,
     benchmark_bn_slice,
@@ -1273,6 +1274,52 @@ def test_screen_candidates_can_apply_bn_local_band_gap_alignment_penalty():
     assert ge2bn_row['bn_band_gap_alignment_distance_to_window'] > 0.0
     assert ge2bn_row['bn_band_gap_alignment_penalty'] > 0.0
     assert ge2bn_row['bn_band_gap_alignment_penalty'] <= 0.08 + 1e-12
+
+
+def test_fractional_composition_feature_table_and_torch_mlp_fit_predict():
+    pytest.importorskip('torch')
+
+    cfg = copy.deepcopy(CFG)
+    cfg['features']['candidate_sets'] = [FRACTIONAL_COMPOSITION_FEATURE_SET]
+    cfg['model']['type'] = 'torch_mlp'
+    cfg['model']['candidate_types'] = ['torch_mlp']
+    cfg['model']['torch_mlp'] = {
+        'hidden_dim': 32,
+        'depth': 2,
+        'dropout': 0.0,
+        'learning_rate': 0.01,
+        'weight_decay': 0.0,
+        'max_epochs': 12,
+        'patience': 3,
+        'min_delta': 0.0,
+        'val_fraction': 0.2,
+        'device': 'cpu',
+        'random_seed': 42,
+    }
+
+    dataset_df = _sample_training_df()
+    split_masks = make_split_masks(dataset_df, cfg)
+    feature_df = build_feature_table(dataset_df, feature_set=FRACTIONAL_COMPOSITION_FEATURE_SET)
+    summary = summarize_feature_table(feature_df, feature_set=FRACTIONAL_COMPOSITION_FEATURE_SET)
+
+    assert summary['candidate_compatible'] is True
+    assert summary['status'] == 'ok'
+    assert summary['n_features'] >= 100
+    assert feature_df['frac_b'].sum() > 0.0
+    assert feature_df['frac_n'].sum() > 0.0
+
+    model, feature_columns = train_baseline_model(
+        feature_df,
+        split_masks,
+        cfg,
+        model_type='torch_mlp',
+        include_validation=False,
+    )
+    metrics, prediction_df = evaluate_predictions(feature_df, split_masks, model, feature_columns)
+
+    assert prediction_df['prediction'].notna().all()
+    assert np.isfinite(prediction_df['prediction']).all()
+    assert metrics['mae'] >= 0.0
 
 
 def test_make_model_rejects_unknown_model_type():
