@@ -1878,6 +1878,10 @@ def make_model(cfg: dict, model_type: str | None = None):
         from pipeline.torch_models import TorchMLPRegressor
 
         return TorchMLPRegressor(**cfg['model'].get('torch_mlp', {}))
+    if model_type == 'torch_mlp_ensemble':
+        from pipeline.torch_models import TorchMLPEnsembleRegressor
+
+        return TorchMLPEnsembleRegressor(**cfg['model'].get('torch_mlp_ensemble', {}))
     if model_type == 'dummy_mean':
         return DummyRegressor(**cfg['model'].get('dummy_mean', {'strategy': 'mean'}))
     raise ValueError(f'Unsupported model type: {model_type}')
@@ -3969,14 +3973,36 @@ def build_candidate_prediction_members(
                 model_type=model_type,
                 include_validation=True,
             )
-            prediction_frames.append(pd.DataFrame({
-                'formula': candidate_feature_df['formula'].astype(str),
-                'prediction_source': f'full_fit__{feature_set}__{model_type}',
-                'prediction_source_family': 'full_fit_candidate_model',
-                'feature_set': feature_set,
-                'model_type': model_type,
-                'prediction': model.predict(candidate_feature_df[feature_columns]),
-            }))
+            candidate_matrix = candidate_feature_df[feature_columns]
+            member_predictions = None
+            if hasattr(model, 'predict_members'):
+                try:
+                    member_predictions = getattr(model, 'predict_members')(candidate_matrix)
+                except Exception:
+                    member_predictions = None
+            if member_predictions is not None:
+                member_predictions = np.asarray(member_predictions, dtype=float)
+            if member_predictions is not None and member_predictions.ndim == 2 and member_predictions.shape[0] > 1:
+                for member_idx, member_prediction in enumerate(member_predictions, start=1):
+                    prediction_frames.append(pd.DataFrame({
+                        'formula': candidate_feature_df['formula'].astype(str),
+                        'prediction_source': (
+                            f'full_fit__{feature_set}__{model_type}__member_{member_idx}'
+                        ),
+                        'prediction_source_family': 'full_fit_candidate_model_member',
+                        'feature_set': feature_set,
+                        'model_type': model_type,
+                        'prediction': np.asarray(member_prediction, dtype=float),
+                    }))
+            else:
+                prediction_frames.append(pd.DataFrame({
+                    'formula': candidate_feature_df['formula'].astype(str),
+                    'prediction_source': f'full_fit__{feature_set}__{model_type}',
+                    'prediction_source_family': 'full_fit_candidate_model',
+                    'feature_set': feature_set,
+                    'model_type': model_type,
+                    'prediction': model.predict(candidate_matrix),
+                }))
 
     if not prediction_frames:
         raise ValueError('No candidate feature/model combination was available for uncertainty estimation')

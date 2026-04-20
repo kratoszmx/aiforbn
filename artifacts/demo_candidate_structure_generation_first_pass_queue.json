@@ -7,11 +7,11 @@
   "note": "Builds a deterministic first-pass queue for downstream prototype work by combining candidate ranking context, seed rank, edit complexity, and reference readiness. This is still a planning artifact, not generated-structure output.",
   "source_job_plan_artifact": "demo_candidate_structure_generation_job_plan.json",
   "reference_record_payload_artifact": "demo_candidate_structure_generation_reference_records.json",
-  "candidate_count": 15,
-  "queue_entry_count": 45,
-  "direct_substitution_job_count": 15,
+  "candidate_count": 13,
+  "queue_entry_count": 39,
+  "direct_substitution_job_count": 13,
   "simple_relabeling_job_count": 0,
-  "mean_edit_complexity_score": 10.022222222222224,
+  "mean_edit_complexity_score": 9.497435897435897,
   "max_edit_complexity_score": 19.2,
   "queue": [
     {
@@ -22,7 +22,7 @@
       "candidate_formula": "BCN2",
       "ranking_rank": 1,
       "ranking_score": null,
-      "bn_centered_ranking_rank": 8,
+      "bn_centered_ranking_rank": 4,
       "candidate_family": "group14_bn_121_family",
       "candidate_novelty_bucket": "formula_level_extrapolation",
       "chemical_plausibility_pass": true,
@@ -98,14 +98,14 @@
       "job_action_label": "reference_reuse_control",
       "job_status": "ok",
       "candidate_formula": "BN",
-      "ranking_rank": 4,
+      "ranking_rank": 3,
       "ranking_score": null,
       "bn_centered_ranking_rank": 2,
       "candidate_family": "bn_binary_anchor",
       "candidate_novelty_bucket": "train_plus_val_rediscovery",
       "chemical_plausibility_pass": true,
       "proposal_shortlist_selected": true,
-      "proposal_shortlist_rank": 4.0,
+      "proposal_shortlist_rank": 3.0,
       "extrapolation_shortlist_selected": false,
       "extrapolation_shortlist_rank": null,
       "structure_generation_candidate_priority_reason": "proposal_shortlist|bn_centered_top_10",
@@ -152,7 +152,7 @@
         "record_control_outcome"
       ],
       "workflow_step_count": 4,
-      "first_pass_priority_score": 4.0,
+      "first_pass_priority_score": 4.416666666666667,
       "queue_rank": 2,
       "candidate_first_pass_rank": 1
     },
@@ -162,17 +162,17 @@
       "job_action_label": "reference_reuse_control",
       "job_status": "ok",
       "candidate_formula": "BC2N",
-      "ranking_rank": 5,
+      "ranking_rank": 6,
       "ranking_score": null,
-      "bn_centered_ranking_rank": 11,
+      "bn_centered_ranking_rank": 6,
       "candidate_family": "group14_bn_211_family",
       "candidate_novelty_bucket": "train_plus_val_rediscovery",
       "chemical_plausibility_pass": true,
       "proposal_shortlist_selected": true,
-      "proposal_shortlist_rank": 5.0,
+      "proposal_shortlist_rank": 6.0,
       "extrapolation_shortlist_selected": false,
       "extrapolation_shortlist_rank": null,
-      "structure_generation_candidate_priority_reason": "proposal_shortlist",
+      "structure_generation_candidate_priority_reason": "proposal_shortlist|bn_centered_top_10",
       "seed_reference_formula": "BC2N",
       "seed_reference_record_id": "3010",
       "seed_reference_source": "twod_matpd",
@@ -219,7 +219,7 @@
         "record_control_outcome"
       ],
       "workflow_step_count": 4,
-      "first_pass_priority_score": 3.75,
+      "first_pass_priority_score": 3.5833333333333335,
       "queue_rank": 3,
       "candidate_first_pass_rank": 1
     },
@@ -229,14 +229,14 @@
       "job_action_label": "reference_reuse_control",
       "job_status": "ok",
       "candidate_formula": "Si2BN",
-      "ranking_rank": 12,
+      "ranking_rank": 15,
       "ranking_score": null,
-      "bn_centered_ranking_rank": 13,
+      "bn_centered_ranking_rank": 12,
       "candidate_family": "group14_bn_211_family",
       "candidate_novelty_bucket": "train_plus_val_rediscovery",
       "chemical_plausibility_pass": true,
       "proposal_shortlist_selected": true,
-      "proposal_shortlist_rank": 9.0,
+      "proposal_shortlist_rank": 10.0,
       "extrapolation_shortlist_selected": false,
       "extrapolation_shortlist_rank": null,
       "structure_generation_candidate_priority_reason": "proposal_shortlist",
@@ -286,7 +286,7 @@
         "record_control_outcome"
       ],
       "workflow_step_count": 4,
-      "first_pass_priority_score": 3.1666666666666665,
+      "first_pass_priority_score": 3.0833333333333335,
       "queue_rank": 4,
       "candidate_first_pass_rank": 1
     },
@@ -296,17 +296,17 @@
       "job_action_label": "stoichiometry_adjustment_enumeration",
       "job_status": "ok",
       "candidate_formula": "BCN",
-      "ranking_rank": 6,
+      "ranking_rank": 4,
       "ranking_score": null,
-      "bn_centered_ranking_rank": 12,
+      "bn_centered_ranking_rank": 9,
       "candidate_family": "group14_bn_111_family",
       "candidate_novelty_bucket": "formula_level_extrapolation",
       "chemical_plausibility_pass": true,
       "proposal_shortlist_selected": true,
-      "proposal_shortlist_rank": 6.0,
+      "proposal_shortlist_rank": 4.0,
       "extrapolation_shortlist_selected": true,
       "extrapolation_shortlist_rank": 3.0,
-      "structure_generation_candidate_priority_reason": "proposal_shortlist|extrapolation_shortlist",
+      "structure_generation_candidate_priority_reason": "proposal_shortlist|extrapolation_shortlist|bn_centered_top_10",
       "seed_reference_formula": "BC2N",
       "seed_reference_record_id": "3010",
       "seed_reference_source": "twod_matpd",
@@ -358,86 +358,8 @@
         "rank_relaxed_variants"
       ],
       "workflow_step_count": 5,
-      "first_pass_priority_score": 2.5833333333333335,
+      "first_pass_priority_score": 3.0,
       "queue_rank": 5,
-      "candidate_first_pass_rank": 1
-    },
-    {
-      "job_id": "sibn2__seed_1__5977",
-      "job_rank": 1,
-      "job_action_label": "stoichiometry_adjustment_enumeration",
-      "job_status": "ok",
-      "candidate_formula": "SiBN2",
-      "ranking_rank": 3,
-      "ranking_score": null,
-      "bn_centered_ranking_rank": 5,
-      "candidate_family": "group14_bn_121_family",
-      "candidate_novelty_bucket": "formula_level_extrapolation",
-      "chemical_plausibility_pass": true,
-      "proposal_shortlist_selected": true,
-      "proposal_shortlist_rank": 3.0,
-      "extrapolation_shortlist_selected": false,
-      "extrapolation_shortlist_rank": null,
-      "structure_generation_candidate_priority_reason": "proposal_shortlist|bn_centered_top_10",
-      "seed_reference_formula": "Si2BN",
-      "seed_reference_record_id": "5977",
-      "seed_reference_source": "twod_matpd",
-      "seed_reference_has_structure_summary": true,
-      "seed_formula_edit_strategy": "same_elements_stoichiometry_adjustment",
-      "seed_formula_exact_element_match": true,
-      "seed_formula_shared_elements": [
-        "Si",
-        "B",
-        "N"
-      ],
-      "seed_formula_candidate_only_elements": [],
-      "seed_formula_seed_only_elements": [],
-      "seed_formula_element_count_l1_distance": 2.0,
-      "candidate_formula_element_counts": {
-        "B": 1,
-        "N": 2,
-        "Si": 1
-      },
-      "seed_formula_element_counts": {
-        "B": 1,
-        "N": 1,
-        "Si": 2
-      },
-      "element_count_deltas": {
-        "N": 1,
-        "Si": -1
-      },
-      "edit_operations": [
-        {
-          "operation": "increase_element_count",
-          "element": "N",
-          "delta": 1
-        },
-        {
-          "operation": "decrease_element_count",
-          "element": "Si",
-          "delta": 1
-        }
-      ],
-      "edit_operation_count": 2,
-      "edit_complexity_score": 2.0,
-      "suggested_element_substitutions": [],
-      "direct_element_substitution_feasible": false,
-      "simple_element_relabeling_feasible": false,
-      "requires_stoichiometry_adjustment": true,
-      "requires_enumeration": true,
-      "requires_relaxation": true,
-      "reference_record_payload_artifact": "demo_candidate_structure_generation_reference_records.json",
-      "workflow_steps": [
-        "load_reference_atoms",
-        "adjust_formula_stoichiometry",
-        "enumerate_stoichiometric_variants",
-        "relax_candidate_variants",
-        "rank_relaxed_variants"
-      ],
-      "workflow_step_count": 5,
-      "first_pass_priority_score": 2.416666666666667,
-      "queue_rank": 6,
       "candidate_first_pass_rank": 1
     },
     {
@@ -446,7 +368,7 @@
       "job_action_label": "stoichiometry_adjustment_enumeration",
       "job_status": "ok",
       "candidate_formula": "SiBN",
-      "ranking_rank": 10,
+      "ranking_rank": 11,
       "ranking_score": null,
       "bn_centered_ranking_rank": 10,
       "candidate_family": "group14_bn_111_family",
@@ -508,9 +430,159 @@
         "rank_relaxed_variants"
       ],
       "workflow_step_count": 5,
-      "first_pass_priority_score": 2.25,
+      "first_pass_priority_score": 2.2045454545454546,
+      "queue_rank": 6,
+      "candidate_first_pass_rank": 1
+    },
+    {
+      "job_id": "sibn2__seed_1__5977",
+      "job_rank": 1,
+      "job_action_label": "stoichiometry_adjustment_enumeration",
+      "job_status": "ok",
+      "candidate_formula": "SiBN2",
+      "ranking_rank": 5,
+      "ranking_score": null,
+      "bn_centered_ranking_rank": 7,
+      "candidate_family": "group14_bn_121_family",
+      "candidate_novelty_bucket": "formula_level_extrapolation",
+      "chemical_plausibility_pass": true,
+      "proposal_shortlist_selected": true,
+      "proposal_shortlist_rank": 5.0,
+      "extrapolation_shortlist_selected": false,
+      "extrapolation_shortlist_rank": null,
+      "structure_generation_candidate_priority_reason": "proposal_shortlist|bn_centered_top_10",
+      "seed_reference_formula": "Si2BN",
+      "seed_reference_record_id": "5977",
+      "seed_reference_source": "twod_matpd",
+      "seed_reference_has_structure_summary": true,
+      "seed_formula_edit_strategy": "same_elements_stoichiometry_adjustment",
+      "seed_formula_exact_element_match": true,
+      "seed_formula_shared_elements": [
+        "Si",
+        "B",
+        "N"
+      ],
+      "seed_formula_candidate_only_elements": [],
+      "seed_formula_seed_only_elements": [],
+      "seed_formula_element_count_l1_distance": 2.0,
+      "candidate_formula_element_counts": {
+        "B": 1,
+        "N": 2,
+        "Si": 1
+      },
+      "seed_formula_element_counts": {
+        "B": 1,
+        "N": 1,
+        "Si": 2
+      },
+      "element_count_deltas": {
+        "N": 1,
+        "Si": -1
+      },
+      "edit_operations": [
+        {
+          "operation": "increase_element_count",
+          "element": "N",
+          "delta": 1
+        },
+        {
+          "operation": "decrease_element_count",
+          "element": "Si",
+          "delta": 1
+        }
+      ],
+      "edit_operation_count": 2,
+      "edit_complexity_score": 2.0,
+      "suggested_element_substitutions": [],
+      "direct_element_substitution_feasible": false,
+      "simple_element_relabeling_feasible": false,
+      "requires_stoichiometry_adjustment": true,
+      "requires_enumeration": true,
+      "requires_relaxation": true,
+      "reference_record_payload_artifact": "demo_candidate_structure_generation_reference_records.json",
+      "workflow_steps": [
+        "load_reference_atoms",
+        "adjust_formula_stoichiometry",
+        "enumerate_stoichiometric_variants",
+        "relax_candidate_variants",
+        "rank_relaxed_variants"
+      ],
+      "workflow_step_count": 5,
+      "first_pass_priority_score": 1.75,
       "queue_rank": 7,
       "candidate_first_pass_rank": 1
+    },
+    {
+      "job_id": "bn__seed_3__3010",
+      "job_rank": 3,
+      "job_action_label": "element_removal_enumeration",
+      "job_status": "ok",
+      "candidate_formula": "BN",
+      "ranking_rank": 3,
+      "ranking_score": null,
+      "bn_centered_ranking_rank": 2,
+      "candidate_family": "bn_binary_anchor",
+      "candidate_novelty_bucket": "train_plus_val_rediscovery",
+      "chemical_plausibility_pass": true,
+      "proposal_shortlist_selected": true,
+      "proposal_shortlist_rank": 3.0,
+      "extrapolation_shortlist_selected": false,
+      "extrapolation_shortlist_rank": null,
+      "structure_generation_candidate_priority_reason": "proposal_shortlist|bn_centered_top_10",
+      "seed_reference_formula": "BC2N",
+      "seed_reference_record_id": "3010",
+      "seed_reference_source": "twod_matpd",
+      "seed_reference_has_structure_summary": true,
+      "seed_formula_edit_strategy": "element_removal_or_vacancy",
+      "seed_formula_exact_element_match": false,
+      "seed_formula_shared_elements": [
+        "B",
+        "N"
+      ],
+      "seed_formula_candidate_only_elements": [],
+      "seed_formula_seed_only_elements": [
+        "C"
+      ],
+      "seed_formula_element_count_l1_distance": 2.0,
+      "candidate_formula_element_counts": {
+        "B": 1,
+        "N": 1
+      },
+      "seed_formula_element_counts": {
+        "B": 1,
+        "C": 2,
+        "N": 1
+      },
+      "element_count_deltas": {
+        "C": -2
+      },
+      "edit_operations": [
+        {
+          "operation": "decrease_element_count",
+          "element": "C",
+          "delta": 2
+        }
+      ],
+      "edit_operation_count": 1,
+      "edit_complexity_score": 2.2,
+      "suggested_element_substitutions": [],
+      "direct_element_substitution_feasible": false,
+      "simple_element_relabeling_feasible": false,
+      "requires_stoichiometry_adjustment": true,
+      "requires_enumeration": true,
+      "requires_relaxation": true,
+      "reference_record_payload_artifact": "demo_candidate_structure_generation_reference_records.json",
+      "workflow_steps": [
+        "load_reference_atoms",
+        "remove_or_vacancy_seed_elements",
+        "enumerate_vacancy_variants",
+        "relax_vacancy_variants",
+        "rank_relaxed_variants"
+      ],
+      "workflow_step_count": 5,
+      "first_pass_priority_score": 0.8833333333333333,
+      "queue_rank": 8,
+      "candidate_first_pass_rank": 2
     },
     {
       "job_id": "bcn2__seed_1__4784",
@@ -520,7 +592,7 @@
       "candidate_formula": "BCN2",
       "ranking_rank": 1,
       "ranking_score": null,
-      "bn_centered_ranking_rank": 8,
+      "bn_centered_ranking_rank": 4,
       "candidate_family": "group14_bn_121_family",
       "candidate_novelty_bucket": "formula_level_extrapolation",
       "chemical_plausibility_pass": true,
@@ -593,78 +665,6 @@
       ],
       "workflow_step_count": 5,
       "first_pass_priority_score": 0.75,
-      "queue_rank": 8,
-      "candidate_first_pass_rank": 2
-    },
-    {
-      "job_id": "bn__seed_3__3010",
-      "job_rank": 3,
-      "job_action_label": "element_removal_enumeration",
-      "job_status": "ok",
-      "candidate_formula": "BN",
-      "ranking_rank": 4,
-      "ranking_score": null,
-      "bn_centered_ranking_rank": 2,
-      "candidate_family": "bn_binary_anchor",
-      "candidate_novelty_bucket": "train_plus_val_rediscovery",
-      "chemical_plausibility_pass": true,
-      "proposal_shortlist_selected": true,
-      "proposal_shortlist_rank": 4.0,
-      "extrapolation_shortlist_selected": false,
-      "extrapolation_shortlist_rank": null,
-      "structure_generation_candidate_priority_reason": "proposal_shortlist|bn_centered_top_10",
-      "seed_reference_formula": "BC2N",
-      "seed_reference_record_id": "3010",
-      "seed_reference_source": "twod_matpd",
-      "seed_reference_has_structure_summary": true,
-      "seed_formula_edit_strategy": "element_removal_or_vacancy",
-      "seed_formula_exact_element_match": false,
-      "seed_formula_shared_elements": [
-        "B",
-        "N"
-      ],
-      "seed_formula_candidate_only_elements": [],
-      "seed_formula_seed_only_elements": [
-        "C"
-      ],
-      "seed_formula_element_count_l1_distance": 2.0,
-      "candidate_formula_element_counts": {
-        "B": 1,
-        "N": 1
-      },
-      "seed_formula_element_counts": {
-        "B": 1,
-        "C": 2,
-        "N": 1
-      },
-      "element_count_deltas": {
-        "C": -2
-      },
-      "edit_operations": [
-        {
-          "operation": "decrease_element_count",
-          "element": "C",
-          "delta": 2
-        }
-      ],
-      "edit_operation_count": 1,
-      "edit_complexity_score": 2.2,
-      "suggested_element_substitutions": [],
-      "direct_element_substitution_feasible": false,
-      "simple_element_relabeling_feasible": false,
-      "requires_stoichiometry_adjustment": true,
-      "requires_enumeration": true,
-      "requires_relaxation": true,
-      "reference_record_payload_artifact": "demo_candidate_structure_generation_reference_records.json",
-      "workflow_steps": [
-        "load_reference_atoms",
-        "remove_or_vacancy_seed_elements",
-        "enumerate_vacancy_variants",
-        "relax_vacancy_variants",
-        "rank_relaxed_variants"
-      ],
-      "workflow_step_count": 5,
-      "first_pass_priority_score": 0.46666666666666634,
       "queue_rank": 9,
       "candidate_first_pass_rank": 2
     },
@@ -674,17 +674,17 @@
       "job_action_label": "element_insertion_enumeration",
       "job_status": "ok",
       "candidate_formula": "BC2N",
-      "ranking_rank": 5,
+      "ranking_rank": 6,
       "ranking_score": null,
-      "bn_centered_ranking_rank": 11,
+      "bn_centered_ranking_rank": 6,
       "candidate_family": "group14_bn_211_family",
       "candidate_novelty_bucket": "train_plus_val_rediscovery",
       "chemical_plausibility_pass": true,
       "proposal_shortlist_selected": true,
-      "proposal_shortlist_rank": 5.0,
+      "proposal_shortlist_rank": 6.0,
       "extrapolation_shortlist_selected": false,
       "extrapolation_shortlist_rank": null,
-      "structure_generation_candidate_priority_reason": "proposal_shortlist",
+      "structure_generation_candidate_priority_reason": "proposal_shortlist|bn_centered_top_10",
       "seed_reference_formula": "BN",
       "seed_reference_record_id": "4980",
       "seed_reference_source": "twod_matpd",
@@ -736,7 +736,7 @@
         "rank_relaxed_variants"
       ],
       "workflow_step_count": 5,
-      "first_pass_priority_score": 0.21666666666666634,
+      "first_pass_priority_score": 0.04999999999999982,
       "queue_rank": 10,
       "candidate_first_pass_rank": 2
     },
@@ -839,114 +839,22 @@
       "candidate_first_pass_rank": 1
     },
     {
-      "job_id": "snbn__seed_1__5977",
-      "job_rank": 1,
-      "job_action_label": "element_substitution_plus_stoichiometry_adjustment",
-      "job_status": "ok",
-      "candidate_formula": "SnBN",
-      "ranking_rank": 14,
-      "ranking_score": null,
-      "bn_centered_ranking_rank": 7,
-      "candidate_family": "group14_bn_111_family",
-      "candidate_novelty_bucket": "formula_level_extrapolation",
-      "chemical_plausibility_pass": true,
-      "proposal_shortlist_selected": false,
-      "proposal_shortlist_rank": null,
-      "extrapolation_shortlist_selected": false,
-      "extrapolation_shortlist_rank": null,
-      "structure_generation_candidate_priority_reason": "bn_centered_top_10",
-      "seed_reference_formula": "Si2BN",
-      "seed_reference_record_id": "5977",
-      "seed_reference_source": "twod_matpd",
-      "seed_reference_has_structure_summary": true,
-      "seed_formula_edit_strategy": "element_substitution_or_decoration",
-      "seed_formula_exact_element_match": false,
-      "seed_formula_shared_elements": [
-        "B",
-        "N"
-      ],
-      "seed_formula_candidate_only_elements": [
-        "Sn"
-      ],
-      "seed_formula_seed_only_elements": [
-        "Si"
-      ],
-      "seed_formula_element_count_l1_distance": 3.0,
-      "candidate_formula_element_counts": {
-        "B": 1,
-        "N": 1,
-        "Sn": 1
-      },
-      "seed_formula_element_counts": {
-        "B": 1,
-        "N": 1,
-        "Si": 2
-      },
-      "element_count_deltas": {
-        "Si": -2,
-        "Sn": 1
-      },
-      "edit_operations": [
-        {
-          "operation": "substitute_element",
-          "from_element": "Si",
-          "to_element": "Sn"
-        },
-        {
-          "operation": "decrease_element_count",
-          "element": "Si",
-          "delta": 2
-        },
-        {
-          "operation": "increase_element_count",
-          "element": "Sn",
-          "delta": 1
-        }
-      ],
-      "edit_operation_count": 3,
-      "edit_complexity_score": 4.5,
-      "suggested_element_substitutions": [
-        {
-          "from_element": "Si",
-          "to_element": "Sn"
-        }
-      ],
-      "direct_element_substitution_feasible": true,
-      "simple_element_relabeling_feasible": false,
-      "requires_stoichiometry_adjustment": true,
-      "requires_enumeration": true,
-      "requires_relaxation": true,
-      "reference_record_payload_artifact": "demo_candidate_structure_generation_reference_records.json",
-      "workflow_steps": [
-        "load_reference_atoms",
-        "apply_element_substitution",
-        "adjust_formula_stoichiometry",
-        "enumerate_substituted_variants",
-        "relax_candidate_variants",
-        "rank_relaxed_variants"
-      ],
-      "workflow_step_count": 6,
-      "first_pass_priority_score": -1.1428571428571428,
-      "queue_rank": 12,
-      "candidate_first_pass_rank": 1
-    },
-    {
       "job_id": "inbn__seed_1__5977",
       "job_rank": 1,
       "job_action_label": "element_substitution_plus_stoichiometry_adjustment",
       "job_status": "ok",
       "candidate_formula": "InBN",
-      "ranking_rank": 15,
+      "ranking_rank": 17,
       "ranking_score": null,
-      "bn_centered_ranking_rank": 16,
+      "bn_centered_ranking_rank": 18,
       "candidate_family": "group13_bn_111_family",
       "candidate_novelty_bucket": "formula_level_extrapolation",
       "chemical_plausibility_pass": true,
-      "proposal_shortlist_selected": true,
-      "proposal_shortlist_rank": 10.0,
+      "proposal_shortlist_selected": false,
+      "proposal_shortlist_rank": null,
       "extrapolation_shortlist_selected": true,
-      "extrapolation_shortlist_rank": 4.0,
-      "structure_generation_candidate_priority_reason": "proposal_shortlist|extrapolation_shortlist",
+      "extrapolation_shortlist_rank": 5.0,
+      "structure_generation_candidate_priority_reason": "extrapolation_shortlist",
       "seed_reference_formula": "Si2BN",
       "seed_reference_record_id": "5977",
       "seed_reference_source": "twod_matpd",
@@ -1018,106 +926,8 @@
         "rank_relaxed_variants"
       ],
       "workflow_step_count": 6,
-      "first_pass_priority_score": -1.1666666666666665,
-      "queue_rank": 13,
-      "candidate_first_pass_rank": 1
-    },
-    {
-      "job_id": "albn2__seed_1__5977",
-      "job_rank": 1,
-      "job_action_label": "element_substitution_plus_stoichiometry_adjustment",
-      "job_status": "ok",
-      "candidate_formula": "AlBN2",
-      "ranking_rank": 7,
-      "ranking_score": null,
-      "bn_centered_ranking_rank": 6,
-      "candidate_family": "group13_bn_121_family",
-      "candidate_novelty_bucket": "formula_level_extrapolation",
-      "chemical_plausibility_pass": true,
-      "proposal_shortlist_selected": true,
-      "proposal_shortlist_rank": 7.0,
-      "extrapolation_shortlist_selected": false,
-      "extrapolation_shortlist_rank": null,
-      "structure_generation_candidate_priority_reason": "proposal_shortlist|bn_centered_top_10",
-      "seed_reference_formula": "Si2BN",
-      "seed_reference_record_id": "5977",
-      "seed_reference_source": "twod_matpd",
-      "seed_reference_has_structure_summary": true,
-      "seed_formula_edit_strategy": "element_substitution_or_decoration",
-      "seed_formula_exact_element_match": false,
-      "seed_formula_shared_elements": [
-        "B",
-        "N"
-      ],
-      "seed_formula_candidate_only_elements": [
-        "Al"
-      ],
-      "seed_formula_seed_only_elements": [
-        "Si"
-      ],
-      "seed_formula_element_count_l1_distance": 4.0,
-      "candidate_formula_element_counts": {
-        "Al": 1,
-        "B": 1,
-        "N": 2
-      },
-      "seed_formula_element_counts": {
-        "B": 1,
-        "N": 1,
-        "Si": 2
-      },
-      "element_count_deltas": {
-        "Al": 1,
-        "N": 1,
-        "Si": -2
-      },
-      "edit_operations": [
-        {
-          "operation": "substitute_element",
-          "from_element": "Si",
-          "to_element": "Al"
-        },
-        {
-          "operation": "increase_element_count",
-          "element": "Al",
-          "delta": 1
-        },
-        {
-          "operation": "increase_element_count",
-          "element": "N",
-          "delta": 1
-        },
-        {
-          "operation": "decrease_element_count",
-          "element": "Si",
-          "delta": 2
-        }
-      ],
-      "edit_operation_count": 4,
-      "edit_complexity_score": 5.5,
-      "suggested_element_substitutions": [
-        {
-          "from_element": "Si",
-          "to_element": "Al"
-        }
-      ],
-      "direct_element_substitution_feasible": true,
-      "simple_element_relabeling_feasible": false,
-      "requires_stoichiometry_adjustment": true,
-      "requires_enumeration": true,
-      "requires_relaxation": true,
-      "reference_record_payload_artifact": "demo_candidate_structure_generation_reference_records.json",
-      "workflow_steps": [
-        "load_reference_atoms",
-        "apply_element_substitution",
-        "adjust_formula_stoichiometry",
-        "enumerate_substituted_variants",
-        "relax_candidate_variants",
-        "rank_relaxed_variants"
-      ],
-      "workflow_step_count": 6,
-      "first_pass_priority_score": -1.7857142857142856,
-      "queue_rank": 14,
+      "first_pass_priority_score": -1.2058823529411766,
+      "queue_rank": 12,
       "candidate_first_pass_rank": 1
     },
     {
@@ -1126,7 +936,7 @@
       "job_action_label": "element_substitution_plus_stoichiometry_adjustment",
       "job_status": "ok",
       "candidate_formula": "SnBN2",
-      "ranking_rank": 8,
+      "ranking_rank": 7,
       "ranking_score": null,
       "bn_centered_ranking_rank": 3,
       "candidate_family": "group14_bn_121_family",
@@ -1214,7 +1024,197 @@
         "rank_relaxed_variants"
       ],
       "workflow_step_count": 6,
-      "first_pass_priority_score": -1.875,
+      "first_pass_priority_score": -1.7857142857142856,
+      "queue_rank": 13,
+      "candidate_first_pass_rank": 1
+    },
+    {
+      "job_id": "albn2__seed_1__5977",
+      "job_rank": 1,
+      "job_action_label": "element_substitution_plus_stoichiometry_adjustment",
+      "job_status": "ok",
+      "candidate_formula": "AlBN2",
+      "ranking_rank": 10,
+      "ranking_score": null,
+      "bn_centered_ranking_rank": 5,
+      "candidate_family": "group13_bn_121_family",
+      "candidate_novelty_bucket": "formula_level_extrapolation",
+      "chemical_plausibility_pass": true,
+      "proposal_shortlist_selected": false,
+      "proposal_shortlist_rank": null,
+      "extrapolation_shortlist_selected": false,
+      "extrapolation_shortlist_rank": null,
+      "structure_generation_candidate_priority_reason": "bn_centered_top_10",
+      "seed_reference_formula": "Si2BN",
+      "seed_reference_record_id": "5977",
+      "seed_reference_source": "twod_matpd",
+      "seed_reference_has_structure_summary": true,
+      "seed_formula_edit_strategy": "element_substitution_or_decoration",
+      "seed_formula_exact_element_match": false,
+      "seed_formula_shared_elements": [
+        "B",
+        "N"
+      ],
+      "seed_formula_candidate_only_elements": [
+        "Al"
+      ],
+      "seed_formula_seed_only_elements": [
+        "Si"
+      ],
+      "seed_formula_element_count_l1_distance": 4.0,
+      "candidate_formula_element_counts": {
+        "Al": 1,
+        "B": 1,
+        "N": 2
+      },
+      "seed_formula_element_counts": {
+        "B": 1,
+        "N": 1,
+        "Si": 2
+      },
+      "element_count_deltas": {
+        "Al": 1,
+        "N": 1,
+        "Si": -2
+      },
+      "edit_operations": [
+        {
+          "operation": "substitute_element",
+          "from_element": "Si",
+          "to_element": "Al"
+        },
+        {
+          "operation": "increase_element_count",
+          "element": "Al",
+          "delta": 1
+        },
+        {
+          "operation": "increase_element_count",
+          "element": "N",
+          "delta": 1
+        },
+        {
+          "operation": "decrease_element_count",
+          "element": "Si",
+          "delta": 2
+        }
+      ],
+      "edit_operation_count": 4,
+      "edit_complexity_score": 5.5,
+      "suggested_element_substitutions": [
+        {
+          "from_element": "Si",
+          "to_element": "Al"
+        }
+      ],
+      "direct_element_substitution_feasible": true,
+      "simple_element_relabeling_feasible": false,
+      "requires_stoichiometry_adjustment": true,
+      "requires_enumeration": true,
+      "requires_relaxation": true,
+      "reference_record_payload_artifact": "demo_candidate_structure_generation_reference_records.json",
+      "workflow_steps": [
+        "load_reference_atoms",
+        "apply_element_substitution",
+        "adjust_formula_stoichiometry",
+        "enumerate_substituted_variants",
+        "relax_candidate_variants",
+        "rank_relaxed_variants"
+      ],
+      "workflow_step_count": 6,
+      "first_pass_priority_score": -2.0,
+      "queue_rank": 14,
+      "candidate_first_pass_rank": 1
+    },
+    {
+      "job_id": "tl2bn__seed_1__5977",
+      "job_rank": 1,
+      "job_action_label": "element_substitution_plus_stoichiometry_adjustment",
+      "job_status": "ok",
+      "candidate_formula": "Tl2BN",
+      "ranking_rank": 14,
+      "ranking_score": null,
+      "bn_centered_ranking_rank": 13,
+      "candidate_family": "group13_bn_211_family",
+      "candidate_novelty_bucket": "formula_level_extrapolation",
+      "chemical_plausibility_pass": true,
+      "proposal_shortlist_selected": true,
+      "proposal_shortlist_rank": 9.0,
+      "extrapolation_shortlist_selected": true,
+      "extrapolation_shortlist_rank": 4.0,
+      "structure_generation_candidate_priority_reason": "proposal_shortlist|extrapolation_shortlist",
+      "seed_reference_formula": "Si2BN",
+      "seed_reference_record_id": "5977",
+      "seed_reference_source": "twod_matpd",
+      "seed_reference_has_structure_summary": true,
+      "seed_formula_edit_strategy": "element_substitution_or_decoration",
+      "seed_formula_exact_element_match": false,
+      "seed_formula_shared_elements": [
+        "B",
+        "N"
+      ],
+      "seed_formula_candidate_only_elements": [
+        "Tl"
+      ],
+      "seed_formula_seed_only_elements": [
+        "Si"
+      ],
+      "seed_formula_element_count_l1_distance": 4.0,
+      "candidate_formula_element_counts": {
+        "B": 1,
+        "N": 1,
+        "Tl": 2
+      },
+      "seed_formula_element_counts": {
+        "B": 1,
+        "N": 1,
+        "Si": 2
+      },
+      "element_count_deltas": {
+        "Si": -2,
+        "Tl": 2
+      },
+      "edit_operations": [
+        {
+          "operation": "substitute_element",
+          "from_element": "Si",
+          "to_element": "Tl"
+        },
+        {
+          "operation": "decrease_element_count",
+          "element": "Si",
+          "delta": 2
+        },
+        {
+          "operation": "increase_element_count",
+          "element": "Tl",
+          "delta": 2
+        }
+      ],
+      "edit_operation_count": 3,
+      "edit_complexity_score": 5.5,
+      "suggested_element_substitutions": [
+        {
+          "from_element": "Si",
+          "to_element": "Tl"
+        }
+      ],
+      "direct_element_substitution_feasible": true,
+      "simple_element_relabeling_feasible": false,
+      "requires_stoichiometry_adjustment": true,
+      "requires_enumeration": true,
+      "requires_relaxation": true,
+      "reference_record_payload_artifact": "demo_candidate_structure_generation_reference_records.json",
+      "workflow_steps": [
+        "load_reference_atoms",
+        "apply_element_substitution",
+        "adjust_formula_stoichiometry",
+        "enumerate_substituted_variants",
+        "relax_candidate_variants",
+        "rank_relaxed_variants"
+      ],
+      "workflow_step_count": 6,
+      "first_pass_priority_score": -2.142857142857143,
       "queue_rank": 15,
       "candidate_first_pass_rank": 1
     },
@@ -1224,7 +1224,7 @@
       "job_action_label": "element_substitution_plus_stoichiometry_adjustment",
       "job_status": "ok",
       "candidate_formula": "SiBN",
-      "ranking_rank": 10,
+      "ranking_rank": 11,
       "ranking_score": null,
       "bn_centered_ranking_rank": 10,
       "candidate_family": "group14_bn_111_family",
@@ -1306,101 +1306,9 @@
         "rank_relaxed_variants"
       ],
       "workflow_step_count": 6,
-      "first_pass_priority_score": -2.0999999999999996,
+      "first_pass_priority_score": -2.145454545454545,
       "queue_rank": 16,
       "candidate_first_pass_rank": 2
-    },
-    {
-      "job_id": "tl2bn__seed_1__5977",
-      "job_rank": 1,
-      "job_action_label": "element_substitution_plus_stoichiometry_adjustment",
-      "job_status": "ok",
-      "candidate_formula": "Tl2BN",
-      "ranking_rank": 17,
-      "ranking_score": null,
-      "bn_centered_ranking_rank": 15,
-      "candidate_family": "group13_bn_211_family",
-      "candidate_novelty_bucket": "formula_level_extrapolation",
-      "chemical_plausibility_pass": true,
-      "proposal_shortlist_selected": false,
-      "proposal_shortlist_rank": null,
-      "extrapolation_shortlist_selected": true,
-      "extrapolation_shortlist_rank": 5.0,
-      "structure_generation_candidate_priority_reason": "extrapolation_shortlist",
-      "seed_reference_formula": "Si2BN",
-      "seed_reference_record_id": "5977",
-      "seed_reference_source": "twod_matpd",
-      "seed_reference_has_structure_summary": true,
-      "seed_formula_edit_strategy": "element_substitution_or_decoration",
-      "seed_formula_exact_element_match": false,
-      "seed_formula_shared_elements": [
-        "B",
-        "N"
-      ],
-      "seed_formula_candidate_only_elements": [
-        "Tl"
-      ],
-      "seed_formula_seed_only_elements": [
-        "Si"
-      ],
-      "seed_formula_element_count_l1_distance": 4.0,
-      "candidate_formula_element_counts": {
-        "B": 1,
-        "N": 1,
-        "Tl": 2
-      },
-      "seed_formula_element_counts": {
-        "B": 1,
-        "N": 1,
-        "Si": 2
-      },
-      "element_count_deltas": {
-        "Si": -2,
-        "Tl": 2
-      },
-      "edit_operations": [
-        {
-          "operation": "substitute_element",
-          "from_element": "Si",
-          "to_element": "Tl"
-        },
-        {
-          "operation": "decrease_element_count",
-          "element": "Si",
-          "delta": 2
-        },
-        {
-          "operation": "increase_element_count",
-          "element": "Tl",
-          "delta": 2
-        }
-      ],
-      "edit_operation_count": 3,
-      "edit_complexity_score": 5.5,
-      "suggested_element_substitutions": [
-        {
-          "from_element": "Si",
-          "to_element": "Tl"
-        }
-      ],
-      "direct_element_substitution_feasible": true,
-      "simple_element_relabeling_feasible": false,
-      "requires_stoichiometry_adjustment": true,
-      "requires_enumeration": true,
-      "requires_relaxation": true,
-      "reference_record_payload_artifact": "demo_candidate_structure_generation_reference_records.json",
-      "workflow_steps": [
-        "load_reference_atoms",
-        "apply_element_substitution",
-        "adjust_formula_stoichiometry",
-        "enumerate_substituted_variants",
-        "relax_candidate_variants",
-        "rank_relaxed_variants"
-      ],
-      "workflow_step_count": 6,
-      "first_pass_priority_score": -2.2058823529411766,
-      "queue_rank": 17,
-      "candidate_first_pass_rank": 1
     },
     {
       "job_id": "sibn2__seed_3__3010",
@@ -1408,14 +1316,14 @@
       "job_action_label": "element_substitution_plus_stoichiometry_adjustment",
       "job_status": "ok",
       "candidate_formula": "SiBN2",
-      "ranking_rank": 3,
+      "ranking_rank": 5,
       "ranking_score": null,
-      "bn_centered_ranking_rank": 5,
+      "bn_centered_ranking_rank": 7,
       "candidate_family": "group14_bn_121_family",
       "candidate_novelty_bucket": "formula_level_extrapolation",
       "chemical_plausibility_pass": true,
       "proposal_shortlist_selected": true,
-      "proposal_shortlist_rank": 3.0,
+      "proposal_shortlist_rank": 5.0,
       "extrapolation_shortlist_selected": false,
       "extrapolation_shortlist_rank": null,
       "structure_generation_candidate_priority_reason": "proposal_shortlist|bn_centered_top_10",
@@ -1496,106 +1404,8 @@
         "rank_relaxed_variants"
       ],
       "workflow_step_count": 6,
-      "first_pass_priority_score": -2.3666666666666667,
-      "queue_rank": 18,
-      "candidate_first_pass_rank": 2
-    },
-    {
-      "job_id": "albn2__seed_2__3010",
-      "job_rank": 2,
-      "job_action_label": "element_substitution_plus_stoichiometry_adjustment",
-      "job_status": "ok",
-      "candidate_formula": "AlBN2",
-      "ranking_rank": 7,
-      "ranking_score": null,
-      "bn_centered_ranking_rank": 6,
-      "candidate_family": "group13_bn_121_family",
-      "candidate_novelty_bucket": "formula_level_extrapolation",
-      "chemical_plausibility_pass": true,
-      "proposal_shortlist_selected": true,
-      "proposal_shortlist_rank": 7.0,
-      "extrapolation_shortlist_selected": false,
-      "extrapolation_shortlist_rank": null,
-      "structure_generation_candidate_priority_reason": "proposal_shortlist|bn_centered_top_10",
-      "seed_reference_formula": "BC2N",
-      "seed_reference_record_id": "3010",
-      "seed_reference_source": "twod_matpd",
-      "seed_reference_has_structure_summary": true,
-      "seed_formula_edit_strategy": "element_substitution_or_decoration",
-      "seed_formula_exact_element_match": false,
-      "seed_formula_shared_elements": [
-        "B",
-        "N"
-      ],
-      "seed_formula_candidate_only_elements": [
-        "Al"
-      ],
-      "seed_formula_seed_only_elements": [
-        "C"
-      ],
-      "seed_formula_element_count_l1_distance": 4.0,
-      "candidate_formula_element_counts": {
-        "Al": 1,
-        "B": 1,
-        "N": 2
-      },
-      "seed_formula_element_counts": {
-        "B": 1,
-        "C": 2,
-        "N": 1
-      },
-      "element_count_deltas": {
-        "Al": 1,
-        "C": -2,
-        "N": 1
-      },
-      "edit_operations": [
-        {
-          "operation": "substitute_element",
-          "from_element": "C",
-          "to_element": "Al"
-        },
-        {
-          "operation": "increase_element_count",
-          "element": "Al",
-          "delta": 1
-        },
-        {
-          "operation": "decrease_element_count",
-          "element": "C",
-          "delta": 2
-        },
-        {
-          "operation": "increase_element_count",
-          "element": "N",
-          "delta": 1
-        }
-      ],
-      "edit_operation_count": 4,
-      "edit_complexity_score": 5.6,
-      "suggested_element_substitutions": [
-        {
-          "from_element": "C",
-          "to_element": "Al"
-        }
-      ],
-      "direct_element_substitution_feasible": true,
-      "simple_element_relabeling_feasible": false,
-      "requires_stoichiometry_adjustment": true,
-      "requires_enumeration": true,
-      "requires_relaxation": true,
-      "reference_record_payload_artifact": "demo_candidate_structure_generation_reference_records.json",
-      "workflow_steps": [
-        "load_reference_atoms",
-        "apply_element_substitution",
-        "adjust_formula_stoichiometry",
-        "enumerate_substituted_variants",
-        "relax_candidate_variants",
-        "rank_relaxed_variants"
-      ],
-      "workflow_step_count": 6,
-      "first_pass_priority_score": -2.8857142857142852,
-      "queue_rank": 19,
+      "first_pass_priority_score": -3.0333333333333337,
+      "queue_rank": 17,
       "candidate_first_pass_rank": 2
     },
     {
@@ -1606,15 +1416,15 @@
       "candidate_formula": "InBN2",
       "ranking_rank": 9,
       "ranking_score": null,
-      "bn_centered_ranking_rank": 4,
+      "bn_centered_ranking_rank": 8,
       "candidate_family": "group13_bn_121_family",
       "candidate_novelty_bucket": "formula_level_extrapolation",
       "chemical_plausibility_pass": true,
-      "proposal_shortlist_selected": false,
-      "proposal_shortlist_rank": null,
+      "proposal_shortlist_selected": true,
+      "proposal_shortlist_rank": 7.0,
       "extrapolation_shortlist_selected": false,
       "extrapolation_shortlist_rank": null,
-      "structure_generation_candidate_priority_reason": "bn_centered_top_10",
+      "structure_generation_candidate_priority_reason": "proposal_shortlist|bn_centered_top_10",
       "seed_reference_formula": "Si2BN",
       "seed_reference_record_id": "5977",
       "seed_reference_source": "twod_matpd",
@@ -1693,19 +1503,19 @@
       ],
       "workflow_step_count": 6,
       "first_pass_priority_score": -3.0444444444444443,
-      "queue_rank": 20,
+      "queue_rank": 18,
       "candidate_first_pass_rank": 1
     },
     {
-      "job_id": "gebn2__seed_2__5977",
+      "job_id": "albn2__seed_2__3010",
       "job_rank": 2,
       "job_action_label": "element_substitution_plus_stoichiometry_adjustment",
       "job_status": "ok",
-      "candidate_formula": "GeBN2",
-      "ranking_rank": 11,
+      "candidate_formula": "AlBN2",
+      "ranking_rank": 10,
       "ranking_score": null,
-      "bn_centered_ranking_rank": 9,
-      "candidate_family": "group14_bn_121_family",
+      "bn_centered_ranking_rank": 5,
+      "candidate_family": "group13_bn_121_family",
       "candidate_novelty_bucket": "formula_level_extrapolation",
       "chemical_plausibility_pass": true,
       "proposal_shortlist_selected": false,
@@ -1713,8 +1523,8 @@
       "extrapolation_shortlist_selected": false,
       "extrapolation_shortlist_rank": null,
       "structure_generation_candidate_priority_reason": "bn_centered_top_10",
-      "seed_reference_formula": "Si2BN",
-      "seed_reference_record_id": "5977",
+      "seed_reference_formula": "BC2N",
+      "seed_reference_record_id": "3010",
       "seed_reference_source": "twod_matpd",
       "seed_reference_has_structure_summary": true,
       "seed_formula_edit_strategy": "element_substitution_or_decoration",
@@ -1724,55 +1534,55 @@
         "N"
       ],
       "seed_formula_candidate_only_elements": [
-        "Ge"
+        "Al"
       ],
       "seed_formula_seed_only_elements": [
-        "Si"
+        "C"
       ],
       "seed_formula_element_count_l1_distance": 4.0,
       "candidate_formula_element_counts": {
+        "Al": 1,
         "B": 1,
-        "Ge": 1,
         "N": 2
       },
       "seed_formula_element_counts": {
         "B": 1,
-        "N": 1,
-        "Si": 2
+        "C": 2,
+        "N": 1
       },
       "element_count_deltas": {
-        "Ge": 1,
-        "N": 1,
-        "Si": -2
+        "Al": 1,
+        "C": -2,
+        "N": 1
       },
       "edit_operations": [
         {
           "operation": "substitute_element",
-          "from_element": "Si",
-          "to_element": "Ge"
+          "from_element": "C",
+          "to_element": "Al"
         },
         {
           "operation": "increase_element_count",
-          "element": "Ge",
+          "element": "Al",
           "delta": 1
+        },
+        {
+          "operation": "decrease_element_count",
+          "element": "C",
+          "delta": 2
         },
         {
           "operation": "increase_element_count",
           "element": "N",
           "delta": 1
-        },
-        {
-          "operation": "decrease_element_count",
-          "element": "Si",
-          "delta": 2
         }
       ],
       "edit_operation_count": 4,
       "edit_complexity_score": 5.6,
       "suggested_element_substitutions": [
         {
-          "from_element": "Si",
-          "to_element": "Ge"
+          "from_element": "C",
+          "to_element": "Al"
         }
       ],
       "direct_element_substitution_feasible": true,
@@ -1790,9 +1600,9 @@
         "rank_relaxed_variants"
       ],
       "workflow_step_count": 6,
-      "first_pass_priority_score": -3.145454545454545,
-      "queue_rank": 21,
-      "candidate_first_pass_rank": 1
+      "first_pass_priority_score": -3.0999999999999996,
+      "queue_rank": 19,
+      "candidate_first_pass_rank": 2
     },
     {
       "job_id": "si2bn__seed_2__3010",
@@ -1800,14 +1610,14 @@
       "job_action_label": "element_substitution_plus_stoichiometry_adjustment",
       "job_status": "ok",
       "candidate_formula": "Si2BN",
-      "ranking_rank": 12,
+      "ranking_rank": 15,
       "ranking_score": null,
-      "bn_centered_ranking_rank": 13,
+      "bn_centered_ranking_rank": 12,
       "candidate_family": "group14_bn_211_family",
       "candidate_novelty_bucket": "train_plus_val_rediscovery",
       "chemical_plausibility_pass": true,
       "proposal_shortlist_selected": true,
-      "proposal_shortlist_rank": 9.0,
+      "proposal_shortlist_rank": 10.0,
       "extrapolation_shortlist_selected": false,
       "extrapolation_shortlist_rank": null,
       "structure_generation_candidate_priority_reason": "proposal_shortlist",
@@ -1882,8 +1692,92 @@
         "rank_relaxed_variants"
       ],
       "workflow_step_count": 6,
-      "first_pass_priority_score": -3.1833333333333327,
-      "queue_rank": 22,
+      "first_pass_priority_score": -3.2666666666666666,
+      "queue_rank": 20,
+      "candidate_first_pass_rank": 2
+    },
+    {
+      "job_id": "bcn__seed_3__4784",
+      "job_rank": 3,
+      "job_action_label": "stoichiometry_adjustment_enumeration",
+      "job_status": "ok",
+      "candidate_formula": "BCN",
+      "ranking_rank": 4,
+      "ranking_score": null,
+      "bn_centered_ranking_rank": 9,
+      "candidate_family": "group14_bn_111_family",
+      "candidate_novelty_bucket": "formula_level_extrapolation",
+      "chemical_plausibility_pass": true,
+      "proposal_shortlist_selected": true,
+      "proposal_shortlist_rank": 4.0,
+      "extrapolation_shortlist_selected": true,
+      "extrapolation_shortlist_rank": 3.0,
+      "structure_generation_candidate_priority_reason": "proposal_shortlist|extrapolation_shortlist|bn_centered_top_10",
+      "seed_reference_formula": "B2(CN2)3",
+      "seed_reference_record_id": "4784",
+      "seed_reference_source": "twod_matpd",
+      "seed_reference_has_structure_summary": true,
+      "seed_formula_edit_strategy": "same_elements_stoichiometry_adjustment",
+      "seed_formula_exact_element_match": true,
+      "seed_formula_shared_elements": [
+        "B",
+        "C",
+        "N"
+      ],
+      "seed_formula_candidate_only_elements": [],
+      "seed_formula_seed_only_elements": [],
+      "seed_formula_element_count_l1_distance": 8.0,
+      "candidate_formula_element_counts": {
+        "B": 1,
+        "C": 1,
+        "N": 1
+      },
+      "seed_formula_element_counts": {
+        "B": 2,
+        "C": 3,
+        "N": 6
+      },
+      "element_count_deltas": {
+        "B": -1,
+        "C": -2,
+        "N": -5
+      },
+      "edit_operations": [
+        {
+          "operation": "decrease_element_count",
+          "element": "B",
+          "delta": 1
+        },
+        {
+          "operation": "decrease_element_count",
+          "element": "C",
+          "delta": 2
+        },
+        {
+          "operation": "decrease_element_count",
+          "element": "N",
+          "delta": 5
+        }
+      ],
+      "edit_operation_count": 3,
+      "edit_complexity_score": 8.2,
+      "suggested_element_substitutions": [],
+      "direct_element_substitution_feasible": false,
+      "simple_element_relabeling_feasible": false,
+      "requires_stoichiometry_adjustment": true,
+      "requires_enumeration": true,
+      "requires_relaxation": true,
+      "reference_record_payload_artifact": "demo_candidate_structure_generation_reference_records.json",
+      "workflow_steps": [
+        "load_reference_atoms",
+        "adjust_formula_stoichiometry",
+        "enumerate_stoichiometric_variants",
+        "relax_candidate_variants",
+        "rank_relaxed_variants"
+      ],
+      "workflow_step_count": 5,
+      "first_pass_priority_score": -5.533333333333333,
+      "queue_rank": 21,
       "candidate_first_pass_rank": 2
     },
     {
@@ -1894,7 +1788,7 @@
       "candidate_formula": "BCN2",
       "ranking_rank": 1,
       "ranking_score": null,
-      "bn_centered_ranking_rank": 8,
+      "bn_centered_ranking_rank": 4,
       "candidate_family": "group14_bn_121_family",
       "candidate_novelty_bucket": "formula_level_extrapolation",
       "chemical_plausibility_pass": true,
@@ -1967,92 +1861,8 @@
       ],
       "workflow_step_count": 5,
       "first_pass_priority_score": -5.783333333333332,
-      "queue_rank": 23,
+      "queue_rank": 22,
       "candidate_first_pass_rank": 3
-    },
-    {
-      "job_id": "bcn__seed_3__4784",
-      "job_rank": 3,
-      "job_action_label": "stoichiometry_adjustment_enumeration",
-      "job_status": "ok",
-      "candidate_formula": "BCN",
-      "ranking_rank": 6,
-      "ranking_score": null,
-      "bn_centered_ranking_rank": 12,
-      "candidate_family": "group14_bn_111_family",
-      "candidate_novelty_bucket": "formula_level_extrapolation",
-      "chemical_plausibility_pass": true,
-      "proposal_shortlist_selected": true,
-      "proposal_shortlist_rank": 6.0,
-      "extrapolation_shortlist_selected": true,
-      "extrapolation_shortlist_rank": 3.0,
-      "structure_generation_candidate_priority_reason": "proposal_shortlist|extrapolation_shortlist",
-      "seed_reference_formula": "B2(CN2)3",
-      "seed_reference_record_id": "4784",
-      "seed_reference_source": "twod_matpd",
-      "seed_reference_has_structure_summary": true,
-      "seed_formula_edit_strategy": "same_elements_stoichiometry_adjustment",
-      "seed_formula_exact_element_match": true,
-      "seed_formula_shared_elements": [
-        "B",
-        "C",
-        "N"
-      ],
-      "seed_formula_candidate_only_elements": [],
-      "seed_formula_seed_only_elements": [],
-      "seed_formula_element_count_l1_distance": 8.0,
-      "candidate_formula_element_counts": {
-        "B": 1,
-        "C": 1,
-        "N": 1
-      },
-      "seed_formula_element_counts": {
-        "B": 2,
-        "C": 3,
-        "N": 6
-      },
-      "element_count_deltas": {
-        "B": -1,
-        "C": -2,
-        "N": -5
-      },
-      "edit_operations": [
-        {
-          "operation": "decrease_element_count",
-          "element": "B",
-          "delta": 1
-        },
-        {
-          "operation": "decrease_element_count",
-          "element": "C",
-          "delta": 2
-        },
-        {
-          "operation": "decrease_element_count",
-          "element": "N",
-          "delta": 5
-        }
-      ],
-      "edit_operation_count": 3,
-      "edit_complexity_score": 8.2,
-      "suggested_element_substitutions": [],
-      "direct_element_substitution_feasible": false,
-      "simple_element_relabeling_feasible": false,
-      "requires_stoichiometry_adjustment": true,
-      "requires_enumeration": true,
-      "requires_relaxation": true,
-      "reference_record_payload_artifact": "demo_candidate_structure_generation_reference_records.json",
-      "workflow_steps": [
-        "load_reference_atoms",
-        "adjust_formula_stoichiometry",
-        "enumerate_stoichiometric_variants",
-        "relax_candidate_variants",
-        "rank_relaxed_variants"
-      ],
-      "workflow_step_count": 5,
-      "first_pass_priority_score": -5.949999999999999,
-      "queue_rank": 24,
-      "candidate_first_pass_rank": 2
     },
     {
       "job_id": "sibn2__seed_2__4784",
@@ -2060,14 +1870,14 @@
       "job_action_label": "element_substitution_plus_stoichiometry_adjustment",
       "job_status": "ok",
       "candidate_formula": "SiBN2",
-      "ranking_rank": 3,
+      "ranking_rank": 5,
       "ranking_score": null,
-      "bn_centered_ranking_rank": 5,
+      "bn_centered_ranking_rank": 7,
       "candidate_family": "group14_bn_121_family",
       "candidate_novelty_bucket": "formula_level_extrapolation",
       "chemical_plausibility_pass": true,
       "proposal_shortlist_selected": true,
-      "proposal_shortlist_rank": 3.0,
+      "proposal_shortlist_rank": 5.0,
       "extrapolation_shortlist_selected": false,
       "extrapolation_shortlist_rank": null,
       "structure_generation_candidate_priority_reason": "proposal_shortlist|bn_centered_top_10",
@@ -2154,8 +1964,8 @@
         "rank_relaxed_variants"
       ],
       "workflow_step_count": 6,
-      "first_pass_priority_score": -6.933333333333333,
-      "queue_rank": 25,
+      "first_pass_priority_score": -7.6,
+      "queue_rank": 23,
       "candidate_first_pass_rank": 3
     },
     {
@@ -2164,17 +1974,17 @@
       "job_action_label": "stoichiometry_adjustment_enumeration",
       "job_status": "ok",
       "candidate_formula": "BC2N",
-      "ranking_rank": 5,
+      "ranking_rank": 6,
       "ranking_score": null,
-      "bn_centered_ranking_rank": 11,
+      "bn_centered_ranking_rank": 6,
       "candidate_family": "group14_bn_211_family",
       "candidate_novelty_bucket": "train_plus_val_rediscovery",
       "chemical_plausibility_pass": true,
       "proposal_shortlist_selected": true,
-      "proposal_shortlist_rank": 5.0,
+      "proposal_shortlist_rank": 6.0,
       "extrapolation_shortlist_selected": false,
       "extrapolation_shortlist_rank": null,
-      "structure_generation_candidate_priority_reason": "proposal_shortlist",
+      "structure_generation_candidate_priority_reason": "proposal_shortlist|bn_centered_top_10",
       "seed_reference_formula": "B3C10N3",
       "seed_reference_record_id": "3923",
       "seed_reference_source": "twod_matpd",
@@ -2238,8 +2048,8 @@
         "rank_relaxed_variants"
       ],
       "workflow_step_count": 5,
-      "first_pass_priority_score": -9.35,
-      "queue_rank": 26,
+      "first_pass_priority_score": -9.516666666666666,
+      "queue_rank": 24,
       "candidate_first_pass_rank": 3
     },
     {
@@ -2248,17 +2058,17 @@
       "job_action_label": "stoichiometry_adjustment_enumeration",
       "job_status": "ok",
       "candidate_formula": "BCN",
-      "ranking_rank": 6,
+      "ranking_rank": 4,
       "ranking_score": null,
-      "bn_centered_ranking_rank": 12,
+      "bn_centered_ranking_rank": 9,
       "candidate_family": "group14_bn_111_family",
       "candidate_novelty_bucket": "formula_level_extrapolation",
       "chemical_plausibility_pass": true,
       "proposal_shortlist_selected": true,
-      "proposal_shortlist_rank": 6.0,
+      "proposal_shortlist_rank": 4.0,
       "extrapolation_shortlist_selected": true,
       "extrapolation_shortlist_rank": 3.0,
-      "structure_generation_candidate_priority_reason": "proposal_shortlist|extrapolation_shortlist",
+      "structure_generation_candidate_priority_reason": "proposal_shortlist|extrapolation_shortlist|bn_centered_top_10",
       "seed_reference_formula": "B3C10N3",
       "seed_reference_record_id": "3923",
       "seed_reference_source": "twod_matpd",
@@ -2322,8 +2132,8 @@
         "rank_relaxed_variants"
       ],
       "workflow_step_count": 5,
-      "first_pass_priority_score": -10.516666666666666,
-      "queue_rank": 27,
+      "first_pass_priority_score": -10.1,
+      "queue_rank": 25,
       "candidate_first_pass_rank": 3
     },
     {
@@ -2332,14 +2142,14 @@
       "job_action_label": "element_removal_enumeration",
       "job_status": "ok",
       "candidate_formula": "BN",
-      "ranking_rank": 4,
+      "ranking_rank": 3,
       "ranking_score": null,
       "bn_centered_ranking_rank": 2,
       "candidate_family": "bn_binary_anchor",
       "candidate_novelty_bucket": "train_plus_val_rediscovery",
       "chemical_plausibility_pass": true,
       "proposal_shortlist_selected": true,
-      "proposal_shortlist_rank": 4.0,
+      "proposal_shortlist_rank": 3.0,
       "extrapolation_shortlist_selected": false,
       "extrapolation_shortlist_rank": null,
       "structure_generation_candidate_priority_reason": "proposal_shortlist|bn_centered_top_10",
@@ -2406,8 +2216,8 @@
         "rank_relaxed_variants"
       ],
       "workflow_step_count": 5,
-      "first_pass_priority_score": -11.1,
-      "queue_rank": 28,
+      "first_pass_priority_score": -10.683333333333334,
+      "queue_rank": 26,
       "candidate_first_pass_rank": 3
     },
     {
@@ -2508,7 +2318,7 @@
       ],
       "workflow_step_count": 5,
       "first_pass_priority_score": -12.850000000000001,
-      "queue_rank": 29,
+      "queue_rank": 27,
       "candidate_first_pass_rank": 2
     },
     {
@@ -2609,7 +2419,7 @@
       ],
       "workflow_step_count": 5,
       "first_pass_priority_score": -13.283333333333333,
-      "queue_rank": 30,
+      "queue_rank": 28,
       "candidate_first_pass_rank": 3
     },
     {
@@ -2620,15 +2430,15 @@
       "candidate_formula": "InBN2",
       "ranking_rank": 9,
       "ranking_score": null,
-      "bn_centered_ranking_rank": 4,
+      "bn_centered_ranking_rank": 8,
       "candidate_family": "group13_bn_121_family",
       "candidate_novelty_bucket": "formula_level_extrapolation",
       "chemical_plausibility_pass": true,
-      "proposal_shortlist_selected": false,
-      "proposal_shortlist_rank": null,
+      "proposal_shortlist_selected": true,
+      "proposal_shortlist_rank": 7.0,
       "extrapolation_shortlist_selected": false,
       "extrapolation_shortlist_rank": null,
-      "structure_generation_candidate_priority_reason": "bn_centered_top_10",
+      "structure_generation_candidate_priority_reason": "proposal_shortlist|bn_centered_top_10",
       "seed_reference_formula": "ZnB2(CN)8",
       "seed_reference_record_id": "5833",
       "seed_reference_source": "twod_matpd",
@@ -2710,108 +2520,7 @@
       ],
       "workflow_step_count": 5,
       "first_pass_priority_score": -13.694444444444445,
-      "queue_rank": 31,
-      "candidate_first_pass_rank": 2
-    },
-    {
-      "job_id": "gebn2__seed_1__5833",
-      "job_rank": 1,
-      "job_action_label": "mixed_formula_edit_enumeration",
-      "job_status": "ok",
-      "candidate_formula": "GeBN2",
-      "ranking_rank": 11,
-      "ranking_score": null,
-      "bn_centered_ranking_rank": 9,
-      "candidate_family": "group14_bn_121_family",
-      "candidate_novelty_bucket": "formula_level_extrapolation",
-      "chemical_plausibility_pass": true,
-      "proposal_shortlist_selected": false,
-      "proposal_shortlist_rank": null,
-      "extrapolation_shortlist_selected": false,
-      "extrapolation_shortlist_rank": null,
-      "structure_generation_candidate_priority_reason": "bn_centered_top_10",
-      "seed_reference_formula": "ZnB2(CN)8",
-      "seed_reference_record_id": "5833",
-      "seed_reference_source": "twod_matpd",
-      "seed_reference_has_structure_summary": true,
-      "seed_formula_edit_strategy": "element_substitution_or_decoration",
-      "seed_formula_exact_element_match": false,
-      "seed_formula_shared_elements": [
-        "B",
-        "N"
-      ],
-      "seed_formula_candidate_only_elements": [
-        "Ge"
-      ],
-      "seed_formula_seed_only_elements": [
-        "Zn",
-        "C"
-      ],
-      "seed_formula_element_count_l1_distance": 17.0,
-      "candidate_formula_element_counts": {
-        "B": 1,
-        "Ge": 1,
-        "N": 2
-      },
-      "seed_formula_element_counts": {
-        "B": 2,
-        "C": 8,
-        "N": 8,
-        "Zn": 1
-      },
-      "element_count_deltas": {
-        "B": -1,
-        "C": -8,
-        "Ge": 1,
-        "N": -6,
-        "Zn": -1
-      },
-      "edit_operations": [
-        {
-          "operation": "decrease_element_count",
-          "element": "B",
-          "delta": 1
-        },
-        {
-          "operation": "decrease_element_count",
-          "element": "C",
-          "delta": 8
-        },
-        {
-          "operation": "increase_element_count",
-          "element": "Ge",
-          "delta": 1
-        },
-        {
-          "operation": "decrease_element_count",
-          "element": "N",
-          "delta": 6
-        },
-        {
-          "operation": "decrease_element_count",
-          "element": "Zn",
-          "delta": 1
-        }
-      ],
-      "edit_operation_count": 5,
-      "edit_complexity_score": 17.0,
-      "suggested_element_substitutions": [],
-      "direct_element_substitution_feasible": false,
-      "simple_element_relabeling_feasible": false,
-      "requires_stoichiometry_adjustment": true,
-      "requires_enumeration": true,
-      "requires_relaxation": true,
-      "reference_record_payload_artifact": "demo_candidate_structure_generation_reference_records.json",
-      "workflow_steps": [
-        "load_reference_atoms",
-        "combine_substitution_and_stoichiometry_edits",
-        "enumerate_candidate_variants",
-        "relax_candidate_variants",
-        "rank_relaxed_variants"
-      ],
-      "workflow_step_count": 5,
-      "first_pass_priority_score": -13.795454545454545,
-      "queue_rank": 32,
+      "queue_rank": 29,
       "candidate_first_pass_rank": 2
     },
     {
@@ -2820,7 +2529,7 @@
       "job_action_label": "element_substitution_plus_stoichiometry_adjustment",
       "job_status": "ok",
       "candidate_formula": "SiBN",
-      "ranking_rank": 10,
+      "ranking_rank": 11,
       "ranking_score": null,
       "bn_centered_ranking_rank": 10,
       "candidate_family": "group14_bn_111_family",
@@ -2914,8 +2623,8 @@
         "rank_relaxed_variants"
       ],
       "workflow_step_count": 6,
-      "first_pass_priority_score": -14.533333333333333,
-      "queue_rank": 33,
+      "first_pass_priority_score": -14.578787878787878,
+      "queue_rank": 30,
       "candidate_first_pass_rank": 3
     },
     {
@@ -2924,7 +2633,7 @@
       "job_action_label": "mixed_formula_edit_enumeration",
       "job_status": "ok",
       "candidate_formula": "SnBN2",
-      "ranking_rank": 8,
+      "ranking_rank": 7,
       "ranking_score": null,
       "bn_centered_ranking_rank": 3,
       "candidate_family": "group14_bn_121_family",
@@ -3015,110 +2724,9 @@
         "rank_relaxed_variants"
       ],
       "workflow_step_count": 5,
-      "first_pass_priority_score": -14.725000000000001,
-      "queue_rank": 34,
+      "first_pass_priority_score": -14.635714285714286,
+      "queue_rank": 31,
       "candidate_first_pass_rank": 2
-    },
-    {
-      "job_id": "albn2__seed_3__5833",
-      "job_rank": 3,
-      "job_action_label": "mixed_formula_edit_enumeration",
-      "job_status": "ok",
-      "candidate_formula": "AlBN2",
-      "ranking_rank": 7,
-      "ranking_score": null,
-      "bn_centered_ranking_rank": 6,
-      "candidate_family": "group13_bn_121_family",
-      "candidate_novelty_bucket": "formula_level_extrapolation",
-      "chemical_plausibility_pass": true,
-      "proposal_shortlist_selected": true,
-      "proposal_shortlist_rank": 7.0,
-      "extrapolation_shortlist_selected": false,
-      "extrapolation_shortlist_rank": null,
-      "structure_generation_candidate_priority_reason": "proposal_shortlist|bn_centered_top_10",
-      "seed_reference_formula": "ZnB2(CN)8",
-      "seed_reference_record_id": "5833",
-      "seed_reference_source": "twod_matpd",
-      "seed_reference_has_structure_summary": true,
-      "seed_formula_edit_strategy": "element_substitution_or_decoration",
-      "seed_formula_exact_element_match": false,
-      "seed_formula_shared_elements": [
-        "B",
-        "N"
-      ],
-      "seed_formula_candidate_only_elements": [
-        "Al"
-      ],
-      "seed_formula_seed_only_elements": [
-        "Zn",
-        "C"
-      ],
-      "seed_formula_element_count_l1_distance": 17.0,
-      "candidate_formula_element_counts": {
-        "Al": 1,
-        "B": 1,
-        "N": 2
-      },
-      "seed_formula_element_counts": {
-        "B": 2,
-        "C": 8,
-        "N": 8,
-        "Zn": 1
-      },
-      "element_count_deltas": {
-        "Al": 1,
-        "B": -1,
-        "C": -8,
-        "N": -6,
-        "Zn": -1
-      },
-      "edit_operations": [
-        {
-          "operation": "increase_element_count",
-          "element": "Al",
-          "delta": 1
-        },
-        {
-          "operation": "decrease_element_count",
-          "element": "B",
-          "delta": 1
-        },
-        {
-          "operation": "decrease_element_count",
-          "element": "C",
-          "delta": 8
-        },
-        {
-          "operation": "decrease_element_count",
-          "element": "N",
-          "delta": 6
-        },
-        {
-          "operation": "decrease_element_count",
-          "element": "Zn",
-          "delta": 1
-        }
-      ],
-      "edit_operation_count": 5,
-      "edit_complexity_score": 17.2,
-      "suggested_element_substitutions": [],
-      "direct_element_substitution_feasible": false,
-      "simple_element_relabeling_feasible": false,
-      "requires_stoichiometry_adjustment": true,
-      "requires_enumeration": true,
-      "requires_relaxation": true,
-      "reference_record_payload_artifact": "demo_candidate_structure_generation_reference_records.json",
-      "workflow_steps": [
-        "load_reference_atoms",
-        "combine_substitution_and_stoichiometry_edits",
-        "enumerate_candidate_variants",
-        "relax_candidate_variants",
-        "rank_relaxed_variants"
-      ],
-      "workflow_step_count": 5,
-      "first_pass_priority_score": -15.069047619047618,
-      "queue_rank": 35,
-      "candidate_first_pass_rank": 3
     },
     {
       "job_id": "snbn2__seed_3__5425",
@@ -3126,7 +2734,7 @@
       "job_action_label": "mixed_formula_edit_enumeration",
       "job_status": "ok",
       "candidate_formula": "SnBN2",
-      "ranking_rank": 8,
+      "ranking_rank": 7,
       "ranking_score": null,
       "bn_centered_ranking_rank": 3,
       "candidate_family": "group14_bn_121_family",
@@ -3217,8 +2825,8 @@
         "rank_relaxed_variants"
       ],
       "workflow_step_count": 5,
-      "first_pass_priority_score": -15.158333333333333,
-      "queue_rank": 36,
+      "first_pass_priority_score": -15.069047619047618,
+      "queue_rank": 32,
       "candidate_first_pass_rank": 3
     },
     {
@@ -3229,15 +2837,15 @@
       "candidate_formula": "InBN2",
       "ranking_rank": 9,
       "ranking_score": null,
-      "bn_centered_ranking_rank": 4,
+      "bn_centered_ranking_rank": 8,
       "candidate_family": "group13_bn_121_family",
       "candidate_novelty_bucket": "formula_level_extrapolation",
       "chemical_plausibility_pass": true,
-      "proposal_shortlist_selected": false,
-      "proposal_shortlist_rank": null,
+      "proposal_shortlist_selected": true,
+      "proposal_shortlist_rank": 7.0,
       "extrapolation_shortlist_selected": false,
       "extrapolation_shortlist_rank": null,
-      "structure_generation_candidate_priority_reason": "bn_centered_top_10",
+      "structure_generation_candidate_priority_reason": "proposal_shortlist|bn_centered_top_10",
       "seed_reference_formula": "CuB2(CN)8",
       "seed_reference_record_id": "5425",
       "seed_reference_source": "twod_matpd",
@@ -3319,19 +2927,19 @@
       ],
       "workflow_step_count": 5,
       "first_pass_priority_score": -15.227777777777778,
-      "queue_rank": 37,
+      "queue_rank": 33,
       "candidate_first_pass_rank": 3
     },
     {
-      "job_id": "gebn2__seed_3__5425",
+      "job_id": "albn2__seed_3__5833",
       "job_rank": 3,
       "job_action_label": "mixed_formula_edit_enumeration",
       "job_status": "ok",
-      "candidate_formula": "GeBN2",
-      "ranking_rank": 11,
+      "candidate_formula": "AlBN2",
+      "ranking_rank": 10,
       "ranking_score": null,
-      "bn_centered_ranking_rank": 9,
-      "candidate_family": "group14_bn_121_family",
+      "bn_centered_ranking_rank": 5,
+      "candidate_family": "group13_bn_121_family",
       "candidate_novelty_bucket": "formula_level_extrapolation",
       "chemical_plausibility_pass": true,
       "proposal_shortlist_selected": false,
@@ -3339,8 +2947,8 @@
       "extrapolation_shortlist_selected": false,
       "extrapolation_shortlist_rank": null,
       "structure_generation_candidate_priority_reason": "bn_centered_top_10",
-      "seed_reference_formula": "CuB2(CN)8",
-      "seed_reference_record_id": "5425",
+      "seed_reference_formula": "ZnB2(CN)8",
+      "seed_reference_record_id": "5833",
       "seed_reference_source": "twod_matpd",
       "seed_reference_has_structure_summary": true,
       "seed_formula_edit_strategy": "element_substitution_or_decoration",
@@ -3350,32 +2958,37 @@
         "N"
       ],
       "seed_formula_candidate_only_elements": [
-        "Ge"
+        "Al"
       ],
       "seed_formula_seed_only_elements": [
-        "Cu",
+        "Zn",
         "C"
       ],
       "seed_formula_element_count_l1_distance": 17.0,
       "candidate_formula_element_counts": {
+        "Al": 1,
         "B": 1,
-        "Ge": 1,
         "N": 2
       },
       "seed_formula_element_counts": {
         "B": 2,
         "C": 8,
-        "Cu": 1,
-        "N": 8
+        "N": 8,
+        "Zn": 1
       },
       "element_count_deltas": {
+        "Al": 1,
         "B": -1,
         "C": -8,
-        "Cu": -1,
-        "Ge": 1,
-        "N": -6
+        "N": -6,
+        "Zn": -1
       },
       "edit_operations": [
+        {
+          "operation": "increase_element_count",
+          "element": "Al",
+          "delta": 1
+        },
         {
           "operation": "decrease_element_count",
           "element": "B",
@@ -3388,18 +3001,13 @@
         },
         {
           "operation": "decrease_element_count",
-          "element": "Cu",
-          "delta": 1
-        },
-        {
-          "operation": "increase_element_count",
-          "element": "Ge",
-          "delta": 1
+          "element": "N",
+          "delta": 6
         },
         {
           "operation": "decrease_element_count",
-          "element": "N",
-          "delta": 6
+          "element": "Zn",
+          "delta": 1
         }
       ],
       "edit_operation_count": 5,
@@ -3419,8 +3027,8 @@
         "rank_relaxed_variants"
       ],
       "workflow_step_count": 5,
-      "first_pass_priority_score": -15.328787878787878,
-      "queue_rank": 38,
+      "first_pass_priority_score": -15.283333333333333,
+      "queue_rank": 34,
       "candidate_first_pass_rank": 3
     },
     {
@@ -3429,14 +3037,14 @@
       "job_action_label": "element_substitution_plus_stoichiometry_adjustment",
       "job_status": "ok",
       "candidate_formula": "Si2BN",
-      "ranking_rank": 12,
+      "ranking_rank": 15,
       "ranking_score": null,
-      "bn_centered_ranking_rank": 13,
+      "bn_centered_ranking_rank": 12,
       "candidate_family": "group14_bn_211_family",
       "candidate_novelty_bucket": "train_plus_val_rediscovery",
       "chemical_plausibility_pass": true,
       "proposal_shortlist_selected": true,
-      "proposal_shortlist_rank": 9.0,
+      "proposal_shortlist_rank": 10.0,
       "extrapolation_shortlist_selected": false,
       "extrapolation_shortlist_rank": null,
       "structure_generation_candidate_priority_reason": "proposal_shortlist",
@@ -3523,110 +3131,9 @@
         "rank_relaxed_variants"
       ],
       "workflow_step_count": 6,
-      "first_pass_priority_score": -15.616666666666667,
-      "queue_rank": 39,
+      "first_pass_priority_score": -15.7,
+      "queue_rank": 35,
       "candidate_first_pass_rank": 3
-    },
-    {
-      "job_id": "snbn__seed_2__5833",
-      "job_rank": 2,
-      "job_action_label": "mixed_formula_edit_enumeration",
-      "job_status": "ok",
-      "candidate_formula": "SnBN",
-      "ranking_rank": 14,
-      "ranking_score": null,
-      "bn_centered_ranking_rank": 7,
-      "candidate_family": "group14_bn_111_family",
-      "candidate_novelty_bucket": "formula_level_extrapolation",
-      "chemical_plausibility_pass": true,
-      "proposal_shortlist_selected": false,
-      "proposal_shortlist_rank": null,
-      "extrapolation_shortlist_selected": false,
-      "extrapolation_shortlist_rank": null,
-      "structure_generation_candidate_priority_reason": "bn_centered_top_10",
-      "seed_reference_formula": "ZnB2(CN)8",
-      "seed_reference_record_id": "5833",
-      "seed_reference_source": "twod_matpd",
-      "seed_reference_has_structure_summary": true,
-      "seed_formula_edit_strategy": "element_substitution_or_decoration",
-      "seed_formula_exact_element_match": false,
-      "seed_formula_shared_elements": [
-        "B",
-        "N"
-      ],
-      "seed_formula_candidate_only_elements": [
-        "Sn"
-      ],
-      "seed_formula_seed_only_elements": [
-        "Zn",
-        "C"
-      ],
-      "seed_formula_element_count_l1_distance": 18.0,
-      "candidate_formula_element_counts": {
-        "B": 1,
-        "N": 1,
-        "Sn": 1
-      },
-      "seed_formula_element_counts": {
-        "B": 2,
-        "C": 8,
-        "N": 8,
-        "Zn": 1
-      },
-      "element_count_deltas": {
-        "B": -1,
-        "C": -8,
-        "N": -7,
-        "Sn": 1,
-        "Zn": -1
-      },
-      "edit_operations": [
-        {
-          "operation": "decrease_element_count",
-          "element": "B",
-          "delta": 1
-        },
-        {
-          "operation": "decrease_element_count",
-          "element": "C",
-          "delta": 8
-        },
-        {
-          "operation": "decrease_element_count",
-          "element": "N",
-          "delta": 7
-        },
-        {
-          "operation": "increase_element_count",
-          "element": "Sn",
-          "delta": 1
-        },
-        {
-          "operation": "decrease_element_count",
-          "element": "Zn",
-          "delta": 1
-        }
-      ],
-      "edit_operation_count": 5,
-      "edit_complexity_score": 18.1,
-      "suggested_element_substitutions": [],
-      "direct_element_substitution_feasible": false,
-      "simple_element_relabeling_feasible": false,
-      "requires_stoichiometry_adjustment": true,
-      "requires_enumeration": true,
-      "requires_relaxation": true,
-      "reference_record_payload_artifact": "demo_candidate_structure_generation_reference_records.json",
-      "workflow_steps": [
-        "load_reference_atoms",
-        "combine_substitution_and_stoichiometry_edits",
-        "enumerate_candidate_variants",
-        "relax_candidate_variants",
-        "rank_relaxed_variants"
-      ],
-      "workflow_step_count": 5,
-      "first_pass_priority_score": -15.992857142857144,
-      "queue_rank": 40,
-      "candidate_first_pass_rank": 2
     },
     {
       "job_id": "inbn__seed_2__5833",
@@ -3634,17 +3141,17 @@
       "job_action_label": "mixed_formula_edit_enumeration",
       "job_status": "ok",
       "candidate_formula": "InBN",
-      "ranking_rank": 15,
+      "ranking_rank": 17,
       "ranking_score": null,
-      "bn_centered_ranking_rank": 16,
+      "bn_centered_ranking_rank": 18,
       "candidate_family": "group13_bn_111_family",
       "candidate_novelty_bucket": "formula_level_extrapolation",
       "chemical_plausibility_pass": true,
-      "proposal_shortlist_selected": true,
-      "proposal_shortlist_rank": 10.0,
+      "proposal_shortlist_selected": false,
+      "proposal_shortlist_rank": null,
       "extrapolation_shortlist_selected": true,
-      "extrapolation_shortlist_rank": 4.0,
-      "structure_generation_candidate_priority_reason": "proposal_shortlist|extrapolation_shortlist",
+      "extrapolation_shortlist_rank": 5.0,
+      "structure_generation_candidate_priority_reason": "extrapolation_shortlist",
       "seed_reference_formula": "ZnB2(CN)8",
       "seed_reference_record_id": "5833",
       "seed_reference_source": "twod_matpd",
@@ -3725,110 +3232,9 @@
         "rank_relaxed_variants"
       ],
       "workflow_step_count": 5,
-      "first_pass_priority_score": -16.01666666666667,
-      "queue_rank": 41,
+      "first_pass_priority_score": -16.05588235294118,
+      "queue_rank": 36,
       "candidate_first_pass_rank": 2
-    },
-    {
-      "job_id": "snbn__seed_3__5425",
-      "job_rank": 3,
-      "job_action_label": "mixed_formula_edit_enumeration",
-      "job_status": "ok",
-      "candidate_formula": "SnBN",
-      "ranking_rank": 14,
-      "ranking_score": null,
-      "bn_centered_ranking_rank": 7,
-      "candidate_family": "group14_bn_111_family",
-      "candidate_novelty_bucket": "formula_level_extrapolation",
-      "chemical_plausibility_pass": true,
-      "proposal_shortlist_selected": false,
-      "proposal_shortlist_rank": null,
-      "extrapolation_shortlist_selected": false,
-      "extrapolation_shortlist_rank": null,
-      "structure_generation_candidate_priority_reason": "bn_centered_top_10",
-      "seed_reference_formula": "CuB2(CN)8",
-      "seed_reference_record_id": "5425",
-      "seed_reference_source": "twod_matpd",
-      "seed_reference_has_structure_summary": true,
-      "seed_formula_edit_strategy": "element_substitution_or_decoration",
-      "seed_formula_exact_element_match": false,
-      "seed_formula_shared_elements": [
-        "B",
-        "N"
-      ],
-      "seed_formula_candidate_only_elements": [
-        "Sn"
-      ],
-      "seed_formula_seed_only_elements": [
-        "Cu",
-        "C"
-      ],
-      "seed_formula_element_count_l1_distance": 18.0,
-      "candidate_formula_element_counts": {
-        "B": 1,
-        "N": 1,
-        "Sn": 1
-      },
-      "seed_formula_element_counts": {
-        "B": 2,
-        "C": 8,
-        "Cu": 1,
-        "N": 8
-      },
-      "element_count_deltas": {
-        "B": -1,
-        "C": -8,
-        "Cu": -1,
-        "N": -7,
-        "Sn": 1
-      },
-      "edit_operations": [
-        {
-          "operation": "decrease_element_count",
-          "element": "B",
-          "delta": 1
-        },
-        {
-          "operation": "decrease_element_count",
-          "element": "C",
-          "delta": 8
-        },
-        {
-          "operation": "decrease_element_count",
-          "element": "Cu",
-          "delta": 1
-        },
-        {
-          "operation": "decrease_element_count",
-          "element": "N",
-          "delta": 7
-        },
-        {
-          "operation": "increase_element_count",
-          "element": "Sn",
-          "delta": 1
-        }
-      ],
-      "edit_operation_count": 5,
-      "edit_complexity_score": 18.2,
-      "suggested_element_substitutions": [],
-      "direct_element_substitution_feasible": false,
-      "simple_element_relabeling_feasible": false,
-      "requires_stoichiometry_adjustment": true,
-      "requires_enumeration": true,
-      "requires_relaxation": true,
-      "reference_record_payload_artifact": "demo_candidate_structure_generation_reference_records.json",
-      "workflow_steps": [
-        "load_reference_atoms",
-        "combine_substitution_and_stoichiometry_edits",
-        "enumerate_candidate_variants",
-        "relax_candidate_variants",
-        "rank_relaxed_variants"
-      ],
-      "workflow_step_count": 5,
-      "first_pass_priority_score": -16.426190476190477,
-      "queue_rank": 42,
-      "candidate_first_pass_rank": 3
     },
     {
       "job_id": "inbn__seed_3__5425",
@@ -3836,17 +3242,17 @@
       "job_action_label": "mixed_formula_edit_enumeration",
       "job_status": "ok",
       "candidate_formula": "InBN",
-      "ranking_rank": 15,
+      "ranking_rank": 17,
       "ranking_score": null,
-      "bn_centered_ranking_rank": 16,
+      "bn_centered_ranking_rank": 18,
       "candidate_family": "group13_bn_111_family",
       "candidate_novelty_bucket": "formula_level_extrapolation",
       "chemical_plausibility_pass": true,
-      "proposal_shortlist_selected": true,
-      "proposal_shortlist_rank": 10.0,
+      "proposal_shortlist_selected": false,
+      "proposal_shortlist_rank": null,
       "extrapolation_shortlist_selected": true,
-      "extrapolation_shortlist_rank": 4.0,
-      "structure_generation_candidate_priority_reason": "proposal_shortlist|extrapolation_shortlist",
+      "extrapolation_shortlist_rank": 5.0,
+      "structure_generation_candidate_priority_reason": "extrapolation_shortlist",
       "seed_reference_formula": "CuB2(CN)8",
       "seed_reference_record_id": "5425",
       "seed_reference_source": "twod_matpd",
@@ -3927,8 +3333,8 @@
         "rank_relaxed_variants"
       ],
       "workflow_step_count": 5,
-      "first_pass_priority_score": -16.45,
-      "queue_rank": 43,
+      "first_pass_priority_score": -16.48921568627451,
+      "queue_rank": 37,
       "candidate_first_pass_rank": 3
     },
     {
@@ -3937,17 +3343,17 @@
       "job_action_label": "mixed_formula_edit_enumeration",
       "job_status": "ok",
       "candidate_formula": "Tl2BN",
-      "ranking_rank": 17,
+      "ranking_rank": 14,
       "ranking_score": null,
-      "bn_centered_ranking_rank": 15,
+      "bn_centered_ranking_rank": 13,
       "candidate_family": "group13_bn_211_family",
       "candidate_novelty_bucket": "formula_level_extrapolation",
       "chemical_plausibility_pass": true,
-      "proposal_shortlist_selected": false,
-      "proposal_shortlist_rank": null,
+      "proposal_shortlist_selected": true,
+      "proposal_shortlist_rank": 9.0,
       "extrapolation_shortlist_selected": true,
-      "extrapolation_shortlist_rank": 5.0,
-      "structure_generation_candidate_priority_reason": "extrapolation_shortlist",
+      "extrapolation_shortlist_rank": 4.0,
+      "structure_generation_candidate_priority_reason": "proposal_shortlist|extrapolation_shortlist",
       "seed_reference_formula": "ZnB2(CN)8",
       "seed_reference_record_id": "5833",
       "seed_reference_source": "twod_matpd",
@@ -4028,8 +3434,8 @@
         "rank_relaxed_variants"
       ],
       "workflow_step_count": 5,
-      "first_pass_priority_score": -17.05588235294118,
-      "queue_rank": 44,
+      "first_pass_priority_score": -16.992857142857144,
+      "queue_rank": 38,
       "candidate_first_pass_rank": 2
     },
     {
@@ -4038,17 +3444,17 @@
       "job_action_label": "mixed_formula_edit_enumeration",
       "job_status": "ok",
       "candidate_formula": "Tl2BN",
-      "ranking_rank": 17,
+      "ranking_rank": 14,
       "ranking_score": null,
-      "bn_centered_ranking_rank": 15,
+      "bn_centered_ranking_rank": 13,
       "candidate_family": "group13_bn_211_family",
       "candidate_novelty_bucket": "formula_level_extrapolation",
       "chemical_plausibility_pass": true,
-      "proposal_shortlist_selected": false,
-      "proposal_shortlist_rank": null,
+      "proposal_shortlist_selected": true,
+      "proposal_shortlist_rank": 9.0,
       "extrapolation_shortlist_selected": true,
-      "extrapolation_shortlist_rank": 5.0,
-      "structure_generation_candidate_priority_reason": "extrapolation_shortlist",
+      "extrapolation_shortlist_rank": 4.0,
+      "structure_generation_candidate_priority_reason": "proposal_shortlist|extrapolation_shortlist",
       "seed_reference_formula": "CuB2(CN)8",
       "seed_reference_record_id": "5425",
       "seed_reference_source": "twod_matpd",
@@ -4129,8 +3535,8 @@
         "rank_relaxed_variants"
       ],
       "workflow_step_count": 5,
-      "first_pass_priority_score": -17.48921568627451,
-      "queue_rank": 45,
+      "first_pass_priority_score": -17.426190476190477,
+      "queue_rank": 39,
       "candidate_first_pass_rank": 3
     }
   ]

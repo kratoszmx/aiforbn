@@ -462,7 +462,6 @@ def _build_bn_candidate_compatible_evaluation_table(
             'mae',
             'rmse',
             'r2',
-            'family_holdout_beats_global_dummy',
         ]
         available_family_keep = [column for column in family_keep if column in family_df.columns]
         family_df = family_df[available_family_keep].rename(
@@ -473,6 +472,19 @@ def _build_bn_candidate_compatible_evaluation_table(
             }
         )
         evaluation_df = evaluation_df.merge(family_df, on=key_columns, how='left')
+
+        family_dummy_mae = None
+        family_dummy_rows = bn_family_benchmark_df.loc[
+            bn_family_benchmark_df['benchmark_role'].astype(str).eq('global_dummy_mean_baseline')
+            & pd.to_numeric(bn_family_benchmark_df['mae'], errors='coerce').notna()
+        ]
+        if not family_dummy_rows.empty:
+            family_dummy_mae = float(pd.to_numeric(family_dummy_rows.iloc[0]['mae'], errors='coerce'))
+        evaluation_df['family_holdout_beats_global_dummy'] = False
+        if family_dummy_mae is not None:
+            evaluation_df['family_holdout_beats_global_dummy'] = (
+                pd.to_numeric(evaluation_df['family_holdout_mae'], errors='coerce') < family_dummy_mae
+            )
     else:
         evaluation_df['family_holdout_mae'] = np.nan
         evaluation_df['family_holdout_rmse'] = np.nan
@@ -497,12 +509,18 @@ def _build_bn_candidate_compatible_evaluation_table(
     if bn_stratified_error_df is not None and not bn_stratified_error_df.empty:
         stratified_df = bn_stratified_error_df.copy()
         stratified_keep = key_columns + [
-            'grouped_bn_mae',
-            'grouped_non_bn_mae',
-            'grouped_bn_to_non_bn_mae_ratio',
+            'bn_mae',
+            'non_bn_mae',
+            'bn_to_non_bn_mae_ratio',
         ]
         available_stratified_keep = [column for column in stratified_keep if column in stratified_df.columns]
-        stratified_df = stratified_df[available_stratified_keep]
+        stratified_df = stratified_df[available_stratified_keep].rename(
+            columns={
+                'bn_mae': 'grouped_bn_mae',
+                'non_bn_mae': 'grouped_non_bn_mae',
+                'bn_to_non_bn_mae_ratio': 'grouped_bn_to_non_bn_mae_ratio',
+            }
+        )
         evaluation_df = evaluation_df.merge(stratified_df, on=key_columns, how='left')
     else:
         evaluation_df['grouped_bn_mae'] = np.nan

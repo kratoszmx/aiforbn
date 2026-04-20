@@ -136,6 +136,7 @@ Current default search space:
 - `hist_gradient_boosting`
 - `linear_regression`
 - `torch_mlp`
+- `torch_mlp_ensemble`
 
 ### `build_feature_table(df, formula_col='formula', feature_set='basic_formula_composition')`
 Builds one feature table for one configured feature representation.
@@ -182,6 +183,7 @@ Currently supports:
 - `linear_regression`
 - `hist_gradient_boosting`
 - `torch_mlp`
+- `torch_mlp_ensemble`
 - `random_forest`
 - `dummy_mean`
 
@@ -215,11 +217,23 @@ Why it exists:
 - to add a low-dependency learned neural baseline without depending on the old external CrabNet package
 - to keep formula-only screening candidate-compatible while still testing a more modern neural model family
 
-### `make_model(..., model_type='torch_mlp')`
-The existing factory in `features.py` now lazily imports `TorchMLPRegressor` from this module.
+### `TorchMLPEnsembleRegressor`
+A multi-seed wrapper around `TorchMLPRegressor`.
+
+What it does:
+- fits several `TorchMLPRegressor` members with different seeds
+- averages their predictions for the main model output
+- exposes `predict_members(...)` so reporting can treat ensemble members as additional uncertainty sources
+
+Why it exists:
+- to reduce the chance that the BN-facing result is driven by one lucky seed
+- to strengthen the candidate-compatible neural line without jumping straight to a much heavier model family
+
+### `make_model(..., model_type='torch_mlp' | 'torch_mlp_ensemble')`
+The existing factory in `features.py` now lazily imports these PyTorch regressors from this module.
 
 ### `fractional_composition_vector`
-The new composition-only feature set is designed to pair naturally with `torch_mlp`.
+The new composition-only feature set is designed to pair naturally with `torch_mlp` and `torch_mlp_ensemble`.
 It exposes a 118-dimensional periodic-table fraction vector so the neural baseline can learn directly from raw composition fractions rather than only from hand-crafted descriptors.
 
 ### `select_feature_model_combo(feature_tables, split_masks, cfg)`

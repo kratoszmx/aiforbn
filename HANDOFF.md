@@ -10,8 +10,8 @@
 - 当前工作已恢复到**已重新验证**的节点。
 - 在当前 dirty working tree 上，以下命令已通过：
   - 清缓存：通过从 `../myutils` 注入 `file_utils.delete_cache('.')`
-  - `pytest -q` → `27 passed, 5 warnings in 5.44s`
-  - `/opt/homebrew/Caskroom/miniforge/base/envs/quant/bin/python main.py` → 运行成功（当前输出含 `bn slice benchmark rows: 14`、`bn family benchmark rows: 14`、`bn stratified error rows: 13`、`bn-centered alternative ranking rows: 25`、`structure-generation seed rows: 45`）
+  - `pytest -q` → `28 passed, 5 warnings in 5.52s`
+  - `/opt/homebrew/Caskroom/miniforge/base/envs/quant/bin/python main.py` → 运行成功（当前输出含 `bn slice benchmark rows: 18`、`bn family benchmark rows: 18`、`bn stratified error rows: 17`、`bn-centered alternative ranking rows: 25`、`structure-generation seed rows: 39`）
 - 主任务仍是 `band_gap` 预测与 BN 主题下的候选排序演示。
 - 训练数据仍来自 JARVIS / 2DMatPedia 的 `twod_matpd`。
 - 默认评估协议仍是 **按 `formula` 分组切分**，`train/val/test` 的 formula overlap 为 0。
@@ -24,15 +24,19 @@
   - `basic_formula_composition + hist_gradient_boosting`
   - `basic_formula_composition + linear_regression`
   - `basic_formula_composition + torch_mlp`
+  - `basic_formula_composition + torch_mlp_ensemble`
   - `matminer_composition + hist_gradient_boosting`
   - `matminer_composition + linear_regression`
   - `matminer_composition + torch_mlp`
+  - `matminer_composition + torch_mlp_ensemble`
   - `fractional_composition_vector + hist_gradient_boosting`
   - `fractional_composition_vector + linear_regression`
   - `fractional_composition_vector + torch_mlp`
+  - `fractional_composition_vector + torch_mlp_ensemble`
   - `matminer_composition_plus_structure_summary + hist_gradient_boosting`
   - `matminer_composition_plus_structure_summary + linear_regression`
   - `matminer_composition_plus_structure_summary + torch_mlp`
+  - `matminer_composition_plus_structure_summary + torch_mlp_ensemble`
 - 当前方法学上的关键事实已经变成：
   - **最佳 overall evaluation 组合可以是 structure-aware；**
   - **formula-only 候选排序必须退回到最佳 candidate-compatible 组合，不能假装候选也有结构。**
@@ -82,6 +86,7 @@
 - 本轮新增了低依赖 modern-model wave：
   - `fractional_composition_vector` feature set
   - `torch_mlp` neural regressor（repo-local PyTorch 实现，sklearn 风格 `fit/predict` 接口）
+  - `torch_mlp_ensemble` multi-seed neural regressor（平均多个 member 预测，并把 member-level 输出接进 uncertainty layer）
   - `requirements.txt` 现已显式加入 `torch>=2.11`
 - `select_feature_model_combo()` 已能同时输出：
   - best overall evaluation combo
@@ -196,18 +201,22 @@
   - val = 618 rows / 438 formulas
   - test = 632 rows / 438 formulas
 - validation MAE：
-  - `basic_formula_composition + hist_gradient_boosting`: `0.9579`
-  - `basic_formula_composition + linear_regression`: `0.9976`
-  - `basic_formula_composition + torch_mlp`: `0.9149`
+  - `basic_formula_composition + hist_gradient_boosting`: `0.9410`
+  - `basic_formula_composition + linear_regression`: `0.9986`
+  - `basic_formula_composition + torch_mlp`: `0.8240`
+  - `basic_formula_composition + torch_mlp_ensemble`: `0.8238`
   - `matminer_composition + hist_gradient_boosting`: `0.6006`
   - `matminer_composition + linear_regression`: `0.8303`
-  - `matminer_composition + torch_mlp`: `0.6699`
-  - `fractional_composition_vector + hist_gradient_boosting`: `0.6475`
-  - `fractional_composition_vector + linear_regression`: `0.8232`
-  - `fractional_composition_vector + torch_mlp`: `0.7237`
+  - `matminer_composition + torch_mlp`: `0.6852`
+  - `matminer_composition + torch_mlp_ensemble`: `0.6766`
+  - `fractional_composition_vector + hist_gradient_boosting`: `0.7582`
+  - `fractional_composition_vector + linear_regression`: `0.8422`
+  - `fractional_composition_vector + torch_mlp`: `0.6803`
+  - `fractional_composition_vector + torch_mlp_ensemble`: `0.6580`
   - `matminer_composition_plus_structure_summary + hist_gradient_boosting`: `0.5724`
   - `matminer_composition_plus_structure_summary + linear_regression`: `0.8151`
-  - `matminer_composition_plus_structure_summary + torch_mlp`: `0.6058`
+  - `matminer_composition_plus_structure_summary + torch_mlp`: `0.6111`
+  - `matminer_composition_plus_structure_summary + torch_mlp_ensemble`: `0.6004`
 - best overall evaluation combo：
   - `matminer_composition_plus_structure_summary + hist_gradient_boosting`
 - best formula-only screening combo：
@@ -220,10 +229,14 @@
   - `R² = 0.6302`
 - 当前测试集 benchmark：
   - `matminer_composition_plus_structure_summary + hist_gradient_boosting`: `MAE = 0.5568`
+  - `matminer_composition_plus_structure_summary + torch_mlp_ensemble`: `MAE = 0.5744`
   - `matminer_composition_plus_structure_summary + torch_mlp`: `MAE = 0.5858`
   - `matminer_composition + hist_gradient_boosting`: `MAE = 0.5822`
+  - `matminer_composition + torch_mlp_ensemble`: `MAE = 0.6444`
   - `matminer_composition + torch_mlp`: `MAE = 0.6410`
+  - `fractional_composition_vector + torch_mlp_ensemble`: `MAE = 0.6750`
   - `fractional_composition_vector + torch_mlp`: `MAE = 0.6888`
+  - `basic_formula_composition + torch_mlp_ensemble`: `MAE = 0.8606`
   - `basic_formula_composition + torch_mlp`: `MAE = 0.8745`
   - `dummy_mean`: `MAE = 1.1118`
 - 当前 grouped robustness（`group_kfold_by_formula`, 5 folds）：
@@ -235,40 +248,40 @@
   - 标准 grouped split 下 BN rows 分布：`train = 12`, `val = 0`, `test = 0`
   - `matminer_composition_plus_structure_summary + hist_gradient_boosting`（selected model）：`MAE = 1.6397`
   - `matminer_composition + hist_gradient_boosting`（screening model）：`MAE = 1.6383`
-  - `matminer_composition + torch_mlp`（当前 BN-slice best candidate-compatible combo）：`MAE = 1.1942`
+  - `matminer_composition + torch_mlp_ensemble`（当前 BN-slice best candidate-compatible combo）：`MAE = 1.1257`
   - `matminer_composition_plus_structure_summary + torch_mlp`（当前 BN-slice best overall combo）：`MAE = 1.0693`
   - `dummy_mean`（global dummy baseline）：`MAE = 1.3257`
   - `bn_local_knn_mean`（BN-local reference baseline）：`MAE = 2.2142`
 - 当前 BN-family holdout benchmark（`leave_one_bn_family_out`, 5 BN families / 10 BN formulas / 12 rows）：
   - `matminer_composition_plus_structure_summary + hist_gradient_boosting`（selected model）：`MAE = 1.5588`
   - `matminer_composition + hist_gradient_boosting`（screening model）：`MAE = 1.4923`
-  - `matminer_composition + torch_mlp`（当前 family-holdout best candidate-compatible combo）：`MAE = 1.2032`
+  - `matminer_composition + torch_mlp_ensemble`（当前 family-holdout best candidate-compatible combo）：`MAE = 1.1382`
   - `matminer_composition_plus_structure_summary + torch_mlp`（当前 family-holdout best overall combo）：`MAE = 1.0991`
   - `dummy_mean`（global dummy baseline）：`MAE = 1.3255`
-  - 结论：selected / screening 仍未打赢 dummy，但 new neural candidate-compatible combo 已清楚打赢 dummy
+  - 结论：selected / screening 仍未打赢 dummy，但 new neural ensemble candidate-compatible combo 已清楚打赢 dummy
 - 当前 BN vs non-BN stratified error 结果（`group_kfold_bn_vs_non_bn_formula_stratified_error`, 5 folds）：
   - `selected model`：`BN MAE = 1.7908` vs `non-BN MAE = 0.5670`，`ratio = 3.16`
   - `screening model`：`BN MAE = 1.5004` vs `non-BN MAE = 0.5830`，`ratio = 2.57`
-  - `matminer_composition + torch_mlp`：`BN MAE = 1.2354` vs `non-BN MAE = 0.6815`，`ratio = 1.81`
+  - `matminer_composition + torch_mlp_ensemble`：`BN MAE = 1.2128` vs `non-BN MAE = 0.6697`，`ratio = 1.81`
   - `dummy_mean baseline`：`BN MAE = 1.3251` vs `non-BN MAE = 1.1162`，`ratio = 1.19`
-  - 结论：新 neural candidate-compatible combo 没有让 BN 问题消失，但明显缩小了 BN 子域相对旧 screening combo 的误差劣势
+  - 结论：新 neural ensemble candidate-compatible combo 没有让 BN 问题消失，但明显缩小了 BN 子域相对旧 screening combo 的误差劣势
 - 当前结果的准确解读：
   - structure-aware 路径相对最佳 formula-only 路径的提升是**小幅但一致**的；
   - test MAE 从 `0.5822` 降到 `0.5568`，绝对改善约 `0.0254`，相对改善约 `4.4%`；
   - grouped robustness 下，`MAE_mean` 也从 `0.6321` 降到 `0.6050`，说明这一优势不只来自单次 holdout split；
   - 但 BN-focused leave-one-formula-out 诊断揭示了更尖锐的问题：当前 overall selected model 与 formula-only screening model 在 BN slice 上都**没有打赢**最基本的 global dummy mean baseline；
   - family-holdout 结果把这个结论再往前推了一步：即使按 BN chemical family 聚合留出，selected / screening 仍未打赢 dummy，说明问题不只是“某几个 BN 公式偶然难”，而是 BN 局部家族外推整体仍偏弱；
-  - stratified error 则把 BN 与非 BN 的误差差距量化出来，但新 `matminer_composition + torch_mlp` 已把 candidate-compatible BN/non-BN MAE ratio 压到约 `1.81`，明显优于旧 screening combo 的 `2.57`；
-  - 同时，`matminer_composition + torch_mlp` 现在成为 BN-slice / family-holdout 下最强的 candidate-compatible 组合，而 `matminer_composition_plus_structure_summary + hist_gradient_boosting` 仍是 overall best，这说明“overall best”“screening best”“BN-centered best”现在是三个不同角色；
-  - 这让当前 artifact 更诚实，也更适合导师追问，但同样说明 BN-centered generalization 还没有被真正解决，只是终于出现了一个在严格 BN 诊断下能明确打赢 dummy 的 candidate-compatible neural baseline。
+  - stratified error 则把 BN 与非 BN 的误差差距量化出来，但新 `matminer_composition + torch_mlp_ensemble` 已把 candidate-compatible BN/non-BN MAE ratio 压到约 `1.81`，明显优于旧 screening combo 的 `2.57`；
+  - 同时，`matminer_composition + torch_mlp_ensemble` 现在成为 BN-slice / family-holdout 下最强的 candidate-compatible 组合，而 `matminer_composition_plus_structure_summary + hist_gradient_boosting` 仍是 overall best，这说明“overall best”“screening best”“BN-centered best”现在是三个不同角色；
+  - 这让当前 artifact 更诚实，也更适合导师追问，但同样说明 BN-centered generalization 还没有被真正解决，只是终于出现了一个在严格 BN 诊断下能明确打赢 dummy、而且不只是单个 seed 的 candidate-compatible neural baseline。
 - 当前新增的 BN-centered alternative ranking：
   - 选择来源：从 `bn_slice_benchmark_results.csv` 里挑出 **candidate-compatible 且 BN-slice MAE 最低** 的组合；
-  - 当前选中：`matminer_composition + torch_mlp`；
+  - 当前选中：`matminer_composition + torch_mlp_ensemble`；
   - 导出 artifact：`artifacts/demo_candidate_bn_centered_ranking.csv`；
   - 打分口径：**单模型 BN-centered ranking**，不用 general ranking 的小模型池 disagreement 视角；
-  - 当前与 general ranking 的关系：top-20 成员集合保持一致，但顺序会发生可解释的 BN-centered 偏移；
-  - 目前最明显的顺序变化：`BN` 从第 `9` 升到第 `4`，`Al2BN` 从第 `16` 升到第 `10`；
-  - 当前 family-aware proposal shortlist 的 `10` 个成员不变，说明 shortlist 成员本身对这两种 ranking view 相对稳定，只是内部顺序更偏 BN-centered。
+  - 当前与 general ranking 的关系：top-20 overlap = `18 / 20`，top-3 / top-5 / top-10 overlap 分别为 `2 / 3`、`3 / 5`、`9 / 10`；
+  - 当前 source-count 已上升到 `28`，因为 uncertainty 层开始吸收 ensemble member-level 预测来源；
+  - 当前 family-aware proposal shortlist 的 `10` 个成员不变，但 BN-centered 前列排序更明显地向 `TlBN2 / BN / SnBN2 / BCN2 / AlBN2` 这类候选偏移。
 - 当前新增的 structure-generation bridge：
   - 导出 artifacts：`artifacts/demo_candidate_structure_generation_seeds.csv`、`artifacts/demo_candidate_structure_generation_handoff.json`、`artifacts/demo_candidate_structure_generation_reference_records.json`、`artifacts/demo_candidate_structure_generation_job_plan.json`、`artifacts/demo_candidate_structure_generation_first_pass_queue.json`、`artifacts/demo_candidate_structure_generation_followup_shortlist.csv`、`artifacts/demo_candidate_structure_generation_followup_extrapolation_shortlist.csv`；
   - candidate scope：`proposal_shortlist_plus_extrapolation_shortlist_plus_bn_centered_top_n`；
@@ -324,20 +337,20 @@
   - `proposal_shortlist_novelty_bucket_counts = {train_plus_val_rediscovery: 3, held_out_known_formula: 0, formula_level_extrapolation: 7}`
   - `bn_centered_alternative.enabled = True`
   - `bn_centered_alternative.ranking_feature_set = matminer_composition`
-  - `bn_centered_alternative.ranking_model_type = linear_regression`
-  - `bn_centered_alternative.bn_slice_mae = 1.4217`
-  - `bn_centered_alternative.top_k_overlap_count = 20 / 20`
-  - `bn_centered_alternative.mean_absolute_rank_shift = 2.32`
-  - `bn_centered_alternative.max_absolute_rank_shift = 7`（当前是 `BCN2`）
-  - `ranking_stability.source_count = 14`
-  - `ranking_stability.top_3_overlap = 1 / 3`
+  - `bn_centered_alternative.ranking_model_type = torch_mlp_ensemble`
+  - `bn_centered_alternative.bn_slice_mae = 1.1257`
+  - `bn_centered_alternative.top_k_overlap_count = 18 / 20`
+  - `bn_centered_alternative.mean_absolute_rank_shift = 2.24`
+  - `bn_centered_alternative.max_absolute_rank_shift = 6`（当前是 `GeBN2`）
+  - `ranking_stability.source_count = 28`
+  - `ranking_stability.top_3_overlap = 2 / 3`
   - `ranking_stability.top_5_overlap = 3 / 5`
-  - `ranking_stability.top_10_overlap = 8 / 10`
-  - `ranking_stability.spearman_rank_correlation = 0.9008`
-  - `ranking_stability.kendall_tau = 0.7667`
+  - `ranking_stability.top_10_overlap = 9 / 10`
+  - `ranking_stability.spearman_rank_correlation = 0.9208`
+  - `ranking_stability.kendall_tau = 0.7600`
   - `decision_policy.abstained_candidate_count = 21`
-  - 当前 policy 仍然明显保守；新 neural BN-centered control view 让前列重排更明显，但默认决策层没有因此突然放宽
-  - `bn_candidate_compatible_evaluation.csv` 当前有 `11` 行 screening-compatible 视图，其中最优 candidate-compatible 组合 `matminer_composition + torch_mlp` 已能打赢 `global dummy mean` baseline
+  - 当前 policy 仍然明显保守；新 neural ensemble BN-centered control view 让前列重排更明显，但默认决策层没有因此突然放宽
+  - `bn_candidate_compatible_evaluation.csv` 当前有 `11` 行 screening-compatible 视图，其中最优 candidate-compatible 组合 `matminer_composition + torch_mlp_ensemble` 已能同时在 formula holdout、family holdout 与 grouped BN/non-BN ratio 上给出更完整的单表证据
   - `extrapolation_shortlist_selected_rows = 5`
   - `extrapolation_shortlist_target_novelty_bucket = formula_level_extrapolation`
   - failed formulas：`AlBN`, `TlBN`

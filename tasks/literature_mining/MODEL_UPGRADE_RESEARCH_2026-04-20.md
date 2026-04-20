@@ -204,9 +204,12 @@ A first low-dependency modern-model wave has now been implemented in-repo.
 What was actually added:
 - a new candidate-compatible feature set: `fractional_composition_vector`
   - 118-dimensional periodic-table fraction vector
-- a new repo-local PyTorch model: `torch_mlp`
-  - sklearn-style `fit` / `predict` interface
-  - avoids the old external CrabNet package dependency problems under the current Python/macOS environment
+- new repo-local PyTorch models:
+  - `torch_mlp`
+  - `torch_mlp_ensemble`
+  - both use sklearn-style `fit` / `predict` interfaces
+  - `torch_mlp_ensemble` averages several member seeds and exposes member-level predictions to the uncertainty layer
+  - this avoids the old external CrabNet package dependency problems under the current Python/macOS environment
 
 What happened on the real verified run:
 - overall best model **did not change**
@@ -214,17 +217,20 @@ What happened on the real verified run:
 - default formula-only screening model **did not change**
   - still `matminer_composition + hist_gradient_boosting`
 - but the best BN candidate-compatible combo **did change**
-  - now `matminer_composition + torch_mlp`
+  - first to `matminer_composition + torch_mlp`
+  - then further to `matminer_composition + torch_mlp_ensemble`
 
-Verified BN-facing gains from the new candidate-compatible neural model:
-- BN formula holdout MAE: `1.1942`
+Verified BN-facing gains from the current best candidate-compatible neural model:
+- BN formula holdout MAE: `1.1257`
+  - better than the earlier single-model `torch_mlp = 1.1942`
   - better than `dummy_mean = 1.3257`
   - better than old screening combo `matminer_composition + hist_gradient_boosting = 1.6383`
-- BN family holdout MAE: `1.2032`
+- BN family holdout MAE: `1.1382`
+  - better than the earlier single-model `torch_mlp = 1.2032`
   - better than `dummy_mean = 1.3255`
   - better than old screening combo `1.4923`
-- BN vs non-BN grouped error ratio: `1.81`
-  - better than old screening combo ratio `2.57`
+- BN vs non-BN grouped error ratio: `1.8109`
+  - essentially as good as the single-model result, but now from a more stable multi-seed ensemble view
 
 Interpretation:
 - the repo now has a **real candidate-compatible modern neural baseline that matters on strict BN diagnostics**

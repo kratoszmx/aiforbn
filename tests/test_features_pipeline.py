@@ -17,6 +17,7 @@ from pipeline.features import (
     benchmark_regressors,
     build_candidate_grouped_robustness_predictions,
     build_candidate_prediction_ensemble,
+    build_candidate_prediction_members,
     build_candidate_structure_generation_seeds,
     build_feature_table,
     build_feature_tables,
@@ -1276,13 +1277,11 @@ def test_screen_candidates_can_apply_bn_local_band_gap_alignment_penalty():
     assert ge2bn_row['bn_band_gap_alignment_penalty'] <= 0.08 + 1e-12
 
 
-def test_fractional_composition_feature_table_and_torch_mlp_fit_predict():
+def test_fractional_composition_feature_table_and_torch_models_fit_predict():
     pytest.importorskip('torch')
 
     cfg = copy.deepcopy(CFG)
     cfg['features']['candidate_sets'] = [FRACTIONAL_COMPOSITION_FEATURE_SET]
-    cfg['model']['type'] = 'torch_mlp'
-    cfg['model']['candidate_types'] = ['torch_mlp']
     cfg['model']['torch_mlp'] = {
         'hidden_dim': 32,
         'depth': 2,
@@ -1296,6 +1295,20 @@ def test_fractional_composition_feature_table_and_torch_mlp_fit_predict():
         'device': 'cpu',
         'random_seed': 42,
     }
+    cfg['model']['torch_mlp_ensemble'] = {
+        'hidden_dim': 32,
+        'depth': 2,
+        'dropout': 0.0,
+        'learning_rate': 0.01,
+        'weight_decay': 0.0,
+        'max_epochs': 10,
+        'patience': 2,
+        'min_delta': 0.0,
+        'val_fraction': 0.2,
+        'device': 'cpu',
+        'random_seed': 42,
+        'member_seeds': [42, 43],
+    }
 
     dataset_df = _sample_training_df()
     split_masks = make_split_masks(dataset_df, cfg)
@@ -1308,18 +1321,71 @@ def test_fractional_composition_feature_table_and_torch_mlp_fit_predict():
     assert feature_df['frac_b'].sum() > 0.0
     assert feature_df['frac_n'].sum() > 0.0
 
-    model, feature_columns = train_baseline_model(
-        feature_df,
+    for model_type in ['torch_mlp', 'torch_mlp_ensemble']:
+        model, feature_columns = train_baseline_model(
+            feature_df,
+            split_masks,
+            cfg,
+            model_type=model_type,
+            include_validation=False,
+        )
+        metrics, prediction_df = evaluate_predictions(feature_df, split_masks, model, feature_columns)
+
+        assert prediction_df['prediction'].notna().all()
+        assert np.isfinite(prediction_df['prediction']).all()
+        assert metrics['mae'] >= 0.0
+
+    ensemble_model = make_model(cfg, model_type='torch_mlp_ensemble')
+    feature_columns = [column for column in feature_df.columns if column.startswith('frac_')]
+    ensemble_model.fit(feature_df[feature_columns], feature_df['target'])
+    member_predictions = ensemble_model.predict_members(feature_df[feature_columns])
+    assert member_predictions.shape[0] == 2
+    assert member_predictions.shape[1] == len(feature_df)
+
+
+def test_torch_mlp_ensemble_expands_candidate_uncertainty_sources():
+    pytest.importorskip('torch')
+
+    cfg = copy.deepcopy(CFG)
+    cfg['features']['candidate_sets'] = [FRACTIONAL_COMPOSITION_FEATURE_SET]
+    cfg['model']['type'] = 'torch_mlp_ensemble'
+    cfg['model']['candidate_types'] = ['torch_mlp_ensemble']
+    cfg['model']['torch_mlp_ensemble'] = {
+        'hidden_dim': 24,
+        'depth': 2,
+        'dropout': 0.0,
+        'learning_rate': 0.01,
+        'weight_decay': 0.0,
+        'max_epochs': 8,
+        'patience': 2,
+        'min_delta': 0.0,
+        'val_fraction': 0.2,
+        'device': 'cpu',
+        'random_seed': 42,
+        'member_seeds': [42, 43],
+    }
+
+    dataset_df = _sample_training_df()
+    split_masks = make_split_masks(dataset_df, cfg)
+    feature_tables = {
+        FRACTIONAL_COMPOSITION_FEATURE_SET: build_feature_table(
+            dataset_df,
+            feature_set=FRACTIONAL_COMPOSITION_FEATURE_SET,
+        )
+    }
+    candidate_df = pd.DataFrame({'formula': ['BN', 'BCN', 'B2N2']})
+
+    prediction_df = build_candidate_prediction_members(
+        candidate_df,
+        feature_tables,
         split_masks,
         cfg,
-        model_type='torch_mlp',
-        include_validation=False,
+        candidate_feature_sets=[FRACTIONAL_COMPOSITION_FEATURE_SET],
     )
-    metrics, prediction_df = evaluate_predictions(feature_df, split_masks, model, feature_columns)
 
-    assert prediction_df['prediction'].notna().all()
-    assert np.isfinite(prediction_df['prediction']).all()
-    assert metrics['mae'] >= 0.0
+    assert prediction_df['prediction_source'].nunique() == 2
+    assert set(prediction_df['prediction_source_family']) == {'full_fit_candidate_model_member'}
+    assert prediction_df.groupby('formula').size().eq(2).all()
 
 
 def test_make_model_rejects_unknown_model_type():
