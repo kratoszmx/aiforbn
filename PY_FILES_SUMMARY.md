@@ -21,10 +21,12 @@ What it does, in order:
 8. benchmarks all configured combos on `test`
 9. runs grouped-by-formula robustness benchmarking across configured combos
 10. runs a dedicated BN-focused leave-one-BN-formula-out benchmark across configured combos plus baselines
-11. builds full-fit candidate-member predictions plus grouped-fold candidate-member predictions for ranking-stability analysis
-12. ranks candidates with the best candidate-compatible combo
-13. builds deterministic structure first-pass execution artifacts for the highest-priority follow-up candidates
-14. writes metrics / plots / benchmark / robustness / BN-benchmark / ranking / uncertainty / abstention / shortlist / structure-execution artifacts
+11. runs a BN-family holdout benchmark across configured combos plus baselines
+12. runs grouped BN-vs-non-BN stratified error benchmarking
+13. builds full-fit candidate-member predictions plus grouped-fold candidate-member predictions for ranking-stability analysis
+14. ranks candidates with the best candidate-compatible combo
+15. builds deterministic structure first-pass execution artifacts for the highest-priority follow-up candidates
+16. writes metrics / plots / benchmark / robustness / BN-benchmark / ranking / uncertainty / abstention / shortlist / structure-execution artifacts
 
 Important:
 - overall evaluation combo and formula-only screening combo may differ
@@ -273,6 +275,27 @@ Useful benchmark columns include:
 - `rmse`
 - `r2`
 - `k_neighbors`
+
+### `benchmark_bn_family_holdout(dataset_df, feature_tables, cfg, selected_feature_set, selected_model_type, screening_feature_set, screening_model_type)`
+Runs the dedicated BN-family leave-one-family-out benchmark.
+It returns two dataframes:
+- a benchmark summary across configured feature/model combos plus `dummy_mean` and `bn_local_knn_mean`
+- a per-row prediction table annotated with BN family labels
+
+Important:
+- this groups BN formulas by reduced BN-local chemical system and leaves one family out at a time
+- it is still a small-sample BN diagnostic, but stricter than formula-level leave-one-out for family-local extrapolation claims
+
+### `benchmark_bn_stratified_errors(dataset_df, feature_tables, cfg, selected_feature_set, selected_model_type, screening_feature_set, screening_model_type)`
+Runs grouped-by-formula cross-validation and reports separate BN vs non-BN errors.
+It returns one dataframe with:
+- `bn_mae`, `bn_rmse`, `bn_r2`
+- `non_bn_mae`, `non_bn_rmse`, `non_bn_r2`
+- `bn_to_non_bn_mae_ratio`
+
+Important:
+- this does not prove BN generalization
+- it quantifies whether BN-containing systems are systematically harder than the broader 2D-material population
 
 ### `select_bn_centered_candidate_screening_combo(bn_slice_benchmark_df, cfg, fallback_feature_set=None, fallback_model_type=None)`
 Selects the **best candidate-compatible BN-centered screening combo** from the BN-slice benchmark.
@@ -561,6 +584,9 @@ Important:
 - now also summarizes whether the BN analog-validation proxy is active in ranking and how many rows were penalized
 - now also summarizes grouped-by-formula robustness results for the selected model, screening fallback, and dummy baseline
 - now also summarizes the BN-slice benchmark, including standard-split BN row placement, selected/screening/baseline BN metrics, and the current BN-slice best configured combo
+- now also summarizes the BN-family holdout benchmark, including family grouping method, selected/screening/baseline metrics, and whether any candidate combo beats the global dummy baseline
+- now also summarizes BN-vs-non-BN stratified errors, including grouped-fold BN/non-BN metrics and the BN/non-BN MAE ratio
+- now also summarizes the explicit screening objective, so the machine-readable output states this is low-confidence BN-themed formula-level follow-up prioritization rather than direct discovery
 - now also summarizes the BN-centered alternative ranking view, including the chosen candidate-compatible combo, rank-shift statistics, Spearman / Kendall correlation, and top-k overlap against the default ranking
 - now also summarizes the ranking-stability / uncertainty layer, including source count, prediction interval settings, rank-spread thresholds, and the `demo_candidate_ranking_uncertainty.csv` artifact path
 - now also summarizes the heuristic decision policy / abstention layer, including abstained candidate count and final action counts
@@ -572,9 +598,13 @@ Important:
 
 ### `save_metrics_and_predictions(metrics, prediction_df, bn_df, screened_df, benchmark_df, robustness_df, bn_slice_benchmark_df, bn_slice_prediction_df, bn_centered_screened_df, structure_generation_seed_df, experiment_summary, manifest, cfg)`
 Writes the main artifact files under `artifacts/`.
-This now includes both shortlist CSVs, BN-slice benchmark artifacts, the BN-centered alternative ranking artifact, the ranking-stability / abstention artifact, the BN candidate-compatible evaluation artifact, and the structure-generation bridge artifacts in addition to the full ranking artifact:
+This now includes both shortlist CSVs, BN-slice benchmark artifacts, BN-family / stratified BN evaluation artifacts, the BN-centered alternative ranking artifact, the ranking-stability / abstention artifact, the BN candidate-compatible evaluation artifact, and the structure-generation bridge artifacts in addition to the full ranking artifact:
 - `bn_slice_benchmark_results.csv`
 - `bn_slice_predictions.csv`
+- `bn_family_benchmark_results.csv`
+- `bn_family_predictions.csv`
+- `bn_stratified_error_results.csv`
+- `bn_evaluation_matrix.csv`
 - `bn_candidate_compatible_evaluation.csv`
 - `demo_candidate_bn_centered_ranking.csv`
 - `demo_candidate_ranking_uncertainty.csv`
@@ -606,6 +636,10 @@ It is a simple artifact viewer for:
 - `robustness_results.csv`
 - `bn_slice_benchmark_results.csv`
 - `bn_slice_predictions.csv`
+- `bn_family_benchmark_results.csv`
+- `bn_family_predictions.csv`
+- `bn_stratified_error_results.csv`
+- `bn_evaluation_matrix.csv`
 - `bn_candidate_compatible_evaluation.csv`
 - `predictions.csv`
 - `demo_candidate_ranking.csv`

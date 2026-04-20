@@ -75,6 +75,30 @@ CONFIG = {
             'diagnostic for BN-centered generalization, not a definitive BN-only benchmark.'
         ),
     },
+    'bn_family_benchmark': {
+        'enabled': True,
+        'method': 'leave_one_bn_family_out',
+        'grouping_method': 'reduced_bn_chemical_system',
+        'k_neighbors': 3,
+        'note': (
+            'Runs a BN-family holdout benchmark by leaving out one BN-local chemical family at a '
+            'time. The default family definition groups BN formulas by reduced BN chemical '
+            'system, so BCN-like systems, BN binaries, and Si-B-N systems are evaluated as '
+            'separate BN-local families. This is still a small-sample diagnostic, not a '
+            'definitive BN-domain benchmark.'
+        ),
+    },
+    'bn_stratified_error': {
+        'enabled': True,
+        'method': 'group_kfold_bn_vs_non_bn_formula_stratified_error',
+        'group_column': 'formula',
+        'n_splits': 5,
+        'note': (
+            'Runs grouped-by-formula cross-validation and reports separate BN vs non-BN '
+            'formula-level errors so the project can show whether BN-containing systems are '
+            'systematically harder than the broader 2D-material population.'
+        ),
+    },
     'screening': {
         'enabled': True,
         'top_k': 20,
@@ -88,6 +112,17 @@ CONFIG = {
             'feasibility, or real discovery.'
         ),
         'ranking_label': 'demo_candidate_ranking',
+        'objective_name': 'bn_themed_formula_level_wide_gap_followup_prioritization',
+        'objective_target_property': 'band_gap',
+        'objective_target_direction': 'maximize',
+        'objective_decision_unit': 'formula_level_candidate',
+        'objective_decision_consequence': 'low_confidence_prioritization_for_structure_followup',
+        'objective_note': (
+            'The screening objective is to prioritize BN-themed formula-level candidates with '
+            'higher predicted band gap for downstream structure follow-up. This is not a direct '
+            'BN discovery claim, a calibrated confidence estimate, or a proof of structure '
+            'stability/synthesizability.'
+        ),
         'use_model_disagreement': True,
         'uncertainty_method': 'small_feature_model_disagreement',
         'uncertainty_penalty': 0.5,

@@ -13,7 +13,9 @@ import pandas as pd
 
 from pipeline.data import load_cached_raw_record_lookup
 from pipeline.features import (
+    _bn_family_benchmark_config,
     _bn_slice_benchmark_config,
+    _bn_stratified_error_config,
     _extrapolation_shortlist_config,
     _proposal_shortlist_config,
     _structure_generation_seed_config,
@@ -63,6 +65,46 @@ BN_SLICE_BENCHMARK_COLUMNS = [
     'mae',
     'rmse',
     'r2',
+]
+BN_FAMILY_BENCHMARK_COLUMNS = [
+    'feature_set',
+    'feature_family',
+    'model_type',
+    'benchmark_role',
+    'benchmark_status',
+    'bn_family_benchmark_method',
+    'bn_family_grouping_method',
+    'bn_family_train_scope',
+    'bn_family_count',
+    'bn_formula_count',
+    'bn_row_count',
+    'completed_family_holds',
+    'completed_formula_holds',
+    'k_neighbors',
+    'mae',
+    'rmse',
+    'r2',
+]
+BN_STRATIFIED_ERROR_COLUMNS = [
+    'feature_set',
+    'feature_family',
+    'model_type',
+    'benchmark_role',
+    'benchmark_status',
+    'bn_stratified_error_method',
+    'bn_stratified_group_column',
+    'requested_folds',
+    'actual_folds',
+    'completed_folds',
+    'bn_formula_count',
+    'non_bn_formula_count',
+    'bn_mae',
+    'bn_rmse',
+    'bn_r2',
+    'non_bn_mae',
+    'non_bn_rmse',
+    'non_bn_r2',
+    'bn_to_non_bn_mae_ratio',
 ]
 
 STRUCTURE_GENERATION_JOB_PLAN_LABEL = 'prototype_substitution_enumeration_job_plan'
@@ -415,6 +457,198 @@ def _build_bn_candidate_compatible_evaluation_table(
 
 
 
+def _build_bn_evaluation_matrix_table(
+    bn_slice_benchmark_df: pd.DataFrame,
+    bn_family_benchmark_df: pd.DataFrame,
+    bn_stratified_error_df: pd.DataFrame,
+) -> pd.DataFrame:
+    columns = [
+        'benchmark_role',
+        'feature_set',
+        'feature_family',
+        'model_type',
+        'candidate_compatible',
+        'selected_by_validation',
+        'screening_eligible',
+        'formula_holdout_mae',
+        'formula_holdout_rmse',
+        'formula_holdout_r2',
+        'formula_holdout_beats_global_dummy',
+        'family_holdout_mae',
+        'family_holdout_rmse',
+        'family_holdout_r2',
+        'family_holdout_beats_global_dummy',
+        'grouped_bn_mae',
+        'grouped_non_bn_mae',
+        'grouped_bn_to_non_bn_mae_ratio',
+        'is_best_candidate_compatible_formula_holdout',
+        'is_best_candidate_compatible_family_holdout',
+    ]
+
+    frames: list[pd.DataFrame] = []
+    metadata_frames: list[pd.DataFrame] = []
+    key_columns = ['benchmark_role', 'feature_set', 'feature_family', 'model_type']
+    metadata_columns = key_columns + ['candidate_compatible', 'selected_by_validation']
+    if bn_slice_benchmark_df is not None and not bn_slice_benchmark_df.empty:
+        formula_df = bn_slice_benchmark_df.copy()
+        if 'candidate_compatible' not in formula_df.columns:
+            formula_df['candidate_compatible'] = formula_df['feature_set'].astype(str).map(
+                feature_set_supports_formula_only_screening
+            )
+        if 'selected_by_validation' not in formula_df.columns:
+            formula_df['selected_by_validation'] = False
+        formula_df = formula_df.rename(
+            columns={
+                'mae': 'formula_holdout_mae',
+                'rmse': 'formula_holdout_rmse',
+                'r2': 'formula_holdout_r2',
+            }
+        )
+        metadata_frames.append(formula_df[metadata_columns].copy())
+        frames.append(formula_df[key_columns + [
+            'formula_holdout_mae',
+            'formula_holdout_rmse',
+            'formula_holdout_r2',
+        ]].copy())
+    if bn_family_benchmark_df is not None and not bn_family_benchmark_df.empty:
+        family_df = bn_family_benchmark_df.copy()
+        if 'candidate_compatible' not in family_df.columns:
+            family_df['candidate_compatible'] = family_df['feature_set'].astype(str).map(
+                feature_set_supports_formula_only_screening
+            )
+        if 'selected_by_validation' not in family_df.columns:
+            family_df['selected_by_validation'] = False
+        family_df = family_df.rename(
+            columns={
+                'mae': 'family_holdout_mae',
+                'rmse': 'family_holdout_rmse',
+                'r2': 'family_holdout_r2',
+            }
+        )
+        metadata_frames.append(family_df[metadata_columns].copy())
+        frames.append(family_df[key_columns + [
+            'family_holdout_mae',
+            'family_holdout_rmse',
+            'family_holdout_r2',
+        ]].copy())
+    if bn_stratified_error_df is not None and not bn_stratified_error_df.empty:
+        stratified_df = bn_stratified_error_df.copy()
+        if 'candidate_compatible' not in stratified_df.columns:
+            stratified_df['candidate_compatible'] = stratified_df['feature_set'].astype(str).map(
+                feature_set_supports_formula_only_screening
+            )
+        if 'selected_by_validation' not in stratified_df.columns:
+            stratified_df['selected_by_validation'] = False
+        stratified_df = stratified_df.rename(
+            columns={
+                'bn_mae': 'grouped_bn_mae',
+                'non_bn_mae': 'grouped_non_bn_mae',
+                'bn_to_non_bn_mae_ratio': 'grouped_bn_to_non_bn_mae_ratio',
+            }
+        )
+        metadata_frames.append(stratified_df[metadata_columns].copy())
+        frames.append(stratified_df[key_columns + [
+            'grouped_bn_mae',
+            'grouped_non_bn_mae',
+            'grouped_bn_to_non_bn_mae_ratio',
+        ]].copy())
+
+    if not frames:
+        return pd.DataFrame(columns=columns)
+
+    base_df = pd.concat(metadata_frames, ignore_index=True).drop_duplicates()
+    if 'candidate_compatible' not in base_df.columns:
+        base_df['candidate_compatible'] = base_df['feature_set'].astype(str).map(
+            feature_set_supports_formula_only_screening
+        )
+    base_df['candidate_compatible'] = base_df['candidate_compatible'].fillna(False).astype(bool)
+    if 'selected_by_validation' not in base_df.columns:
+        base_df['selected_by_validation'] = False
+    base_df['selected_by_validation'] = base_df['selected_by_validation'].fillna(False).astype(bool)
+    base_df = base_df[key_columns + ['candidate_compatible', 'selected_by_validation']].drop_duplicates()
+    for frame in frames:
+        merge_columns = [column for column in frame.columns if column not in key_columns]
+        base_df = base_df.merge(frame[key_columns + merge_columns], on=key_columns, how='left')
+    base_df['screening_eligible'] = (
+        base_df['candidate_compatible']
+        | base_df['benchmark_role'].astype(str).isin(
+            ['global_dummy_mean_baseline', 'bn_local_reference_baseline', 'dummy_baseline']
+        )
+    )
+
+    formula_holdout_mae_series = pd.to_numeric(
+        base_df['formula_holdout_mae'], errors='coerce'
+    ) if 'formula_holdout_mae' in base_df.columns else pd.Series(np.nan, index=base_df.index, dtype=float)
+    family_holdout_mae_series = pd.to_numeric(
+        base_df['family_holdout_mae'], errors='coerce'
+    ) if 'family_holdout_mae' in base_df.columns else pd.Series(np.nan, index=base_df.index, dtype=float)
+
+    formula_dummy_mae = None
+    formula_dummy_rows = base_df.loc[
+        base_df['benchmark_role'].astype(str).eq('global_dummy_mean_baseline')
+        & formula_holdout_mae_series.notna()
+    ]
+    if not formula_dummy_rows.empty:
+        formula_dummy_mae = float(formula_dummy_rows.iloc[0]['formula_holdout_mae'])
+    base_df['formula_holdout_beats_global_dummy'] = False
+    if formula_dummy_mae is not None:
+        base_df['formula_holdout_beats_global_dummy'] = formula_holdout_mae_series < formula_dummy_mae
+
+    family_dummy_mae = None
+    family_dummy_rows = base_df.loc[
+        base_df['benchmark_role'].astype(str).eq('global_dummy_mean_baseline')
+        & family_holdout_mae_series.notna()
+    ]
+    if not family_dummy_rows.empty:
+        family_dummy_mae = float(family_dummy_rows.iloc[0]['family_holdout_mae'])
+    base_df['family_holdout_beats_global_dummy'] = False
+    if family_dummy_mae is not None:
+        base_df['family_holdout_beats_global_dummy'] = family_holdout_mae_series < family_dummy_mae
+
+    base_df['is_best_candidate_compatible_formula_holdout'] = False
+    candidate_formula_df = base_df.loc[
+        base_df['candidate_compatible']
+        & ~base_df['benchmark_role'].astype(str).isin(
+            ['global_dummy_mean_baseline', 'bn_local_reference_baseline', 'dummy_baseline']
+        )
+        & formula_holdout_mae_series.notna()
+    ].copy()
+    if not candidate_formula_df.empty:
+        best_idx = pd.to_numeric(candidate_formula_df['formula_holdout_mae'], errors='coerce').idxmin()
+        base_df.loc[best_idx, 'is_best_candidate_compatible_formula_holdout'] = True
+
+    base_df['is_best_candidate_compatible_family_holdout'] = False
+    candidate_family_df = base_df.loc[
+        base_df['candidate_compatible']
+        & ~base_df['benchmark_role'].astype(str).isin(
+            ['global_dummy_mean_baseline', 'bn_local_reference_baseline', 'dummy_baseline']
+        )
+        & family_holdout_mae_series.notna()
+    ].copy()
+    if not candidate_family_df.empty:
+        best_idx = pd.to_numeric(candidate_family_df['family_holdout_mae'], errors='coerce').idxmin()
+        base_df.loc[best_idx, 'is_best_candidate_compatible_family_holdout'] = True
+
+    for column in columns:
+        if column not in base_df.columns:
+            base_df[column] = pd.NA
+    base_df = base_df.sort_values(
+        [
+            'screening_eligible',
+            'candidate_compatible',
+            'formula_holdout_mae',
+            'family_holdout_mae',
+            'benchmark_role',
+            'feature_set',
+            'model_type',
+        ],
+        ascending=[False, False, True, True, True, True, True],
+        kind='stable',
+    ).reset_index(drop=True)
+    return base_df[columns]
+
+
+
 def _quantile_from_group(values: pd.Series, quantile: float) -> float | None:
     numeric_values = pd.to_numeric(values, errors='coerce').dropna()
     if numeric_values.empty:
@@ -744,6 +978,44 @@ def _bn_slice_benchmark_row_payload(bn_slice_benchmark_df: pd.DataFrame, mask) -
     if bn_slice_benchmark_df.empty:
         return None
     row_df = bn_slice_benchmark_df.loc[mask, BN_SLICE_BENCHMARK_COLUMNS]
+    if row_df.empty:
+        return None
+    payload = row_df.iloc[0].to_dict()
+    cleaned = {}
+    for key, value in payload.items():
+        if pd.isna(value):
+            cleaned[key] = None
+        elif isinstance(value, (int, float, bool, str)):
+            cleaned[key] = value
+        else:
+            cleaned[key] = value.item() if hasattr(value, 'item') else value
+    return cleaned
+
+
+
+def _bn_family_benchmark_row_payload(bn_family_benchmark_df: pd.DataFrame, mask) -> dict | None:
+    if bn_family_benchmark_df.empty:
+        return None
+    row_df = bn_family_benchmark_df.loc[mask, BN_FAMILY_BENCHMARK_COLUMNS]
+    if row_df.empty:
+        return None
+    payload = row_df.iloc[0].to_dict()
+    cleaned = {}
+    for key, value in payload.items():
+        if pd.isna(value):
+            cleaned[key] = None
+        elif isinstance(value, (int, float, bool, str)):
+            cleaned[key] = value
+        else:
+            cleaned[key] = value.item() if hasattr(value, 'item') else value
+    return cleaned
+
+
+
+def _bn_stratified_error_row_payload(bn_stratified_error_df: pd.DataFrame, mask) -> dict | None:
+    if bn_stratified_error_df.empty:
+        return None
+    row_df = bn_stratified_error_df.loc[mask, BN_STRATIFIED_ERROR_COLUMNS]
     if row_df.empty:
         return None
     payload = row_df.iloc[0].to_dict()
@@ -1802,6 +2074,8 @@ def build_experiment_summary(
     cfg,
     robustness_df=None,
     bn_slice_benchmark_df=None,
+    bn_family_benchmark_df=None,
+    bn_stratified_error_df=None,
     bn_centered_candidate_df=None,
     bn_centered_screening_selection=None,
     structure_generation_seed_df=None,
@@ -1849,9 +2123,17 @@ def build_experiment_summary(
     robustness_cfg = cfg.get('robustness', {})
     robustness_enabled = bool(robustness_cfg.get('enabled', False))
     bn_slice_benchmark_cfg = _bn_slice_benchmark_config(cfg)
+    bn_family_benchmark_cfg = _bn_family_benchmark_config(cfg)
+    bn_stratified_error_cfg = _bn_stratified_error_config(cfg)
     robustness_df = pd.DataFrame() if robustness_df is None else robustness_df.copy()
     bn_slice_benchmark_df = (
         pd.DataFrame() if bn_slice_benchmark_df is None else bn_slice_benchmark_df.copy()
+    )
+    bn_family_benchmark_df = (
+        pd.DataFrame() if bn_family_benchmark_df is None else bn_family_benchmark_df.copy()
+    )
+    bn_stratified_error_df = (
+        pd.DataFrame() if bn_stratified_error_df is None else bn_stratified_error_df.copy()
     )
     bn_centered_candidate_df = (
         pd.DataFrame() if bn_centered_candidate_df is None else bn_centered_candidate_df.copy()
@@ -2286,6 +2568,83 @@ def build_experiment_summary(
             and bn_slice_best_candidate_metrics['model_type'] == bn_slice_selected_metrics['model_type']
         )
 
+    bn_family_selected_mask = pd.Series(False, index=bn_family_benchmark_df.index)
+    bn_family_screening_mask = pd.Series(False, index=bn_family_benchmark_df.index)
+    bn_family_bn_local_mask = pd.Series(False, index=bn_family_benchmark_df.index)
+    bn_family_global_dummy_mask = pd.Series(False, index=bn_family_benchmark_df.index)
+    bn_family_best_candidate_mask = pd.Series(False, index=bn_family_benchmark_df.index)
+    if 'benchmark_role' in bn_family_benchmark_df.columns:
+        bn_family_selected_mask = bn_family_benchmark_df['benchmark_role'].astype(str).eq('selected_model')
+        bn_family_screening_mask = bn_family_benchmark_df['benchmark_role'].astype(str).eq('screening_model')
+        bn_family_bn_local_mask = bn_family_benchmark_df['benchmark_role'].astype(str).eq('bn_local_reference_baseline')
+        bn_family_global_dummy_mask = bn_family_benchmark_df['benchmark_role'].astype(str).eq('global_dummy_mean_baseline')
+        if {'benchmark_status', 'mae'}.issubset(bn_family_benchmark_df.columns):
+            candidate_mask = bn_family_benchmark_df['benchmark_role'].astype(str).isin(
+                ['selected_model', 'screening_model', 'candidate_model']
+            ) & bn_family_benchmark_df['benchmark_status'].astype(str).eq('ok')
+            bn_family_candidate_result_df = bn_family_benchmark_df.loc[candidate_mask].copy()
+            if not bn_family_candidate_result_df.empty:
+                best_idx = bn_family_candidate_result_df['mae'].astype(float).idxmin()
+                bn_family_best_candidate_mask = pd.Series(False, index=bn_family_benchmark_df.index)
+                bn_family_best_candidate_mask.loc[best_idx] = True
+
+    bn_family_selected_metrics = _bn_family_benchmark_row_payload(
+        bn_family_benchmark_df,
+        bn_family_selected_mask,
+    ) if 'benchmark_role' in bn_family_benchmark_df.columns else None
+    bn_family_screening_metrics = _bn_family_benchmark_row_payload(
+        bn_family_benchmark_df,
+        bn_family_screening_mask,
+    ) if 'benchmark_role' in bn_family_benchmark_df.columns else None
+    bn_family_bn_local_metrics = _bn_family_benchmark_row_payload(
+        bn_family_benchmark_df,
+        bn_family_bn_local_mask,
+    ) if 'benchmark_role' in bn_family_benchmark_df.columns else None
+    bn_family_global_dummy_metrics = _bn_family_benchmark_row_payload(
+        bn_family_benchmark_df,
+        bn_family_global_dummy_mask,
+    ) if 'benchmark_role' in bn_family_benchmark_df.columns else None
+    bn_family_best_candidate_metrics = _bn_family_benchmark_row_payload(
+        bn_family_benchmark_df,
+        bn_family_best_candidate_mask,
+    ) if 'benchmark_role' in bn_family_benchmark_df.columns else None
+    bn_family_selected_beats_global_dummy = None
+    bn_family_screening_beats_global_dummy = None
+    bn_family_best_candidate_beats_global_dummy = None
+    if bn_family_selected_metrics and bn_family_global_dummy_metrics:
+        bn_family_selected_beats_global_dummy = bool(
+            bn_family_selected_metrics['mae'] < bn_family_global_dummy_metrics['mae']
+        )
+    if bn_family_screening_metrics and bn_family_global_dummy_metrics:
+        bn_family_screening_beats_global_dummy = bool(
+            bn_family_screening_metrics['mae'] < bn_family_global_dummy_metrics['mae']
+        )
+    if bn_family_best_candidate_metrics and bn_family_global_dummy_metrics:
+        bn_family_best_candidate_beats_global_dummy = bool(
+            bn_family_best_candidate_metrics['mae'] < bn_family_global_dummy_metrics['mae']
+        )
+
+    bn_stratified_selected_mask = pd.Series(False, index=bn_stratified_error_df.index)
+    bn_stratified_screening_mask = pd.Series(False, index=bn_stratified_error_df.index)
+    bn_stratified_dummy_mask = pd.Series(False, index=bn_stratified_error_df.index)
+    if 'benchmark_role' in bn_stratified_error_df.columns:
+        bn_stratified_selected_mask = bn_stratified_error_df['benchmark_role'].astype(str).eq('selected_model')
+        bn_stratified_screening_mask = bn_stratified_error_df['benchmark_role'].astype(str).eq('screening_model')
+        bn_stratified_dummy_mask = bn_stratified_error_df['benchmark_role'].astype(str).eq('dummy_baseline')
+
+    bn_stratified_selected_metrics = _bn_stratified_error_row_payload(
+        bn_stratified_error_df,
+        bn_stratified_selected_mask,
+    ) if 'benchmark_role' in bn_stratified_error_df.columns else None
+    bn_stratified_screening_metrics = _bn_stratified_error_row_payload(
+        bn_stratified_error_df,
+        bn_stratified_screening_mask,
+    ) if 'benchmark_role' in bn_stratified_error_df.columns else None
+    bn_stratified_dummy_metrics = _bn_stratified_error_row_payload(
+        bn_stratified_error_df,
+        bn_stratified_dummy_mask,
+    ) if 'benchmark_role' in bn_stratified_error_df.columns else None
+
     bn_centered_summary = {
         'enabled': bool(bn_centered_screening_selection.get('enabled', False)),
         'selection_source_artifact': bn_centered_screening_selection.get(
@@ -2499,6 +2858,11 @@ def build_experiment_summary(
     bn_candidate_compatible_evaluation_df = _build_bn_candidate_compatible_evaluation_table(
         bn_slice_benchmark_df
     )
+    bn_evaluation_matrix_df = _build_bn_evaluation_matrix_table(
+        bn_slice_benchmark_df,
+        bn_family_benchmark_df,
+        bn_stratified_error_df,
+    )
     candidate_ranking_uncertainty_df, candidate_ranking_uncertainty_summary = (
         _candidate_ranking_uncertainty_table(
             candidate_df,
@@ -2637,12 +3001,72 @@ def build_experiment_summary(
                 else None
             ),
             'candidate_compatible_result_row_count': int(len(bn_candidate_compatible_evaluation_df)),
+            'family_benchmark_artifact': (
+                'bn_family_benchmark_results.csv' if bool(bn_family_benchmark_cfg['enabled']) else None
+            ),
+            'family_prediction_artifact': (
+                'bn_family_predictions.csv' if bool(bn_family_benchmark_cfg['enabled']) else None
+            ),
+            'family_benchmark_method': bn_family_benchmark_cfg['method'],
+            'family_grouping_method': bn_family_benchmark_cfg['grouping_method'],
+            'family_k_neighbors': int(bn_family_benchmark_cfg['k_neighbors']),
+            'family_note': bn_family_benchmark_cfg['note'],
+            'family_result_row_count': int(len(bn_family_benchmark_df)),
+            'family_successful_result_rows': int(
+                bn_family_benchmark_df['benchmark_status'].eq('ok').sum()
+            ) if 'benchmark_status' in bn_family_benchmark_df.columns else 0,
+            'family_selected_model_metrics': bn_family_selected_metrics,
+            'family_screening_model_metrics': bn_family_screening_metrics,
+            'family_bn_local_reference_metrics': bn_family_bn_local_metrics,
+            'family_global_dummy_baseline_metrics': bn_family_global_dummy_metrics,
+            'family_best_candidate_model_metrics': bn_family_best_candidate_metrics,
+            'family_selected_model_beats_global_dummy': bn_family_selected_beats_global_dummy,
+            'family_screening_model_beats_global_dummy': bn_family_screening_beats_global_dummy,
+            'family_best_candidate_model_beats_global_dummy': bn_family_best_candidate_beats_global_dummy,
+            'stratified_error_artifact': (
+                'bn_stratified_error_results.csv'
+                if bool(bn_stratified_error_cfg['enabled'])
+                else None
+            ),
+            'stratified_error_method': bn_stratified_error_cfg['method'],
+            'stratified_error_group_column': bn_stratified_error_cfg['group_column'],
+            'stratified_error_requested_folds': int(bn_stratified_error_cfg['n_splits']),
+            'stratified_error_note': bn_stratified_error_cfg['note'],
+            'stratified_error_result_row_count': int(len(bn_stratified_error_df)),
+            'stratified_selected_model_metrics': bn_stratified_selected_metrics,
+            'stratified_screening_model_metrics': bn_stratified_screening_metrics,
+            'stratified_dummy_baseline_metrics': bn_stratified_dummy_metrics,
+            'evaluation_matrix_artifact': (
+                'bn_evaluation_matrix.csv' if not bn_evaluation_matrix_df.empty else None
+            ),
+            'evaluation_matrix_row_count': int(len(bn_evaluation_matrix_df)),
         },
         'screening': {
             'candidate_space_name': candidate_space_name,
             'candidate_space_kind': candidate_space_kind,
             'candidate_space_note': candidate_space_note,
             'candidate_generation_strategy': candidate_generation_strategy,
+            'objective': {
+                'name': cfg['screening'].get(
+                    'objective_name',
+                    'bn_themed_formula_level_wide_gap_followup_prioritization',
+                ),
+                'target_property': cfg['screening'].get('objective_target_property', target_col),
+                'target_direction': cfg['screening'].get('objective_target_direction', 'maximize'),
+                'decision_unit': cfg['screening'].get(
+                    'objective_decision_unit',
+                    'formula_level_candidate',
+                ),
+                'decision_consequence': cfg['screening'].get(
+                    'objective_decision_consequence',
+                    'low_confidence_prioritization_for_structure_followup',
+                ),
+                'note': cfg['screening'].get(
+                    'objective_note',
+                    'The screening objective is low-confidence formula-level candidate '
+                    'prioritization for downstream structure follow-up, not direct discovery.',
+                ),
+            },
             'candidate_family_counts': candidate_family_counts,
             'candidate_rows': int(len(candidate_df)),
             'candidate_formulas_have_structures': False,
@@ -2988,9 +3412,21 @@ def save_metrics_and_predictions(
     structure_first_pass_execution_variant_df=None,
     structure_first_pass_execution_summary_df=None,
     structure_first_pass_execution_payload=None,
+    bn_family_benchmark_df=None,
+    bn_family_prediction_df=None,
+    bn_stratified_error_df=None,
 ):
     artifact_dir = Path(cfg['project']['artifact_dir'])
     artifact_dir.mkdir(parents=True, exist_ok=True)
+    bn_family_benchmark_df = (
+        pd.DataFrame() if bn_family_benchmark_df is None else bn_family_benchmark_df.copy()
+    )
+    bn_family_prediction_df = (
+        pd.DataFrame() if bn_family_prediction_df is None else bn_family_prediction_df.copy()
+    )
+    bn_stratified_error_df = (
+        pd.DataFrame() if bn_stratified_error_df is None else bn_stratified_error_df.copy()
+    )
     structure_first_pass_execution_variant_df = (
         pd.DataFrame()
         if structure_first_pass_execution_variant_df is None
@@ -3008,6 +3444,10 @@ def save_metrics_and_predictions(
     screened_df.to_csv(artifact_dir / 'demo_candidate_ranking.csv', index=False)
     candidate_uncertainty_path = artifact_dir / 'demo_candidate_ranking_uncertainty.csv'
     bn_candidate_compatible_evaluation_path = artifact_dir / 'bn_candidate_compatible_evaluation.csv'
+    bn_family_benchmark_path = artifact_dir / 'bn_family_benchmark_results.csv'
+    bn_family_prediction_path = artifact_dir / 'bn_family_predictions.csv'
+    bn_stratified_error_path = artifact_dir / 'bn_stratified_error_results.csv'
+    bn_evaluation_matrix_path = artifact_dir / 'bn_evaluation_matrix.csv'
     bn_centered_ranking_path = artifact_dir / 'demo_candidate_bn_centered_ranking.csv'
     if bn_centered_screened_df is not None and not bn_centered_screened_df.empty:
         bn_centered_screened_df.to_csv(bn_centered_ranking_path, index=False)
@@ -3248,6 +3688,29 @@ def save_metrics_and_predictions(
         )
     elif bn_candidate_compatible_evaluation_path.exists():
         bn_candidate_compatible_evaluation_path.unlink()
+
+    if bn_family_benchmark_df is not None and not bn_family_benchmark_df.empty:
+        bn_family_benchmark_df.to_csv(bn_family_benchmark_path, index=False)
+    elif bn_family_benchmark_path.exists():
+        bn_family_benchmark_path.unlink()
+    if bn_family_prediction_df is not None and not bn_family_prediction_df.empty:
+        bn_family_prediction_df.to_csv(bn_family_prediction_path, index=False)
+    elif bn_family_prediction_path.exists():
+        bn_family_prediction_path.unlink()
+    if bn_stratified_error_df is not None and not bn_stratified_error_df.empty:
+        bn_stratified_error_df.to_csv(bn_stratified_error_path, index=False)
+    elif bn_stratified_error_path.exists():
+        bn_stratified_error_path.unlink()
+
+    bn_evaluation_matrix_df = _build_bn_evaluation_matrix_table(
+        bn_slice_benchmark_df,
+        bn_family_benchmark_df,
+        bn_stratified_error_df,
+    )
+    if not bn_evaluation_matrix_df.empty:
+        bn_evaluation_matrix_df.to_csv(bn_evaluation_matrix_path, index=False)
+    elif bn_evaluation_matrix_path.exists():
+        bn_evaluation_matrix_path.unlink()
 
     candidate_ranking_uncertainty_df, _ = _candidate_ranking_uncertainty_table(
         screened_df,

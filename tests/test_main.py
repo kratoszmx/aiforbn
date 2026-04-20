@@ -78,6 +78,24 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
         'benchmark_role': ['selected_model'],
         'prediction': [4.8],
     })
+    bn_family_benchmark_df = pd.DataFrame({
+        'feature_set': ['matminer_composition'],
+        'model_type': ['linear_regression'],
+        'benchmark_role': ['selected_model'],
+        'mae': [0.35],
+    })
+    bn_family_prediction_df = pd.DataFrame({
+        'formula': ['BN'],
+        'benchmark_role': ['selected_model'],
+        'prediction': [4.75],
+    })
+    bn_stratified_error_df = pd.DataFrame({
+        'feature_set': ['matminer_composition'],
+        'model_type': ['linear_regression'],
+        'benchmark_role': ['selected_model'],
+        'bn_mae': [0.4],
+        'non_bn_mae': [0.2],
+    })
     metrics = {'mae': 0.1, 'rmse': 0.1, 'r2': 0.9}
     manifest = {'name': 'twod_matpd'}
     selection_summary = {
@@ -165,6 +183,16 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
     )
     monkeypatch.setattr(
         main_module,
+        'benchmark_bn_family_holdout',
+        lambda dataset_df, feature_tables, cfg, selected_feature_set, selected_model_type, screening_feature_set, screening_model_type: calls.append('benchmark_bn_family_holdout') or (bn_family_benchmark_df, bn_family_prediction_df),
+    )
+    monkeypatch.setattr(
+        main_module,
+        'benchmark_bn_stratified_errors',
+        lambda feature_tables, cfg, selected_feature_set, selected_model_type, screening_feature_set, screening_model_type: calls.append('benchmark_bn_stratified_errors') or bn_stratified_error_df,
+    )
+    monkeypatch.setattr(
+        main_module,
         'select_bn_centered_candidate_screening_combo',
         lambda bn_slice_benchmark_df, cfg, fallback_feature_set=None, fallback_model_type=None: calls.append('select_bn_centered_candidate_screening_combo') or bn_centered_screening_selection,
     )
@@ -236,6 +264,8 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
         'benchmark_regressors',
         'benchmark_grouped_robustness',
         'benchmark_bn_slice',
+        'benchmark_bn_family_holdout',
+        'benchmark_bn_stratified_errors',
         'select_bn_centered_candidate_screening_combo',
         'build_candidate_prediction_members',
         'build_candidate_prediction_ensemble',
@@ -253,6 +283,8 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
     assert 'BN AI PoC pipeline completed' in out
     assert 'dataset rows: 2' in out
     assert 'bn slice benchmark rows: 1' in out
+    assert 'bn family benchmark rows: 1' in out
+    assert 'bn stratified error rows: 1' in out
     assert 'structure-generation seed rows: 1' in out
     assert 'split method: group_by_formula' in out
     assert 'selected feature set: matminer_composition' in out

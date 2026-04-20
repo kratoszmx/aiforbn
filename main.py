@@ -14,7 +14,9 @@ from core.io_utils import clear_project_cache, ensure_runtime_dirs, load_config
 from pipeline.data import load_or_build_dataset
 from pipeline.features import (
     STRUCTURE_AWARE_FEATURE_SET,
+    benchmark_bn_family_holdout,
     benchmark_bn_slice,
+    benchmark_bn_stratified_errors,
     benchmark_grouped_robustness,
     benchmark_regressors,
     build_candidate_grouped_robustness_prediction_members,
@@ -101,6 +103,23 @@ def main() -> None:
     )
     bn_slice_benchmark_df, bn_slice_prediction_df = benchmark_bn_slice(
         dataset_df,
+        feature_tables,
+        cfg,
+        selected_feature_set=selected_feature_set,
+        selected_model_type=selected_model_type,
+        screening_feature_set=ranking_feature_set,
+        screening_model_type=ranking_model_type,
+    )
+    bn_family_benchmark_df, bn_family_prediction_df = benchmark_bn_family_holdout(
+        dataset_df,
+        feature_tables,
+        cfg,
+        selected_feature_set=selected_feature_set,
+        selected_model_type=selected_model_type,
+        screening_feature_set=ranking_feature_set,
+        screening_model_type=ranking_model_type,
+    )
+    bn_stratified_error_df = benchmark_bn_stratified_errors(
         feature_tables,
         cfg,
         selected_feature_set=selected_feature_set,
@@ -269,6 +288,8 @@ def main() -> None:
         'selection_summary': selection_summary,
         'robustness_df': robustness_df,
         'bn_slice_benchmark_df': bn_slice_benchmark_df,
+        'bn_family_benchmark_df': bn_family_benchmark_df,
+        'bn_stratified_error_df': bn_stratified_error_df,
         'bn_centered_candidate_df': bn_centered_ranked_candidate_df,
         'bn_centered_screening_selection': bn_centered_screening_selection,
         'structure_generation_seed_df': structure_generation_seed_df,
@@ -295,6 +316,9 @@ def main() -> None:
         'robustness_df': robustness_df,
         'bn_slice_benchmark_df': bn_slice_benchmark_df,
         'bn_slice_prediction_df': bn_slice_prediction_df,
+        'bn_family_benchmark_df': bn_family_benchmark_df,
+        'bn_family_prediction_df': bn_family_prediction_df,
+        'bn_stratified_error_df': bn_stratified_error_df,
         'bn_centered_screened_df': bn_centered_ranked_candidate_df,
         'structure_generation_seed_df': structure_generation_seed_df,
         'experiment_summary': experiment_summary,
@@ -331,6 +355,10 @@ def main() -> None:
         )
     if bn_slice_benchmark_df is not None and not bn_slice_benchmark_df.empty:
         print(f"bn slice benchmark rows: {len(bn_slice_benchmark_df)}")
+    if bn_family_benchmark_df is not None and not bn_family_benchmark_df.empty:
+        print(f"bn family benchmark rows: {len(bn_family_benchmark_df)}")
+    if bn_stratified_error_df is not None and not bn_stratified_error_df.empty:
+        print(f"bn stratified error rows: {len(bn_stratified_error_df)}")
     if bn_centered_ranked_candidate_df is not None:
         print(f"bn-centered alternative ranking rows: {len(bn_centered_ranked_candidate_df)}")
         print(

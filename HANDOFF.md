@@ -10,8 +10,8 @@
 - 当前工作已恢复到**已重新验证**的节点。
 - 在当前 dirty working tree 上，以下命令已通过：
   - 清缓存：通过从 `../myutils` 注入 `file_utils.delete_cache('.')`
-  - `pytest -q` → `24 passed, 5 warnings in 3.70s`
-  - `/opt/homebrew/Caskroom/miniforge/base/envs/quant/bin/python main.py` → 运行成功（当前输出含 `bn slice benchmark rows: 8`、`bn-centered alternative ranking rows: 25`、`structure-generation seed rows: 33`）
+  - `pytest -q` → `26 passed, 5 warnings in 2.98s`
+  - `/opt/homebrew/Caskroom/miniforge/base/envs/quant/bin/python main.py` → 运行成功（当前输出含 `bn slice benchmark rows: 8`、`bn family benchmark rows: 8`、`bn stratified error rows: 7`、`bn-centered alternative ranking rows: 25`、`structure-generation seed rows: 33`）
 - 主任务仍是 `band_gap` 预测与 BN 主题下的候选排序演示。
 - 训练数据仍来自 JARVIS / 2DMatPedia 的 `twod_matpd`。
 - 默认评估协议仍是 **按 `formula` 分组切分**，`train/val/test` 的 formula overlap 为 0。
@@ -129,6 +129,11 @@
   - `artifacts/experiment_summary.json` 里的 `screening.ranking_stability`
   - `artifacts/experiment_summary.json` 里的 `screening.decision_policy`
   - `artifacts/experiment_summary.json` 里的 `bn_slice_benchmark.candidate_compatible_evaluation_artifact`
+- 当前新增的 BN 评估矩阵波次已经落地：
+  - 新增 `leave_one_bn_family_out` 的 `bn_family_benchmark_results.csv` / `bn_family_predictions.csv`
+  - 新增 `group_kfold_bn_vs_non_bn_formula_stratified_error` 的 `bn_stratified_error_results.csv`
+  - 新增跨三类 BN 评估视角的 `bn_evaluation_matrix.csv`
+  - `experiment_summary.json` 现在显式写出 `screening.objective`，把项目定位收紧为 `BN-themed formula-level wide-gap follow-up prioritization`，而不是 BN discovery claim
 - `build_candidate_structure_generation_seeds()` 已接入主流程：
   - 候选来源为 `proposal shortlist ∪ extrapolation shortlist ∪ BN-centered top-10`
   - 当前 `candidate_rows = 11`
@@ -215,12 +220,25 @@
   - `matminer_composition_plus_structure_summary + linear_regression`（当前 BN-slice best configured combo）：`MAE = 1.2889`
   - `dummy_mean`（global dummy baseline）：`MAE = 1.3257`
   - `bn_local_knn_mean`（BN-local reference baseline）：`MAE = 2.2142`
+- 当前 BN-family holdout benchmark（`leave_one_bn_family_out`, 5 BN families / 10 BN formulas / 12 rows）：
+  - `matminer_composition_plus_structure_summary + hist_gradient_boosting`（selected model）：`MAE = 1.5588`
+  - `matminer_composition + hist_gradient_boosting`（screening model）：`MAE = 1.4923`
+  - `matminer_composition_plus_structure_summary + linear_regression`（当前 family-holdout best configured combo）：`MAE = 1.2850`
+  - `dummy_mean`（global dummy baseline）：`MAE = 1.3255`
+  - 结论：selected / screening 仍未打赢 dummy，但 best configured family-holdout combo 已略优于 dummy
+- 当前 BN vs non-BN stratified error 结果（`group_kfold_bn_vs_non_bn_formula_stratified_error`, 5 folds）：
+  - `selected model`：`BN MAE = 1.7908` vs `non-BN MAE = 0.5670`，`ratio = 3.16`
+  - `screening model`：`BN MAE = 1.5004` vs `non-BN MAE = 0.5830`，`ratio = 2.57`
+  - `dummy_mean baseline`：`BN MAE = 1.3251` vs `non-BN MAE = 1.1162`，`ratio = 1.19`
+  - 结论：当前模型在总体 2D 数据上有效，但 BN 子域显著更难，BN 误差放大不是错觉，而是当前 artifact 里被量化了
 - 当前结果的准确解读：
   - structure-aware 路径相对最佳 formula-only 路径的提升是**小幅但一致**的；
   - test MAE 从 `0.5822` 降到 `0.5568`，绝对改善约 `0.0254`，相对改善约 `4.4%`；
   - grouped robustness 下，`MAE_mean` 也从 `0.6321` 降到 `0.6050`，说明这一优势不只来自单次 holdout split；
   - 但 BN-focused leave-one-formula-out 诊断揭示了更尖锐的问题：当前 overall selected model 与 formula-only screening model 在 BN slice 上都**没有打赢**最基本的 global dummy mean baseline；
-  - 同时，BN-slice best configured combo 目前变成了 `matminer_composition_plus_structure_summary + linear_regression`，说明“overall best”“screening best”“BN-centered best”现在是三个不同角色；
+  - family-holdout 结果把这个结论再往前推了一步：即使按 BN chemical family 聚合留出，selected / screening 仍未打赢 dummy，说明问题不只是“某几个 BN 公式偶然难”，而是 BN 局部家族外推整体仍偏弱；
+  - stratified error 则把 BN 与非 BN 的误差差距量化出来，显示当前模型对 BN 子域的误差放大约在 `2.6x ~ 3.2x`；
+  - 同时，BN-slice best configured combo 与 family-holdout best configured combo 目前都落在 `matminer_composition_plus_structure_summary + linear_regression`，说明“overall best”“screening best”“BN-centered best”现在是三个不同角色；
   - 这让当前 artifact 更诚实，也更适合导师追问，但同样说明 BN-centered generalization 还没有被真正解决。
 - 当前新增的 BN-centered alternative ranking：
   - 选择来源：从 `bn_slice_benchmark_results.csv` 里挑出 **candidate-compatible 且 BN-slice MAE 最低** 的组合；
@@ -325,7 +343,11 @@
 - `artifacts/robustness_results.csv`：grouped-by-formula cross-validation robustness benchmark。
 - `artifacts/bn_slice_benchmark_results.csv`：BN-focused leave-one-BN-formula-out benchmark，含 selected / screening / candidate / dummy / BN-local baseline 对照。
 - `artifacts/bn_slice_predictions.csv`：BN-focused benchmark 的逐公式预测记录，用来检查每个 held-out BN formula 的误差来源。
-- `artifacts/experiment_summary.json`：数据、split、选择、robustness、BN-slice benchmark 与 screening 摘要。
+- `artifacts/bn_family_benchmark_results.csv`：BN family holdout benchmark summary，按 BN-local chemical family 留出。
+- `artifacts/bn_family_predictions.csv`：BN family holdout 的逐样本预测记录，用来检查 family-level holdout 时具体哪一类 BN family 误差更大。
+- `artifacts/bn_stratified_error_results.csv`：按 grouped folds 汇总的 BN vs non-BN stratified error 表，直接量化 BN 子域是否显著更难。
+- `artifacts/bn_evaluation_matrix.csv`：把 formula-holdout、family-holdout 与 grouped BN/non-BN error 合并到一个 advisor-facing 对照矩阵里。
+- `artifacts/experiment_summary.json`：数据、split、选择、robustness、BN-slice / BN-family / stratified BN error 与 screening 摘要。
 - `artifacts/demo_candidate_ranking.csv`：当前完整 formula-only source-space ranking artifact，含 general ensemble/disagreement 视角下的 plausibility pass/fail 与 top-k decision。
 - `artifacts/demo_candidate_bn_centered_ranking.csv`：BN-centered alternative ranking artifact，使用 BN-slice 里最优的 candidate-compatible 单模型视角。
 - `artifacts/demo_candidate_ranking_uncertainty.csv`：候选级 ranking-stability / uncertainty / abstention / final-action artifact，含 prediction interval、rank spread、top-k selection frequency、abstention reasons 与 final action labels。
@@ -352,6 +374,7 @@
 - 结构路径只用了 cached JARVIS atoms 导出的轻量结构摘要，不是 crystal graph、3D/2D 几何编码、形成能或稳定性建模。
 - grouped robustness 虽然比单次 split 更可信，但它仍然只是当前数据表上的 grouped cross-validation，不等于跨数据源外部验证或真实 prospective validation。
 - 新增 BN-focused benchmark 虽然让 BN 成为显式评估对象，但它的样本仍然很小，当前只有 `10` 个 BN formulas / `12` 行，并且它已经暴露出 selected / screening 模型在 BN slice 上不如 global dummy 的问题，因此这层更像关键诊断，而不是“BN 已经被解决”的证据。
+- 新增 BN-family holdout 与 BN-vs-non-BN stratified error 虽然把 BN 问题讲得更完整了，但它们主要提升的是**诊断清晰度**，不是实质上把 BN generalization 做强；当前 artifact 仍然表明 BN 子域明显更难。
 - formula-only 候选空间虽然新增了基础 oxidation-state / charge-balance plausibility layer，但**仍然没有结构、形成能、热力学稳定性、声子稳定性、合成可行性约束**。
 - 当前 plausibility screen 只是轻量公式级可信度边界，不等于“材料可存在”判断；例如某些边缘氧化态解释仍可能通过。
 - 当前 domain-support 层在新候选空间上已经开始真正触发惩罚，当前 `domain_support_penalized_rows = 12`，说明它不再只是装饰性注释。
@@ -370,8 +393,8 @@
 ## 恢复工作时的直接起点
 - 不需要重做 wave-3 设计，也不需要回滚当前 dirty tree。
 - 若继续推进，优先从以下方向里选一个：
-  - 基于当前 `demo_candidate_structure_generation_seeds.csv` 做真正的 prototype substitution / structure enumeration / relaxation workflow；
-  - 更强、真正材料导向的 structure-aware 表示；
+  - 基于当前 `demo_candidate_structure_generation_seeds.csv` 与 first-pass `.cif` 输出，做真正的 prototype substitution / structure enumeration / relaxation workflow；
+  - 更强、真正材料导向的 structure-aware 表示，尤其是能改善 BN family holdout / stratified BN error 的表示；
   - 把 candidate source space 从“几乎全是已知公式”推进到包含更多真正 dataset 未见公式；
   - 在更真实的 candidate space 上加入结构 / 稳定性约束；
   - 比 disagreement heuristic 更可信的不确定性处理；

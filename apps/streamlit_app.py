@@ -25,6 +25,10 @@ robustness_path = artifact_dir / 'robustness_results.csv'
 bn_slice_benchmark_path = artifact_dir / 'bn_slice_benchmark_results.csv'
 bn_slice_prediction_path = artifact_dir / 'bn_slice_predictions.csv'
 bn_candidate_compatible_evaluation_path = artifact_dir / 'bn_candidate_compatible_evaluation.csv'
+bn_family_benchmark_path = artifact_dir / 'bn_family_benchmark_results.csv'
+bn_family_prediction_path = artifact_dir / 'bn_family_predictions.csv'
+bn_stratified_error_path = artifact_dir / 'bn_stratified_error_results.csv'
+bn_evaluation_matrix_path = artifact_dir / 'bn_evaluation_matrix.csv'
 pred_path = artifact_dir / 'predictions.csv'
 screen_path = artifact_dir / 'demo_candidate_ranking.csv'
 candidate_uncertainty_path = artifact_dir / 'demo_candidate_ranking_uncertainty.csv'
@@ -89,6 +93,22 @@ if bn_slice_prediction_path.exists():
 if bn_candidate_compatible_evaluation_path.exists():
     st.subheader('BN candidate-compatible evaluation')
     st.dataframe(pd.read_csv(bn_candidate_compatible_evaluation_path), use_container_width=True)
+
+if bn_family_benchmark_path.exists():
+    st.subheader('BN family holdout benchmark results')
+    st.dataframe(pd.read_csv(bn_family_benchmark_path), use_container_width=True)
+
+if bn_family_prediction_path.exists():
+    st.subheader('BN family holdout predictions')
+    st.dataframe(pd.read_csv(bn_family_prediction_path), use_container_width=True)
+
+if bn_stratified_error_path.exists():
+    st.subheader('BN vs non-BN stratified errors')
+    st.dataframe(pd.read_csv(bn_stratified_error_path), use_container_width=True)
+
+if bn_evaluation_matrix_path.exists():
+    st.subheader('BN evaluation matrix')
+    st.dataframe(pd.read_csv(bn_evaluation_matrix_path), use_container_width=True)
 
 if pred_path.exists():
     st.subheader('Prediction samples')

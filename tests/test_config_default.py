@@ -31,6 +31,26 @@ def test_default_config_has_expected_poc_defaults():
     assert cfg['bn_slice_benchmark']['enabled'] is True
     assert cfg['bn_slice_benchmark']['method'] == 'leave_one_bn_formula_out'
     assert cfg['bn_slice_benchmark']['k_neighbors'] == 3
+    assert cfg['bn_family_benchmark']['enabled'] is True
+    assert cfg['bn_family_benchmark']['method'] == 'leave_one_bn_family_out'
+    assert cfg['bn_family_benchmark']['grouping_method'] == 'reduced_bn_chemical_system'
+    assert cfg['bn_family_benchmark']['k_neighbors'] == 3
+    assert cfg['bn_stratified_error']['enabled'] is True
+    assert (
+        cfg['bn_stratified_error']['method']
+        == 'group_kfold_bn_vs_non_bn_formula_stratified_error'
+    )
+    assert cfg['bn_stratified_error']['group_column'] == 'formula'
+    assert cfg['bn_stratified_error']['n_splits'] == 5
+    assert cfg['screening']['objective_name'] == 'bn_themed_formula_level_wide_gap_followup_prioritization'
+    assert cfg['screening']['objective_target_property'] == 'band_gap'
+    assert cfg['screening']['objective_target_direction'] == 'maximize'
+    assert cfg['screening']['objective_decision_unit'] == 'formula_level_candidate'
+    assert (
+        cfg['screening']['objective_decision_consequence']
+        == 'low_confidence_prioritization_for_structure_followup'
+    )
+    assert 'not a direct' in cfg['screening']['objective_note']
     assert cfg['screening']['candidate_generation_strategy'] == 'bn_anchored_formula_family_grid'
     assert cfg['screening']['candidate_space_name'] == 'bn_anchored_formula_family_grid'
     assert cfg['screening']['candidate_space_kind'] == 'bn_family_demo'

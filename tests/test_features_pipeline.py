@@ -9,7 +9,9 @@ import pytest
 from pipeline.data import STRUCTURE_SUMMARY_COLUMNS
 from pipeline.features import (
     STRUCTURE_AWARE_FEATURE_SET,
+    benchmark_bn_family_holdout,
     benchmark_bn_slice,
+    benchmark_bn_stratified_errors,
     benchmark_grouped_robustness,
     benchmark_regressors,
     build_candidate_grouped_robustness_predictions,
@@ -77,7 +79,27 @@ CFG = {
         'k_neighbors': 2,
         'note': 'demo bn slice benchmark note',
     },
+    'bn_family_benchmark': {
+        'enabled': True,
+        'method': 'leave_one_bn_family_out',
+        'grouping_method': 'reduced_bn_chemical_system',
+        'k_neighbors': 2,
+        'note': 'demo bn family benchmark note',
+    },
+    'bn_stratified_error': {
+        'enabled': True,
+        'method': 'group_kfold_bn_vs_non_bn_formula_stratified_error',
+        'group_column': 'formula',
+        'n_splits': 3,
+        'note': 'demo bn stratified error note',
+    },
     'screening': {
+        'objective_name': 'bn_themed_formula_level_wide_gap_followup_prioritization',
+        'objective_target_property': 'band_gap',
+        'objective_target_direction': 'maximize',
+        'objective_decision_unit': 'formula_level_candidate',
+        'objective_decision_consequence': 'low_confidence_prioritization_for_structure_followup',
+        'objective_note': 'Use the ranking as low-confidence formula-level prioritization for structure follow-up, not direct discovery.',
         'top_k': 5,
         'candidate_generation_strategy': 'bn_anchored_formula_family_grid',
         'candidate_space_name': 'bn_anchored_formula_family_grid',
@@ -627,6 +649,129 @@ def test_bn_slice_benchmark_reports_bn_focused_holdout_metrics():
         'global_dummy_mean_baseline',
         'bn_local_reference_baseline',
     }
+
+
+
+def test_bn_family_benchmark_reports_family_holdout_metrics():
+    benchmark_cfg = copy.deepcopy(CFG)
+    benchmark_cfg['bn_family_benchmark']['k_neighbors'] = 2
+    dataset_df = pd.DataFrame({
+        'formula': [
+            'BN', 'BN', 'BCN', 'BCN', 'BC2N', 'BC2N', 'Si2BN', 'Si2BN', 'AlN', 'AlN', 'GaN', 'GaN'
+        ],
+        'target': [5.8, 5.7, 2.4, 2.5, 3.7, 3.6, 1.2, 1.3, 3.1, 3.0, 2.9, 2.8],
+    })
+    comp_df = pd.DataFrame({
+        'formula': dataset_df['formula'],
+        'target': dataset_df['target'],
+        'feat_1': [0.10, 0.11, 0.30, 0.31, 0.40, 0.41, 0.60, 0.61, 0.20, 0.21, 0.25, 0.26],
+        'feat_2': [0.90, 0.89, 0.70, 0.69, 0.55, 0.56, 0.20, 0.21, 0.80, 0.79, 0.74, 0.73],
+        'feature_generation_failed': [False] * len(dataset_df),
+        'feature_generation_error': [None] * len(dataset_df),
+        'feature_set': ['matminer_composition'] * len(dataset_df),
+    })
+    structure_df = comp_df.copy()
+    structure_df['structure_feat'] = [1.0, 1.02, 0.75, 0.76, 0.65, 0.66, 0.35, 0.34, 0.88, 0.87, 0.82, 0.81]
+    structure_df['feature_set'] = STRUCTURE_AWARE_FEATURE_SET
+    feature_tables = {
+        'matminer_composition': comp_df,
+        STRUCTURE_AWARE_FEATURE_SET: structure_df,
+    }
+
+    bn_family_df, bn_family_prediction_df = benchmark_bn_family_holdout(
+        dataset_df,
+        feature_tables,
+        benchmark_cfg,
+        selected_feature_set=STRUCTURE_AWARE_FEATURE_SET,
+        selected_model_type='linear_regression',
+        screening_feature_set='matminer_composition',
+        screening_model_type='linear_regression',
+    )
+
+    assert set(bn_family_df['benchmark_role']) == {
+        'selected_model',
+        'screening_model',
+        'candidate_model',
+        'global_dummy_mean_baseline',
+        'bn_local_reference_baseline',
+    }
+    assert bn_family_df['benchmark_status'].eq('ok').all()
+    assert bn_family_df['bn_formula_count'].eq(4).all()
+    assert bn_family_df['bn_row_count'].eq(8).all()
+    assert bn_family_df['bn_family_count'].eq(3).all()
+    assert bn_family_df['completed_family_holds'].eq(3).all()
+    assert bn_family_df['bn_family_benchmark_method'].eq('leave_one_bn_family_out').all()
+    assert bn_family_df['bn_family_grouping_method'].eq('reduced_bn_chemical_system').all()
+    assert bn_family_df.loc[
+        bn_family_df['benchmark_role'].eq('bn_local_reference_baseline'),
+        'k_neighbors',
+    ].iloc[0] == 2
+    assert bn_family_df['mae'].notna().all()
+    assert bn_family_df['rmse'].notna().all()
+    assert not bn_family_prediction_df.empty
+    assert set(bn_family_prediction_df['benchmark_role']) == {
+        'selected_model',
+        'screening_model',
+        'candidate_model',
+        'global_dummy_mean_baseline',
+        'bn_local_reference_baseline',
+    }
+    assert set(bn_family_prediction_df['bn_family']) == {'B-N', 'B-C-N', 'B-N-Si'}
+
+
+
+def test_bn_stratified_errors_report_bn_vs_non_bn_metrics():
+    benchmark_cfg = copy.deepcopy(CFG)
+    benchmark_cfg['bn_stratified_error']['n_splits'] = 3
+    dataset_df = pd.DataFrame({
+        'formula': [
+            'BN', 'BN', 'BCN', 'BCN', 'BC2N', 'BC2N', 'Si2BN', 'Si2BN', 'AlN', 'AlN', 'GaN', 'GaN'
+        ],
+        'target': [5.8, 5.7, 2.4, 2.5, 3.7, 3.6, 1.2, 1.3, 3.1, 3.0, 2.9, 2.8],
+    })
+    comp_df = pd.DataFrame({
+        'formula': dataset_df['formula'],
+        'target': dataset_df['target'],
+        'feat_1': [0.10, 0.11, 0.30, 0.31, 0.40, 0.41, 0.60, 0.61, 0.20, 0.21, 0.25, 0.26],
+        'feat_2': [0.90, 0.89, 0.70, 0.69, 0.55, 0.56, 0.20, 0.21, 0.80, 0.79, 0.74, 0.73],
+        'feature_generation_failed': [False] * len(dataset_df),
+        'feature_generation_error': [None] * len(dataset_df),
+        'feature_set': ['matminer_composition'] * len(dataset_df),
+    })
+    structure_df = comp_df.copy()
+    structure_df['structure_feat'] = [1.0, 1.02, 0.75, 0.76, 0.65, 0.66, 0.35, 0.34, 0.88, 0.87, 0.82, 0.81]
+    structure_df['feature_set'] = STRUCTURE_AWARE_FEATURE_SET
+    feature_tables = {
+        'matminer_composition': comp_df,
+        STRUCTURE_AWARE_FEATURE_SET: structure_df,
+    }
+
+    bn_stratified_df = benchmark_bn_stratified_errors(
+        feature_tables,
+        benchmark_cfg,
+        selected_feature_set=STRUCTURE_AWARE_FEATURE_SET,
+        selected_model_type='linear_regression',
+        screening_feature_set='matminer_composition',
+        screening_model_type='linear_regression',
+    )
+
+    assert set(bn_stratified_df['benchmark_role']) == {
+        'selected_model',
+        'screening_model',
+        'candidate_model',
+        'dummy_baseline',
+    }
+    assert bn_stratified_df['benchmark_status'].eq('ok').all()
+    assert bn_stratified_df['bn_formula_count'].eq(4).all()
+    assert bn_stratified_df['non_bn_formula_count'].eq(2).all()
+    assert bn_stratified_df['requested_folds'].eq(3).all()
+    assert bn_stratified_df['completed_folds'].eq(3).all()
+    assert bn_stratified_df['bn_stratified_error_method'].eq(
+        'group_kfold_bn_vs_non_bn_formula_stratified_error'
+    ).all()
+    assert bn_stratified_df['bn_mae'].notna().all()
+    assert bn_stratified_df['non_bn_mae'].notna().all()
+    assert bn_stratified_df['bn_to_non_bn_mae_ratio'].notna().all()
 
 
 
