@@ -722,7 +722,7 @@
     "evaluation_matrix_artifact": "bn_evaluation_matrix.csv",
     "evaluation_matrix_row_count": 19,
     "model_role_comparison_artifact": "bn_model_role_comparison.csv",
-    "model_role_comparison_row_count": 53
+    "model_role_comparison_row_count": 5
   },
   "screening": {
     "candidate_space_name": "bn_anchored_formula_family_grid",

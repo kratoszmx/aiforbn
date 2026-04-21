@@ -200,7 +200,7 @@
 3. 当前最可信的 candidate-compatible neural baseline 仍然是：
    - `matminer_composition + torch_mlp_ensemble`
 4. 本轮新增的 reporting wave 没有引入新的 benchmark logic，而是把现有证据压缩成更容易给导师直接阅读的摘要产物：
-   - `artifacts/bn_model_role_comparison.csv`
+   - `artifacts/bn_model_role_comparison.csv`（现已收敛为 compact 的 5 行 BN 角色对照表）
    - `artifacts/demo_candidate_rank_stability_summary.csv`
    - `artifacts/demo_candidate_structure_followup_report.csv`
    - 并同步接入 `artifacts/experiment_summary.json`

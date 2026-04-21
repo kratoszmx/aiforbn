@@ -1125,10 +1125,29 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     assert (artifact_dir / 'bn_model_role_comparison.csv').exists()
     bn_model_role_comparison_df = pd.read_csv(artifact_dir / 'bn_model_role_comparison.csv')
     assert {
-        'benchmark_scope',
         'benchmark_role',
+        'feature_set',
+        'feature_family',
+        'model_type',
+        'candidate_compatible',
+        'selected_by_validation',
+        'bn_slice_mae',
+        'bn_slice_r2',
+        'bn_family_mae',
+        'bn_family_r2',
+        'bn_mae',
+        'non_bn_mae',
         'bn_to_non_bn_mae_ratio',
     }.issubset(set(bn_model_role_comparison_df.columns))
+    expected_roles = {
+        'selected_model',
+        'screening_model',
+        'candidate_model',
+        'global_dummy_mean_baseline',
+        'bn_local_reference_baseline',
+    }
+    assert set(bn_model_role_comparison_df['benchmark_role']) == expected_roles
+    assert len(bn_model_role_comparison_df) == len(expected_roles)
     assert (
         experiment_summary['bn_slice_benchmark']['model_role_comparison_row_count']
         == len(bn_model_role_comparison_df)
