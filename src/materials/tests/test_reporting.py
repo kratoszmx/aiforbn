@@ -662,6 +662,7 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     assert experiment_summary['bn_slice_benchmark']['screening_model_beats_global_dummy'] is True
     assert experiment_summary['bn_slice_benchmark']['best_candidate_model_beats_global_dummy'] is True
     assert experiment_summary['bn_slice_benchmark']['selected_model_matches_best_candidate'] is False
+    assert experiment_summary['bn_slice_benchmark']['model_role_comparison_artifact'] == 'bn_model_role_comparison.csv'
     assert experiment_summary['screening']['ranking_basis'] == (
         'composition_only_mean_band_gap_minus_model_disagreement_low_support_and_bn_support_and_grouped_robustness_and_bn_band_gap_alignment_and_bn_analog_validation_penalties'
     )
@@ -795,6 +796,10 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     assert (
         experiment_summary['screening']['structure_generation_bridge']['first_pass_execution_model_available']
         is False
+    )
+    assert (
+        experiment_summary['screening']['structure_generation_bridge']['first_pass_execution_followup_report_artifact']
+        == 'demo_candidate_structure_followup_report.csv'
     )
     assert experiment_summary['screening']['ranking_matches_best_overall_evaluation'] is True
     assert experiment_summary['screening']['best_overall_evaluation_feature_set'] == 'matminer_composition'
@@ -977,6 +982,10 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         'demo_candidate_ranking_uncertainty.csv'
     )
     assert experiment_summary['screening']['ranking_stability']['top_k_values'] == [3, 5, 10]
+    assert experiment_summary['screening']['ranking_stability']['bn_centered_comparison_summary_artifact'] == (
+        'demo_candidate_rank_stability_summary.csv'
+    )
+    assert experiment_summary['screening']['ranking_stability']['bn_centered_comparison_summary_top_k_values'] == [3, 5, 10, 20]
     assert experiment_summary['screening']['decision_policy']['enabled'] is True
     assert experiment_summary['screening']['decision_policy']['artifact'] == (
         'demo_candidate_ranking_uncertainty.csv'
@@ -1113,6 +1122,53 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     bn_candidate_compatible_df = pd.read_csv(artifact_dir / 'bn_candidate_compatible_evaluation.csv')
     assert 'family_holdout_mae' in bn_candidate_compatible_df.columns
     assert 'grouped_bn_to_non_bn_mae_ratio' in bn_candidate_compatible_df.columns
+    assert (artifact_dir / 'bn_model_role_comparison.csv').exists()
+    bn_model_role_comparison_df = pd.read_csv(artifact_dir / 'bn_model_role_comparison.csv')
+    assert {
+        'benchmark_scope',
+        'benchmark_role',
+        'bn_to_non_bn_mae_ratio',
+    }.issubset(set(bn_model_role_comparison_df.columns))
+    assert (
+        experiment_summary['bn_slice_benchmark']['model_role_comparison_row_count']
+        == len(bn_model_role_comparison_df)
+    )
+    assert (artifact_dir / 'demo_candidate_rank_stability_summary.csv').exists()
+    demo_candidate_rank_stability_summary_df = pd.read_csv(
+        artifact_dir / 'demo_candidate_rank_stability_summary.csv'
+    )
+    assert len(demo_candidate_rank_stability_summary_df) == 4
+    assert sorted(demo_candidate_rank_stability_summary_df['top_k'].astype(int).tolist()) == [3, 5, 10, 20]
+    assert 'top_k_overlap_count' in demo_candidate_rank_stability_summary_df.columns
+    assert (
+        experiment_summary['screening']['ranking_stability']['bn_centered_comparison_summary_row_count']
+        == len(demo_candidate_rank_stability_summary_df)
+    )
+    assert (artifact_dir / 'demo_candidate_structure_followup_report.csv').exists()
+    followup_report_df = pd.read_csv(artifact_dir / 'demo_candidate_structure_followup_report.csv')
+    assert {
+        'formula',
+        'structure_followup_shortlist_rank',
+        'structure_followup_best_action_label',
+        'structure_followup_best_seed_reference_formula',
+        'structure_followup_best_seed_reference_record_id',
+        'first_pass_execution_variant_count',
+        'first_pass_execution_geometry_pass_variant_count',
+        'first_pass_execution_selected_variant_id',
+        'first_pass_execution_selected_cif_path',
+        'first_pass_execution_selected_band_gap_proxy',
+        'first_pass_execution_selected_min_distance_ratio',
+        'first_pass_execution_selected_relaxation_status',
+        'first_pass_execution_selected_final_status',
+    }.issubset(set(followup_report_df.columns))
+    assert (
+        experiment_summary['screening']['structure_generation_bridge']['first_pass_execution_followup_report_artifact']
+        == 'demo_candidate_structure_followup_report.csv'
+    )
+    assert (
+        experiment_summary['screening']['structure_generation_bridge']['first_pass_execution_followup_report_row_count']
+        == len(followup_report_df)
+    )
     assert (artifact_dir / 'demo_candidate_ranking_uncertainty.csv').exists()
     assert (artifact_dir / 'demo_candidate_structure_generation_seeds.csv').exists()
     assert (artifact_dir / 'demo_candidate_structure_generation_handoff.json').exists()

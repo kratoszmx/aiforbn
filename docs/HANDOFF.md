@@ -4,12 +4,15 @@
 - 名称：AI for BN PoC
 - 路径：`$HOME/projects/ai_for_bn`
 - 默认环境：用户 zsh 下的 `quant`
-- 当前优先级：**先把状态记录清楚，不继续推进新的长建模波次**
+- 当前优先级：**结合 `docs/老師回覆.txt`，补齐更适合导师阅读的证据型摘要 artifact 与更冷静的项目文档叙事，再决定下一步单模块 coding**
 
 ## 一句话结论
 - **最后一个可直接回退的稳定主线**仍然是此前已完整验证并已保存的主线波次。
-- **当前 live working tree 是实验性 dirty tree**，主要在试探新的 composition-only 现代模型方向，但这些实验**还没有证据强到可以并入默认主线**。
-- 目前最稳妥的结论仍然是：
+- 当前更适合对外汇报的项目定位应是：
+  - general grouped-split predictor 已经明显优于 dummy；
+  - BN-specific diagnostics 已被单独拆开并更诚实地暴露出来；
+  - 当前 candidate ranking 应被视为 **low-confidence formula-level prioritization for follow-up**，而不是 discovery claim。
+- 目前最稳妥的技术判断仍然是：
   - overall evaluation best 依旧不是 candidate-compatible screening best；
   - 当前最可信的 candidate-compatible neural control 仍然是 **`matminer_composition + torch_mlp_ensemble`**；
   - attention / Roost-like / kNN 这些新试探都**没有**在短 BN-slice pilot 上形成足够强的新证据。
@@ -79,8 +82,8 @@
 - `skills/*.txt`
 
 注意：
-- 这些 skill 文件本轮**只读取，不应编辑**。
-- 若之后要 commit，必须先检查并排除这些不该一起提交的改动。
+- 这些 skill 文件应继续视为**只读取、不编辑**的约束对象。
+- 若之后工作树再次出现它们的改动，commit 前必须显式排除。
 
 ## 当前默认主线与实验分界
 ### 默认主线仍保持不变
@@ -196,13 +199,14 @@
 2. BN-centered 诊断已经比早期清楚很多，但 BN 子域仍然明显更难。
 3. 当前最可信的 candidate-compatible neural baseline 仍然是：
    - `matminer_composition + torch_mlp_ensemble`
-4. 当前实验 dirty tree 里的新模型方向：
-   - dense attention：负面
-   - sparse attention：负面
-   - Roost-like：略有希望，但仍未过 dummy
-   - kNN：负面
-   - TabPFN：还没开始真正评估，卡在 license token
-5. 因此当前**不应**把实验 dirty tree 叙述成“已经找到比现有主线更强的新路线”。
+4. 本轮新增的 reporting wave 没有引入新的 benchmark logic，而是把现有证据压缩成更容易给导师直接阅读的摘要产物：
+   - `artifacts/bn_model_role_comparison.csv`
+   - `artifacts/demo_candidate_rank_stability_summary.csv`
+   - `artifacts/demo_candidate_structure_followup_report.csv`
+   - 并同步接入 `artifacts/experiment_summary.json`
+5. 因此当前**更安全的汇报口径**应是：
+   - BN-themed formula-level screening PoC with honest diagnostics
+   - not BN-centered discovery
 
 ## 当前验证状态
 本轮围绕“模块拆分后兼容性”已经做过这些验证：
@@ -227,7 +231,12 @@
 - `python3 main.py --dry-run`
 - 结果：通过，已确认配置加载、候选空间生成、tiny in-memory feature-table 构建、以及配置中模型的导入/实例化均可完成
 
-5. `main.py` 烟测：
+6. reporting-artifact 波次的短验证：
+- `/opt/homebrew/Caskroom/miniforge/base/envs/quant/bin/python3 main.py --dry-run`
+- `/opt/homebrew/Caskroom/miniforge/base/envs/quant/bin/python3 -m pytest -q src/materials/tests/test_reporting.py`
+- 结果：`2 passed`
+
+7. `main.py` 烟测：
 - 在用户 zsh / `quant` 环境里实际启动过 `python3 main.py`
 - 修复 `src/config.py` 缺失后，程序已不再在入口阶段立即因 import/config 路径报错
 - 该运行随后进入持续计算阶段，未在本轮等待到完整结束
@@ -243,7 +252,7 @@
 - `PY_FILES_SUMMARY.md`：AI-facing Python surface 摘要
 - `tasks/literature_mining/MODEL_UPGRADE_RESEARCH_2026-04-20.md`：AI-facing 建模方向技术备忘
 
-### 当前实验 artifacts
+### 当前实验 / 汇报 artifacts
 - `artifacts/pilot/fractional_attention_pilot_*`
 - `artifacts/pilot/sparse_fractional_attention_pilot_*`
 - `artifacts/pilot/roost_like_pilot_*`
@@ -253,11 +262,15 @@
 - `artifacts/pilot/roost_like_config_sweep_summary.json`
 - `artifacts/pilot/knn_bn_slice_pilot_summary.json`
 - `artifacts/pilot/knn_bn_slice_pilot_results.csv`
+- `artifacts/bn_model_role_comparison.csv`
+- `artifacts/demo_candidate_rank_stability_summary.csv`
+- `artifacts/demo_candidate_structure_followup_report.csv`
 
 ## 恢复工作时的直接起点
 当前用户要求是：
-- **先把状态记录清楚**
-- **目前有其他更重要的工作，先不要继续在这里推进长建模波次**
+- **结合 `docs/老師回覆.txt` 继续补齐老师认为应提升的点**
+- **同步完善项目文档**
+- **模块内 coding 继续走 Codex，但一次只准改一个模块，读完前置文件后直接开始改**
 
 因此恢复时的默认动作应是：
 1. 先读：
@@ -266,17 +279,21 @@
    - `skills/workflow.txt`
    - 其余 `skills/*.txt`
    - `HANDOFF.md`
-2. 先确认当前工作目标是不是继续建模，还是只做文档/状态维护。
-3. 如果恢复建模：
-   - 不要直接把 experimental models 并入主线
-   - 先决定是否要继续 TabPFN 路线
-   - 若继续 TabPFN，本地还需要 `TABPFN_TOKEN`
-4. 若未来要形成 checkpoint：
-   - 先排除不该提交的 skill 文件改动
+   - `docs/老師回覆.txt`
+2. 先确认这轮是：
+   - 文档 / 汇报整理
+   - 还是单模块 coding
+3. 如果进入 coding：
+   - 只选一个模块
+   - 先写 `claw_memory/N.md`
+   - 明确允许改哪些文件、禁止碰哪些文件
+   - 让 Codex 读完对应前置文件后直接开始修改
+   - OpenClaw 自己负责测试、审核、必要时接手修补
+4. 若形成 checkpoint：
+   - 先排除不该提交的文件
    - 先清缓存
-   - 再跑 `pytest -q`
-   - 再跑 `python main.py`
-   - 全通过后再 `git add / commit`
+   - 再跑短验证
+   - 通过后再 `git add / commit / push`
 
 ## 当前不应丢失的判断
 - 不要因为本机不是 CUDA 机器就自动退缩换方向。
@@ -288,5 +305,5 @@
 - 模块模板要求目前已满足，每个正式模块都带有自己的 `AGENTS.md` 和 `utils.py`。
 - 当前生产依赖关系也已明显收敛：`runtime -> []`、`torch_models -> []`、`ui -> []`、`materials -> [runtime, torch_models]`。
 - 也就是说，之前那种 `reporting` / `structure_execution` 只是目录独立、实现上却从属于主业务链的问题，已经通过并回 `materials` 解决。
-- 在用户没有明确要求恢复建模前，当前最合理动作就是：
-  - **把状态文件维护清楚，保留现场，停止继续扩散实验面。**
+- 当前最合理动作不是盲目扩展实验面，而是：
+  - **先把老师会追问的证据和口径补齐，再决定下一步单模块 coding 目标。**

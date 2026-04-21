@@ -37,6 +37,7 @@ from materials.ranking_tables import (
     _bn_family_benchmark_row_payload,
     _bn_slice_benchmark_row_payload,
     _bn_stratified_error_row_payload,
+    _build_bn_model_role_comparison_table,
     _build_bn_candidate_compatible_evaluation_table,
     _build_bn_evaluation_matrix_table,
     _candidate_ranking_comparison_payload,
@@ -946,6 +947,14 @@ def build_experiment_summary(
             structure_generation_seed_summary['first_pass_execution_model_available'] = bool(
                 structure_first_pass_execution_payload.get('model_available', False)
             )
+    structure_generation_seed_summary['first_pass_execution_followup_report_artifact'] = (
+        'demo_candidate_structure_followup_report.csv'
+        if not structure_first_pass_execution_summary_df.empty
+        else None
+    )
+    structure_generation_seed_summary['first_pass_execution_followup_report_row_count'] = int(
+        len(structure_first_pass_execution_summary_df)
+    )
 
     bn_candidate_compatible_evaluation_df = _build_bn_candidate_compatible_evaluation_table(
         bn_slice_benchmark_df,
@@ -971,6 +980,11 @@ def build_experiment_summary(
             ),
         )
     )
+    bn_model_role_comparison_df = _build_bn_model_role_comparison_table(
+        bn_slice_benchmark_df,
+        bn_family_benchmark_df=bn_family_benchmark_df,
+        bn_stratified_error_df=bn_stratified_error_df,
+    )
     ranking_stability_cfg = _ranking_stability_config(cfg)
     decision_policy_cfg = _decision_policy_config(cfg)
     bn_centered_top_k_views = {}
@@ -982,6 +996,7 @@ def build_experiment_summary(
             top_k=int(top_k_value),
         )
     bn_centered_summary['comparison_top_k_views'] = bn_centered_top_k_views
+    bn_centered_stability_summary_top_k_values = [3, 5, 10, 20]
 
     return {
         'dataset': {
@@ -1095,6 +1110,12 @@ def build_experiment_summary(
                 else None
             ),
             'candidate_compatible_result_row_count': int(len(bn_candidate_compatible_evaluation_df)),
+            'model_role_comparison_artifact': (
+                'bn_model_role_comparison.csv'
+                if not bn_model_role_comparison_df.empty
+                else None
+            ),
+            'model_role_comparison_row_count': int(len(bn_model_role_comparison_df)),
             'family_benchmark_artifact': (
                 'bn_family_benchmark_results.csv' if bool(bn_family_benchmark_cfg['enabled']) else None
             ),
@@ -1179,6 +1200,17 @@ def build_experiment_summary(
                 'source_count': int(candidate_ranking_uncertainty_summary['source_count']),
                 'top_k_reference': int(candidate_ranking_uncertainty_summary['top_k_reference']),
                 'top_k_values': candidate_ranking_uncertainty_summary['top_k_values'],
+                'bn_centered_comparison_summary_artifact': (
+                    'demo_candidate_rank_stability_summary.csv'
+                    if bool(ranking_stability_cfg['enabled'])
+                    else None
+                ),
+                'bn_centered_comparison_summary_row_count': (
+                    int(len(bn_centered_stability_summary_top_k_values))
+                    if bool(ranking_stability_cfg['enabled'])
+                    else 0
+                ),
+                'bn_centered_comparison_summary_top_k_values': bn_centered_stability_summary_top_k_values,
                 'prediction_interval_lower_quantile': float(
                     candidate_ranking_uncertainty_summary['prediction_interval_lower_quantile']
                 ),
@@ -1504,4 +1536,3 @@ def build_experiment_summary(
             ],
         },
     }
-

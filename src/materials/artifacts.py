@@ -22,11 +22,12 @@ from materials.common import (
     _structure_followup_extrapolation_shortlist_config,
     _structure_followup_shortlist_config,
 )
-
 from materials.ranking_tables import *
 from materials.ranking_tables import (
     _build_bn_candidate_compatible_evaluation_table,
     _build_bn_evaluation_matrix_table,
+    _build_bn_model_role_comparison_table,
+    _candidate_ranking_comparison_payload,
     _candidate_ranking_uncertainty_table,
 )
 from materials.structure_artifacts import *
@@ -66,6 +67,7 @@ def save_metrics_and_predictions(
 ):
     artifact_dir = Path(cfg['project']['artifact_dir'])
     artifact_dir.mkdir(parents=True, exist_ok=True)
+    formula_col = ((cfg.get('data') or {}).get('formula_column') or 'formula')
     bn_family_benchmark_df = (
         pd.DataFrame() if bn_family_benchmark_df is None else bn_family_benchmark_df.copy()
     )
@@ -74,6 +76,9 @@ def save_metrics_and_predictions(
     )
     bn_stratified_error_df = (
         pd.DataFrame() if bn_stratified_error_df is None else bn_stratified_error_df.copy()
+    )
+    bn_centered_screened_df = (
+        pd.DataFrame() if bn_centered_screened_df is None else bn_centered_screened_df.copy()
     )
     structure_first_pass_execution_variant_df = (
         pd.DataFrame()
@@ -96,7 +101,14 @@ def save_metrics_and_predictions(
     bn_family_prediction_path = artifact_dir / 'bn_family_predictions.csv'
     bn_stratified_error_path = artifact_dir / 'bn_stratified_error_results.csv'
     bn_evaluation_matrix_path = artifact_dir / 'bn_evaluation_matrix.csv'
+    bn_model_role_comparison_path = artifact_dir / 'bn_model_role_comparison.csv'
     bn_centered_ranking_path = artifact_dir / 'demo_candidate_bn_centered_ranking.csv'
+    candidate_rank_stability_summary_path = (
+        artifact_dir / 'demo_candidate_rank_stability_summary.csv'
+    )
+    demo_candidate_structure_followup_report_path = (
+        artifact_dir / 'demo_candidate_structure_followup_report.csv'
+    )
     if bn_centered_screened_df is not None and not bn_centered_screened_df.empty:
         bn_centered_screened_df.to_csv(bn_centered_ranking_path, index=False)
     elif bn_centered_ranking_path.exists():
@@ -139,7 +151,6 @@ def save_metrics_and_predictions(
     if structure_generation_seed_df is not None and not structure_generation_seed_df.empty:
         structure_generation_seed_df.to_csv(structure_generation_seed_path, index=False)
         structure_generation_seed_cfg = _structure_generation_seed_config(cfg)
-        formula_col = ((cfg.get('data') or {}).get('formula_column') or 'formula')
         structure_generation_handoff = _build_structure_generation_handoff_payload(
             structure_generation_seed_df,
             formula_col=formula_col,
@@ -261,6 +272,33 @@ def save_metrics_and_predictions(
             structure_first_pass_execution_summary_path,
             index=False,
         )
+        structure_followup_report_df = structure_first_pass_execution_summary_df.copy()
+        if 'formula' not in structure_followup_report_df.columns:
+            structure_followup_report_df['formula'] = (
+                structure_followup_report_df[formula_col]
+                if formula_col in structure_followup_report_df.columns
+                else pd.NA
+            )
+        for column in (
+            'structure_followup_shortlist_rank',
+            'structure_followup_best_action_label',
+            'structure_followup_best_seed_reference_formula',
+            'structure_followup_best_seed_reference_record_id',
+            'first_pass_execution_variant_count',
+            'first_pass_execution_geometry_pass_variant_count',
+            'first_pass_execution_selected_variant_id',
+            'first_pass_execution_selected_cif_path',
+            'first_pass_execution_selected_band_gap_proxy',
+            'first_pass_execution_selected_min_distance_ratio',
+            'first_pass_execution_selected_relaxation_status',
+            'first_pass_execution_selected_final_status',
+        ):
+            if column not in structure_followup_report_df.columns:
+                structure_followup_report_df[column] = pd.NA
+        structure_followup_report_df.to_csv(
+            demo_candidate_structure_followup_report_path,
+            index=False,
+        )
         structure_first_pass_execution_variant_df.to_csv(
             structure_first_pass_execution_variants_path,
             index=False,
@@ -308,6 +346,8 @@ def save_metrics_and_predictions(
             ensure_ascii=False,
         )
     else:
+        if demo_candidate_structure_followup_report_path.exists():
+            demo_candidate_structure_followup_report_path.unlink()
         for cleanup_path in (
             structure_first_pass_execution_summary_path,
             structure_first_pass_execution_variants_path,
@@ -391,6 +431,41 @@ def save_metrics_and_predictions(
     elif candidate_uncertainty_path.exists():
         candidate_uncertainty_path.unlink()
 
+    bn_slice_benchmark_for_model_role_df = bn_slice_benchmark_df.copy()
+    if 'selected_by_validation' not in bn_slice_benchmark_for_model_role_df.columns:
+        bn_slice_benchmark_for_model_role_df['selected_by_validation'] = pd.NA
+    bn_model_role_comparison_df = _build_bn_model_role_comparison_table(
+        bn_slice_benchmark_for_model_role_df,
+        bn_family_benchmark_df=bn_family_benchmark_df,
+        bn_stratified_error_df=bn_stratified_error_df,
+    )
+    if not bn_model_role_comparison_df.empty:
+        bn_model_role_comparison_df.to_csv(
+            bn_model_role_comparison_path,
+            index=False,
+        )
+    elif bn_model_role_comparison_path.exists():
+        bn_model_role_comparison_path.unlink()
+
+    candidate_rank_stability_summary_df = pd.DataFrame(
+        [
+            _candidate_ranking_comparison_payload(
+                screened_df,
+                bn_centered_screened_df,
+                formula_col=formula_col,
+                top_k=top_k,
+            )
+            for top_k in [3, 5, 10, 20]
+        ]
+    )
+    if not candidate_rank_stability_summary_df.empty:
+        candidate_rank_stability_summary_df.to_csv(
+            candidate_rank_stability_summary_path,
+            index=False,
+        )
+    elif candidate_rank_stability_summary_path.exists():
+        candidate_rank_stability_summary_path.unlink()
+
     benchmark_df.to_csv(artifact_dir / 'benchmark_results.csv', index=False)
     robustness_path = artifact_dir / 'robustness_results.csv'
     if robustness_df is not None and not robustness_df.empty:
@@ -417,4 +492,3 @@ def save_metrics_and_predictions(
     legacy_screen_path = artifact_dir / 'screened_candidates.csv'
     if legacy_screen_path.exists():
         legacy_screen_path.unlink()
-

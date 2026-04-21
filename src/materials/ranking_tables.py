@@ -19,6 +19,439 @@ from materials.benchmarking import *
 from materials.common import *
 from materials.common import _decision_policy_config, _ranking_stability_config
 
+
+def _safe_float(value: object) -> float | None:
+    if pd.isna(value):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _safe_text(value: object) -> str | None:
+    if isinstance(value, pd.Series):
+        return value.map(_safe_text)
+    if pd.isna(value):
+        return None
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text if text else None
+
+
+def _safe_bool(value: object) -> bool | None:
+    if pd.isna(value):
+        return None
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    if str(value).lower() in {'true', '1', 'yes', 'y'}:
+        return True
+    if str(value).lower() in {'false', '0', 'no', 'n'}:
+        return False
+    return bool(value)
+
+
+def _build_bn_model_role_comparison_table(
+    bn_slice_benchmark_df: pd.DataFrame,
+    bn_family_benchmark_df: pd.DataFrame | None = None,
+    bn_stratified_error_df: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    columns = [
+        'benchmark_scope',
+        'benchmark_role',
+        'selected_by_validation',
+        'candidate_compatible',
+        'feature_set',
+        'feature_family',
+        'model_type',
+        'benchmark_status',
+        'benchmark_method',
+        'benchmark_train_scope',
+        'benchmark_group_column',
+        'completed_holds',
+        'completed_family_holds',
+        'completed_formula_holds',
+        'requested_folds',
+        'actual_folds',
+        'bn_family_count',
+        'bn_formula_count',
+        'non_bn_formula_count',
+        'bn_row_count',
+        'k_neighbors',
+        'mae',
+        'rmse',
+        'r2',
+        'bn_mae',
+        'bn_rmse',
+        'bn_r2',
+        'non_bn_mae',
+        'non_bn_rmse',
+        'non_bn_r2',
+        'bn_to_non_bn_mae_ratio',
+    ]
+
+    frames: list[pd.DataFrame] = []
+
+    if bn_slice_benchmark_df is not None and not bn_slice_benchmark_df.empty:
+        slice_df = bn_slice_benchmark_df.copy()
+        slice_df['benchmark_scope'] = 'bn_slice'
+        slice_df['benchmark_method'] = _safe_text(slice_df.get('bn_slice_method', pd.Series(dtype='object')).astype(str))
+        slice_df['benchmark_train_scope'] = _safe_text(
+            slice_df.get('bn_slice_train_scope', pd.Series(dtype='object')).astype(str)
+        )
+        slice_df['benchmark_group_column'] = pd.Series([None] * len(slice_df), index=slice_df.index)
+        for col in ['mae', 'rmse', 'r2', 'candidate_compatible']:
+            if col not in slice_df.columns:
+                slice_df[col] = np.nan
+        if 'candidate_compatible' not in slice_df.columns:
+            slice_df['candidate_compatible'] = False
+        if 'selected_by_validation' not in slice_df.columns:
+            slice_df['selected_by_validation'] = pd.NA
+        normalized_slice = pd.DataFrame(
+            {
+                'benchmark_scope': slice_df['benchmark_scope'],
+                'benchmark_role': slice_df['benchmark_role'].map(_safe_text),
+                'selected_by_validation': slice_df['selected_by_validation'].map(_safe_bool),
+                'candidate_compatible': slice_df['candidate_compatible'].map(_safe_bool),
+                'feature_set': slice_df['feature_set'].map(_safe_text),
+                'feature_family': slice_df['feature_family'].map(_safe_text),
+                'model_type': slice_df['model_type'].map(_safe_text),
+                'benchmark_status': slice_df['benchmark_status'].map(_safe_text),
+                'benchmark_method': slice_df['benchmark_method'].map(_safe_text),
+                'benchmark_train_scope': slice_df['benchmark_train_scope'].map(_safe_text),
+                'benchmark_group_column': slice_df['benchmark_group_column'].map(_safe_text),
+                'completed_holds': slice_df.get('completed_holds', pd.Series([None] * len(slice_df))).map(_safe_float),
+                'completed_family_holds': slice_df.get('completed_family_holds', pd.Series([None] * len(slice_df))).map(_safe_float),
+                'completed_formula_holds': slice_df.get('completed_formula_holds', pd.Series([None] * len(slice_df))).map(_safe_float),
+                'requested_folds': slice_df.get('requested_folds', pd.Series([None] * len(slice_df))).map(_safe_float),
+                'actual_folds': slice_df.get('actual_folds', pd.Series([None] * len(slice_df))).map(_safe_float),
+                'bn_family_count': slice_df.get('bn_family_count', pd.Series([None] * len(slice_df))).map(_safe_float),
+                'bn_formula_count': slice_df.get('bn_formula_count', pd.Series([None] * len(slice_df))).map(_safe_float),
+                'non_bn_formula_count': slice_df.get('non_bn_formula_count', pd.Series([None] * len(slice_df))).map(_safe_float),
+                'bn_row_count': slice_df.get('bn_row_count', pd.Series([None] * len(slice_df))).map(_safe_float),
+                'k_neighbors': slice_df.get('k_neighbors', pd.Series([None] * len(slice_df))).map(_safe_float),
+                'mae': slice_df['mae'].map(_safe_float),
+                'rmse': slice_df['rmse'].map(_safe_float),
+                'r2': slice_df['r2'].map(_safe_float),
+                'bn_mae': pd.Series([None] * len(slice_df), index=slice_df.index),
+                'bn_rmse': pd.Series([None] * len(slice_df), index=slice_df.index),
+                'bn_r2': pd.Series([None] * len(slice_df), index=slice_df.index),
+                'non_bn_mae': pd.Series([None] * len(slice_df), index=slice_df.index),
+                'non_bn_rmse': pd.Series([None] * len(slice_df), index=slice_df.index),
+                'non_bn_r2': pd.Series([None] * len(slice_df), index=slice_df.index),
+                'bn_to_non_bn_mae_ratio': pd.Series([None] * len(slice_df), index=slice_df.index),
+            }
+        )
+        frames.append(normalized_slice)
+
+    if bn_family_benchmark_df is not None and not bn_family_benchmark_df.empty:
+        family_df = bn_family_benchmark_df.copy()
+        family_df['benchmark_scope'] = 'bn_family'
+        family_df['benchmark_method'] = _safe_text(
+            family_df.get('bn_family_benchmark_method', pd.Series(dtype='object')).astype(str)
+        )
+        family_df['benchmark_train_scope'] = _safe_text(
+            family_df.get('bn_family_train_scope', pd.Series(dtype='object')).astype(str)
+        )
+        family_df['benchmark_group_column'] = family_df.get('bn_family_grouping_method')
+        if 'candidate_compatible' not in family_df.columns:
+            family_df['candidate_compatible'] = False
+        if 'selected_by_validation' not in family_df.columns:
+            family_df['selected_by_validation'] = pd.NA
+        normalized_family = pd.DataFrame(
+            {
+                'benchmark_scope': family_df['benchmark_scope'],
+                'benchmark_role': family_df['benchmark_role'].map(_safe_text),
+                'selected_by_validation': family_df['selected_by_validation'].map(_safe_bool),
+                'candidate_compatible': family_df['candidate_compatible'].map(_safe_bool),
+                'feature_set': family_df['feature_set'].map(_safe_text),
+                'feature_family': family_df['feature_family'].map(_safe_text),
+                'model_type': family_df['model_type'].map(_safe_text),
+                'benchmark_status': family_df['benchmark_status'].map(_safe_text),
+                'benchmark_method': family_df['benchmark_method'].map(_safe_text),
+                'benchmark_train_scope': family_df['benchmark_train_scope'].map(_safe_text),
+                'benchmark_group_column': family_df['benchmark_group_column'].map(_safe_text),
+                'completed_holds': family_df.get('completed_holds', pd.Series([None] * len(family_df))).map(_safe_float),
+                'completed_family_holds': family_df.get(
+                    'completed_family_holds',
+                    pd.Series([None] * len(family_df)),
+                ).map(_safe_float),
+                'completed_formula_holds': family_df.get(
+                    'completed_formula_holds',
+                    pd.Series([None] * len(family_df)),
+                ).map(_safe_float),
+                'requested_folds': family_df.get('requested_folds', pd.Series([None] * len(family_df))).map(_safe_float),
+                'actual_folds': family_df.get('actual_folds', pd.Series([None] * len(family_df))).map(_safe_float),
+                'bn_family_count': family_df.get('bn_family_count', pd.Series([None] * len(family_df))).map(_safe_float),
+                'bn_formula_count': family_df.get('bn_formula_count', pd.Series([None] * len(family_df))).map(_safe_float),
+                'non_bn_formula_count': family_df.get('non_bn_formula_count', pd.Series([None] * len(family_df))).map(_safe_float),
+                'bn_row_count': family_df.get('bn_row_count', pd.Series([None] * len(family_df))).map(_safe_float),
+                'k_neighbors': family_df.get('k_neighbors', pd.Series([None] * len(family_df))).map(_safe_float),
+                'mae': family_df['mae'].map(_safe_float),
+                'rmse': family_df['rmse'].map(_safe_float),
+                'r2': family_df['r2'].map(_safe_float),
+                'bn_mae': pd.Series([None] * len(family_df), index=family_df.index),
+                'bn_rmse': pd.Series([None] * len(family_df), index=family_df.index),
+                'bn_r2': pd.Series([None] * len(family_df), index=family_df.index),
+                'non_bn_mae': pd.Series([None] * len(family_df), index=family_df.index),
+                'non_bn_rmse': pd.Series([None] * len(family_df), index=family_df.index),
+                'non_bn_r2': pd.Series([None] * len(family_df), index=family_df.index),
+                'bn_to_non_bn_mae_ratio': pd.Series([None] * len(family_df), index=family_df.index),
+            }
+        )
+        frames.append(normalized_family)
+
+    if bn_stratified_error_df is not None and not bn_stratified_error_df.empty:
+        stratified_df = bn_stratified_error_df.copy()
+        stratified_df['benchmark_scope'] = 'bn_stratified'
+        stratified_df['benchmark_method'] = _safe_text(
+            stratified_df.get('bn_stratified_error_method', pd.Series(dtype='object')).astype(str)
+        )
+        stratified_df['benchmark_train_scope'] = _safe_text(
+            stratified_df.get('bn_stratified_error_method', pd.Series(dtype='object')).astype(str)
+        )
+        stratified_df['benchmark_group_column'] = stratified_df.get('bn_stratified_group_column')
+        if 'candidate_compatible' not in stratified_df.columns:
+            stratified_df['candidate_compatible'] = False
+        if 'selected_by_validation' not in stratified_df.columns:
+            stratified_df['selected_by_validation'] = pd.NA
+        normalized_stratified = pd.DataFrame(
+            {
+                'benchmark_scope': stratified_df['benchmark_scope'],
+                'benchmark_role': stratified_df['benchmark_role'].map(_safe_text),
+                'selected_by_validation': stratified_df['selected_by_validation'].map(_safe_bool),
+                'candidate_compatible': stratified_df['candidate_compatible'].map(_safe_bool),
+                'feature_set': stratified_df['feature_set'].map(_safe_text),
+                'feature_family': stratified_df['feature_family'].map(_safe_text),
+                'model_type': stratified_df['model_type'].map(_safe_text),
+                'benchmark_status': stratified_df['benchmark_status'].map(_safe_text),
+                'benchmark_method': stratified_df['benchmark_method'].map(_safe_text),
+                'benchmark_train_scope': stratified_df['benchmark_train_scope'].map(_safe_text),
+                'benchmark_group_column': stratified_df['benchmark_group_column'].map(_safe_text),
+                'completed_holds': stratified_df.get('completed_holds', pd.Series([None] * len(stratified_df))).map(_safe_float),
+                'completed_family_holds': stratified_df.get(
+                    'completed_family_holds',
+                    pd.Series([None] * len(stratified_df)),
+                ).map(_safe_float),
+                'completed_formula_holds': stratified_df.get(
+                    'completed_formula_holds',
+                    pd.Series([None] * len(stratified_df)),
+                ).map(_safe_float),
+                'requested_folds': stratified_df.get('requested_folds', pd.Series([None] * len(stratified_df))).map(_safe_float),
+                'actual_folds': stratified_df.get('actual_folds', pd.Series([None] * len(stratified_df))).map(_safe_float),
+                'bn_family_count': pd.Series([None] * len(stratified_df), index=stratified_df.index),
+                'bn_formula_count': stratified_df.get('bn_formula_count', pd.Series([None] * len(stratified_df))).map(_safe_float),
+                'non_bn_formula_count': stratified_df.get('non_bn_formula_count', pd.Series([None] * len(stratified_df))).map(_safe_float),
+                'bn_row_count': pd.Series([None] * len(stratified_df), index=stratified_df.index),
+                'k_neighbors': pd.Series([None] * len(stratified_df), index=stratified_df.index),
+                'mae': stratified_df.get('bn_mae', pd.Series([None] * len(stratified_df))).map(_safe_float),
+                'rmse': stratified_df.get('bn_rmse', pd.Series([None] * len(stratified_df))).map(_safe_float),
+                'r2': stratified_df.get('bn_r2', pd.Series([None] * len(stratified_df))).map(_safe_float),
+                'bn_mae': stratified_df.get('bn_mae', pd.Series([None] * len(stratified_df))).map(_safe_float),
+                'bn_rmse': stratified_df.get('bn_rmse', pd.Series([None] * len(stratified_df))).map(_safe_float),
+                'bn_r2': stratified_df.get('bn_r2', pd.Series([None] * len(stratified_df))).map(_safe_float),
+                'non_bn_mae': stratified_df.get('non_bn_mae', pd.Series([None] * len(stratified_df))).map(_safe_float),
+                'non_bn_rmse': stratified_df.get('non_bn_rmse', pd.Series([None] * len(stratified_df))).map(_safe_float),
+                'non_bn_r2': stratified_df.get('non_bn_r2', pd.Series([None] * len(stratified_df))).map(_safe_float),
+                'bn_to_non_bn_mae_ratio': stratified_df.get(
+                    'bn_to_non_bn_mae_ratio', pd.Series([None] * len(stratified_df))
+                ).map(_safe_float),
+            }
+        )
+        frames.append(normalized_stratified)
+
+    if not frames:
+        return pd.DataFrame(columns=columns)
+
+    comparison_df = pd.concat(frames, ignore_index=True)
+    return comparison_df[columns]
+
+
+def _build_demo_candidate_rank_stability_summary_table(
+    candidate_ranking_uncertainty_df: pd.DataFrame,
+    candidate_ranking_uncertainty_summary: dict[str, object],
+    *,
+    formula_col: str,
+) -> pd.DataFrame:
+    rows: list[dict[str, object]] = []
+
+    top_k_values = candidate_ranking_uncertainty_summary.get('top_k_values', [])
+    rows.append(
+        {
+            'record_type': 'global',
+            'metric': 'source_count',
+            'formula': None,
+            'ranking_rank': None,
+            'top_k': None,
+            'value': _safe_float(candidate_ranking_uncertainty_summary.get('source_count')),
+            'abstain_flag': None,
+            'final_action_label': None,
+            'reason_for_abstention': None,
+        }
+    )
+    rows.append(
+        {
+            'record_type': 'global',
+            'metric': 'top_k_reference',
+            'formula': None,
+            'ranking_rank': None,
+            'top_k': None,
+            'value': _safe_float(candidate_ranking_uncertainty_summary.get('top_k_reference')),
+            'abstain_flag': None,
+            'final_action_label': None,
+            'reason_for_abstention': None,
+        }
+    )
+    rows.append(
+        {
+            'record_type': 'global',
+            'metric': 'top_k_values',
+            'formula': None,
+            'ranking_rank': None,
+            'top_k': None,
+            'value': str([int(value) for value in top_k_values] if top_k_values else []),
+            'abstain_flag': None,
+            'final_action_label': None,
+            'reason_for_abstention': None,
+        }
+    )
+    rows.append(
+        {
+            'record_type': 'global',
+            'metric': 'prediction_std_abstain_threshold',
+            'formula': None,
+            'ranking_rank': None,
+            'top_k': None,
+            'value': _safe_float(candidate_ranking_uncertainty_summary.get('prediction_std_abstain_threshold')),
+            'abstain_flag': None,
+            'final_action_label': None,
+            'reason_for_abstention': None,
+        }
+    )
+    rows.append(
+        {
+            'record_type': 'global',
+            'metric': 'rank_std_abstain_threshold',
+            'formula': None,
+            'ranking_rank': None,
+            'top_k': None,
+            'value': _safe_float(candidate_ranking_uncertainty_summary.get('rank_std_abstain_threshold')),
+            'abstain_flag': None,
+            'final_action_label': None,
+            'reason_for_abstention': None,
+        }
+    )
+    rows.append(
+        {
+            'record_type': 'global',
+            'metric': 'abstained_candidate_count',
+            'formula': None,
+            'ranking_rank': None,
+            'top_k': None,
+            'value': _safe_float(candidate_ranking_uncertainty_summary.get('abstained_candidate_count')),
+            'abstain_flag': None,
+            'final_action_label': None,
+            'reason_for_abstention': None,
+        }
+    )
+    for action_label, action_count in (candidate_ranking_uncertainty_summary.get('final_action_counts') or {}).items():
+        rows.append(
+            {
+                'record_type': 'global',
+                'metric': f'final_action_count:{action_label}',
+                'formula': None,
+                'ranking_rank': None,
+                'top_k': None,
+                'value': _safe_float(action_count),
+                'abstain_flag': None,
+                'final_action_label': None,
+                'reason_for_abstention': None,
+            }
+        )
+
+    if candidate_ranking_uncertainty_df is None or candidate_ranking_uncertainty_df.empty:
+        return pd.DataFrame(rows).sort_values(
+            ['record_type', 'metric', formula_col],
+            kind='stable',
+        ).reset_index(drop=True)
+
+    uncertainty_df = candidate_ranking_uncertainty_df.copy()
+    uncertainty_df[formula_col] = uncertainty_df[formula_col].astype(str)
+    if 'top_10_selection_frequency' in uncertainty_df.columns:
+        top_k_columns = ['top_10_selection_frequency']
+    else:
+        top_k_columns = []
+        if 'top_3_selection_frequency' in uncertainty_df.columns:
+            top_k_columns.append('top_3_selection_frequency')
+        if 'top_5_selection_frequency' in uncertainty_df.columns:
+            top_k_columns.append('top_5_selection_frequency')
+
+    for _, row in uncertainty_df.iterrows():
+        rows.append(
+            {
+                'record_type': 'candidate',
+                'metric': 'candidate_summary',
+                'formula': str(row[formula_col]),
+                'ranking_rank': _safe_float(row.get('ranking_rank')),
+                'top_k': None,
+                'value': _safe_float(row.get('ranking_source_count')),
+                'abstain_flag': bool(row.get('abstain_flag', False)),
+                'final_action_label': _safe_text(row.get('final_action_label')),
+                'reason_for_abstention': _safe_text(row.get('reason_for_abstention')),
+            }
+        )
+        if 'predicted_band_gap_std' in row:
+            rows.append(
+                {
+                    'record_type': 'candidate',
+                    'metric': 'candidate_predicted_band_gap_std',
+                    'formula': str(row[formula_col]),
+                    'ranking_rank': _safe_float(row.get('ranking_rank')),
+                    'top_k': None,
+                    'value': _safe_float(row.get('predicted_band_gap_std')),
+                    'abstain_flag': bool(row.get('abstain_flag', False)),
+                    'final_action_label': _safe_text(row.get('final_action_label')),
+                    'reason_for_abstention': _safe_text(row.get('reason_for_abstention')),
+                }
+            )
+        if 'rank_std' in row:
+            rows.append(
+                {
+                    'record_type': 'candidate',
+                    'metric': 'candidate_rank_std',
+                    'formula': str(row[formula_col]),
+                    'ranking_rank': _safe_float(row.get('ranking_rank')),
+                    'top_k': None,
+                    'value': _safe_float(row.get('rank_std')),
+                    'abstain_flag': bool(row.get('abstain_flag', False)),
+                    'final_action_label': _safe_text(row.get('final_action_label')),
+                    'reason_for_abstention': _safe_text(row.get('reason_for_abstention')),
+                }
+            )
+        for column in top_k_columns:
+            rows.append(
+                {
+                    'record_type': 'candidate',
+                    'metric': column,
+                    'formula': str(row[formula_col]),
+                    'ranking_rank': _safe_float(row.get('ranking_rank')),
+                    'top_k': int(column.split('_')[1]) if column.startswith('top_') else None,
+                    'value': _safe_float(row.get(column)),
+                    'abstain_flag': bool(row.get('abstain_flag', False)),
+                    'final_action_label': _safe_text(row.get('final_action_label')),
+                    'reason_for_abstention': _safe_text(row.get('reason_for_abstention')),
+                }
+            )
+
+    summary_df = pd.DataFrame(rows)
+    return summary_df.sort_values(
+        ['record_type', 'metric', formula_col, 'ranking_rank', 'top_k'],
+        kind='stable',
+    ).reset_index(drop=True)
+
 def _robustness_row_payload(robustness_df: pd.DataFrame, mask) -> dict | None:
     if robustness_df.empty:
         return None
@@ -889,4 +1322,3 @@ def _bn_stratified_error_row_payload(bn_stratified_error_df: pd.DataFrame, mask)
         else:
             cleaned[key] = value.item() if hasattr(value, 'item') else value
     return cleaned
-
