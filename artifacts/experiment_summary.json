@@ -720,7 +720,9 @@
       "bn_to_non_bn_mae_ratio": 1.1870814356242887
     },
     "evaluation_matrix_artifact": "bn_evaluation_matrix.csv",
-    "evaluation_matrix_row_count": 19
+    "evaluation_matrix_row_count": 19,
+    "model_role_comparison_artifact": "bn_model_role_comparison.csv",
+    "model_role_comparison_row_count": 53
   },
   "screening": {
     "candidate_space_name": "bn_anchored_formula_family_grid",
@@ -1052,7 +1054,9 @@
       ],
       "first_pass_execution_model_feature_set": "matminer_composition_plus_structure_summary",
       "first_pass_execution_model_type": "hist_gradient_boosting",
-      "first_pass_execution_model_available": true
+      "first_pass_execution_model_available": true,
+      "first_pass_execution_followup_report_artifact": "demo_candidate_structure_followup_report.csv",
+      "first_pass_execution_followup_report_row_count": 5
     },
     "ranking_stability": {
       "enabled": true,
@@ -1186,7 +1190,15 @@
           "spearman_rank_correlation": 0.9207692307692308,
           "kendall_tau": 0.7599999999999999
         }
-      }
+      },
+      "bn_centered_comparison_summary_artifact": "demo_candidate_rank_stability_summary.csv",
+      "bn_centered_comparison_summary_row_count": 4,
+      "bn_centered_comparison_summary_top_k_values": [
+        3,
+        5,
+        10,
+        20
+      ]
     },
     "decision_policy": {
       "enabled": true,
