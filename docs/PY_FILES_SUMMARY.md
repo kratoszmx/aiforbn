@@ -65,12 +65,16 @@ Use it as the short per-round smoke test before deciding whether a full `main.py
 ### top-level modules
 - `src/runtime/`
   - runtime helpers and schema models
+  - also carries module-local `AGENTS.md`, `PY_FILES_SUMMARY.md`, and `utils.py`
 - `src/materials/`
   - the unified business module: dataset normalization, candidate space, feature building, model selection, benchmarking, screening, artifacts, summaries, and structure-execution logic
+  - also carries module-local `AGENTS.md`, `PY_FILES_SUMMARY.md`, and `utils.py`
 - `src/torch_models/`
   - repo-local PyTorch model implementations
+  - also carries module-local `AGENTS.md`, `PY_FILES_SUMMARY.md`, and `utils.py`
 - `src/ui/`
   - Streamlit UI
+  - also carries module-local `AGENTS.md`, `PY_FILES_SUMMARY.md`, and `utils.py`
 
 There are no longer `src/pipeline/*.py` façade modules, and the earlier `core / dataset / features / reporting / structure_execution` top-level split has been collapsed into the current flatter live layout.
 
@@ -79,6 +83,7 @@ There are no longer `src/pipeline/*.py` façade modules, and the earlier `core /
 - `src/materials/tests/`
 - `src/ui/tests/`
 - `src/tests/`
+  - top-level entrypoint/config tests, plus its own local `AGENTS.md`, `PY_FILES_SUMMARY.md`, and `utils.py`
 
 Root `tests/` has been removed.
 

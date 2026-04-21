@@ -50,6 +50,7 @@
 
 每个正式模块目录现在都已有模板文件：
 - `AGENTS.md`
+- `PY_FILES_SUMMARY.md`
 - `utils.py`
 
 测试布局也已随模块调整为：
@@ -63,6 +64,7 @@
 另外，本轮还完成了几项关键整理：
 - `main.py` 的导入链已改成直接指向新的真实模块，不再经过 façade
 - `main.py` 现在新增 `--dry-run` 快速烟测入口，可在不跑完整主流程的情况下验证配置、候选空间、特征表构建、以及模型导入/实例化是否仍然通畅
+- 各模块（含 `template` 与 `tests`）现在都已有自己的 `PY_FILES_SUMMARY.md`，用于记录该目录对外暴露的可调用函数/类；模块内部实现细节则继续放在各自的 `AGENTS.md`
 - `src/config.py` 保持为真实配置文件，不再保留兼容层
 - 顶层模块目录已去掉 `__init__.py`、package-relative imports 和依赖 `__all__` 的包式导出，回到“repo root + src 路径直接使用”的非包态模式
 - `core` 这个顶层名字已移除，原通用运行时职责收敛到 `src/runtime/`

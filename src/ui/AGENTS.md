@@ -1,10 +1,23 @@
-# Instruction for codex
+# Module Instructions for Codex
 
-## essistial check before working
+## Essential check before working
 
-Common module-level utilities are stored in utils.py. Before starting work each time, you must check:
+Common module-level utilities are stored in `utils.py`. Before starting work each time, you must check:
 
-Whether utils.py contains sufficiently general-purpose functions. If so, move them to an appropriate location under ~/projects/myutils, and update PY_FILES_SUMMARY.md accordingly.
-Review ~/projects/myutils/PY_FILES_SUMMARY.md to determine whether there are sufficiently useful functions that can be directly reused for the current task.
+- Whether `utils.py` contains sufficiently general-purpose functions. If so, move them to an appropriate location under `~/projects/myutils`, and update the relevant `PY_FILES_SUMMARY.md` files accordingly.
+- `~/projects/myutils/PY_FILES_SUMMARY.md` to determine whether there are already useful functions that can be reused directly for the current task.
 
 This check must not be removed and must be performed every time.
+
+## Template rules that apply to this module
+
+- This module must stay independent, complete, and non-subordinate.
+- Cross-module calls must go through documented public functions or classes only.
+- `utils.py` stores reusable helpers that are local to this module. If a helper becomes general enough for multiple modules or projects, move it to `~/projects/myutils`.
+- Public callable functions and classes belong in `PY_FILES_SUMMARY.md`. Internal helpers, especially underscore-prefixed ones, should be documented here only when future maintainers need guidance.
+
+## UI-specific guidance
+
+- `ui` should expose a small entry surface and avoid depending on internal business-module implementation details.
+- The primary public entrypoint is the Streamlit renderer. Keep artifact-reading and display logic here, but avoid re-implementing pipeline logic that belongs in other modules.
+- If UI helpers become reusable across multiple UI files, keep them in `utils.py` first; promote them to `~/projects/myutils` only if they become truly general.
