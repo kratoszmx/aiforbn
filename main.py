@@ -1,3 +1,4 @@
+import argparse
 import copy
 import inspect
 from pathlib import Path
@@ -10,9 +11,9 @@ SRC_DIR = ROOT / 'src'
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from core.io_utils import clear_project_cache, ensure_runtime_dirs, load_config
-from dataset.data import load_or_build_dataset
-from features.benchmarking import (
+from runtime.io_utils import clear_project_cache, ensure_runtime_dirs, load_config
+from materials.data import STRUCTURE_SUMMARY_COLUMNS, load_or_build_dataset
+from materials.benchmarking import (
     benchmark_bn_family_holdout,
     benchmark_bn_slice,
     benchmark_bn_stratified_errors,
@@ -20,11 +21,18 @@ from features.benchmarking import (
     benchmark_regressors,
     select_bn_centered_candidate_screening_combo,
 )
-from features.candidate_space import filter_bn, generate_bn_candidates
-from features.constants import STRUCTURE_AWARE_FEATURE_SET
-from features.feature_building import build_feature_tables, make_split_masks
-from features.modeling import evaluate_predictions, train_baseline_model
-from features.screening import (
+from materials.candidate_space import filter_bn, generate_bn_candidates
+from materials.constants import STRUCTURE_AWARE_FEATURE_SET
+from materials.feature_building import (
+    build_feature_tables,
+    compatible_model_types_for_feature_set,
+    feature_set_supports_formula_only_screening,
+    get_candidate_feature_sets,
+    get_candidate_model_types,
+    make_split_masks,
+)
+from materials.modeling import evaluate_predictions, make_model, train_baseline_model
+from materials.screening import (
     build_candidate_grouped_robustness_prediction_members,
     build_candidate_grouped_robustness_predictions,
     build_candidate_prediction_ensemble,
@@ -32,17 +40,135 @@ from features.screening import (
     build_candidate_structure_generation_seeds,
     screen_candidates,
 )
-from features.selection import select_feature_model_combo
-from reporting.artifacts import save_metrics_and_predictions
-from reporting.plots import save_basic_plots
-from reporting.summary import build_experiment_summary
-from structure_execution.execution import build_structure_first_pass_execution_artifacts
+from materials.selection import select_feature_model_combo
+from materials.artifacts import save_metrics_and_predictions
+from materials.plots import save_basic_plots
+from materials.summary import build_experiment_summary
+from materials.structure_execution import build_structure_first_pass_execution_artifacts
+
+
+def _build_dry_run_dataset(cfg: dict) -> pd.DataFrame:
+    formula_col = str(cfg['data'].get('formula_column', 'formula'))
+    target_col = str(cfg['data'].get('target_column', 'band_gap'))
+    dry_run_rows = [
+        ('BN', 5.2),
+        ('AlN', 4.1),
+        ('GaN', 3.4),
+    ]
+    records: list[dict[str, object]] = []
+    for formula, target in dry_run_rows:
+        row = {
+            'formula': formula,
+            formula_col: formula,
+            'target': float(target),
+            target_col: float(target),
+        }
+        for column in STRUCTURE_SUMMARY_COLUMNS:
+            row[column] = 0.0
+        records.append(row)
+    return pd.DataFrame(records)
+
+
+def run_dry_run() -> dict:
+    clear_project_cache('.')
+
+    config_path = Path('src/config.py')
+    cfg = load_config(config_path)
+    ensure_runtime_dirs(cfg)
+
+    candidate_df = generate_bn_candidates(cfg)
+    if candidate_df.empty:
+        raise ValueError('Dry run failed because candidate generation returned zero rows')
+
+    dry_run_dataset_df = _build_dry_run_dataset(cfg)
+    feature_tables = build_feature_tables(
+        dry_run_dataset_df,
+        cfg,
+        formula_col=cfg['data']['formula_column'],
+    )
+    configured_feature_sets = get_candidate_feature_sets(cfg)
+    configured_model_types = get_candidate_model_types(cfg)
+    available_feature_sets = [
+        feature_set for feature_set in configured_feature_sets if feature_set in feature_tables
+    ]
+    if not available_feature_sets:
+        raise ValueError('Dry run failed because no configured feature set produced a feature table')
+
+    overall_compatible = {
+        feature_set: compatible_model_types_for_feature_set(cfg, feature_set)
+        for feature_set in available_feature_sets
+    }
+    screening_feature_sets = [
+        feature_set
+        for feature_set in available_feature_sets
+        if feature_set_supports_formula_only_screening(feature_set)
+    ]
+    screening_compatible = {
+        feature_set: compatible_model_types_for_feature_set(cfg, feature_set)
+        for feature_set in screening_feature_sets
+    }
+    if not any(model_types for model_types in overall_compatible.values()):
+        raise ValueError('Dry run failed because no configured feature/model combo is compatible')
+    if not any(model_types for model_types in screening_compatible.values()):
+        raise ValueError(
+            'Dry run failed because no formula-only screening feature/model combo is compatible'
+        )
+
+    model_init_status = {}
+    dry_run_model_types = list(
+        dict.fromkeys(configured_model_types + list(cfg['model'].get('benchmark_baselines', [])))
+    )
+    for model_type in dry_run_model_types:
+        try:
+            make_model(cfg, model_type=model_type)
+        except Exception as exc:  # pragma: no cover - exercised through failure path
+            model_init_status[model_type] = f'{type(exc).__name__}: {exc}'
+        else:
+            model_init_status[model_type] = 'ok'
+    failing_model_types = {
+        model_type: status
+        for model_type, status in model_init_status.items()
+        if status != 'ok'
+    }
+    if failing_model_types:
+        raise RuntimeError(
+            'Dry run failed while instantiating configured models: '
+            f'{failing_model_types}'
+        )
+
+    report = {
+        'config_path': str(config_path),
+        'candidate_row_count': int(len(candidate_df)),
+        'dry_run_dataset_row_count': int(len(dry_run_dataset_df)),
+        'configured_feature_sets': configured_feature_sets,
+        'available_feature_sets': available_feature_sets,
+        'screening_feature_sets': screening_feature_sets,
+        'configured_model_types': configured_model_types,
+        'benchmark_baselines': list(cfg['model'].get('benchmark_baselines', [])),
+        'overall_compatible': overall_compatible,
+        'screening_compatible': screening_compatible,
+        'model_init_status': model_init_status,
+    }
+
+    print('=== BN AI PoC dry run completed ===')
+    print(f"config path: {report['config_path']}")
+    print(f"candidate rows: {report['candidate_row_count']}")
+    print(f"dry-run dataset rows: {report['dry_run_dataset_row_count']}")
+    print(f"configured feature sets: {report['configured_feature_sets']}")
+    print(f"available feature sets: {report['available_feature_sets']}")
+    print(f"screening feature sets: {report['screening_feature_sets']}")
+    print(f"configured model types: {report['configured_model_types']}")
+    print(f"benchmark baselines: {report['benchmark_baselines']}")
+    print(f"overall compatible combos: {report['overall_compatible']}")
+    print(f"screening compatible combos: {report['screening_compatible']}")
+    print(f"model init status: {report['model_init_status']}")
+    return report
 
 
 def main() -> None:
     clear_project_cache('.')
 
-    config_path = Path('src/default.py')
+    config_path = Path('src/config.py')
     cfg = load_config(config_path)
 
     ensure_runtime_dirs(cfg)
@@ -374,4 +500,14 @@ def main() -> None:
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(description='BN AI PoC pipeline entrypoint')
+    parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Run a fast smoke check for config, feature generation, candidate generation, and model imports.',
+    )
+    args = parser.parse_args()
+    if args.dry_run:
+        run_dry_run()
+    else:
+        main()

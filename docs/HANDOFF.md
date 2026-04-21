@@ -34,63 +34,47 @@
 当前 live tree 已完成一轮 **去掉 wrapper 的 src 顶层模块化重排**，目标是不改行为，但把主要模块都上提到 `src` 顶层，避免继续藏在 `pipeline/` 下面。
 
 当前代码组织已经变成：
-- `src/default.py`
-  - 实际默认配置文件，`main.py` 和测试直接使用它，不再经过 `config.py` wrapper
-- `src/conftest.py`
-  - 迁移后测试共享的 pytest bootstrap
-- `src/core/`
-  - 顶层独立 module，保留 `io_utils.py` 和 `schema.py`
-- `src/dataset/`
-  - `data.py`
-- `src/features/`
-  - `constants.py`
-  - `candidate_space.py`
-  - `feature_building.py`
-  - `modeling.py`
-  - `selection.py`
-  - `benchmarking.py`
-  - `screening.py`
-- `src/reporting/`
-  - `common.py`
-  - `ranking_tables.py`
-  - `structure_artifacts.py`
-  - `summary.py`
-  - `artifacts.py`
-  - `plots.py`
-- `src/structure_execution/`
-  - `helpers.py`
-  - `execution.py`
+- `src/config.py`
+  - 实际默认配置文件，`main.py` 和测试直接使用它
+- `conftest.py`
+  - pytest bootstrap 放在仓库根，而不是 `src` 顶层
+- `src/runtime/`
+  - 独立 runtime 模块，保留 `io_utils.py` 和 `schema.py`
+- `src/materials/`
+  - 业务主模块，吸收了原先分散的 dataset / features / reporting / structure-execution 逻辑
+  - 关键文件包括 `data.py`、`candidate_space.py`、`feature_building.py`、`modeling.py`、`selection.py`、`benchmarking.py`、`screening.py`、`common.py`、`ranking_tables.py`、`structure_artifacts.py`、`structure_helpers.py`、`structure_execution.py`、`summary.py`、`artifacts.py`、`plots.py`
 - `src/torch_models/`
-  - `base.py`
-  - `attention.py`
-  - `sparse_attention.py`
-  - `roost_like.py`
-  - `ensemble.py`
+  - 独立 PyTorch 模型模块，保留 `base.py`、`attention.py`、`sparse_attention.py`、`roost_like.py`、`ensemble.py`
 - `src/ui/`
-  - `streamlit_app.py`
+  - 独立 UI 模块，保留 `streamlit_app.py`
 
-测试也已经跟随模块归位迁移到 `src` 下：
-- `src/core/tests/`
-- `src/dataset/tests/`
-- `src/features/tests/`
-- `src/reporting/tests/`
+每个正式模块目录现在都已有模板文件：
+- `AGENTS.md`
+- `utils.py`
+
+测试布局也已随模块调整为：
+- `src/runtime/tests/`
+- `src/materials/tests/`
 - `src/ui/tests/`
 - `src/tests/`
 
-根目录 `tests/` 已移除，`src/pipeline/` 也已移除。
+根目录旧 `tests/` 已移除，`src/pipeline/`、`src/core/`、`src/dataset/`、`src/features/`、`src/reporting/`、`src/structure_execution/` 这些旧顶层也都已退出 live 结构。
 
-另外，本轮还顺手完成了几项必要整理：
-- `main.py` 的导入链已改成直接指向新的顶层模块，不再经过 façade
-- `src/default.py` 已恢复为真实配置文件，不再保留 `src/config.py` 兼容层
-- Streamlit UI 现在直接放在 `src/ui/streamlit_app.py`，不再保留 `src/streamlit_app.py` bootstrap
-- `src/core/io_utils.py` 的 `ensure_runtime_dirs(...)` 已去掉对 `apps/`、`tests/`、`notebooks/` 这类非运行时目录的自动创建逻辑，因此旧的 notebook/notebooks 自动生成来源已经移除
-- `src/core/io_utils.py` 已从“兼容旧 shim”进一步收敛到当前 `myutils` 的真实目录式布局，直接对齐 `file_utils/`、`ai_utils/`、`net_utils/` 等子目录的导入方式
-- 项目里重复出现的 JSON 读写 / JSON-safe 转换逻辑继续复用 `myutils/file_utils/json_io.py`
+另外，本轮还完成了几项关键整理：
+- `main.py` 的导入链已改成直接指向新的真实模块，不再经过 façade
+- `main.py` 现在新增 `--dry-run` 快速烟测入口，可在不跑完整主流程的情况下验证配置、候选空间、特征表构建、以及模型导入/实例化是否仍然通畅
+- `src/config.py` 保持为真实配置文件，不再保留兼容层
+- 顶层模块目录已去掉 `__init__.py`、package-relative imports 和依赖 `__all__` 的包式导出，回到“repo root + src 路径直接使用”的非包态模式
+- `core` 这个顶层名字已移除，原通用运行时职责收敛到 `src/runtime/`
+- `reporting` 和 `structure_execution` 不再作为假独立 sibling module 存在，而是并回 `materials`，避免只在目录层面独立、实际仍强依赖主业务流
+- Streamlit UI 仍位于 `src/ui/streamlit_app.py`，并已去掉对 `runtime` 的不必要模块依赖，直接复用 `myutils` 的 JSON 读取能力
+- `src/runtime/io_utils.py` 的 `ensure_runtime_dirs(...)` 已去掉对 `apps/`、`tests/`、`notebooks/` 这类非运行时目录的自动创建逻辑，因此旧的 notebook/notebooks 自动生成来源已经移除
+- `src/runtime/io_utils.py` 已对齐当前 `myutils` 的目录式布局，直接使用 `file_utils/`、`ai_utils/`、`net_utils/` 等子目录导入
+- 项目里重复出现的 JSON 读写 / JSON-safe 转换逻辑继续尽量复用 `myutils/file_utils/json_io.py`
 
 另有以下 **非本轮应编辑对象** 也在 working tree 中呈现 dirty 状态：
 - `skill.txt`
-- `skills.txt`
-- `skills_ai.txt`
+- `skills/*.txt`
 
 注意：
 - 这些 skill 文件本轮**只读取，不应编辑**。
@@ -226,20 +210,24 @@
 - 结果：通过
 
 2. 定向回归验证：
-- `pytest -q src/features/tests/test_features_pipeline.py -k "feature_pipeline_can_train_evaluate_benchmark_and_rank_demo_candidates or screen_candidates_can_apply_bn_local_band_gap_alignment_penalty"`
+- `pytest -q src/materials/tests/test_features_pipeline.py -k "feature_pipeline_can_train_evaluate_benchmark_and_rank_demo_candidates or screen_candidates_can_apply_bn_local_band_gap_alignment_penalty"`
 - 结果：通过
 
 3. 入口与配置兼容验证：
-- `pytest -q src/tests/test_default_config.py src/tests/test_main.py`
+- `pytest -q src/tests/test_config.py src/tests/test_main.py`
 - 结果：`2 passed`
 
 4. 模块拆分后的完整 src 测试：
-- `pytest -q src`
-- 结果：`35 passed, 6 warnings in 5.87s`
+- `PYTHONPATH=src pytest -q src`
+- 结果：`36 passed, 6 warnings in 5.67s`
+
+5. 快速 dry-run 烟测：
+- `python3 main.py --dry-run`
+- 结果：通过，已确认配置加载、候选空间生成、tiny in-memory feature-table 构建、以及配置中模型的导入/实例化均可完成
 
 5. `main.py` 烟测：
 - 在用户 zsh / `quant` 环境里实际启动过 `python3 main.py`
-- 修复 `src/default.py` 缺失后，程序已不再在入口阶段立即因 import/config 路径报错
+- 修复 `src/config.py` 缺失后，程序已不再在入口阶段立即因 import/config 路径报错
 - 该运行随后进入持续计算阶段，未在本轮等待到完整结束
 
 因此当前最准确的表述应是：
@@ -272,8 +260,9 @@
 因此恢复时的默认动作应是：
 1. 先读：
    - `skill.txt`
-   - `skills.txt`
-   - `skills_ai.txt`
+   - `skills/template.txt`
+   - `skills/workflow.txt`
+   - 其余 `skills/*.txt`
    - `HANDOFF.md`
 2. 先确认当前工作目标是不是继续建模，还是只做文档/状态维护。
 3. 如果恢复建模：
@@ -293,5 +282,9 @@
 - 当前实验结论还不足以说明“只要上 GPU 就能赢”。
 - 目前真正的下一个 blocker 不是 GPU，而是：
   - **TabPFN license/token**
+- 从结构规范角度看，当前代码已经进一步收敛到 4 个正式生产模块：`runtime`、`materials`、`torch_models`、`ui`。
+- 模块模板要求目前已满足，每个正式模块都带有自己的 `AGENTS.md` 和 `utils.py`。
+- 当前生产依赖关系也已明显收敛：`runtime -> []`、`torch_models -> []`、`ui -> []`、`materials -> [runtime, torch_models]`。
+- 也就是说，之前那种 `reporting` / `structure_execution` 只是目录独立、实现上却从属于主业务链的问题，已经通过并回 `materials` 解决。
 - 在用户没有明确要求恢复建模前，当前最合理动作就是：
   - **把状态文件维护清楚，保留现场，停止继续扩散实验面。**

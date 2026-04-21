@@ -2,6 +2,7 @@
 
 AI-facing quick summary for the current Python surface of `ai_for_bn`.
 This project is **not** maintained as a Python package. Default usage is from the repo root in the `quant` environment.
+Top-level code is organized as flat `src/*` module directories, without relying on `__init__.py` package wiring or package-relative imports.
 
 ---
 
@@ -32,39 +33,50 @@ Important:
 - overall evaluation combo and formula-only screening combo may differ
 - `main.py` is intentionally kept linear and notebook-friendly
 
+### `run_dry_run()`
+Fast smoke-check entrypoint used by `python3 main.py --dry-run`.
+
+What it does:
+- clears project cache
+- loads `src/config.py`
+- ensures configured runtime directories exist
+- generates the BN candidate space and verifies it is non-empty
+- builds feature tables on a tiny in-memory dataset with lightweight structure-summary placeholders
+- checks that at least one overall feature/model combo and one formula-only screening combo are compatible
+- instantiates each configured candidate model plus configured benchmark baselines to catch broken imports or bad config wiring early
+
+What it does **not** do:
+- does not build the real dataset cache
+- does not train models
+- does not run the full benchmark/ranking pipeline
+
+Use it as the short per-round smoke test before deciding whether a full `main.py` run is worth asking the user to launch.
+
 ---
 
 ## Current src layout
 
 ### config and test bootstrap
-- `src/default.py`
+- `src/config.py`
   - actual default `CONFIG` payload used by `main.py` and tests
-- `src/conftest.py`
-  - shared pytest bootstrap after tests were moved under `src/**/tests`
+- `conftest.py`
+  - shared pytest bootstrap at repo root after tests were moved under `src/**/tests`
 
 ### top-level modules
-- `src/core/`
+- `src/runtime/`
   - runtime helpers and schema models
-- `src/dataset/`
-  - normalized dataset loading / caching / manifest logic
-- `src/features/`
-  - candidate space, feature building, modeling, selection, benchmarking, screening
-- `src/reporting/`
-  - summary/artifact/plot/report-table writers
-- `src/structure_execution/`
-  - prototype-grounded structure first-pass execution logic
+- `src/materials/`
+  - the unified business module: dataset normalization, candidate space, feature building, model selection, benchmarking, screening, artifacts, summaries, and structure-execution logic
 - `src/torch_models/`
   - repo-local PyTorch model implementations
 - `src/ui/`
   - Streamlit UI
 
-There are no longer `src/pipeline/*.py` façade modules.
+There are no longer `src/pipeline/*.py` façade modules, and the earlier `core / dataset / features / reporting / structure_execution` top-level split has been collapsed into the current flatter live layout.
 
 ### test layout
-- `src/core/tests/`
-- `src/dataset/tests/`
-- `src/features/tests/`
-- `src/reporting/tests/`
+- `src/runtime/tests/`
+- `src/materials/tests/`
 - `src/ui/tests/`
 - `src/tests/`
 
@@ -72,7 +84,7 @@ Root `tests/` has been removed.
 
 ---
 
-## src/core/io_utils.py
+## src/runtime/io_utils.py
 
 Purpose:
 - bootstraps the latest `../myutils` directory-style module layout by adding its classified subdirectories to `sys.path`
@@ -96,7 +108,7 @@ Use these instead of ad hoc `json.loads(path.read_text())` or `path.write_text(j
 
 ---
 
-## src/dataset/data.py
+## src/materials/data.py
 
 ### `load_or_build_dataset(cfg)`
 Builds the normalized dataframe from raw JARVIS / 2DMatPedia data or reloads the processed cache.
@@ -133,17 +145,17 @@ Important normalized columns include:
 
 ---
 
-## src/features/
+## src/materials/
 
-Main top-level feature module package.
+Main top-level feature module directory.
 Implementation is split across:
-- `src/features/constants.py`
-- `src/features/candidate_space.py`
-- `src/features/feature_building.py`
-- `src/features/modeling.py`
-- `src/features/selection.py`
-- `src/features/benchmarking.py`
-- `src/features/screening.py`
+- `src/materials/constants.py`
+- `src/materials/candidate_space.py`
+- `src/materials/feature_building.py`
+- `src/materials/modeling.py`
+- `src/materials/selection.py`
+- `src/materials/benchmarking.py`
+- `src/materials/screening.py`
 
 ### `extract_elements(formula)`
 Regex-based element-token extraction from a chemical formula string.
@@ -282,7 +294,7 @@ Fails loudly if the requested feature set cannot evaluate every row in that spli
 
 ## src/torch_models/
 
-Repo-local PyTorch model package.
+Repo-local PyTorch model directory.
 Implementation is split across:
 - `src/torch_models/base.py`
 - `src/torch_models/attention.py`
@@ -356,7 +368,7 @@ Important:
 - currently intended for short BN-slice pilots rather than mainline rollout
 
 ### `make_model(..., model_type='torch_mlp' | 'torch_mlp_ensemble' | 'torch_fractional_attention' | 'torch_sparse_fractional_attention' | 'torch_roost_like')`
-The existing factory in `features.py` lazily imports these PyTorch regressors from this module.
+The existing factory in `src/materials/modeling.py` lazily imports these PyTorch regressors from this module.
 
 ### `fractional_composition_vector`
 The new composition-only feature set is designed to pair naturally with `torch_mlp`, `torch_mlp_ensemble`, and the current experimental present-element / attention baselines.
@@ -522,12 +534,12 @@ Important:
 
 ---
 
-## src/structure_execution/
+## src/materials/
 
-Top-level structure-execution package.
+Top-level structure-execution module directory.
 Implementation is split across:
-- `src/structure_execution/helpers.py`
-- `src/structure_execution/execution.py`
+- `src/materials/structure_helpers.py`
+- `src/materials/structure_execution.py`
 
 ### `build_structure_first_pass_execution_artifacts(structure_generation_seed_df, cfg=None, formula_col='formula', structure_model=None, structure_feature_columns=None, structure_feature_set=None, structure_model_type=None)`
 Builds the current **first-pass structure execution layer** from the prototype-grounded shortlist / queue view.
@@ -740,20 +752,20 @@ Useful output columns include:
 - `screening_selection_note`
 
 Note:
-- ranking-stability columns such as `predicted_band_gap_mean/std`, `rank_mean/std`, `top_3_selection_frequency`, `abstain_flag`, `reason_for_abstention`, and `final_action_label` are added downstream in `reporting.py` so they can aggregate multiple prediction-member sources without overloading the ranking function itself.
+- ranking-stability columns such as `predicted_band_gap_mean/std`, `rank_mean/std`, `top_3_selection_frequency`, `abstain_flag`, `reason_for_abstention`, and `final_action_label` are added downstream in the materials artifact/summary writers so they can aggregate multiple prediction-member sources without overloading the ranking function itself.
 
 ---
 
-## src/reporting/
+## src/materials/
 
-Top-level reporting package.
+Reporting and artifact-writing sub-surface inside the top-level `materials` module directory.
 Implementation is split across:
-- `src/reporting/common.py`
-- `src/reporting/ranking_tables.py`
-- `src/reporting/structure_artifacts.py`
-- `src/reporting/summary.py`
-- `src/reporting/artifacts.py`
-- `src/reporting/plots.py`
+- `src/materials/common.py`
+- `src/materials/ranking_tables.py`
+- `src/materials/structure_artifacts.py`
+- `src/materials/summary.py`
+- `src/materials/artifacts.py`
+- `src/materials/plots.py`
 
 ### `build_experiment_summary(dataset_df, bn_df, candidate_df, split_masks, selection_summary, cfg, robustness_df=None, bn_slice_benchmark_df=None, bn_centered_candidate_df=None, bn_centered_screening_selection=None, structure_generation_seed_df=None)`
 Builds the structured experiment summary dict written to `artifacts/experiment_summary.json`.
@@ -821,7 +833,7 @@ Writes the parity plot.
 ## src/ui/streamlit_app.py
 
 No reusable exported functions.
-It is the actual artifact viewer and reads JSON artifacts via shared `core.io_utils.read_json_file(...)` rather than local ad hoc `json.loads(path.read_text())` calls.
+It is the actual artifact viewer and reads JSON artifacts via `myutils/file_utils/json_io.py` rather than depending on `runtime` just for JSON helpers.
 It displays:
 - `metrics.json`
 - `experiment_summary.json`
