@@ -391,6 +391,24 @@ CONFIG = {
             'prediction_std_above_quantile': 0.75,
             'rank_std_above_quantile': 0.75,
             'minimum_top_10_selection_frequency': 0.5,
+            'application_tracks': [
+                {
+                    'label': 'uv_wide_band_gap',
+                    'target_window_eV': [4.5, 6.5],
+                    'note': (
+                        'Formula-stage proxy for the UV/wide-band-gap track. Direct-gap '
+                        'evidence is unavailable until structure-resolved follow-up.'
+                    ),
+                },
+                {
+                    'label': 'dielectric_2d_support',
+                    'target_window_eV': [4.5, 8.0],
+                    'note': (
+                        'Formula-stage broad insulating-gap proxy for dielectric / 2D-support '
+                        'candidates; dielectric tensors and stability require structures.'
+                    ),
+                },
+            ],
             'note': (
                 'Turns the formula-level ranking into a lightweight decision policy by combining '
                 'chemical plausibility, domain support, BN-local support, prediction/rank '

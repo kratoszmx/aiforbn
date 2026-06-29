@@ -1251,10 +1251,14 @@ def build_experiment_summary(
                 'minimum_top_10_selection_frequency': float(
                     decision_policy_cfg['minimum_top_10_selection_frequency']
                 ),
+                'application_tracks': decision_policy_cfg['application_tracks'],
                 'abstained_candidate_count': int(
                     candidate_ranking_uncertainty_summary['abstained_candidate_count']
                 ),
                 'final_action_counts': candidate_ranking_uncertainty_summary['final_action_counts'],
+                'recommended_action_counts': candidate_ranking_uncertainty_summary[
+                    'final_action_counts'
+                ],
             },
             **proposal_shortlist_summary,
             **extrapolation_shortlist_summary,
@@ -1538,6 +1542,11 @@ def build_experiment_summary(
                 'abstain_flag',
                 'reason_for_abstention',
                 'final_action_label',
+                'recommended_action_label',
+                'application_track_primary',
+                'application_track_secondary',
+                'application_track_target_window_eV',
+                'application_track_note',
             ],
         },
     }

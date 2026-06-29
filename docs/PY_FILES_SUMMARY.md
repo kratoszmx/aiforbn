@@ -757,7 +757,7 @@ Useful output columns include:
 - `screening_selection_note`
 
 Note:
-- ranking-stability columns such as `predicted_band_gap_mean/std`, `rank_mean/std`, `top_3_selection_frequency`, `abstain_flag`, `reason_for_abstention`, and `final_action_label` are added downstream in the materials artifact/summary writers so they can aggregate multiple prediction-member sources without overloading the ranking function itself.
+- ranking-stability and decision-policy columns such as `predicted_band_gap_mean/std`, `rank_mean/std`, `top_3_selection_frequency`, `abstain_flag`, `reason_for_abstention`, `recommended_action_label`, `final_action_label`, and `application_track_*` are added downstream in the materials artifact/summary writers so they can aggregate multiple prediction-member sources without overloading the ranking function itself.
 
 ---
 
@@ -798,7 +798,7 @@ Important:
 - now also summarizes the explicit screening objective, so the machine-readable output states this is low-confidence BN-themed formula-level follow-up prioritization rather than direct discovery
 - now also summarizes the BN-centered alternative ranking view, including the chosen candidate-compatible combo, rank-shift statistics, Spearman / Kendall correlation, and top-k overlap against the default ranking
 - now also summarizes the ranking-stability / uncertainty layer, including source count, prediction interval settings, rank-spread thresholds, and the `demo_candidate_ranking_uncertainty.csv` artifact path
-- now also summarizes the heuristic decision policy / abstention layer, including abstained candidate count and final action counts
+- now also summarizes the heuristic decision policy / abstention layer, including application-track metadata, abstained candidate count, and final/recommended action counts
 - now also summarizes the BN-slice candidate-compatible evaluation view and the `bn_candidate_compatible_evaluation.csv` artifact path
 - now also summarizes the structure-generation bridge artifact, including seeded candidate count, seed row count, unique BN reference prototype count, the JSON handoff artifact path, the reference-record payload artifact path, the job-plan artifact path, the first-pass queue artifact path, the candidate-level follow-up shortlist artifact path, and the novelty-aware follow-up extrapolation shortlist artifact path plus job-action counts / complexity stats
 - now also summarizes the first-pass structure execution layer, including artifact paths, executed formula count, variant count, success counts, status counts, selected model metadata, and the structure output directory
