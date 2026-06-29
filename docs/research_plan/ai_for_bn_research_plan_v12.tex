@@ -1,0 +1,250 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[margin=1.5cm]{geometry}
+\usepackage{times}
+\usepackage{array}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage[table]{xcolor}
+\usepackage{titlesec}
+
+\hypersetup{colorlinks=true,linkcolor=black,urlcolor=blue,citecolor=black}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{2.5pt}
+\setlist[itemize]{leftmargin=1.15em,itemsep=1pt,topsep=2pt}
+\setlist[enumerate]{leftmargin=1.25em,itemsep=1pt,topsep=2pt}
+\renewcommand{\arraystretch}{1.08}
+\titleformat{\section}{\normalsize\bfseries}{\thesection}{0.55em}{}
+\titlespacing*{\section}{0pt}{5pt}{2pt}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.45em}{}
+\titlespacing*{\subsection}{0pt}{4pt}{1.5pt}
+
+\newcommand{\blank}[1][7em]{\colorbox{yellow!35}{\rule{0pt}{1.05em}\hspace{#1}}}
+\newcommand{\eg}{E_{\mathrm{g}}}
+\newcommand{\ehull}{E_{\mathrm{hull}}}
+\newcommand{\form}{x_{\mathrm{form}}}
+\newcommand{\struc}{x_{\mathrm{struc}}}
+\newcommand{\unc}{u}
+\newcommand{\stab}{S_{\mathrm{stab}}}
+\newcommand{\domainf}{d_{\mathrm{form}}}
+\newcommand{\domains}{d_{\mathrm{struc}}}
+\newcommand{\utility}{U}
+\newcommand{\gapscore}{\rho_{\mathrm{gap}}}
+\newcommand{\appscore}{\rho_{\mathrm{app}}}
+\newcommand{\novel}{\rho_{\mathrm{novel}}}
+
+\begin{document}
+\vspace*{-34pt}
+\begin{center}
+    \textbf{CITY UNIVERSITY OF HONG KONG}\\
+    \vspace{6pt}
+    \underline{\textbf{Application Form for Huawei Seed Grant}}
+\end{center}
+
+\section{Name of the applicant, position and home Department, and the date of joining the University}
+\begin{itemize}[leftmargin=15pt]
+    \item Name of applicant: Chen MA
+    \item Position and affiliated department: Assistant Professor, Department of Computer Science
+    \item Date of joining CityU: August 25, 2021
+    \item Duration of the project: \blank[18em]
+\end{itemize}
+
+\section{Title of the Proposed Research}
+\begin{itemize}[leftmargin=15pt]
+    \item English Project Title: \textbf{AI-Powered Boron Nitride Material Exploration}
+    \item Chinese Project Title: \blank[18em]
+\end{itemize}
+
+\section{Abstract of the Project}
+Boron nitride materials are important for UV/wide-band-gap and dielectric/2D-support applications, but AI-guided exploration remains limited by sparse, heterogeneous labels across bulk, 2D, doped, and B-C-N/Si-B-N variants. This project aims to build an AI-powered BN material exploration framework that converts scattered records into uncertainty-aware candidate decisions. The framework will construct a provenance-tracked data layer, screen formula-only candidates with stability proxies, apply structure-resolved models after prototype-based structure generation, and rank candidates under two application tracks: UV/wide-band-gap materials and dielectric/2D-support materials. Expected outputs include a curated dataset, model benchmark, ranked candidate table, validation-ready structure package, partner review package, and manuscript-ready analysis.
+
+\section{Key Objectives}
+The central research question is:
+\[
+  \textit{How can AI transform scattered BN-related materials data into reliable, uncertainty-aware research decisions?}
+\]
+The project will address this question through four objectives.
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Build a bounded BN exploration space.} The candidate space will be organized as
+  \[
+    \mathcal{C}_{\mathrm{BN}}=
+    \mathcal{C}_{\mathrm{core}}\cup\mathcal{C}_{\mathrm{ext}}\cup\mathcal{C}_{\mathrm{explore}},
+  \]
+  where $\mathcal{C}_{\mathrm{core}}$ covers BN polymorphs and doped BN;
+  $\mathcal{C}_{\mathrm{ext}}$ covers B-C-N and Si-B-N systems; and
+  $\mathcal{C}_{\mathrm{explore}}$ covers lower-priority heteroatom substitutions only when they remain charge-neutral and map to small BN-family motifs:
+  \[
+    \mathcal{C}_{\mathrm{explore}}=
+    \{c:\exists \mathbf{o}\in\mathcal{O}(c),\sum_j n_j o_j=0,\;
+    N_{\mathrm{atom}}(c)\le 12,\;\pi(c)\in\Pi_{\mathrm{BN}}\}.
+  \]
+  Here $\mathcal{O}(c)$ is the allowed oxidation-state set, and $\pi(c)$ maps a composition to a BN, BCN, BC$_2$N, SiBN, or doped-BN prototype family. Elements outside B/N/C/Si will be admitted only through a small predefined dopant set approved by the PI and partner review.
+  \textit{Output:} a provenance-labelled BN dataset and candidate design space.
+
+  \item \textbf{Develop two-stage BN property models.} Formula-only candidates will first be screened using composition descriptors. Candidates passing the first screen will enter structure hypothesis generation, after which graph or structure-resolved models will be applied:
+  \[
+    f_{\theta}^{(1)}:\form\rightarrow(\hat{\eg},\hat{\stab},\hat{\unc}),
+    \qquad
+    f_{\theta}^{(2)}:(\form,\struc)\rightarrow
+    (\hat{\eg},\hat{\ehull},\hat{\boldsymbol{\epsilon}},\hat{\unc}).
+  \]
+  $\hat{\stab}$ is a formula-level stability proxy; true energy-above-hull and tensor-level dielectric quantities are reserved for structure-resolved candidates.
+  \textit{Output:} benchmarked formula-only and structure-resolved models with calibrated uncertainty.
+
+  \item \textbf{Rank candidates through an uncertainty-aware decision layer.} Candidate utility will combine track-specific property scores, stability, uncertainty, domain distance, and novelty:
+  \[
+    \utility_t(c)=w_1\rho_t(c)+w_2\hat{\stab}(c)-w_3\hat{\unc}(c)
+    -w_4 d_t(c,s)+w_5\novel(c),\quad
+    t\in\{\mathrm{UV/WBG},\mathrm{dielectric/2D}\}.
+  \]
+  Here $d_t=\domainf(c)$ for formula-stage ranking and $d_t=\domains(c,s)$ after structure hypotheses are available. All component scores are normalized to $[0,1]$, with $w_j\ge0$ and $\sum_j w_j=1$ for each application track.
+  \textit{Output:} a ranked candidate table with predicted properties, uncertainty, novelty score, application label, and recommended action.
+
+  \item \textbf{Create validation-ready structure hypotheses.} Priority formulas will be converted into structure candidates through prototype reuse, database-derived structure transfer, and controlled substitution before any generative route is considered:
+  \[
+    c\mapsto\{s_{c,1},\ldots,s_{c,k}\}\mapsto
+    \{\mathrm{sanity\ check},\mathrm{relaxation},\mathrm{property\ recheck}\}.
+  \]
+  \textit{Output:} CIF/POSCAR files, provenance records, predicted properties, uncertainty scores, and validation notes.
+\end{itemize}
+
+\section{Research Methodology}
+\subsection{Background of Research}
+Boron nitride is a strategically important materials family because its polymorphs and derivatives support two focused application tracks: (i) UV/wide-band-gap materials and (ii) dielectric/2D-support materials. h-BN and c-BN provide reference anchors, while B-C-N, BC$_2$N, Si-B-N, doped BN, and controlled substituted analogues provide a wider but bounded design space for AI-guided exploration. However, BN-related labels are sparse and unevenly distributed across public materials databases. A naive model trained on broad materials data may score well on standard splits but fail on BN-family extrapolation. Therefore, the proposed research treats BN not as a single compound, but as a target materials family requiring family-aware data construction, modelling, ranking, and validation.
+
+\subsection{WP1: BN-Centered Data Construction}
+The project will integrate public computational resources including 2DMatPedia, JARVIS, Matbench, matminer, the Materials Project, and C2DB~\cite{zhou2019_2dmatpedia,choudhary2020_jarvis,dunn2020_matbench,ward2018_matminer,jain2013_mp,haastrup2018_c2db}. Each record will be represented as
+\[
+  r_i=(c_i,s_i,\mathbf{y}_i,p_i),\qquad
+  p_i=(\mathrm{source},\mathrm{method},\mathrm{version},\mathrm{provenance}),
+\]
+where $c_i$ is composition, $s_i$ is optional structure, $\mathbf{y}_i$ is the property vector, and $p_i$ stores data lineage. The BN-centered subset is
+\[
+  \mathcal{D}_{\mathrm{BN}}=\{r_i:\{B,N\}\subseteq\mathrm{elements}(c_i)\ \mathrm{or}\ c_i\in\mathcal{C}_{\mathrm{BN}}\}.
+\]
+Deduplication, property alignment, dimensionality labels, and source-version tracking will be implemented before modelling. When labels originate from incompatible computational settings, source and method indicators will be retained and, where necessary, modelled as source-specific targets rather than merged as identical ground truth.
+
+\subsection{WP2: Formula-Only and Structure-Resolved Modelling}
+The methodological contribution is not a new universal materials model, but a family-aware decision framework that combines sparse-domain modelling, calibrated uncertainty, domain-distance estimation, and application-constrained ranking. The project will start from descriptor and composition baselines, including composition neural-network baselines such as CrabNet; structure-resolved graph models such as CGCNN, MEGNet, ALIGNN, and CHGNet will be used only for candidates with reliable structural hypotheses~\cite{ong2013_pymatgen,wang2021_crabnet,xie2018_cgcnn,chen2019_megnet,choudhary2021_alignn,deng2023_chgnet}. The application vector is
+\[
+  \mathbf{g}(c,s)=
+  [\rho_{\mathrm{UV/WBG}},\;\rho_{\mathrm{dielectric/2D}},\;
+  \hat{\stab},\;-\unc].
+\]
+The band-gap term will be treated as a target-window score rather than a monotonic objective:
+\[
+  \gapscore(c)=
+  \exp\!\left[-\frac{(\hat{\eg}(c)-E^*_{\mathrm{g,app}})^2}{2\sigma_{\mathrm{app}}^2}\right]
+  \cdot\eta_{\mathrm{direct}}(c).
+\]
+Here $\eta_{\mathrm{direct}}$ is a direct-gap preference factor when such labels are available. The two application scores are proxy scores derived from computed properties, dimensionality metadata, and rule-based target criteria. Operationally, the UV/WBG score will favour the target band-gap window and direct-gap evidence when available, while the dielectric/2D score will favour insulating gaps, layered or 2D provenance, dielectric proxies, and low uncertainty. Exact numerical target windows and proxy weights will be finalized with the PI and partner before model ranking. Formula-only dielectric behaviour will be treated as a proxy; tensor-level dielectric validation $\hat{\boldsymbol{\epsilon}}=(\hat{\epsilon}_{\parallel},\hat{\epsilon}_{\perp})$ will be considered only after structure hypotheses exist. Predictive uncertainty will be estimated by ensembles and calibrated against validation errors~\cite{gal2016_dropout,lakshminarayanan2017_ensembles}:
+\[
+  \hat{\unc}_{\mathrm{cal}}(c)=
+  \alpha\,\mathrm{Std}_{m\in\mathcal{M}}\!\left[f_m(c)\right]+
+  \beta\,\widehat{\mathrm{err}}_{\mathrm{val}}(c).
+\]
+If structure-resolved models do not outperform composition or descriptor baselines under BN-family-aware splits, graph-model outputs will be used as exploratory evidence rather than as the primary ranking signal.
+
+\subsection{WP3: Candidate Prioritization and Exploration Protocol}
+Candidate decisions will use both predictive value and reliability. Formula-only and structure-resolved stages will use separate domain distances:
+\[
+  \domainf(c)=\min_i\left\|\phi_{\mathrm{form}}(c)-\phi_{\mathrm{form}}(c_i)\right\|_{\Sigma_f},
+  \quad
+  \domains(c,s)=\min_i\left\|\phi_{\mathrm{struc}}(c,s)-\phi_{\mathrm{struc}}(c_i,s_i)\right\|_{\Sigma_s}.
+\]
+Novelty will be estimated by distance from known BN-family compounds, while application relevance will be assigned by matching the candidate to one of the two target tracks. The action label is
+\[
+  a(c)\in\{\mathrm{control},\mathrm{priority},\mathrm{explore},\mathrm{hold}\},
+\]
+where priority candidates proceed to structure handoff, exploratory candidates are retained as high-risk families, controls provide reference checks, and hold candidates are deferred until additional evidence is available. The operational protocol is:
+\[
+  \mathrm{pool}\rightarrow\mathrm{property\ prediction}\rightarrow
+  \mathrm{uncertainty/domain\ estimation}\rightarrow
+  \mathrm{filtering}\rightarrow\mathrm{action\ label}.
+\]
+This design makes the project a usable AI decision pipeline rather than a list of disconnected materials-ML tasks. It also creates a natural active-learning loop in which high-uncertainty but promising families are retained for targeted follow-up rather than discarded~\cite{lookman2019_active}.
+
+\subsection{WP4: Structure Handoff and Validation}
+Selected formulas will first be mapped to candidate structures by prototype reuse, structure transfer, and controlled substitution. Generative models such as CDVAE will be considered only when prototype-based routes are insufficient~\cite{xie2022_cdvae}. Validation will include charge-neutrality checks, structural sanity checks, geometry relaxation for the 5--10 priority candidates when prototype quality and compute limits permit, energy-above-hull re-estimation,
+\[
+  \ehull(c,s)=e(c,s)-
+  \min_{\lambda_q\ge0}\sum_q\lambda_q e(q),
+  \quad \sum_q\lambda_q=1,\;\sum_q\lambda_q\mathbf{n}_q=\mathbf{n}_c,
+\]
+where $e$ denotes normalized per-atom energy. Candidates will then be compared with known BN-family references. Stability will be handled separately for bulk-like and 2D candidates: bulk-like entries will use formation-energy or energy-above-hull proxies, while 2D entries will additionally use dimensionality, database provenance, and available 2D stability indicators. Evaluation will use random, grouped-by-formula, and BN-family-aware splits, with MAE, RMSE, $R^2$, calibration error, Kendall $\tau$, Spearman $\rho$, and top-$k$ stability as metrics. A ranking model will be accepted only if it outperforms dummy, local-neighbour, and formula-only baselines under grouped and BN-family-aware splits; graph-model predictions will be promoted only when they improve family-aware error and calibration. Candidate rankings will report top-$k$ stability and abstention flags for out-of-domain formulas.
+
+\section{Significance of the Proposed Research and Major Deliverables}
+The significance of this project is not merely applying existing models to BN. Its contribution is a BN-specific AI exploration framework: a curated data layer, family-aware evaluation, calibrated uncertainty, application-aware ranking, and prototype-first structure handoff. This is directly relevant to BN research in ultraviolet materials, dielectric layers, 2D heterostructures, and related functional-material discovery~\cite{watanabe2004_hbn_uv,cassabois2016_hbn_indirect,dean2010_hbn_graphene}. It also produces a reusable AI-for-materials workflow for other focused materials families.
+
+\textbf{Industry collaboration.}
+Shenzhen Zhongneng Tianyi Technology Co., Ltd. will provide application-level feedback on candidate prioritization criteria through two candidate-review checkpoints: one after formula-stage ranking and one after structure-hypothesis packaging. The partner will review the ranked BN-family candidate list and help assess which predicted materials families are most relevant to dielectric, insulating, and wide-band-gap scenarios. The project will provide the partner with a structured candidate-review package rather than unverified discovery claims: predicted properties, uncertainty estimates, domain-distance flags, novelty labels, validation notes, and a lightweight review demo.
+
+\textbf{Major deliverables and acceptance criteria:}
+\begin{enumerate}[leftmargin=*]
+  \item \textbf{D1: BN-centered dataset} from at least three public sources, with formula, structure, target-property, dimensionality, and provenance fields.
+  \item \textbf{D2: Benchmark report} comparing descriptor, composition, and structure-resolved models under random, grouped-by-formula, and BN-family-aware splits.
+  \item \textbf{D3: Ranked candidate table} of at least 30 candidate families, with predicted band gap, stability proxy, uncertainty, domain distance, novelty score, track label, and action label.
+  \item \textbf{D4: Structure hypothesis package} for 5--10 priority candidates, including CIF/POSCAR files, provenance records, predicted properties, uncertainty scores, and validation notes.
+  \item \textbf{D5: Partner-facing outputs} including a technical report, figures, review package, lightweight demo interface, and manuscript-ready analysis.
+\end{enumerate}
+If BN-family labels are too sparse for robust supervised learning, the project will emphasize uncertainty-aware ranking, domain-distance-based abstention, and partner-reviewed candidate triage rather than unsupported high-confidence prediction.
+
+\textbf{Tentative work sequence, subject to PI confirmation:}
+data construction and provenance tracking; formula-only and structure-resolved benchmarking; uncertainty calibration and candidate ranking; structure hypothesis generation and validation handoff; partner review, technical report, demo, and manuscript-ready analysis.
+
+\section{Ethics and Safety}
+The initial project is computational and data-driven. It uses public databases, open-source software, models, and generated candidate structures. All curated records, scripts, model configurations, and candidate-ranking outputs will retain source identifiers and version metadata to support reproducibility and license-aware reuse. No human subjects, living animals, wet-lab synthesis, biological samples, or radiation work will be conducted in the initial computational phase. If later experimental synthesis or regulated laboratory procedures are introduced, the responsible experimental party will obtain the required safety approvals before that work begins.
+
+\section*{Project Details}
+\textbf{Project Title:} AI-Powered Boron Nitride Material Exploration
+
+\textbf{PI (Dept):} Prof. Chen MA (Department of Computer Science)
+
+\textbf{Budget Breakdown}
+\begin{center}
+\small
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.19\linewidth}>{\raggedright\arraybackslash}p{0.55\linewidth}>{\raggedright\arraybackslash}p{0.16\linewidth}}
+\toprule
+\textbf{Budget Item} & \textbf{Detail breakdown and justification} & \textbf{Amount (HKD)}\\
+\midrule
+Staffing & Student helper / research assistant support for data cleaning, benchmark scripts, candidate-table verification, figure generation, documentation, and demo maintenance. & \blank\\
+Equipment & GPU cloud hours for graph-model training and ensemble inference; storage for downloaded structures, generated CIF/POSCAR files, benchmark logs, and model checkpoints. & \blank\\
+General expenses & Cloud credits, repository backup, software services, partner-facing demo hosting, and data-management costs. & \blank\\
+Conference & Registration and presentation materials for AI-for-science, materials informatics, or applied computing venues. & \blank\\
+Overseas Travel & Optional PI-approved collaborator visit, technical meeting, or conference travel for candidate-review discussion. & \blank\\
+\midrule
+ & \textbf{Total Funding} & \blank\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Collaborator(s):} Shenzhen Zhongneng Tianyi Technology Co., Ltd.
+
+\section{Selected References}
+\small
+\begin{thebibliography}{99}
+\setlength{\itemsep}{-1pt}
+\bibitem{zhou2019_2dmatpedia} J. Zhou et al., ``2DMatPedia: an open computational database of two-dimensional materials from top-down and bottom-up approaches,'' \textit{Scientific Data}, 6, 86, 2019.
+\bibitem{choudhary2020_jarvis} K. Choudhary et al., ``JARVIS-Tools: open-access software for atomistic data-driven materials design,'' \textit{npj Computational Materials}, 6, 173, 2020.
+\bibitem{dunn2020_matbench} A. Dunn et al., ``Benchmarking materials property prediction methods: the Matbench test set and Automatminer reference algorithm,'' \textit{npj Computational Materials}, 6, 138, 2020.
+\bibitem{ward2018_matminer} L. Ward et al., ``Matminer: An open source toolkit for materials data mining,'' \textit{Computational Materials Science}, 152, 60--69, 2018.
+\bibitem{jain2013_mp} A. Jain et al., ``The Materials Project: a materials genome approach to accelerating materials innovation,'' \textit{APL Materials}, 1, 011002, 2013.
+\bibitem{haastrup2018_c2db} S. Haastrup et al., ``The Computational 2D Materials Database,'' \textit{2D Materials}, 5, 042002, 2018.
+\bibitem{ong2013_pymatgen} S. P. Ong et al., ``Python Materials Genomics (pymatgen),'' \textit{Computational Materials Science}, 68, 314--319, 2013.
+\bibitem{xie2018_cgcnn} T. Xie and J. C. Grossman, ``Crystal graph convolutional neural networks for materials property prediction,'' \textit{Physical Review Letters}, 120, 145301, 2018.
+\bibitem{chen2019_megnet} C. Chen et al., ``Graph networks as a universal machine learning framework for molecules and crystals,'' \textit{Chemistry of Materials}, 31, 3564--3572, 2019.
+\bibitem{choudhary2021_alignn} K. Choudhary and B. DeCost, ``Atomistic line graph neural network for improved materials property predictions,'' \textit{npj Computational Materials}, 7, 185, 2021.
+\bibitem{wang2021_crabnet} A. Y.-T. Wang et al., ``CrabNet for explainable deep learning in materials science,'' \textit{npj Computational Materials}, 7, 77, 2021.
+\bibitem{deng2023_chgnet} B. Deng et al., ``CHGNet as a pretrained universal neural network potential,'' \textit{Nature Machine Intelligence}, 5, 1031--1041, 2023.
+\bibitem{xie2022_cdvae} T. Xie et al., ``Crystal diffusion variational autoencoder for periodic material generation,'' \textit{ICLR}, 2022.
+\bibitem{gal2016_dropout} Y. Gal and Z. Ghahramani, ``Dropout as a Bayesian approximation: representing model uncertainty in deep learning,'' \textit{ICML}, 2016.
+\bibitem{lakshminarayanan2017_ensembles} B. Lakshminarayanan, A. Pritzel and C. Blundell, ``Simple and scalable predictive uncertainty estimation using deep ensembles,'' \textit{NeurIPS}, 2017.
+\bibitem{lookman2019_active} T. Lookman, P. V. Balachandran, D. Xue and R. Yuan, ``Active learning in materials science with emphasis on adaptive sampling using uncertainties for targeted design,'' \textit{npj Computational Materials}, 5, 21, 2019.
+\bibitem{watanabe2004_hbn_uv} K. Watanabe, T. Taniguchi and H. Kanda, ``Direct-bandgap properties and ultraviolet lasing of hexagonal boron nitride,'' \textit{Nature Materials}, 3, 404--409, 2004.
+\bibitem{cassabois2016_hbn_indirect} G. Cassabois, P. Valvin and B. Gil, ``Hexagonal boron nitride is an indirect bandgap semiconductor,'' \textit{Nature Photonics}, 10, 262--266, 2016.
+\bibitem{dean2010_hbn_graphene} C. R. Dean et al., ``Boron nitride substrates for high-quality graphene electronics,'' \textit{Nature Nanotechnology}, 5, 722--726, 2010.
+\end{thebibliography}
+\normalsize
+
+\end{document}

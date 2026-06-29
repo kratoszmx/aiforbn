@@ -1364,7 +1364,10 @@ def screen_candidates(
         (cfg.get('data') or {}).get('target_column', 'band_gap'),
     )
     out['ranking_signal_property'] = target_property
-    out['ranking_signal_direction'] = cfg['screening'].get('objective_target_direction', 'maximize')
+    out['ranking_signal_direction'] = cfg['screening'].get(
+        'objective_target_direction',
+        'target_window_proxy',
+    )
     out['ranking_signal_source'] = (
         'ensemble_predicted_band_gap_mean'
         if use_model_disagreement and ensemble_prediction_df is not None
@@ -1599,10 +1602,13 @@ def screen_candidates(
     out['ranking_uncertainty_penalty'] = uncertainty_penalty
     out['objective_name'] = cfg['screening'].get(
         'objective_name',
-        'bn_themed_formula_level_wide_gap_followup_prioritization',
+        'ai_powered_boron_nitride_material_exploration',
     )
     out['objective_target_property'] = target_property
-    out['objective_target_direction'] = cfg['screening'].get('objective_target_direction', 'maximize')
+    out['objective_target_direction'] = cfg['screening'].get(
+        'objective_target_direction',
+        'target_window_proxy',
+    )
     out['objective_decision_unit'] = cfg['screening'].get(
         'objective_decision_unit',
         'formula_level_candidate',
@@ -1613,9 +1619,10 @@ def screen_candidates(
     )
     out['objective_note'] = cfg['screening'].get(
         'objective_note',
-        'The screening objective is to prioritize BN-themed formula-level candidates with '
-        'wide predicted band gaps for low-confidence downstream follow-up, not to claim '
-        'validated discovery.',
+        'The screening objective is uncertainty-aware BN-material exploration at the formula level: '
+        'prioritize BN-themed candidates for downstream structure exploration using band-gap-informed '
+        'ranking. This is a candidate-prioritization pipeline, not direct discovery, stability, '
+        'synthesis feasibility, or calibrated uncertainty.'
     )
     out['ranking_total_penalty'] = (
         out['ranking_uncertainty_penalty_component'].fillna(0.0)
@@ -1712,4 +1719,3 @@ def screen_candidates(
     out = annotate_candidate_extrapolation_shortlist(out, cfg=cfg)
 
     return out
-

@@ -1,0 +1,61 @@
+Research Plan Template
+Suggested checklist of items to be included(Please confine your proposal to not more than 5 A4 pages)
+
+
+Title of the proposed research
+
+Name of the principal investigator, position and affiliated department
+
+Name(s) of the collaborator(s) and their respective department(s), if any
+
+Duration of the project (including proposed start date and scheduled completion date)
+
+Abstract of the project in not more than 150 words
+(If the application is funded, the abstract may be published on IRIS and the CityU Research Report as the project synopsis.)
+
+Key objectives
+
+Research methodology
+
+Significance of the proposed research and major deliverables 
+
+Funding requested with budget breakdown (staffing, general expenses, equipment, overseas travel and conference expenses) and justifications for each item
+
+For projects involving living animals and/or human subjects, application for review are mandatory. For biological/chemical/radiation safety, PIs have to attach the approval documents from the respective safety officers with their project proposals. (please visit RO website at http://www.cityu.edu.hk/ro/studentlan/dlethic.htm in relation to these requirements and download application forms)
+Project Details
+
+| 預算項目 | 詳細分項說明（請逐項列明） | 金額（港元） |
+| ---- | ------------- | ------ |
+| 人員開支 |               |        |
+| 設備   |               |        |
+| 一般開支 |               |        |
+| 會議開支 |               |        |
+| 海外差旅 |               |        |
+|      | 申請資助總額        |        |
+
+(
+幾個詞的說明：
+
+英文	更自然的中文
+Budget Item	預算項目
+Detail breakdown (please itemize)	詳細分項說明（請逐項列明）
+Amount (HKD)	金額（港元）
+Staffing	人員開支
+Equipment	設備
+General expenses	一般開支
+Conference	會議開支
+Overseas Travel	海外差旅
+Total Funding	申請資助總額 / 總資助金額
+)
+
+Project Title: 	 
+
+PI (Dept): 	  
+
+Budget Breakdown  
+
+
+
+
+
+

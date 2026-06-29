@@ -104,12 +104,12 @@ CFG = {
         'note': 'demo bn stratified error note',
     },
     'screening': {
-        'objective_name': 'bn_themed_formula_level_wide_gap_followup_prioritization',
+        'objective_name': 'ai_powered_boron_nitride_material_exploration',
         'objective_target_property': 'band_gap',
-        'objective_target_direction': 'maximize',
+        'objective_target_direction': 'target_window_proxy',
         'objective_decision_unit': 'formula_level_candidate',
         'objective_decision_consequence': 'low_confidence_prioritization_for_structure_followup',
-        'objective_note': 'Use the ranking as low-confidence formula-level prioritization for structure follow-up, not direct discovery.',
+        'objective_note': 'Use uncertainty-aware BN-material exploration prioritization for downstream structure exploration, not direct discovery.',
         'top_k': 5,
         'candidate_generation_strategy': 'bn_anchored_formula_family_grid',
         'candidate_space_name': 'bn_anchored_formula_family_grid',
@@ -983,16 +983,16 @@ def test_feature_pipeline_can_train_evaluate_benchmark_and_rank_demo_candidates(
     assert screened_df['ranking_uncertainty_method'].eq('small_feature_model_disagreement').all()
     assert screened_df['ranking_feature_family'].eq('composition_only').all()
     assert screened_df['objective_name'].eq(
-        'bn_themed_formula_level_wide_gap_followup_prioritization'
+        'ai_powered_boron_nitride_material_exploration'
     ).all()
     assert screened_df['objective_target_property'].eq('band_gap').all()
-    assert screened_df['objective_target_direction'].eq('maximize').all()
+    assert screened_df['objective_target_direction'].eq('target_window_proxy').all()
     assert screened_df['objective_decision_unit'].eq('formula_level_candidate').all()
     assert screened_df['objective_decision_consequence'].eq(
         'low_confidence_prioritization_for_structure_followup'
     ).all()
     assert screened_df['ranking_signal_property'].eq('band_gap').all()
-    assert screened_df['ranking_signal_direction'].eq('maximize').all()
+    assert screened_df['ranking_signal_direction'].eq('target_window_proxy').all()
     assert screened_df['ranking_signal_source'].eq('ensemble_predicted_band_gap_mean').all()
     assert np.allclose(
         screened_df['ranking_signal_value'].to_numpy(dtype=float),

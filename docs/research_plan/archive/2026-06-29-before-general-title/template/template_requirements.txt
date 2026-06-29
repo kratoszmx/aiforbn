@@ -1,0 +1,25 @@
+Research plan template requirements extracted from the original DOC/TXT.
+
+This file is for drafting only. Do not include these administrative notes in
+the final PDF.
+
+Required proposal fields:
+- Title of the proposed research.
+- Principal investigator name, position, and affiliated department.
+- Collaborator names and departments, if any.
+- Project duration, including proposed start date and scheduled completion date.
+- Project abstract, no more than 150 words.
+- Key objectives.
+- Research methodology.
+- Significance of the proposed research and major deliverables.
+- Funding requested with budget breakdown and justification for each item.
+- Ethics and safety statement for animals, human subjects, biological safety,
+  chemical safety, and radiation safety where applicable.
+
+Formatting and submission constraints:
+- Proposal should be no more than 5 A4 pages.
+- Budget table categories in the template:
+  Staffing, Equipment, General expenses, Conference, Overseas Travel,
+  Total Funding.
+- Highlight unknown fields in drafts, but resolve them before formal submission
+  if the PI requires a final clean version.

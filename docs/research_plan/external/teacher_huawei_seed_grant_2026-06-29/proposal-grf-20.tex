@@ -1,0 +1,345 @@
+
+\documentclass[12pt,a4paper]{article}
+%\usepackage[letterpaper, top=1.0in, bottom=1.0in, left=1.0in, right=1.0in]{geometry}
+\usepackage[margin = 1.5cm]{geometry}
+
+
+
+\usepackage{times}
+\usepackage{bm}
+%change section heading font size
+\usepackage{titlesec}
+\titleformat{\section}{\normalsize\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries}{\thesubsubsection}{1em}{}
+
+%\usepackage{mathptmx}
+\usepackage{cite,subfigure,epsfig,graphicx,epstopdf}
+\usepackage[hyphens]{url}
+\usepackage{amsmath,amssymb,amsfonts,amsthm,mathtools}
+\usepackage{amsmath,wrapfig}
+\usepackage{multirow}
+\usepackage{multicol}
+\usepackage{arydshln}
+\usepackage{tabularx}
+\usepackage{makecell}
+\usepackage{lipsum}
+% \usepackage[margin=1in]{geometry}
+\usepackage{longtable}
+\usepackage{setspace}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\renewcommand{\algorithmicrequire}{\textbf{Input:}}
+\renewcommand{\algorithmicensure}{\textbf{Output:}}
+\setlength{\fboxsep}{0pt}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{CJKutf8}
+% \AtBeginDvi{\input{zhwinfonts}}
+
+\usepackage{tikz}
+\usepackage{pgfplots}
+\usetikzlibrary{patterns}
+\usepgfplotslibrary{groupplots}
+\pgfplotsset{compat=1.12}
+
+
+%from Kevin's ppca.tex
+%\newcommand*{\rom}[1]{\expandafter\@slowromancap\romannumeral #1@}
+\newcommand{\RNum}[1]{\uppercase\expandafter{\romannumeral #1\relax}}
+\newtheorem{definition}{\textbf{\emph{Definition}}}
+
+\newcommand{\inlinesec}[1]{\noindent\textbf{#1.}}
+
+\pagenumbering{arabic} \linespread{1}
+
+\def\etal{\textit{et al}. }
+
+% framed box
+\usepackage{framed}
+
+\usepackage{setspace}
+
+% protocol box
+\newenvironment{proto-func}[3]{
+\def \protocap {#2} % parameter trick
+\def \protolab {#3}
+\def \pspace {#1}
+%\def \protodesc {#3}
+% \setstretch{3.0}
+% \begin{figure}
+% \begin{minipage}{.45\linewidth}
+\begin{framed}
+\scriptsize
+% \begin{center}
+% \textbf{#1}
+% \end{center}
+}
+{\end{framed}
+\vspace{\pspace}
+\caption{\protocap}
+\label{\protolab}
+% \end{minipage}
+% \end{figure}
+}
+
+\newenvironment{pevent}[2]{
+\textbf{#1} #2 \begin{onehalfspace}}{\end{onehalfspace}\vspace{2pt}
+}
+\newenvironment{pparty}[1]{
+\textit{\underline{#1}:} \begin{onehalfspace}}{\end{onehalfspace}\vspace{2pt}
+}
+
+\newcommand{\todo}[1]{\textcolor{blue}{(TODO: #1)}}
+% \newcommand{\brown}[1]{\textcolor{Maroon}{#1}}
+\newcommand{\blue}[1]{\textcolor{blue}{#1}}
+% \newcommand{\green}[1]{\textcolor{Green}{#1}}
+% \newcommand{\orange}[1]{\textcolor{BurntOrange}{#1}}
+
+\newcommand{\pindent}[1][8]{\par\hspace{#1pt}}
+\newcommand{\pif}{\textbf{if }}
+\newcommand{\pelse}{\textbf{else }}
+\newcommand{\pthen}{\textbf{then }}
+\newcommand{\comment}[1]{\hfill // #1}
+
+\newcommand{\randsamp}{{\leftarrow}\vcenter{\hbox{\tiny\rmfamily\upshape\$}}}
+\newcommand{\var}[1]{\ensuremath{\mathsf{#1}}}
+\newcommand{\fun}[1]{\ensuremath{\mathsf{#1}}}
+\newcommand{\msg}[1]{\text{\blue{``#1''}}}
+\newcommand{\party}[2][]{\brown{\ensuremath{\mathcal{#2}_{#1}}}}
+\newcommand{\assign}{\ensuremath{\coloneqq}}
+\newcommand{\money}[1]{\ensuremath{\green{\var{\$#1}}}}
+\newcommand{\ledger}[1]{\ensuremath{\green{\var{ledger}}[\party{#1}]}}
+\newcommand{\const}[1]{\text{\uppercase{#1}}}
+
+\newcommand{\mathsymb}[1]{$\mathsf{#1}$}
+
+\newcommand{\mat}[2][]{\ensuremath{\mathbf{#2}_{#1}}}
+
+% \newcommand{\sample}{\xleftarrow{\$}}
+\newcommand{\sample}{\,{\leftarrow}\vcenter{\hbox{\scriptsize\rmfamily\upshape\$\;}}}
+
+\newcommand{\tbc}{\textcolor{blue}{(to be revised/rephrased)}}
+
+
+\begin{document}
+\vspace{-60pt}
+\begin{center}
+    % \large{Start-up Fund: \textbf{Towards Diversified Recommender Systems}} \\
+    % \vspace{10pt}
+    % \normalsize{Chen MA}
+    \textbf{CITY UNIVERSITY OF HONG KONG} \\
+    \vspace{10pt}
+    \underline{\textbf{Application Form for Huawei Seed Grant}} \\
+
+\end{center}
+
+% \noindent Title: \textbf{Towards Building Diversified Recommender Systems}\\
+
+\section{Name of the applicant, position and home Department, and the date of joining the University}
+
+\begin{itemize}[leftmargin=15pt]
+    \vspace{-8pt}
+    \item Name of applicant: Chen MA (00473705)
+    
+    \vspace{-8pt}
+    \item Position and affiliated department: Assistant Professor, Department of Computer Science
+    
+    \vspace{-8pt}
+    \item Date of joining CityU: August 25, 2021
+    
+    \vspace{-8pt}
+    \item Duration of the project: 1 year
+\end{itemize}
+
+
+\vspace{-20pt}
+\section{Title of the Proposed Research}
+
+\begin{itemize}
+    \vspace{-8pt}
+    \item English Project Title:Post-training Data Valuation for Large Language Models
+    \vspace{-8pt}
+    \item Chinese Project Title: \begin{CJK*}{UTF8}{gbsn}大语言模型的后训练数据价值评估\end{CJK*}
+
+\end{itemize}
+
+\vspace{-20pt}
+\section{Abstract of the Project}
+\vspace{-10pt}
+Large Language Models (LLMs) are adapted to human intent through post-training on instruction--response (I--R) pairs, a critical step for achieving desired task performance and alignment. However, the efficacy and cost-efficiency of this process are heavily dependent on identifying high-value data, as empirical evidence shows performance gains are highly uneven: a small minority of pairs contributes disproportionally, while many offer marginal or redundant signal. Consequently, developing precise and efficient data valuation methods is paramount for reducing the significant computational cost of fine-tuning and improving downstream generalization. 
+
+A core but under-exploited insight for achieving this is the inherent \emph{structural asymmetry} of I--R pairs: instructions primarily frame task intent and impose behavioural priors, whereas responses inject factual, procedural, or reasoning content. Existing valuation approaches, by treating pairs as indivisible units or analyzing only one component, fundamentally overlook this functional distinction. This aggregation or partial analysis blurs attribution of value, degrades selection precision, and ultimately limits the efficiency and cost-effectiveness of data-centric post-training pipelines. Crucially, existing frameworks lack effective methods to operationalize this asymmetry. Our project addresses this gap by developing a novel valuation framework that leverages structural asymmetry to significantly improve cost-efficiency and selection precision in LLM adaptation.
+
+This project aims to build a \textbf{structure-aware, efficient, and interpretable data-valuation framework} for post-training LLMs. We will: 1) design perturbation- and reconstruction-based metrics to \emph{quantitatively profile} the marginal contributions of instructions and responses; 2) develop a \emph{composite valuator} that integrates instruction robustness, response information value, and their interaction strength while maintaining global diversity; and 3) devise a \emph{retraining-free proxy evaluator} that predicts strategy performance via low-rank collaborative filtering and explains sample importance through structure-aware Shapley attribution.
+
+The expected outcome is a principled toolkit that reduces fine-tuning cost by prioritising the most valuable and complementary data, improves downstream task performance, and offers actionable insights into how each sample drives model generalisation. The framework is model-agnostic and readily pluggable into existing instruction-tuning workflows, thereby advancing both the efficiency and trustworthiness of LLM post-training.
+
+
+\vspace{-10pt}
+\section{Key Objectives}
+
+This project builds a structure-aware, efficient, and interpretable data-valuation framework for instruction-tuned LLMs. Our objectives are:
+
+\begin{itemize}[leftmargin=*]
+\item Quantify the functional asymmetry between instructions and responses through single-sample structural sensitivity analysis, clarifying their distinct roles and marginal contributions during fine-tuning..
+
+\item Devise a composite valuation mechanism that captures both the value structure within each instruction–response pair and the relationships across samples, increasing the diversity, complementarity, and representativeness of selected data.
+
+\item Create a retraining-free, interpretable evaluation pipeline that assesses data-selection strategies via proxy modelling and structure-aware Shapley attribution, providing rapid feedback and transparent rationale.
+\end{itemize}
+
+
+
+\vspace{-20pt}
+\section{Research Methodology}
+\vspace{-10pt}
+
+\subsection{Background of Research}
+\label{sec:background}
+With the rapid advancement of artificial intelligence, LLMs have become foundational technologies supporting a wide range of natural language applications, including open-domain question answering and programming assistance. As a key paradigm for adapting LLMs, post-training involves optimizing models using task-specific datasets composed of instruction-response pairs, effectively aligning model behavior with human intent~\cite{DBLP:journals/corr/abs-2308-10792}. This approach has significantly improved the controllability, practicality, and task adaptability of LLMs, and has become an indispensable component in nearly all mainstream LLM pipelines~\cite{DBLP:journals/jmlr/ChungHLZTFL00BW24}.
+
+Existing research has shown that the effectiveness of fine-tuning depends strongly on the quality and structural properties of the data, with some training samples contributing markedly more to performance than others~\cite{DBLP:conf/nips/ZhouLX0SMMEYYZG23, DBLP:conf/iclr/ChenLYWGYTS0HJ24, DBLP:conf/acl/WangKMLSKH23, DBLP:journals/corr/abs-2402-05123}. A growing body of work further indicates that instructions and responses play different functional roles~\cite{DBLP:conf/naacl/WuYCPWLY24}. Instructions specify the task intent, constrain the solution space, and shape the model’s behavioural prior; responses supply concrete knowledge, reasoning traces, or exemplars that update parametric representations. Evidence for this functional asymmetry appears in several recent studies: Ref-Free Active Tuning shows that selecting and refining instructions alone can improve downstream generalisation~\cite{DBLP:conf/pakdd/ZhangCM25}; response-only tuning still yields strong instruction-following ability~\cite{DBLP:journals/corr/abs-2409-14254}; and GRAPE’s response-centric valuation reveals that alignment between responses and a model’s internal knowledge substantially affects fine-tuning outcomes~\cite{DBLP:journals/corr/abs-2502-04194}. These findings collectively underscore a structural asymmetry between the two components. However, most current data valuation methods still treat instruction–response pairs as inseparable units~\cite{DBLP:conf/naacl/LiZLCC0W0024, DBLP:conf/icml/XiaMGA024, DBLP:conf/nips/Ouyang0JAWMZASR22, DBLP:conf/iclr/AnknerBSMLP25}, or focus on only one side~\cite{DBLP:journals/corr/abs-2412-11231, DBLP:conf/iclr/XuSZG0FTLJ24, DBLP:conf/iclr/DongLLX0Z025}, thereby ignoring this asymmetry. As a result, they provide coarse attribution and risk suboptimal sample selection.
+
+To close this gap, we will build a structure-aware data-valuation framework tailored to post-training. Our plan is to: 1) Conduct controlled perturbation and reconstruction experiments to quantitatively analyze the marginal contributions of instructions and responses and their impact on fine-tuning outcomes; 2) Establish a composite valuation framework that leverages structural information both within and across samples to reduce redundancy, capture complementarity, and enhance dataset representativeness and diversity; 3) Develop efficient, retraining-free evaluation methodologies to support transparent and trustworthy data selection processes.
+
+\vspace{-10pt}
+
+\subsection{Research on Structure-Aware Post-Training Data Valuation}
+\label{sec:structure-aware-valuation}
+Building upon the foundation established in Section~\ref{sec:background}, this project aims to develop a structure-aware data valuation framework to enhance the efficiency and interpretability of post-training processes for LLMs. Although instruction-response pairs serve as the fundamental units in instruction tuning, most existing methods overlook their inherent structural asymmetry and treat them as inseparable wholes, thereby limiting the precision of data attribution and the quality of data selection. While prior studies have partially revealed the functional differences between instructions and responses~\cite{DBLP:conf/naacl/WuYCPWLY24}, such distinctions have yet to be systematically quantified or effectively leveraged in valuation methodologies. To fill this gap, we propose a general framework adaptable to various fine-tuning scenarios, comprising: 1) the design of controlled experiments to quantify the marginal contributions of instructions and responses; 2) the development of a composite valuation mechanism that accounts for both intra-sample structural roles and inter-sample interactions; 3) the implementation of retraining-free and interpretable evaluation methods to ensure transparency and reliability in data selection processes.
+
+
+\vspace{-10pt}
+\subsubsection{Subtask on Quantifying Structural Asymmetry Between Instructions and Responses}
+\label{subsubsec:instr_resp_asymmetry}
+\vspace{-5pt}
+
+Our preliminary analysis shows that treating instruction-response pairs as indivisible units overlooks the structural asymmetry between them and reduces the granularity of data valuation. This functional difference may cause the model to react unequally to perturbations in each part. To reveal this structural asymmetry, we seek to design a perturbation-based evaluation framework that independently assesses the marginal impact of instructions and responses on model performance. \\
+\textbf{Perturbation strategies.} Suppose we are given an instruction-response pool $ D = \{(I_i, R_i)\}_{i=1}^N $. To quantify the model’s structural sensitivity, we apply two types of perturbations to $I_i$ and $R_i$ independently. Hard noise is applied at the token level by introducing spelling errors, irrelevant insertions, or logical contradictions while maintaining semantic coherence. Perturbation strength is controlled via word error rate (WER) to ensure consistency across examples. Soft noise operates in the embedding space. Given input embedding $ X_{\text{emb}} \in \mathbb{R}^{L \times d} $, we inject uniformly sampled noise scaled by the Neftune-style rule~\cite{DBLP:conf/iclr/JainCWKCSBKSSGG24}:$ X'_{\text{emb}} \leftarrow X_{\text{emb}} + \left( \frac{\sqrt{\alpha}}{Ld} \right)\epsilon, \quad \epsilon \sim \text{Uniform}(-1, 1) $, where $L$ is the sequence length and $d$ the embedding dimension. Perturbations are applied separately to instructions or responses, enabling isolated assessment of each component’s contribution. \\
+\textbf{Marginal impact measurement.} To evaluate sensitivity, we fine-tune the model on the original dataset $D$, as well as two modified datasets: one with perturbed instructions ($D_{\text{instr}}$) and one with perturbed responses ($D_{\text{resp}}$). We define the marginal impact scores as: 
+
+\vspace{-1em}
+\begin{equation}
+\Delta_I = \left| \text{Perf}(D) - \text{Perf}(D_{\text{instr}}) \right|, \quad
+\Delta_R = \left| \text{Perf}(D) - \text{Perf}(D_{\text{resp}}) \right|.
+\end{equation}
+\vspace{-1em}
+
+These scores measure the performance degradation resulting from disrupting each part of the input independently.\\
+\textbf{Structural sensitivity ratio.} To normalize the asymmetric sensitivity into a bounded metric, we define the \textit{Structural Sensitivity Ratio (SSR)} as:
+
+\vspace{-1em}
+\begin{equation}
+\text{SSR} = \frac{\Delta_I}{\Delta_I + \Delta_R}
+\end{equation}
+\vspace{-1em}
+
+An SSR close to 1 indicates the model is more sensitive to instruction perturbations, suggesting a strong reliance on task specification. An SSR close to 0 implies higher sensitivity to response content, indicating that the model depends more on the provided solution information.\\
+\textbf{Structural reconstruction graph.} While perturbation-based sensitivity analysis offers direct interpretability, it may introduce unnatural artifacts. To provide a complementary view, we construct a Structural Reconstruction Graph using model-generated rewrites. Specifically, for each instruction or response, we use a large language model (e.g., GPT-4) to generate multiple semantically equivalent rewrites that vary in phrasing, complexity, or structure. Each variant is treated as a node in the graph, and edges between nodes are weighted by semantic similarity (e.g., cosine distance in embedding space). By fine-tuning the model on different nodes and measuring performance shifts, we identify structurally sensitive regions in the instruction-response space, where small stylistic or structural changes result in disproportionate effects on performance.
+
+
+
+\vspace{-10pt}
+\subsubsection{Subtask on Designing a Structure-Aware Composite Valuator}
+\label{subsubsec:scv_design}
+\vspace{-5pt}
+
+Based on the preceding analysis of structural heterogeneity, this task introduces the \emph{Structure-aware Composite Valuator} (SCV), which globally measures three dimensions of value: the robustness-driven generalization value of the instruction, the key-information value of the response, and the structural matching value produced by their combination. The rationale is three-fold: 1) highly robust instructions act as “anchors’’ of task intent and delimit the model’s generalization boundary for diverse inputs; 2) highly sensitive responses often contain irreplaceable core information \cite{DBLP:conf/icml/XiaMGA024}; 3) even when $I$ and $R$ are individually strong, a semantic mismatch can still impair training, so an explicit interaction score is required.\\
+\textbf{Instruction/Response scores.} For each sample $(I,R)$ we inject small perturbations $\delta_I,\delta_R$ in the embedding space (Gaussian or mean noise, scaled by the \texttt{Neftune} rule $\sqrt{\alpha}/Ld$), create $(I+\delta_I,R)$ and $(I,R+\delta_R)$, compute $D_I=\mathrm{KL}(P(I,R)\,\|\,P(I+\delta_I,R))$ and $D_R=\mathrm{KL}(P(I,R)\,\|\,P(I,R+\delta_R))$, and set $S_I=\exp(-\mathbb{E}_{\delta_I}[D_I])$ (instruction robustness) and $S_R=\mathbb{E}_{\delta_R}[D_R]$ (response information scarcity).\\
+% \textbf{Interaction score.} To capture the matching between $I$ and $R$, we use V-Information $S_{\text{int}}=H_V(R)-H_V(R\mid I)$, which quantifies the uncertainty reduction in predicting the response once the instruction is given; larger values indicate tighter \emph{structural coupling} within model $V$.\\
+\textbf{Interaction score.} To capture the semantic and structural compatibility between $I$ and $R$, we adopt the V-Information formulation: $S_{\text{int}} = H_V(R) - H_V(R \mid I)$, which quantifies the predictive information gain about the response when the instruction is available. Here, $H_V(R)$ refers to the \emph{predictive V-entropy}—the expected uncertainty of generating $R$ without any instruction context. It reflects the inherent unpredictability or ambiguity of the response alone. In contrast, $H_V(R \mid I)$ is the \emph{conditional V-entropy}, which measures the uncertainty of predicting $R$ when the instruction $I$ is provided as context. If the instruction and response are well aligned, this conditional entropy should be substantially lower than the unconditional one. Thus, a higher difference $S_{\text{int}}$ implies stronger coupling between $I$ and $R$, indicating that the instruction provides meaningful guidance for generating the response.\\
+\textbf{Adaptive weight fusion.} Employing the structural sensitivity prior $\text{SSR}=\Delta_I/(\Delta_I+\Delta_R)$ obtained in the previous task, we set $\alpha=\text{SSR}$, $\beta=1-\text{SSR}$, and $\gamma=\eta\min(\alpha,\beta)$ with default $\eta=0.5$. The composite valuation is $\text{Value}(I,R)=\alpha S_I+\beta S_R+\gamma S_{\text{int}}$. Thus, if the model is more sensitive to instructions, $\alpha$ dominates; if more sensitive to responses, $\beta$ dominates; and $\gamma$ follows the smaller of the two, ensuring the interaction term is amplified only when both parts are valuable.\\
+\textbf{Diversity adjustment.} To mitigate structural homogeneity, we encode instructions and responses as $\mathbf z_I=\phi_{\text{instr}}(I)$ and $\mathbf z_R=\phi_{\text{resp}}(R)$, compute the weighted distance $D_{ij}= \lambda\|\mathbf z_I^{(i)}-\mathbf z_I^{(j)}\|_2^2+(1-\lambda)\|\mathbf z_R^{(i)}-\mathbf z_R^{(j)}\|_2^2$, and estimate local density via a kernel $\rho(x)$. For low-density samples we multiply $\text{Value}$ by $(1+\kappa/\rho)$ (with smoothing constant $\kappa$) to prioritise sparse yet high-quality cases. Finally, we rank by the adjusted $\text{Value}$ and, under budget $N$, select the top-$K$ subset, achieving a triple trade-off among independent valuation, structural matching, and global diversity.
+
+
+
+\vspace{-10pt}
+\subsubsection{Subtask on Efficient and Explainable Evaluation}
+\label{subsubsec:eval_explain}
+\vspace{-5pt}
+In the previous tasks, we aim to build the structural sensitivity measurement mechanism and the composite valuation model between instructions and responses, which providing foundational support for evaluating the quality of data subsets. However, existing methods still face two core challenges in practical: 1) Strategy validation heavily relies on complete retraining, which is computationally expensive and cannot support high-frequency iterations; 2) The sample selection process lacks clear causal attribution, making it difficult to explain why a particular data instance is selected. To address these issues, we design a structure-aware rapid strategy evaluation and causal attribution framework to enable efficient, transparent, and trustworthy data selection.
+
+The core idea is to transform the strategy evaluation problem into a \emph{sparse rating prediction} task in Collaborative Filtering (CF)—by treating historical subset-performance pairs as "user-item-rating" triplets, we achieve matrix completion for unknown subset effects through low-rank decomposition and structural feature regularization.\\
+\textbf{Collaborative Filtering-Based Performance Prediction.}
+Let $\mathcal{P}=\{1,\dots,P\}$ be the set of fine-tuning strategies with executed experiments, and $\mathcal{F}=\{1,\dots,F\}$ be the set of structural features. To ensure the proxy model is both discriminative and concise, we retain only four groups of core features most relevant to final performance, with the total dimensionality controlled within twenty: The first group captures \emph{central tendencies}, including instruction robustness mean $\mu_I$, response information scarcity mean $\mu_R$, and interaction coupling mean $\mu_{\text{int}}$; the second group measures \emph{dispersion}, taking the standard deviations $\sigma_I,\sigma_R,\sigma_{\text{int}}$ of the above three metrics to characterize subset heterogeneity; the third group evaluates \emph{structural diversity} using the average structural distance $\bar{D}$ and the inverse of local density mean $1/\bar{\rho}$, jointly measuring redundancy and coverage; finally, we include \emph{scale indicators}—subset proportion $\frac{|\mathcal S|}{|X|}$ and task label coverage $\text{cov}_{\text{task}}$. These features can be quickly computed using existing statistics from the first two subtasks.
+
+For each strategy $p$, we discretize its selected subset's structural feature vector $\mathbf{x}_p$ into binary indicators $\mathbf{q}_{pf}\in\{0,1\}$ (e.g., ``high robustness interval'' or ``low density interval''), obtaining the strategy-feature matrix $Q\in\mathbb{R}^{P\times F}$. The actual fine-tuning performance gain $r_p$ is recorded. We construct a \emph{latent semantic factor model}: Let $U\in\mathbb{R}^{P\times k}$ and $V\in\mathbb{R}^{F\times k}$ represent strategy and feature latent vectors, respectively, with the predicted gain $\hat{r}_p=\sum_{f} Q_{pf}\, U_p^\top V_f$. The training objective is:
+
+\vspace{-1em}
+\begin{equation}
+\min_{U,V}\;\sum_{p=1}^{P}\bigl(r_p-\hat{r}_p\bigr)^2
+      +\lambda\bigl(\|U\|_F^2+\|V\|_F^2\bigr)
+      +\mu\sum_{f}\!\tfrac{1}{\sigma_f}\,\|V_f\|_2^2,
+\end{equation}
+\vspace{-1em}
+
+where $\sigma_f$ quantifies feature informativeness. The \emph{structure-aware regularization} term $\tfrac{1}{\sigma_f}$ imposes smaller penalties on high-information features, allowing greater expressiveness. The learned $V$ latent vectors assign \emph{collaborative effect weights} to structural attributes, while $U$ captures strategy preferences in the latent space. For a new strategy $\mathcal{S}$, we only need to compute its structural indicators $\mathbf{q}_{\mathcal{S}}\,$ and predict:
+
+\vspace{-1em}
+\begin{equation}
+\hat{r}_{\mathcal{S}}
+      =\sum_{f} q_{\mathcal{S}f}\,\bar U^\top V_f,
+      \quad\text{where }\bar U=\tfrac1P\sum_{p}U_p.
+\end{equation}
+\vspace{-1em}
+
+Here, $\bar U$ serves as the mean latent vector for cold-start strategy approximation, avoiding retraining of the main model.\\
+\textbf{Explanation Mechanism: Structure-Aware Shapley Attribution.}
+Beyond performance prediction, we adopt the Shapley value \cite{DBLP:conf/nips/LundbergL17, DBLP:conf/www/AkkasA24} to explain individual sample contributions to model gains. Let the fine-tuned performance function be $v(S)$, where $S$ is a sample set. Using the collaborative filtering model, we approximate $v(S)$ in a separable latent factor form: $v(S)=\sum_{f} \bigl(\sum_{(I,R)\in S}\!q_{(I,R)f}\bigr) \, w_f$. The structural Shapley value for a sample $(I,R)$ is then: $\phi(I,R)=\frac{1}{|T|}\sum_{S\subseteq T\setminus\{(I,R)\}}\!\frac{1}{\binom{|T|-1}{|S|}}\!\left[v(S\cup\{(I,R)\})-v(S)\right].$
+Under the latent factor decomposition assumption, a greedy approximation is used: Select $k\ll |T|$ representative subsets $S_k$ and compute: $\tilde{\phi}(I,R)=\!\sum_{f} q_{(I,R)f}\,w_f -\frac{1}{k}\sum_{(I',R')\in S_k}\sum_{f} q_{(I',R')f}w_f.$
+This approximation preserves Shapley's efficiency and fairness while explicitly decomposing the structural contributions of instructions and responses, enabling interpretable evaluation.
+
+
+\vspace{-10pt}
+\section{Requested Funding and Budget}
+\vspace{-10pt}
+The total funding requested is \$ 330,000 HKD, which is broken down as follows:
+\vspace{-6pt}
+\begin{table}[h!]
+\centering
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Budget item} & \textbf{Detail breakdown and justification} & \textbf{Estimate cost} \\
+\hline
+Staffing & Recruiting one PhD student & 310,000 HKD\\
+
+& Justification: 19,100 HKD × 12 months × 1 person = 229,200 HKD &  \\
+& Recruiting one RA &  \\
+& Justification: 13,466.6 × 6 months × 1 person = 80,800 HKD &  \\
+ \hline
+Conference & The research outcomes of this project are expected to be published at & 20,000 HKD \\
+& top-tier conferences, e.g., ACM SIGKDD. &  \\
+ \hline
+\multicolumn{2}{|r|}{\textbf{Total}}   & \textbf{330,000} HKD \\
+ \hline
+\end{tabular}
+\vspace{-20pt}
+\end{table}
+
+
+% \begin{itemize}[leftmargin=*]
+    
+%     \vspace{-8pt}
+%     \item Staffing: 17,510 HKD $ \times $ 14 months $ \times $ 2 persons (for PhD students) + 18,000 HKD $ \times $ 10 months $ \times $ 1 person (for RA) = 670,280 HKD. The recruited students will be trained to develop new research ideas and solve cutting-edge problems. The ultimate goal is to make these students highly competitive candidates in the job market. % The PI will work closely with the recruited students to achieve the proposed research goal.
+%     \vspace{-10pt}
+%     \item Equipment: 159,720 HKD. The PI's research involves large-scale data and intensive computation. Thus the PI will purchase computation resources with advanced GPUs for research experiments. An ideal configuration with 8 NVIDIA RTX A4000 GPUs, 2 AMD EPYC 7313 CPUs, and 128GB memory is sold for around 159,720 HKD (20,060 USD)\footnote{\url{https://lambdalabs.com/deep-learning/servers/blade/customize}}.
+    
+%     \vspace{-10pt}
+%     \item Conference attendance: 20,000 HKD. The research outcomes of this project are expected to be published and presented at international conferences, e.g., ACM SIGKDD. Attending conferences will provide great opportunities for the PI to increase the impact of this project and share ideas with experts in related fields.
+% \end{itemize}
+
+% \clearpage
+% \setcounter{page}{1}
+
+\let\oldbibliography\thebibliography
+\renewcommand{\thebibliography}[1]{%
+  \oldbibliography{#1}%
+  \setlength{\itemsep}{-5pt}%
+}
+%%
+\bibliographystyle{IEEEtran}
+\bibliography{proposal}
+
+
+\end{document}

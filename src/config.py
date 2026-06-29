@@ -188,16 +188,16 @@ CONFIG = {
             'feasibility, or real discovery.'
         ),
         'ranking_label': 'demo_candidate_ranking',
-        'objective_name': 'bn_themed_formula_level_wide_gap_followup_prioritization',
+        'objective_name': 'ai_powered_boron_nitride_material_exploration',
         'objective_target_property': 'band_gap',
-        'objective_target_direction': 'maximize',
+        'objective_target_direction': 'target_window_proxy',
         'objective_decision_unit': 'formula_level_candidate',
         'objective_decision_consequence': 'low_confidence_prioritization_for_structure_followup',
         'objective_note': (
-            'The screening objective is to prioritize BN-themed formula-level candidates with '
-            'higher predicted band gap for downstream structure follow-up. This is not a direct '
-            'BN discovery claim, a calibrated confidence estimate, or a proof of structure '
-            'stability/synthesizability.'
+            'The screening objective is uncertainty-aware BN-material exploration at the formula level: '
+            'prioritize BN-themed candidates by predicted band gap for downstream structure-follow-up. '
+            'This is a candidate-prioritization pipeline, not a direct discovery claim, structure '
+            'stability guarantee, synthesis feasibility claim, or calibrated confidence estimate.'
         ),
         'use_model_disagreement': True,
         'uncertainty_method': 'small_feature_model_disagreement',
