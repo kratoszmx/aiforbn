@@ -31,10 +31,41 @@
   },
   "source_of_truth_files": [
     "AGENTS.md",
+    ".agents/skills/aiforbn-workflow/SKILL.md",
+    ".agents/skills/aiforbn-overleaf-proposal/SKILL.md",
     "docs/AGENT_MANIFEST.json",
     "docs/HANDOFF.md",
     "docs/PY_FILES_SUMMARY.md",
     "skills/ai_native_workflow.txt"
+  ],
+  "project_skills": [
+    {
+      "name": "aiforbn-workflow",
+      "path": ".agents/skills/aiforbn-workflow/SKILL.md",
+      "scope": "repo_scoped_codex_skill",
+      "status": "active"
+    },
+    {
+      "name": "aiforbn-overleaf-proposal",
+      "path": ".agents/skills/aiforbn-overleaf-proposal/SKILL.md",
+      "scope": "repo_scoped_codex_skill",
+      "status": "active"
+    },
+    {
+      "name": "ai_native_workflow",
+      "path": "skills/ai_native_workflow.txt",
+      "scope": "plain_text_agent_runtime_guidance",
+      "status": "active"
+    }
+  ],
+  "retired_guidance_files": [
+    "skills/codex_skill.txt",
+    "skills/coding_skill.txt",
+    "skills/docs_skill.txt",
+    "skills/model_skill.txt",
+    "skills/python_skill.txt",
+    "skills/template.txt",
+    "skills/workflow.txt"
   ],
   "entrypoints": [
     {
@@ -56,6 +87,12 @@
       "expected_output": "JSON project state on stdout"
     },
     {
+      "name": "emit_agent_commands",
+      "command": "python3 main.py --emit-agent-commands",
+      "writes_artifacts": false,
+      "expected_output": "JSON entrypoint and validation-command index on stdout"
+    },
+    {
       "name": "verify_agent_contract",
       "command": "python3 main.py --verify-agent-contract",
       "writes_artifacts": false,
@@ -66,7 +103,7 @@
     {
       "name": "runtime",
       "path": "src/runtime",
-      "role": "config_loading_runtime_dirs_cache_schema_and_agent_state",
+      "role": "config_loading_runtime_dirs_cache_schema_agent_state_and_command_index",
       "public_surface": "src/runtime/PY_FILES_SUMMARY.md",
       "agent_rules": "src/runtime/AGENTS.md",
       "local_utils": "src/runtime/utils.py",
@@ -141,6 +178,36 @@
       "name": "full_src_tests",
       "command": "python3 -m pytest -q src",
       "scope": "complete_src_test_suite_with_declared_dependencies"
+    }
+  ],
+  "validation_profiles": [
+    {
+      "name": "architecture_doc_skill_edit",
+      "commands": [
+        "verify_agent_contract",
+        "fast_smoke",
+        "focused_regression"
+      ],
+      "use_when": "agent contract, project skills, handoff, docs, or entrypoint metadata changed"
+    },
+    {
+      "name": "module_logic_edit",
+      "commands": [
+        "verify_agent_contract",
+        "fast_smoke",
+        "focused_regression",
+        "full_src_tests"
+      ],
+      "use_when": "public Python functions, module boundaries, feature/model logic, or artifact writers changed"
+    },
+    {
+      "name": "scientific_pipeline_edit",
+      "commands": [
+        "verify_agent_contract",
+        "fast_smoke",
+        "full_src_tests"
+      ],
+      "use_when": "default pipeline behavior or generated scientific artifacts changed; run full_pipeline only when the task needs regenerated artifacts"
     }
   ],
   "dependency_imports": [

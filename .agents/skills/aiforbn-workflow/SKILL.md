@@ -1,46 +1,42 @@
 ---
 name: aiforbn-workflow
-description: Use for routine work in /Users/zmx/Projects/aiforbn, including AI-native project maintenance, materials pipeline changes, model/demo wiring, project documentation, validation planning, and handoff updates. Trigger when the task is inside aiforbn or mentions AI-for-BN repo workflow, AGENT_MANIFEST, HANDOFF, PY_FILES_SUMMARY, materials, torch_models, or project-specific skills/*.txt guidance.
+description: Use for routine work in /Users/zmx/Projects/aiforbn, including AI-native architecture, AGENT_MANIFEST, HANDOFF, PY_FILES_SUMMARY, project skills, validation-profile selection, materials pipeline changes, model wiring, tests, and artifact/reporting maintenance.
 ---
 
 # AI-for-BN Workflow
 
-Use this skill for normal `aiforbn` repository work. It is a project-specific routing layer, not a replacement for the repository's own `AGENTS.md` files.
+Use this as the repo-scoped dispatcher for `aiforbn`. It routes agents to the smallest reliable context and validation path. Do not treat it as a tutorial.
 
 ## First Reads
 
-Before changing files, read the current task-relevant entrypoints:
+Before edits:
 
 1. `/Users/zmx/Projects/aiforbn/AGENTS.md`
 2. `/Users/zmx/Projects/aiforbn/docs/AGENT_MANIFEST.json`
 3. `/Users/zmx/Projects/aiforbn/docs/HANDOFF.md`
-4. The nearest module `AGENTS.md` under `src/` when touching a module.
-5. The relevant existing plain-text project guidance under `/Users/zmx/Projects/aiforbn/skills/`.
+4. `/Users/zmx/Projects/aiforbn/skills/ai_native_workflow.txt`
+5. The nearest module `AGENTS.md` when touching `src/**`
 
-Use `skills/ai_native_workflow.txt` as the main project workflow summary. Read other `skills/*.txt` only when relevant to the task.
+Use `python3 main.py --emit-agent-commands` to choose validation commands without rereading long prose.
 
-## Project Boundaries
+## Dispatch
 
-- Treat the repository as an AI-agent-operated research codebase, not a human tutorial.
-- Keep generated artifacts, caches, private datasets, credentials, and local runtime files out of commits unless the task explicitly asks.
-- Do not edit or re-stage research-plan bundles under `docs/research_plan/` unless the task is explicitly research-plan work.
-- Preserve scientific honesty: ranking and screening outputs are prioritization evidence, not discovery claims.
+- Architecture/docs/skill/manifest edits: keep changes machine-readable and run the architecture validation profile.
+- Materials or model logic edits: update the nearest `PY_FILES_SUMMARY.md`, run focused tests, then `python3 -m pytest -q src` when dependencies are available.
+- Research-plan or Overleaf delivery work: switch to `$aiforbn-overleaf-proposal`.
+- Generated artifact refresh: only run full `python3 main.py` when the task needs regenerated artifacts or scientific behavior changed.
 
-## Validation
+## Boundaries
 
-Prefer the lightest verification that proves the touched behavior:
+- Optimize for agent search, execution, verification, rollback, and handoff only.
+- Do not optimize for manual use, notebooks, onboarding, or UI comfort.
+- Do not edit `docs/research_plan/` unless the task is explicitly proposal/research-plan work.
+- Do not commit caches, credentials, private datasets, or large generated artifacts without explicit task intent.
+- Preserve scientific honesty: ranking output is prioritization evidence, not discovery.
+- Do not restore retired guidance shards under `skills/`; the active plain-text guidance is `skills/ai_native_workflow.txt`.
 
-1. For larger workflow or architecture edits, run `python3 main.py --verify-agent-contract`.
-2. For wiring checks, run `python3 main.py --dry-run`.
-3. For module changes, run focused tests around the touched module.
-4. If public functions, commands, or module boundaries change, update the nearest `PY_FILES_SUMMARY.md`.
+## Delegation
 
-Use conda `quant` by default, following the repo instructions.
-
-## Related Global Skills
-
-Use global skills when the task crosses their scope:
-
-- `$ai-native-projects` for broad AI-native project structure and MCP terminology.
-- `$git-sync` for commit/push decisions.
-- `$blocking-question-soft-gate` before risky local changes.
+- Use `$blocking-question-soft-gate` before risky local state changes.
+- Use `$small-fast-coding` / `spark_coder` only for narrow, low-risk, easily reviewed code slices.
+- Main Codex owns diff review, tests, staging, commit, and push.

@@ -11,7 +11,7 @@
 - `test_config.py`
   - Validates the real `src/config.py` defaults.
 - `test_main.py`
-  - Covers the top-level pipeline entrypoint and the fast `--dry-run` smoke path.
+  - Covers the top-level pipeline entrypoint, `--dry-run`, `--emit-agent-state`, and `--emit-agent-commands` paths.
 - `utils.py`
   - Currently exposes no public helper functions.
 

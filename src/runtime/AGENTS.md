@@ -18,7 +18,7 @@ This check must not be removed and must be performed every time.
 
 ## Runtime-specific guidance
 
-- `runtime` is the shared runtime-support module. It is allowed to expose configuration loading, runtime-directory preparation, cache clearing, and schema contracts.
+- `runtime` is the shared runtime-support module. It is allowed to expose configuration loading, runtime-directory preparation, cache clearing, schema contracts, agent-state inspection, and command-index inspection.
 - Keep the public surface small and stable. External callers should use the documented functions in `io_utils.py` and the documented schema classes in `schema.py`.
 - Do not expose `sys.path` bootstrapping details as part of the public contract. Treat that logic as implementation detail unless a deliberate interface change is needed.
 - No other module should import underscore-prefixed names from `runtime`.

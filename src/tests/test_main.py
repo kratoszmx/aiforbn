@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import json
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
+import subprocess
+import sys
 
 import pandas as pd
 
@@ -413,3 +416,50 @@ def test_emit_agent_state_emits_machine_readable_project_state(monkeypatch, caps
         'agent_state_to_json:ok',
     ]
     assert capsys.readouterr().out == '{"status":"ok"}\n'
+
+
+def test_emit_agent_commands_emits_machine_readable_command_index(monkeypatch, capsys):
+    spec = spec_from_file_location('main_module_under_test', ROOT / 'main.py')
+    main_module = module_from_spec(spec)
+    assert spec is not None and spec.loader is not None
+    spec.loader.exec_module(main_module)
+    calls: list[str] = []
+    command_index = {
+        'schema_version': 'aiforbn.agent_command_index.v1',
+        'entrypoints': [{'name': 'fast_smoke', 'command': 'python3 main.py --dry-run'}],
+    }
+
+    monkeypatch.setattr(
+        main_module,
+        'build_agent_command_index',
+        lambda root: calls.append(f'build_agent_command_index:{root.name}') or command_index,
+    )
+    monkeypatch.setattr(
+        main_module,
+        'agent_state_to_json',
+        lambda payload: calls.append(f'agent_state_to_json:{payload["schema_version"]}') or '{"schema_version":"aiforbn.agent_command_index.v1"}',
+    )
+
+    report = main_module.emit_agent_commands()
+
+    assert report is command_index
+    assert calls == [
+        'build_agent_command_index:aiforbn',
+        'agent_state_to_json:aiforbn.agent_command_index.v1',
+    ]
+    assert capsys.readouterr().out == '{"schema_version":"aiforbn.agent_command_index.v1"}\n'
+
+
+def test_emit_agent_commands_cli_stdout_is_pure_json():
+    result = subprocess.run(
+        [sys.executable, 'main.py', '--emit-agent-commands'],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert result.stdout.lstrip().startswith('{')
+    payload = json.loads(result.stdout)
+    assert payload['schema_version'] == 'aiforbn.agent_command_index.v1'

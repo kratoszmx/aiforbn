@@ -31,12 +31,14 @@ What it does, in order:
 
 Important:
 - overall evaluation combo and formula-only screening combo may differ
-- `main.py` is intentionally kept linear and notebook-friendly
+- `main.py` is intentionally kept linear as an agent-traceable pipeline, not as a wrapper launcher
+- command-only agent control flags avoid importing heavy scientific/plotting modules before JSON emission
 
 ### `run_dry_run()`
 Fast smoke-check entrypoint used by `python3 main.py --dry-run`.
 
 What it does:
+- lazily loads only dry-run dependencies, not plotting/reporting/full artifact writers
 - clears project cache
 - loads `src/config.py`
 - ensures configured runtime directories exist
@@ -66,6 +68,16 @@ What it does:
 - exits nonzero under `--verify-agent-contract` only when blocking layout errors are present
 
 Use it as the first machine-readable handoff check before larger edits.
+
+### `emit_agent_commands()`
+Machine-readable command-index entrypoint used by:
+- `python3 main.py --emit-agent-commands`
+
+What it does:
+- loads `docs/AGENT_MANIFEST.json`
+- prints entrypoints, validation commands, validation profiles, project skills, source-of-truth files, and retired guidance files as JSON
+
+Use it to choose the smallest sufficient validation profile for a change without rereading long prose docs.
 
 ---
 
@@ -147,6 +159,9 @@ Returns:
 
 ### `build_agent_state(project_root_path='.', manifest_path='docs/AGENT_MANIFEST.json')`
 Builds the JSON-serializable live state used by `main.py --emit-agent-state` and `main.py --verify-agent-contract`.
+
+### `build_agent_command_index(project_root_path='.', manifest_path='docs/AGENT_MANIFEST.json')`
+Builds the JSON-serializable command index used by `main.py --emit-agent-commands`.
 
 ### `agent_state_to_json(state)`
 Serializes the live state for stdout or log capture.
@@ -915,9 +930,12 @@ It displays:
 
 ## Practical notes
 
-- Keep `main.py` linear and notebook-friendly.
+- Keep `main.py` linear as an agent-traceable pipeline.
 - Agent-facing docs should track verified runtime behavior, not planned behavior.
-- Before any commit or stage-worthy milestone, run:
-  - cache clear via `clear_project_cache('.')` (or directly via the latest `myutils/file_utils/filesystem.delete_cache(...)` path)
-  - `pytest -q src`
-  - `python3 main.py` from the agent shell / `quant` environment
+- Before any commit or stage-worthy milestone, choose the smallest sufficient validation profile from `python3 main.py --emit-agent-commands`.
+- Default architecture/docs/skills validation:
+  - `python3 main.py --verify-agent-contract`
+  - `python3 main.py --dry-run`
+  - focused tests around the touched entrypoint/module
+- Run `python3 -m pytest -q src` when public Python/module logic changed or when dependencies are available and the blast radius is broad.
+- Run full `python3 main.py` only when scientific pipeline behavior changed or regenerated artifacts are required.

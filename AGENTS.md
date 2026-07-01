@@ -6,7 +6,7 @@ This repository is maintained for autonomous AI agents. Do not treat it as an ap
 
 `aiforbn` is a research-grade AI-for-BN demo project.
 
-The project combines literature/research planning, materials data pipelines, structure generation, model experiments, reporting, and demo artifacts. Treat `skills/ai_native_workflow.txt` and the symlinked files under `skills/` as project-specific guidance. Treat `assets/deep-research-report.md` as research context and `assets/poc_workflow_brief.txt` as an editable coding plan rather than a fixed contract.
+The project combines literature/research planning, materials data pipelines, structure generation, model experiments, reporting, and demo artifacts. Treat `.agents/skills/aiforbn-workflow/SKILL.md` and `.agents/skills/aiforbn-overleaf-proposal/SKILL.md` as the repo-scoped Codex skills. Treat `skills/ai_native_workflow.txt` as the compact project runtime guidance. Treat `assets/deep-research-report.md` as research context and `assets/poc_workflow_brief.txt` as an editable coding plan rather than a fixed contract.
 
 ## AI-Native Working Mode
 
@@ -14,6 +14,7 @@ The project combines literature/research planning, materials data pipelines, str
 - Do not optimize this repository for onboarding or manual operation.
 - Prefer `AGENTS.md` as the root entry point. Root `README.md` should not be introduced unless an external platform requires it.
 - Treat `docs/AGENT_MANIFEST.json` plus `python3 main.py --verify-agent-contract` as the machine-readable project contract and first inspection command.
+- Use `python3 main.py --emit-agent-commands` when choosing the smallest sufficient validation profile for a change.
 - The section layout in this file is guidance, not a fixed process. If an agent invents a better workflow, record the reason in this file or a nearby state file before relying on it.
 
 ## Directory Map
@@ -29,13 +30,15 @@ The project combines literature/research planning, materials data pipelines, str
 - `assets/`: prompts, deep research report, and proof-of-concept planning notes.
 - `data/`: raw and processed project data.
 - `artifacts/`: generated research/demo artifacts; check sensitivity and reproducibility before committing new files.
-- `skills/`: project-specific agent guidance; root `skill.txt` is intentionally retired.
+- `.agents/skills/`: repo-scoped Codex `SKILL.md` files that trigger only for this project scope.
+- `skills/`: compact project runtime guidance; only `ai_native_workflow.txt` should remain active.
 
 ## Current State
 
 - Several subtrees already have local `AGENTS.md` and `PY_FILES_SUMMARY.md`; keep them aligned when changing public modules or task boundaries.
 - `docs/research_plan/` is a sensitive research-plan bundle already present in the current tracked history. Do not edit, expand, or re-stage similar generated proposal files unless the task explicitly asks for research-plan work.
 - `docs/AGENT_MANIFEST.json` records the AI-native contract for entrypoints, module boundaries, validation commands, and safety boundaries.
+- Legacy `skills/*_skill.txt`, `skills/template.txt`, and `skills/workflow.txt` are retired; their still-current instructions are consolidated into `skills/ai_native_workflow.txt`, `.agents/skills/`, this file, or module-local `AGENTS.md`.
 - `.DS_Store`, caches, local environment files, and generated scratch outputs should remain untracked.
 
 ## Safety Boundary
@@ -47,6 +50,7 @@ The project combines literature/research planning, materials data pipelines, str
 ## Validation
 
 - Use the conda `quant` environment by default.
+- Run `python3 main.py --emit-agent-commands` when selecting a validation profile.
 - Run `python3 main.py --verify-agent-contract` before larger architecture/workflow edits.
 - Run `python3 main.py --dry-run` for fast config / feature / model wiring checks.
 - Run focused pytest tests for the touched module when possible.

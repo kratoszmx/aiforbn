@@ -4,7 +4,7 @@
 - 名称：AI for BN PoC
 - 路径：`/Users/zmx/Projects/aiforbn`
 - 默认执行环境：agent shell 下的 `quant`
-- 当前优先级：**结合 `docs/老師回覆.txt`，补齐更适合导师阅读的证据型摘要 artifact 与更冷静的项目文档叙事，再决定下一步单模块 coding**
+- 当前优先级：**AI-native contract hardening：使用机器可读 command index、repo-scoped skills 和验证档位接管后续工作；旧 `skills/*.txt` shards 已退役**
 
 ## 一句话结论
 - **最后一个可直接回退的稳定主线**仍然是此前已完整验证并已保存的主线波次。
@@ -59,12 +59,18 @@
 当前新增的 AI-native inspection 层：
 - `docs/AGENT_MANIFEST.json`
   - 机器可读的项目契约，记录入口命令、模块边界、验证命令和安全边界
+- `python3 main.py --emit-agent-commands`
+  - 输出 entrypoints、validation commands、validation profiles、project skills 和 retired guidance 文件清单
 - `python3 main.py --emit-agent-state`
   - 输出 live JSON 项目状态
 - `python3 main.py --verify-agent-contract`
   - 检查 AI-native 布局；只有缺少关键契约文件这类阻断错误才非零退出
 - `skills/ai_native_workflow.txt`
-  - 当前 project skill 入口；根 `skill.txt` 已退役，其内容已合并进 `AGENTS.md` 和该 skill
+  - 当前唯一 active plain-text project runtime guidance
+- `.agents/skills/aiforbn-workflow/SKILL.md`
+  - 当前 repo-scoped Codex workflow skill
+- `.agents/skills/aiforbn-overleaf-proposal/SKILL.md`
+  - research-plan / Overleaf 专用 repo-scoped Codex skill
 
 当前 `quant` 环境已补齐 `requirements.txt` 中完整测试需要的关键依赖：
 - `pyarrow`
@@ -94,9 +100,11 @@
 - `src/runtime/io_utils.py` 已对齐当前 `myutils` 的目录式布局，直接使用 `file_utils/`、`ai_utils/`、`net_utils/` 等子目录导入
 - 项目里重复出现的 JSON 读写 / JSON-safe 转换逻辑继续尽量复用 `myutils/file_utils/json_io.py`
 
-根 `skill.txt` 已不再作为入口文件；项目级 agent 规则收敛到：
+根 `skill.txt` 和旧 `skills/*_skill.txt` shards 已不再作为入口文件；项目级 agent 规则收敛到：
 - `AGENTS.md`
 - `docs/AGENT_MANIFEST.json`
+- `.agents/skills/aiforbn-workflow/SKILL.md`
+- `.agents/skills/aiforbn-overleaf-proposal/SKILL.md`
 - `skills/ai_native_workflow.txt`
 
 ## 当前默认主线与实验分界
@@ -255,8 +263,19 @@
 - 修复 `src/config.py` 缺失后，程序已不再在入口阶段立即因 import/config 路径报错
 - 该运行随后进入持续计算阶段，未在本轮等待到完整结束
 
+8. AI-native contract hardening 验证：
+- `python3 -m compileall main.py src/runtime/agent_state.py src/runtime/tests/test_agent_state.py src/tests/test_main.py`
+- `python3 main.py --emit-agent-commands | python3 -m json.tool`
+- `python3 main.py --verify-agent-contract | python3 -m json.tool`
+- `python3 main.py --dry-run`
+- `python3 -m pytest -q src/tests/test_main.py src/runtime/tests/test_agent_state.py src/runtime/tests/test_io_utils.py`
+- `python3 -m pytest -q src`
+- `quick_validate.py` for `.agents/skills/aiforbn-workflow`, `.agents/skills/aiforbn-overleaf-proposal`, global `ai-native-projects`, and global `small-fast-coding`
+- 结果：focused regression `13 passed`; full src `43 passed, 6 warnings`; command-only JSON stdout 已确认干净
+
 因此当前最准确的表述应是：
-- **模块拆分后的 `pytest -q src` 已通过**
+- **当前 AI-native contract / command index / project skills / runtime tests 已通过**
+- **模块拆分后的 `pytest -q src` 已通过；最新结果是 `43 passed, 6 warnings`**
 - **`main.py` 已确认能启动并进入主流程，但本轮未等待到完整跑完**
 - 这更接近“结构重构已验证、主流程做过短烟测”的状态，而不是“完整重算后的新稳定 checkpoint”
 
@@ -281,33 +300,36 @@
 - `artifacts/demo_candidate_structure_followup_report.csv`
 
 ## 恢复工作时的直接起点
-当前用户要求是：
-- **结合 `docs/老師回覆.txt` 继续补齐老师认为应提升的点**
-- **同步完善项目文档**
-- **模块内 coding 继续走 Codex，但一次只准改一个模块，读完前置文件后直接开始改**
-
-因此恢复时的默认动作应是：
+默认恢复动作：
 1. 先读：
+   - `AGENTS.md`
+   - `docs/AGENT_MANIFEST.json`
    - `skills/ai_native_workflow.txt`
-   - `skills/template.txt`
-   - `skills/workflow.txt`
-   - 其余 `skills/*.txt`
-   - `HANDOFF.md`
-   - `docs/老師回覆.txt`
-2. 先确认这轮是：
-   - 文档 / 汇报整理
-   - 还是单模块 coding
-3. 如果进入 coding：
+   - `.agents/skills/aiforbn-workflow/SKILL.md`
+   - `docs/HANDOFF.md`
+2. 运行：
+   - `python3 main.py --emit-agent-commands`
+   - `python3 main.py --verify-agent-contract`
+3. 先确认这轮是：
+   - architecture / docs / skills / contract maintenance
+   - single-module coding
+   - scientific pipeline or artifact regeneration
+   - research-plan / Overleaf delivery
+4. 如果进入单模块 coding：
    - 只选一个模块
-   - 先写 `claw_memory/N.md`
+   - 读最近的模块 `AGENTS.md` 和 `PY_FILES_SUMMARY.md`
    - 明确允许改哪些文件、禁止碰哪些文件
-   - 让 Codex 读完对应前置文件后直接开始修改
-   - OpenClaw 自己负责测试、审核、必要时接手修补
-4. 若形成 checkpoint：
-   - 先排除不该提交的文件
-   - 先清缓存
-   - 再跑短验证
+   - 可对低风险局部实现使用 `spark_coder`，但主 Codex 必须审查 diff 和测试
+5. 若形成 checkpoint：
+   - 排除不该提交的文件
+   - 清缓存
+   - 按 `--emit-agent-commands` 给出的最小验证 profile 跑验证
    - 通过后再 `git add / commit / push`
+
+只有当任务明确涉及老师回覆、导师汇报或 proposal 时，才额外读：
+   - `docs/老師回覆.txt`
+   - `docs/项目汇报.md`
+   - `docs/给见微的说明.md`
 
 ## 当前不应丢失的判断
 - 不要因为本机不是 CUDA 机器就自动退缩换方向。
@@ -319,5 +341,5 @@
 - 模块模板要求目前已满足，每个正式模块都带有自己的 `AGENTS.md` 和 `utils.py`。
 - 当前生产依赖关系也已明显收敛：`runtime -> []`、`torch_models -> []`、`ui -> []`、`materials -> [runtime, torch_models]`。
 - 也就是说，之前那种 `reporting` / `structure_execution` 只是目录独立、实现上却从属于主业务链的问题，已经通过并回 `materials` 解决。
-- 当前最合理动作不是盲目扩展实验面，而是：
-  - **先把老师会追问的证据和口径补齐，再决定下一步单模块 coding 目标。**
+- 当前工程动作应先通过 `--emit-agent-commands` 选择最小验证 profile，再进入单模块 coding 或 artifact regeneration。
+- 当前科研动作仍不应盲目扩展实验面；只有任务明确涉及导师汇报时，才回到老师回覆与证据口径补齐。

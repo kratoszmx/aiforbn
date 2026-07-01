@@ -47,6 +47,54 @@ def _git_stdout(root: Path, args: list[str]) -> str | None:
     return result.stdout.strip()
 
 
+def _validate_command_entries(
+    manifest_payload: dict[str, Any],
+    field_name: str,
+    errors: list[dict[str, str]],
+) -> set[str]:
+    value = manifest_payload.get(field_name, [])
+    command_names: set[str] = set()
+    if not isinstance(value, list) or not value:
+        errors.append({
+            'code': f'invalid_{field_name}',
+            'path': 'docs/AGENT_MANIFEST.json',
+            'message': f'Manifest field `{field_name}` must be a non-empty list.',
+        })
+        return command_names
+
+    for index, entry in enumerate(value):
+        if not isinstance(entry, dict):
+            errors.append({
+                'code': f'invalid_{field_name}_entry',
+                'path': f'docs/AGENT_MANIFEST.json:{field_name}[{index}]',
+                'message': f'Every `{field_name}` entry must be a JSON object.',
+            })
+            continue
+        name = str(entry.get('name', '')).strip()
+        command = str(entry.get('command', '')).strip()
+        if not name:
+            errors.append({
+                'code': f'missing_{field_name}_name',
+                'path': f'docs/AGENT_MANIFEST.json:{field_name}[{index}]',
+                'message': f'Every `{field_name}` entry needs a stable `name`.',
+            })
+        elif name in command_names:
+            errors.append({
+                'code': f'duplicate_{field_name}_name',
+                'path': f'docs/AGENT_MANIFEST.json:{field_name}[{index}]',
+                'message': f'Duplicate `{field_name}` command name: {name}',
+            })
+        else:
+            command_names.add(name)
+        if not command:
+            errors.append({
+                'code': f'missing_{field_name}_command',
+                'path': f'docs/AGENT_MANIFEST.json:{field_name}[{index}]',
+                'message': f'Every `{field_name}` entry needs a non-empty `command`.',
+            })
+    return command_names
+
+
 def load_agent_manifest(
     project_root_path: str | Path = '.',
     manifest_path: str | Path = DEFAULT_AGENT_MANIFEST_PATH,
@@ -67,6 +115,87 @@ def validate_agent_layout(
     errors: list[dict[str, str]] = []
     warnings: list[dict[str, str]] = []
     checks: list[dict[str, object]] = []
+
+    project_payload = manifest_payload.get('project', {})
+    if not isinstance(project_payload, dict):
+        errors.append({
+            'code': 'invalid_manifest_project',
+            'path': 'docs/AGENT_MANIFEST.json',
+            'message': 'Manifest field `project` must be a JSON object.',
+        })
+        project_payload = {}
+    if project_payload.get('manual_operation_supported') is not False:
+        errors.append({
+            'code': 'manual_operation_not_disabled',
+            'path': 'docs/AGENT_MANIFEST.json',
+            'message': 'AI-native contract requires `project.manual_operation_supported` to be false.',
+        })
+    if project_payload.get('primary_entrypoint') != 'AGENTS.md':
+        errors.append({
+            'code': 'primary_entrypoint_not_agents_md',
+            'path': 'docs/AGENT_MANIFEST.json',
+            'message': 'AI-native contract requires `project.primary_entrypoint` to be AGENTS.md.',
+        })
+
+    _validate_command_entries(manifest_payload, 'entrypoints', errors)
+    validation_command_names = _validate_command_entries(
+        manifest_payload,
+        'validation_commands',
+        errors,
+    )
+    validation_profiles = manifest_payload.get('validation_profiles', [])
+    if validation_profiles:
+        if not isinstance(validation_profiles, list):
+            errors.append({
+                'code': 'invalid_validation_profiles',
+                'path': 'docs/AGENT_MANIFEST.json',
+                'message': 'Manifest field `validation_profiles` must be a list when present.',
+            })
+        else:
+            seen_profiles: set[str] = set()
+            for index, profile in enumerate(validation_profiles):
+                if not isinstance(profile, dict):
+                    errors.append({
+                        'code': 'invalid_validation_profile',
+                        'path': f'docs/AGENT_MANIFEST.json:validation_profiles[{index}]',
+                        'message': 'Every validation profile must be a JSON object.',
+                    })
+                    continue
+                profile_name = str(profile.get('name', '')).strip()
+                if not profile_name:
+                    errors.append({
+                        'code': 'missing_validation_profile_name',
+                        'path': f'docs/AGENT_MANIFEST.json:validation_profiles[{index}]',
+                        'message': 'Every validation profile needs a stable `name`.',
+                    })
+                elif profile_name in seen_profiles:
+                    errors.append({
+                        'code': 'duplicate_validation_profile_name',
+                        'path': f'docs/AGENT_MANIFEST.json:validation_profiles[{index}]',
+                        'message': f'Duplicate validation profile name: {profile_name}',
+                    })
+                else:
+                    seen_profiles.add(profile_name)
+                commands = profile.get('commands', [])
+                if not isinstance(commands, list) or not all(
+                    isinstance(command, str) and command.strip() for command in commands
+                ):
+                    errors.append({
+                        'code': 'invalid_validation_profile_commands',
+                        'path': f'docs/AGENT_MANIFEST.json:validation_profiles[{index}]',
+                        'message': 'Validation profile `commands` must be a non-empty string list.',
+                    })
+                    continue
+                missing_commands = sorted(set(commands) - validation_command_names)
+                if missing_commands:
+                    errors.append({
+                        'code': 'validation_profile_unknown_command',
+                        'path': f'docs/AGENT_MANIFEST.json:validation_profiles[{index}]',
+                        'message': (
+                            f'Validation profile `{profile_name}` references unknown '
+                            f'validation command names: {missing_commands}'
+                        ),
+                    })
 
     required_paths = list(manifest_payload.get('source_of_truth_files', []))
     required_paths.extend([
@@ -123,12 +252,65 @@ def validate_agent_layout(
                     'message': f'Module `{module.get("name", "<unnamed>")}` is missing `{field}`.',
                 })
 
-    if (root / 'skill.txt').exists():
-        warnings.append({
-            'code': 'retired_root_skill_txt_present',
-            'path': 'skill.txt',
-            'message': 'Root skill.txt is retired; project guidance should live under AGENTS.md and skills/.',
+    project_skills = manifest_payload.get('project_skills', [])
+    if not isinstance(project_skills, list):
+        errors.append({
+            'code': 'invalid_project_skills',
+            'path': 'docs/AGENT_MANIFEST.json',
+            'message': 'Manifest field `project_skills` must be a list when present.',
         })
+        project_skills = []
+    for index, skill in enumerate(project_skills):
+        if not isinstance(skill, dict):
+            errors.append({
+                'code': 'invalid_project_skill',
+                'path': f'docs/AGENT_MANIFEST.json:project_skills[{index}]',
+                'message': 'Every project skill entry must be a JSON object.',
+            })
+            continue
+        relative_path = str(skill.get('path', '')).strip()
+        if not relative_path:
+            errors.append({
+                'code': 'missing_project_skill_path',
+                'path': str(skill.get('name', '<unnamed>')),
+                'message': 'Every project skill entry needs a `path`.',
+            })
+            continue
+        check = _path_check(root, relative_path)
+        checks.append({
+            **check,
+            'kind': 'project_skill',
+            'skill': skill.get('name', '<unnamed>'),
+        })
+        if skill.get('status', 'active') == 'active' and not check['exists']:
+            errors.append({
+                'code': 'missing_project_skill',
+                'path': relative_path,
+                'message': f'Active project skill `{skill.get("name", "<unnamed>")}` is missing.',
+            })
+
+    retired_paths = ['skill.txt']
+    retired_guidance_files = manifest_payload.get('retired_guidance_files', [])
+    if not isinstance(retired_guidance_files, list):
+        errors.append({
+            'code': 'invalid_retired_guidance_files',
+            'path': 'docs/AGENT_MANIFEST.json',
+            'message': 'Manifest field `retired_guidance_files` must be a list when present.',
+        })
+        retired_guidance_files = []
+    retired_paths.extend(str(path) for path in retired_guidance_files)
+    for relative_path in dict.fromkeys(retired_paths):
+        check = _path_check(root, relative_path)
+        checks.append({**check, 'kind': 'retired_guidance_path'})
+        if check['exists']:
+            errors.append({
+                'code': 'retired_guidance_file_present',
+                'path': relative_path,
+                'message': (
+                    f'Retired guidance file `{relative_path}` is present; consolidate into '
+                    'AGENTS.md, project skills, or docs/AGENT_MANIFEST.json.'
+                ),
+            })
 
     if (root / 'README.md').exists():
         warnings.append({
@@ -191,6 +373,28 @@ def validate_agent_layout(
     }
 
 
+def build_agent_command_index(
+    project_root_path: str | Path = '.',
+    manifest_path: str | Path = DEFAULT_AGENT_MANIFEST_PATH,
+) -> dict[str, Any]:
+    root = _project_root(project_root_path)
+    manifest = load_agent_manifest(root, manifest_path=manifest_path)
+    return {
+        'schema_version': 'aiforbn.agent_command_index.v1',
+        'generated_at_utc': datetime.now(timezone.utc).isoformat(timespec='seconds'),
+        'project_root': str(root),
+        'manifest_path': str(manifest_path),
+        'project': manifest.get('project', {}),
+        'first_inspection_command': 'python3 main.py --verify-agent-contract',
+        'entrypoints': manifest.get('entrypoints', []),
+        'validation_commands': manifest.get('validation_commands', []),
+        'validation_profiles': manifest.get('validation_profiles', []),
+        'source_of_truth_files': manifest.get('source_of_truth_files', []),
+        'project_skills': manifest.get('project_skills', []),
+        'retired_guidance_files': manifest.get('retired_guidance_files', []),
+    }
+
+
 def build_agent_state(
     project_root_path: str | Path = '.',
     manifest_path: str | Path = DEFAULT_AGENT_MANIFEST_PATH,
@@ -224,6 +428,7 @@ def build_agent_state(
         'git': git_state,
         'next_agent_recommended_order': [
             'Read AGENTS.md and nearest module AGENTS.md',
+            'Run python3 main.py --emit-agent-commands to choose the smallest validation profile',
             'Run python3 main.py --verify-agent-contract',
             'Run python3 main.py --dry-run before expensive work',
             'Run focused pytest for touched modules',

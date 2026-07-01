@@ -1,54 +1,136 @@
+from __future__ import annotations
+
 import argparse
 import copy
+import importlib
 import inspect
 from pathlib import Path
 import sys
-
-import pandas as pd
 
 ROOT = Path(__file__).resolve().parent
 SRC_DIR = ROOT / 'src'
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from runtime.agent_state import agent_state_to_json, build_agent_state, write_agent_state
+from runtime.agent_state import (
+    agent_state_to_json,
+    build_agent_command_index,
+    build_agent_state,
+    write_agent_state,
+)
 from runtime.io_utils import clear_project_cache, ensure_runtime_dirs, load_config
-from materials.data import STRUCTURE_SUMMARY_COLUMNS, load_or_build_dataset
-from materials.benchmarking import (
-    benchmark_bn_family_holdout,
-    benchmark_bn_slice,
-    benchmark_bn_stratified_errors,
-    benchmark_grouped_robustness,
-    benchmark_regressors,
-    select_bn_centered_candidate_screening_combo,
-)
-from materials.candidate_space import filter_bn, generate_bn_candidates
-from materials.constants import STRUCTURE_AWARE_FEATURE_SET
-from materials.feature_building import (
-    build_feature_tables,
-    compatible_model_types_for_feature_set,
-    feature_set_supports_formula_only_screening,
-    get_candidate_feature_sets,
-    get_candidate_model_types,
-    make_split_masks,
-)
-from materials.modeling import evaluate_predictions, make_model, train_baseline_model
-from materials.screening import (
-    build_candidate_grouped_robustness_prediction_members,
-    build_candidate_grouped_robustness_predictions,
-    build_candidate_prediction_ensemble,
-    build_candidate_prediction_members,
-    build_candidate_structure_generation_seeds,
-    screen_candidates,
-)
-from materials.selection import select_feature_model_combo
-from materials.artifacts import save_metrics_and_predictions
-from materials.plots import save_basic_plots
-from materials.summary import build_experiment_summary
-from materials.structure_execution import build_structure_first_pass_execution_artifacts
+
+
+pd = None
+STRUCTURE_SUMMARY_COLUMNS = None
+STRUCTURE_AWARE_FEATURE_SET = None
+load_or_build_dataset = None
+benchmark_bn_family_holdout = None
+benchmark_bn_slice = None
+benchmark_bn_stratified_errors = None
+benchmark_grouped_robustness = None
+benchmark_regressors = None
+select_bn_centered_candidate_screening_combo = None
+filter_bn = None
+generate_bn_candidates = None
+build_feature_tables = None
+compatible_model_types_for_feature_set = None
+feature_set_supports_formula_only_screening = None
+get_candidate_feature_sets = None
+get_candidate_model_types = None
+make_split_masks = None
+evaluate_predictions = None
+make_model = None
+train_baseline_model = None
+build_candidate_grouped_robustness_prediction_members = None
+build_candidate_grouped_robustness_predictions = None
+build_candidate_prediction_ensemble = None
+build_candidate_prediction_members = None
+build_candidate_structure_generation_seeds = None
+screen_candidates = None
+select_feature_model_combo = None
+save_metrics_and_predictions = None
+save_basic_plots = None
+build_experiment_summary = None
+build_structure_first_pass_execution_artifacts = None
+
+
+def _bind_missing(name: str, module_name: str, attr_name: str | None = None) -> None:
+    if globals().get(name) is not None:
+        return
+    module = importlib.import_module(module_name)
+    globals()[name] = module if attr_name is None else getattr(module, attr_name)
+
+
+def _ensure_dry_run_dependencies_loaded() -> None:
+    _bind_missing('pd', 'pandas')
+    _bind_missing('STRUCTURE_SUMMARY_COLUMNS', 'materials.data', 'STRUCTURE_SUMMARY_COLUMNS')
+    _bind_missing('generate_bn_candidates', 'materials.candidate_space', 'generate_bn_candidates')
+    _bind_missing('build_feature_tables', 'materials.feature_building', 'build_feature_tables')
+    _bind_missing(
+        'compatible_model_types_for_feature_set',
+        'materials.feature_building',
+        'compatible_model_types_for_feature_set',
+    )
+    _bind_missing(
+        'feature_set_supports_formula_only_screening',
+        'materials.feature_building',
+        'feature_set_supports_formula_only_screening',
+    )
+    _bind_missing('get_candidate_feature_sets', 'materials.feature_building', 'get_candidate_feature_sets')
+    _bind_missing('get_candidate_model_types', 'materials.feature_building', 'get_candidate_model_types')
+    _bind_missing('make_model', 'materials.modeling', 'make_model')
+
+
+def _ensure_pipeline_dependencies_loaded() -> None:
+    _ensure_dry_run_dependencies_loaded()
+    _bind_missing('load_or_build_dataset', 'materials.data', 'load_or_build_dataset')
+    _bind_missing('benchmark_bn_family_holdout', 'materials.benchmarking', 'benchmark_bn_family_holdout')
+    _bind_missing('benchmark_bn_slice', 'materials.benchmarking', 'benchmark_bn_slice')
+    _bind_missing('benchmark_bn_stratified_errors', 'materials.benchmarking', 'benchmark_bn_stratified_errors')
+    _bind_missing('benchmark_grouped_robustness', 'materials.benchmarking', 'benchmark_grouped_robustness')
+    _bind_missing('benchmark_regressors', 'materials.benchmarking', 'benchmark_regressors')
+    _bind_missing(
+        'select_bn_centered_candidate_screening_combo',
+        'materials.benchmarking',
+        'select_bn_centered_candidate_screening_combo',
+    )
+    _bind_missing('filter_bn', 'materials.candidate_space', 'filter_bn')
+    _bind_missing('STRUCTURE_AWARE_FEATURE_SET', 'materials.constants', 'STRUCTURE_AWARE_FEATURE_SET')
+    _bind_missing('make_split_masks', 'materials.feature_building', 'make_split_masks')
+    _bind_missing('evaluate_predictions', 'materials.modeling', 'evaluate_predictions')
+    _bind_missing('train_baseline_model', 'materials.modeling', 'train_baseline_model')
+    _bind_missing(
+        'build_candidate_grouped_robustness_prediction_members',
+        'materials.screening',
+        'build_candidate_grouped_robustness_prediction_members',
+    )
+    _bind_missing(
+        'build_candidate_grouped_robustness_predictions',
+        'materials.screening',
+        'build_candidate_grouped_robustness_predictions',
+    )
+    _bind_missing('build_candidate_prediction_ensemble', 'materials.screening', 'build_candidate_prediction_ensemble')
+    _bind_missing('build_candidate_prediction_members', 'materials.screening', 'build_candidate_prediction_members')
+    _bind_missing(
+        'build_candidate_structure_generation_seeds',
+        'materials.screening',
+        'build_candidate_structure_generation_seeds',
+    )
+    _bind_missing('screen_candidates', 'materials.screening', 'screen_candidates')
+    _bind_missing('select_feature_model_combo', 'materials.selection', 'select_feature_model_combo')
+    _bind_missing('save_metrics_and_predictions', 'materials.artifacts', 'save_metrics_and_predictions')
+    _bind_missing('save_basic_plots', 'materials.plots', 'save_basic_plots')
+    _bind_missing('build_experiment_summary', 'materials.summary', 'build_experiment_summary')
+    _bind_missing(
+        'build_structure_first_pass_execution_artifacts',
+        'materials.structure_execution',
+        'build_structure_first_pass_execution_artifacts',
+    )
 
 
 def _build_dry_run_dataset(cfg: dict) -> pd.DataFrame:
+    _ensure_dry_run_dependencies_loaded()
     formula_col = str(cfg['data'].get('formula_column', 'formula'))
     target_col = str(cfg['data'].get('target_column', 'band_gap'))
     dry_run_rows = [
@@ -71,6 +153,7 @@ def _build_dry_run_dataset(cfg: dict) -> pd.DataFrame:
 
 
 def run_dry_run() -> dict:
+    _ensure_dry_run_dependencies_loaded()
     clear_project_cache('.')
 
     config_path = Path('src/config.py')
@@ -176,7 +259,14 @@ def emit_agent_state(write_path: str | Path | None = None, fail_on_error: bool =
     return state
 
 
+def emit_agent_commands() -> dict:
+    command_index = build_agent_command_index(ROOT)
+    print(agent_state_to_json(command_index))
+    return command_index
+
+
 def main() -> None:
+    _ensure_pipeline_dependencies_loaded()
     clear_project_cache('.')
 
     config_path = Path('src/config.py')
@@ -528,13 +618,20 @@ if __name__ == '__main__':
         help='Agent control: validate the AI-native project contract and exit nonzero only for blocking layout errors.',
     )
     parser.add_argument(
+        '--emit-agent-commands',
+        action='store_true',
+        help='Agent control: emit entrypoint and validation-command metadata without running the scientific pipeline.',
+    )
+    parser.add_argument(
         '--write-agent-state',
         type=Path,
         default=None,
         help='Agent control: write the project state JSON to this path; implies --emit-agent-state.',
     )
     args = parser.parse_args()
-    if args.emit_agent_state or args.verify_agent_contract or args.write_agent_state is not None:
+    if args.emit_agent_commands:
+        emit_agent_commands()
+    elif args.emit_agent_state or args.verify_agent_contract or args.write_agent_state is not None:
         emit_agent_state(write_path=args.write_agent_state, fail_on_error=args.verify_agent_contract)
     elif args.dry_run:
         run_dry_run()
