@@ -12,6 +12,19 @@ Anything underscore-prefixed or omitted here should be treated as internal.
 - `clear_project_cache(project_root_path='.')`
   - Delete Python/cache artifacts for the project root.
 
+## agent_state.py
+
+- `load_agent_manifest(project_root_path='.', manifest_path='docs/AGENT_MANIFEST.json')`
+  - Load the checked-in machine-readable AI-native manifest.
+- `validate_agent_layout(project_root_path='.', manifest=None)`
+  - Validate required agent-facing files, module contracts, dependency imports, and known layout warnings.
+- `build_agent_state(project_root_path='.', manifest_path='docs/AGENT_MANIFEST.json')`
+  - Build the live JSON-serializable agent-state payload used by `main.py --agent-state` and `main.py --agent-doctor`.
+- `agent_state_to_json(state)`
+  - Serialize an agent-state payload for stdout or logs.
+- `write_agent_state(state, path)`
+  - Write an agent-state payload to a JSON file.
+
 ## schema.py
 
 - `DatasetManifest`

@@ -2,7 +2,7 @@
 
 ## 项目
 - 名称：AI for BN PoC
-- 路径：`$HOME/projects/ai_for_bn`
+- 路径：`/Users/zmx/Projects/aiforbn`
 - 默认环境：用户 zsh 下的 `quant`
 - 当前优先级：**结合 `docs/老師回覆.txt`，补齐更适合导师阅读的证据型摘要 artifact 与更冷静的项目文档叙事，再决定下一步单模块 coding**
 
@@ -55,6 +55,23 @@
 - `AGENTS.md`
 - `PY_FILES_SUMMARY.md`
 - `utils.py`
+
+当前新增的 AI-native inspection 层：
+- `docs/AGENT_MANIFEST.json`
+  - 机器可读的项目契约，记录入口命令、模块边界、验证命令和安全边界
+- `python3 main.py --agent-state`
+  - 输出 live JSON 项目状态
+- `python3 main.py --agent-doctor`
+  - 检查 AI-native 布局；只有缺少关键契约文件这类阻断错误才非零退出
+- `skills/ai_native_workflow.txt`
+  - 当前非空 project skill 入口，修复 `skill.txt` 指向空 `skills/` 目录的问题
+
+当前 `quant` 环境已补齐 `requirements.txt` 中完整测试需要的关键依赖：
+- `pyarrow`
+- `torch`
+
+因此新的默认广覆盖验证命令可以使用：
+- `python3 -m pytest -q src`
 
 测试布局也已随模块调整为：
 - `src/runtime/tests/`

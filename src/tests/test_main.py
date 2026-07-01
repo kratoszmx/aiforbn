@@ -373,3 +373,43 @@ def test_run_dry_run_validates_fast_smoke_path(monkeypatch, capsys):
     assert 'BN AI PoC dry run completed' in out
     assert "configured feature sets: ['basic_formula_composition', 'matminer_composition']" in out
     assert "configured model types: ['hist_gradient_boosting', 'linear_regression']" in out
+
+
+def test_run_agent_state_emits_machine_readable_project_state(monkeypatch, capsys, tmp_path):
+    spec = spec_from_file_location('main_module_under_test', ROOT / 'main.py')
+    main_module = module_from_spec(spec)
+    assert spec is not None and spec.loader is not None
+    spec.loader.exec_module(main_module)
+    calls: list[str] = []
+    state = {
+        'schema_version': 'aiforbn.agent_state.v1',
+        'status': 'ok',
+        'manifest': {'project': {'name': 'aiforbn'}},
+    }
+
+    monkeypatch.setattr(
+        main_module,
+        'build_agent_state',
+        lambda root: calls.append(f'build_agent_state:{root.name}') or state,
+    )
+    monkeypatch.setattr(
+        main_module,
+        'agent_state_to_json',
+        lambda payload: calls.append(f'agent_state_to_json:{payload["status"]}') or '{"status":"ok"}',
+    )
+    monkeypatch.setattr(
+        main_module,
+        'write_agent_state',
+        lambda payload, path: calls.append(f'write_agent_state:{Path(path).name}'),
+    )
+
+    report_path = tmp_path / 'agent_state.json'
+    report = main_module.run_agent_state(write_path=report_path, fail_on_error=True)
+
+    assert report is state
+    assert calls == [
+        'build_agent_state:aiforbn',
+        'write_agent_state:agent_state.json',
+        'agent_state_to_json:ok',
+    ]
+    assert capsys.readouterr().out == '{"status":"ok"}\n'

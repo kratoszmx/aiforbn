@@ -1,0 +1,195 @@
+{
+  "schema_version": "aiforbn.agent_manifest.v1",
+  "project": {
+    "name": "aiforbn",
+    "role": "research_grade_ai_for_bn_demo",
+    "default_environment": "conda:quant",
+    "human_onboarding_required": false,
+    "primary_entrypoint": "AGENTS.md"
+  },
+  "ai_native_contract": {
+    "optimize_for": [
+      "agent_search",
+      "agent_execution",
+      "agent_verification",
+      "agent_rollback",
+      "agent_handoff"
+    ],
+    "do_not_optimize_for": [
+      "nontechnical_human_onboarding",
+      "notebook_only_workflows",
+      "visual_only_validation"
+    ],
+    "public_principles": [
+      "repository_scoped_agent_instructions",
+      "machine_actionable_metadata",
+      "declarative_commands",
+      "stdout_stderr_status_reporting",
+      "reproducible_text_first_validation"
+    ]
+  },
+  "source_of_truth_files": [
+    "AGENTS.md",
+    "docs/AGENT_MANIFEST.json",
+    "docs/HANDOFF.md",
+    "docs/PY_FILES_SUMMARY.md",
+    "skill.txt",
+    "skills/ai_native_workflow.txt"
+  ],
+  "entrypoints": [
+    {
+      "name": "full_pipeline",
+      "command": "python3 main.py",
+      "writes_artifacts": true,
+      "expected_output": "stdout status summary plus files under artifacts/"
+    },
+    {
+      "name": "fast_smoke",
+      "command": "python3 main.py --dry-run",
+      "writes_artifacts": false,
+      "expected_output": "stdout compatibility report"
+    },
+    {
+      "name": "agent_state",
+      "command": "python3 main.py --agent-state",
+      "writes_artifacts": false,
+      "expected_output": "JSON project state on stdout"
+    },
+    {
+      "name": "agent_doctor",
+      "command": "python3 main.py --agent-doctor",
+      "writes_artifacts": false,
+      "expected_output": "JSON project state on stdout; nonzero only for blocking layout errors"
+    }
+  ],
+  "modules": [
+    {
+      "name": "runtime",
+      "path": "src/runtime",
+      "role": "config_loading_runtime_dirs_cache_schema_and_agent_state",
+      "public_surface": "src/runtime/PY_FILES_SUMMARY.md",
+      "agent_rules": "src/runtime/AGENTS.md",
+      "local_utils": "src/runtime/utils.py",
+      "allowed_dependencies": []
+    },
+    {
+      "name": "materials",
+      "path": "src/materials",
+      "role": "materials_data_features_models_benchmarks_screening_reporting_structure_handoff",
+      "public_surface": "src/materials/PY_FILES_SUMMARY.md",
+      "agent_rules": "src/materials/AGENTS.md",
+      "local_utils": "src/materials/utils.py",
+      "allowed_dependencies": [
+        "runtime",
+        "torch_models"
+      ]
+    },
+    {
+      "name": "torch_models",
+      "path": "src/torch_models",
+      "role": "repo_local_sklearn_style_torch_regressors",
+      "public_surface": "src/torch_models/PY_FILES_SUMMARY.md",
+      "agent_rules": "src/torch_models/AGENTS.md",
+      "local_utils": "src/torch_models/utils.py",
+      "allowed_dependencies": []
+    },
+    {
+      "name": "ui",
+      "path": "src/ui",
+      "role": "text_verifiable_streamlit_artifact_viewer",
+      "public_surface": "src/ui/PY_FILES_SUMMARY.md",
+      "agent_rules": "src/ui/AGENTS.md",
+      "local_utils": "src/ui/utils.py",
+      "allowed_dependencies": []
+    },
+    {
+      "name": "tests",
+      "path": "src/tests",
+      "role": "top_level_pytest_entrypoint_and_config_coverage",
+      "public_surface": "src/tests/PY_FILES_SUMMARY.md",
+      "agent_rules": "src/tests/AGENTS.md",
+      "local_utils": "src/tests/utils.py",
+      "allowed_dependencies": []
+    },
+    {
+      "name": "template",
+      "path": "src/template",
+      "role": "copyable_ai_native_module_template",
+      "public_surface": "src/template/PY_FILES_SUMMARY.md",
+      "agent_rules": "src/template/AGENTS.md",
+      "local_utils": "src/template/utils.py",
+      "allowed_dependencies": []
+    }
+  ],
+  "validation_commands": [
+    {
+      "name": "agent_doctor",
+      "command": "python3 main.py --agent-doctor",
+      "scope": "layout_manifest_git_state"
+    },
+    {
+      "name": "fast_smoke",
+      "command": "python3 main.py --dry-run",
+      "scope": "config_candidate_features_model_imports"
+    },
+    {
+      "name": "focused_regression",
+      "command": "python3 -m pytest -q src/tests/test_main.py src/runtime/tests/test_agent_state.py src/runtime/tests/test_io_utils.py",
+      "scope": "entrypoints_runtime_agent_state"
+    },
+    {
+      "name": "full_src_tests",
+      "command": "python3 -m pytest -q src",
+      "scope": "complete_src_test_suite_with_declared_dependencies"
+    }
+  ],
+  "dependency_imports": [
+    {
+      "package": "pandas",
+      "module": "pandas",
+      "required_for": "core_dataframe_work"
+    },
+    {
+      "package": "numpy",
+      "module": "numpy",
+      "required_for": "core_numeric_work"
+    },
+    {
+      "package": "scikit-learn",
+      "module": "sklearn",
+      "required_for": "model_baselines"
+    },
+    {
+      "package": "pyarrow",
+      "module": "pyarrow",
+      "required_for": "parquet_dataset_cache_and_full_pytest"
+    },
+    {
+      "package": "torch",
+      "module": "torch",
+      "required_for": "torch_model_families"
+    }
+  ],
+  "safety_boundaries": {
+    "do_not_commit_without_explicit_task": [
+      ".DS_Store",
+      "__pycache__/",
+      ".pytest_cache/",
+      "data/raw/",
+      "data/processed/",
+      "artifacts/",
+      "local environment files",
+      "credentials",
+      "private datasets",
+      "new large generated artifacts"
+    ],
+    "sensitive_but_currently_tracked": [
+      "docs/research_plan/"
+    ],
+    "default_generated_output_dirs": [
+      "artifacts/",
+      "data/raw/",
+      "data/processed/"
+    ]
+  }
+}

@@ -52,6 +52,21 @@ What it does **not** do:
 
 Use it as the short per-round smoke test before deciding whether a full `main.py` run is worth asking the user to launch.
 
+### `run_agent_state(write_path=None, fail_on_error=False)`
+Machine-readable AI-native project inspection entrypoint used by:
+- `python3 main.py --agent-state`
+- `python3 main.py --agent-doctor`
+
+What it does:
+- loads `docs/AGENT_MANIFEST.json`
+- validates source-of-truth files, module-local `AGENTS.md` / `PY_FILES_SUMMARY.md` / `utils.py` contracts, and known layout warnings
+- checks whether manifest-declared runtime imports such as `pyarrow` are available
+- reports Git branch / HEAD / remote-main state and tracked `docs/research_plan/` file count
+- prints a JSON state payload to stdout
+- exits nonzero under `--agent-doctor` only when blocking layout errors are present
+
+Use it as the first machine-readable handoff check before larger edits.
+
 ---
 
 ## Current src layout
@@ -110,6 +125,34 @@ Use before tests or batch runs, per project skill requirements.
 ### `read_json_file(path)` / `write_json_file(payload, path, ...)` / `make_json_safe(value)`
 Re-exported shared JSON helpers from `myutils`.
 Use these instead of ad hoc `json.loads(path.read_text())` or `path.write_text(json.dumps(...))` patterns when reading/writing repo artifacts.
+
+---
+
+## src/runtime/agent_state.py
+
+Purpose:
+- provides the AI-native layout manifest loader and live project-state doctor
+- keeps agent handoff metadata machine-readable rather than scattered across prose
+
+### `load_agent_manifest(project_root_path='.', manifest_path='docs/AGENT_MANIFEST.json')`
+Loads the checked-in agent manifest.
+
+### `validate_agent_layout(project_root_path='.', manifest=None)`
+Checks required agent-facing files, module contracts, and manifest-declared dependency imports.
+Returns:
+- `status`
+- `errors`
+- `warnings`
+- per-path `checks`
+
+### `build_agent_state(project_root_path='.', manifest_path='docs/AGENT_MANIFEST.json')`
+Builds the JSON-serializable live state used by `main.py --agent-state` and `main.py --agent-doctor`.
+
+### `agent_state_to_json(state)`
+Serializes the live state for stdout or log capture.
+
+### `write_agent_state(state, path)`
+Writes the live state to a JSON file.
 
 ---
 

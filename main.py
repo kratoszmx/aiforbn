@@ -11,6 +11,7 @@ SRC_DIR = ROOT / 'src'
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
+from runtime.agent_state import agent_state_to_json, build_agent_state, write_agent_state
 from runtime.io_utils import clear_project_cache, ensure_runtime_dirs, load_config
 from materials.data import STRUCTURE_SUMMARY_COLUMNS, load_or_build_dataset
 from materials.benchmarking import (
@@ -163,6 +164,16 @@ def run_dry_run() -> dict:
     print(f"screening compatible combos: {report['screening_compatible']}")
     print(f"model init status: {report['model_init_status']}")
     return report
+
+
+def run_agent_state(write_path: str | Path | None = None, fail_on_error: bool = False) -> dict:
+    state = build_agent_state(ROOT)
+    if write_path is not None:
+        write_agent_state(state, write_path)
+    print(agent_state_to_json(state))
+    if fail_on_error and state.get('status') != 'ok':
+        raise SystemExit(1)
+    return state
 
 
 def main() -> None:
@@ -506,8 +517,26 @@ if __name__ == '__main__':
         action='store_true',
         help='Run a fast smoke check for config, feature generation, candidate generation, and model imports.',
     )
+    parser.add_argument(
+        '--agent-state',
+        action='store_true',
+        help='Emit the machine-readable AI-native project state JSON without running the scientific pipeline.',
+    )
+    parser.add_argument(
+        '--agent-doctor',
+        action='store_true',
+        help='Validate the AI-native project layout and exit nonzero only for blocking layout errors.',
+    )
+    parser.add_argument(
+        '--write-agent-state',
+        type=Path,
+        default=None,
+        help='Write the AI-native project state JSON to this path; implies --agent-state.',
+    )
     args = parser.parse_args()
-    if args.dry_run:
+    if args.agent_state or args.agent_doctor or args.write_agent_state is not None:
+        run_agent_state(write_path=args.write_agent_state, fail_on_error=args.agent_doctor)
+    elif args.dry_run:
         run_dry_run()
     else:
         main()

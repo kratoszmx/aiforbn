@@ -13,6 +13,7 @@ The project combines literature/research planning, materials data pipelines, str
 - Optimize structure, names, docs, scripts, and state records for agent search, execution, verification, rollback, and handoff.
 - Do not optimize this repository for non-technical human onboarding. 見微 is not expected to run this project manually.
 - Prefer `AGENTS.md` as the root entry point. Root `README.md` should not be introduced unless an external platform requires it.
+- Treat `docs/AGENT_MANIFEST.json` plus `python3 main.py --agent-doctor` as the machine-readable project contract and first inspection command.
 - The section layout in this file is guidance, not a fixed process. If an agent invents a better workflow, record the reason in this file or a nearby state file before relying on it.
 
 ## Directory Map
@@ -33,7 +34,8 @@ The project combines literature/research planning, materials data pipelines, str
 ## Current State
 
 - Several subtrees already have local `AGENTS.md` and `PY_FILES_SUMMARY.md`; keep them aligned when changing public modules or task boundaries.
-- `docs/research_plan/` currently contains untracked research-plan source and rendered files. Do not stage them unless the task explicitly asks to preserve that research-plan bundle.
+- `docs/research_plan/` is a sensitive research-plan bundle already present in the current tracked history. Do not edit, expand, or re-stage similar generated proposal files unless the task explicitly asks for research-plan work.
+- `docs/AGENT_MANIFEST.json` records the AI-native contract for entrypoints, module boundaries, validation commands, and safety boundaries.
 - `.DS_Store`, caches, local environment files, and generated scratch outputs should remain untracked.
 
 ## Safety Boundary
@@ -45,6 +47,8 @@ The project combines literature/research planning, materials data pipelines, str
 ## Validation
 
 - Use the conda `quant` environment by default.
+- Run `python3 main.py --agent-doctor` before larger architecture/workflow edits.
+- Run `python3 main.py --dry-run` for fast config / feature / model wiring checks.
 - Run focused pytest tests for the touched module when possible.
 - If changing public functions or module boundaries, update the nearest `PY_FILES_SUMMARY.md`.
 - UI/demo changes should still have a text-verifiable path through tests, logs, or generated structured output.
