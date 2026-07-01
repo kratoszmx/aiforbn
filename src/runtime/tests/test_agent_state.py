@@ -17,13 +17,14 @@ def test_agent_manifest_loads_machine_readable_contract():
 
     assert manifest['schema_version'] == 'aiforbn.agent_manifest.v1'
     assert manifest['project']['primary_entrypoint'] == 'AGENTS.md'
+    assert manifest['project']['manual_operation_supported'] is False
     assert {module['name'] for module in manifest['modules']} >= {
         'runtime',
         'materials',
         'torch_models',
         'ui',
     }
-    assert any(entry['name'] == 'agent_doctor' for entry in manifest['entrypoints'])
+    assert any(entry['name'] == 'verify_agent_contract' for entry in manifest['entrypoints'])
 
 
 def test_validate_agent_layout_accepts_current_repo_contract():
@@ -35,6 +36,7 @@ def test_validate_agent_layout_accepts_current_repo_contract():
     assert 'docs/AGENT_MANIFEST.json' in checked_paths
     assert 'src/runtime/PY_FILES_SUMMARY.md' in checked_paths
     assert 'skills/ai_native_workflow.txt' in checked_paths
+    assert 'skill.txt' not in checked_paths
     dependency_modules = {
         check['module']
         for check in validation['checks']

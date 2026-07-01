@@ -4,7 +4,7 @@
     "name": "aiforbn",
     "role": "research_grade_ai_for_bn_demo",
     "default_environment": "conda:quant",
-    "human_onboarding_required": false,
+    "manual_operation_supported": false,
     "primary_entrypoint": "AGENTS.md"
   },
   "ai_native_contract": {
@@ -16,7 +16,8 @@
       "agent_handoff"
     ],
     "do_not_optimize_for": [
-      "nontechnical_human_onboarding",
+      "manual_onboarding",
+      "manual_operation",
       "notebook_only_workflows",
       "visual_only_validation"
     ],
@@ -33,7 +34,6 @@
     "docs/AGENT_MANIFEST.json",
     "docs/HANDOFF.md",
     "docs/PY_FILES_SUMMARY.md",
-    "skill.txt",
     "skills/ai_native_workflow.txt"
   ],
   "entrypoints": [
@@ -50,14 +50,14 @@
       "expected_output": "stdout compatibility report"
     },
     {
-      "name": "agent_state",
-      "command": "python3 main.py --agent-state",
+      "name": "emit_agent_state",
+      "command": "python3 main.py --emit-agent-state",
       "writes_artifacts": false,
       "expected_output": "JSON project state on stdout"
     },
     {
-      "name": "agent_doctor",
-      "command": "python3 main.py --agent-doctor",
+      "name": "verify_agent_contract",
+      "command": "python3 main.py --verify-agent-contract",
       "writes_artifacts": false,
       "expected_output": "JSON project state on stdout; nonzero only for blocking layout errors"
     }
@@ -123,8 +123,8 @@
   ],
   "validation_commands": [
     {
-      "name": "agent_doctor",
-      "command": "python3 main.py --agent-doctor",
+      "name": "verify_agent_contract",
+      "command": "python3 main.py --verify-agent-contract",
       "scope": "layout_manifest_git_state"
     },
     {

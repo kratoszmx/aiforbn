@@ -3,7 +3,7 @@
 ## 项目
 - 名称：AI for BN PoC
 - 路径：`/Users/zmx/Projects/aiforbn`
-- 默认环境：用户 zsh 下的 `quant`
+- 默认执行环境：agent shell 下的 `quant`
 - 当前优先级：**结合 `docs/老師回覆.txt`，补齐更适合导师阅读的证据型摘要 artifact 与更冷静的项目文档叙事，再决定下一步单模块 coding**
 
 ## 一句话结论
@@ -59,12 +59,12 @@
 当前新增的 AI-native inspection 层：
 - `docs/AGENT_MANIFEST.json`
   - 机器可读的项目契约，记录入口命令、模块边界、验证命令和安全边界
-- `python3 main.py --agent-state`
+- `python3 main.py --emit-agent-state`
   - 输出 live JSON 项目状态
-- `python3 main.py --agent-doctor`
+- `python3 main.py --verify-agent-contract`
   - 检查 AI-native 布局；只有缺少关键契约文件这类阻断错误才非零退出
 - `skills/ai_native_workflow.txt`
-  - 当前非空 project skill 入口，修复 `skill.txt` 指向空 `skills/` 目录的问题
+  - 当前 project skill 入口；根 `skill.txt` 已退役，其内容已合并进 `AGENTS.md` 和该 skill
 
 当前 `quant` 环境已补齐 `requirements.txt` 中完整测试需要的关键依赖：
 - `pyarrow`
@@ -94,13 +94,10 @@
 - `src/runtime/io_utils.py` 已对齐当前 `myutils` 的目录式布局，直接使用 `file_utils/`、`ai_utils/`、`net_utils/` 等子目录导入
 - 项目里重复出现的 JSON 读写 / JSON-safe 转换逻辑继续尽量复用 `myutils/file_utils/json_io.py`
 
-另有以下 **非本轮应编辑对象** 也在 working tree 中呈现 dirty 状态：
-- `skill.txt`
-- `skills/*.txt`
-
-注意：
-- 这些 skill 文件应继续视为**只读取、不编辑**的约束对象。
-- 若之后工作树再次出现它们的改动，commit 前必须显式排除。
+根 `skill.txt` 已不再作为入口文件；项目级 agent 规则收敛到：
+- `AGENTS.md`
+- `docs/AGENT_MANIFEST.json`
+- `skills/ai_native_workflow.txt`
 
 ## 当前默认主线与实验分界
 ### 默认主线仍保持不变
@@ -254,7 +251,7 @@
 - 结果：`2 passed`
 
 7. `main.py` 烟测：
-- 在用户 zsh / `quant` 环境里实际启动过 `python3 main.py`
+- 在 agent shell / `quant` 环境里实际启动过 `python3 main.py`
 - 修复 `src/config.py` 缺失后，程序已不再在入口阶段立即因 import/config 路径报错
 - 该运行随后进入持续计算阶段，未在本轮等待到完整结束
 
@@ -291,7 +288,7 @@
 
 因此恢复时的默认动作应是：
 1. 先读：
-   - `skill.txt`
+   - `skills/ai_native_workflow.txt`
    - `skills/template.txt`
    - `skills/workflow.txt`
    - 其余 `skills/*.txt`

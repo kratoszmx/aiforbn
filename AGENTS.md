@@ -1,19 +1,19 @@
 # AGENTS.md
 
-This repository is maintained for AI agents. Do not treat it as a human-facing app or tutorial.
+This repository is maintained for autonomous AI agents. Do not treat it as an app, tutorial, or manual workflow.
 
 ## Purpose
 
 `aiforbn` is a research-grade AI-for-BN demo project.
 
-The project combines literature/research planning, materials data pipelines, structure generation, model experiments, reporting, and UI/demo artifacts. Treat `skill.txt` and `skills/` as project-specific guidance, and treat `assets/poc_workflow_brief.txt` as an editable coding plan rather than a fixed contract.
+The project combines literature/research planning, materials data pipelines, structure generation, model experiments, reporting, and demo artifacts. Treat `skills/ai_native_workflow.txt` and the symlinked files under `skills/` as project-specific guidance. Treat `assets/deep-research-report.md` as research context and `assets/poc_workflow_brief.txt` as an editable coding plan rather than a fixed contract.
 
 ## AI-Native Working Mode
 
 - Optimize structure, names, docs, scripts, and state records for agent search, execution, verification, rollback, and handoff.
-- Do not optimize this repository for non-technical human onboarding. 見微 is not expected to run this project manually.
+- Do not optimize this repository for onboarding or manual operation.
 - Prefer `AGENTS.md` as the root entry point. Root `README.md` should not be introduced unless an external platform requires it.
-- Treat `docs/AGENT_MANIFEST.json` plus `python3 main.py --agent-doctor` as the machine-readable project contract and first inspection command.
+- Treat `docs/AGENT_MANIFEST.json` plus `python3 main.py --verify-agent-contract` as the machine-readable project contract and first inspection command.
 - The section layout in this file is guidance, not a fixed process. If an agent invents a better workflow, record the reason in this file or a nearby state file before relying on it.
 
 ## Directory Map
@@ -22,14 +22,14 @@ The project combines literature/research planning, materials data pipelines, str
 - `src/runtime/`: shared runtime schemas and IO helpers.
 - `src/template/`: template utilities.
 - `src/torch_models/`: neural model components and experiments.
-- `src/ui/`: Streamlit demo UI.
+- `src/ui/`: optional artifact viewer; not a primary operation surface.
 - `src/tests/`: cross-module tests.
 - `tasks/`: task-specific research and implementation areas.
-- `docs/`: handoff notes, project reports, research plans, and user-facing Chinese summaries.
+- `docs/`: agent handoff notes, machine-readable state, project reports, and research plans.
 - `assets/`: prompts, deep research report, and proof-of-concept planning notes.
 - `data/`: raw and processed project data.
 - `artifacts/`: generated research/demo artifacts; check sensitivity and reproducibility before committing new files.
-- `skills/`: project-specific agent guidance.
+- `skills/`: project-specific agent guidance; root `skill.txt` is intentionally retired.
 
 ## Current State
 
@@ -47,7 +47,7 @@ The project combines literature/research planning, materials data pipelines, str
 ## Validation
 
 - Use the conda `quant` environment by default.
-- Run `python3 main.py --agent-doctor` before larger architecture/workflow edits.
+- Run `python3 main.py --verify-agent-contract` before larger architecture/workflow edits.
 - Run `python3 main.py --dry-run` for fast config / feature / model wiring checks.
 - Run focused pytest tests for the touched module when possible.
 - If changing public functions or module boundaries, update the nearest `PY_FILES_SUMMARY.md`.

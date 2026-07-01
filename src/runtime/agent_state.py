@@ -123,12 +123,11 @@ def validate_agent_layout(
                     'message': f'Module `{module.get("name", "<unnamed>")}` is missing `{field}`.',
                 })
 
-    skill_text = _read_text_if_present(root / 'skill.txt')
-    if 'skills' in skill_text and not any((root / 'skills').glob('*')):
+    if (root / 'skill.txt').exists():
         warnings.append({
-            'code': 'empty_skills_directory',
-            'path': 'skills/',
-            'message': '`skill.txt` references skills/, but that directory has no files.',
+            'code': 'retired_root_skill_txt_present',
+            'path': 'skill.txt',
+            'message': 'Root skill.txt is retired; project guidance should live under AGENTS.md and skills/.',
         })
 
     if (root / 'README.md').exists():
@@ -225,7 +224,7 @@ def build_agent_state(
         'git': git_state,
         'next_agent_recommended_order': [
             'Read AGENTS.md and nearest module AGENTS.md',
-            'Run python3 main.py --agent-doctor',
+            'Run python3 main.py --verify-agent-contract',
             'Run python3 main.py --dry-run before expensive work',
             'Run focused pytest for touched modules',
             'Update PY_FILES_SUMMARY.md when public surfaces change',

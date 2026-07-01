@@ -19,7 +19,7 @@ Anything underscore-prefixed or omitted here should be treated as internal.
 - `validate_agent_layout(project_root_path='.', manifest=None)`
   - Validate required agent-facing files, module contracts, dependency imports, and known layout warnings.
 - `build_agent_state(project_root_path='.', manifest_path='docs/AGENT_MANIFEST.json')`
-  - Build the live JSON-serializable agent-state payload used by `main.py --agent-state` and `main.py --agent-doctor`.
+  - Build the live JSON-serializable agent-state payload used by `main.py --emit-agent-state` and `main.py --verify-agent-contract`.
 - `agent_state_to_json(state)`
   - Serialize an agent-state payload for stdout or logs.
 - `write_agent_state(state, path)`

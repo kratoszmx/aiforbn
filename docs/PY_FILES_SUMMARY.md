@@ -52,10 +52,10 @@ What it does **not** do:
 
 Use it as the short per-round smoke test before deciding whether a full `main.py` run is worth asking the user to launch.
 
-### `run_agent_state(write_path=None, fail_on_error=False)`
-Machine-readable AI-native project inspection entrypoint used by:
-- `python3 main.py --agent-state`
-- `python3 main.py --agent-doctor`
+### `emit_agent_state(write_path=None, fail_on_error=False)`
+Machine-readable AI-native project inspection entrypoint used by agent control commands:
+- `python3 main.py --emit-agent-state`
+- `python3 main.py --verify-agent-contract`
 
 What it does:
 - loads `docs/AGENT_MANIFEST.json`
@@ -63,7 +63,7 @@ What it does:
 - checks whether manifest-declared runtime imports such as `pyarrow` are available
 - reports Git branch / HEAD / remote-main state and tracked `docs/research_plan/` file count
 - prints a JSON state payload to stdout
-- exits nonzero under `--agent-doctor` only when blocking layout errors are present
+- exits nonzero under `--verify-agent-contract` only when blocking layout errors are present
 
 Use it as the first machine-readable handoff check before larger edits.
 
@@ -146,7 +146,7 @@ Returns:
 - per-path `checks`
 
 ### `build_agent_state(project_root_path='.', manifest_path='docs/AGENT_MANIFEST.json')`
-Builds the JSON-serializable live state used by `main.py --agent-state` and `main.py --agent-doctor`.
+Builds the JSON-serializable live state used by `main.py --emit-agent-state` and `main.py --verify-agent-contract`.
 
 ### `agent_state_to_json(state)`
 Serializes the live state for stdout or log capture.
@@ -916,8 +916,8 @@ It displays:
 ## Practical notes
 
 - Keep `main.py` linear and notebook-friendly.
-- Human-facing docs should track verified runtime behavior, not planned behavior.
+- Agent-facing docs should track verified runtime behavior, not planned behavior.
 - Before any commit or stage-worthy milestone, run:
   - cache clear via `clear_project_cache('.')` (or directly via the latest `myutils/file_utils/filesystem.delete_cache(...)` path)
   - `pytest -q src`
-  - `python3 main.py` from the user's zsh / `quant` environment
+  - `python3 main.py` from the agent shell / `quant` environment

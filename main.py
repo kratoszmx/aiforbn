@@ -166,7 +166,7 @@ def run_dry_run() -> dict:
     return report
 
 
-def run_agent_state(write_path: str | Path | None = None, fail_on_error: bool = False) -> dict:
+def emit_agent_state(write_path: str | Path | None = None, fail_on_error: bool = False) -> dict:
     state = build_agent_state(ROOT)
     if write_path is not None:
         write_agent_state(state, write_path)
@@ -518,24 +518,24 @@ if __name__ == '__main__':
         help='Run a fast smoke check for config, feature generation, candidate generation, and model imports.',
     )
     parser.add_argument(
-        '--agent-state',
+        '--emit-agent-state',
         action='store_true',
-        help='Emit the machine-readable AI-native project state JSON without running the scientific pipeline.',
+        help='Agent control: emit the machine-readable project state JSON without running the scientific pipeline.',
     )
     parser.add_argument(
-        '--agent-doctor',
+        '--verify-agent-contract',
         action='store_true',
-        help='Validate the AI-native project layout and exit nonzero only for blocking layout errors.',
+        help='Agent control: validate the AI-native project contract and exit nonzero only for blocking layout errors.',
     )
     parser.add_argument(
         '--write-agent-state',
         type=Path,
         default=None,
-        help='Write the AI-native project state JSON to this path; implies --agent-state.',
+        help='Agent control: write the project state JSON to this path; implies --emit-agent-state.',
     )
     args = parser.parse_args()
-    if args.agent_state or args.agent_doctor or args.write_agent_state is not None:
-        run_agent_state(write_path=args.write_agent_state, fail_on_error=args.agent_doctor)
+    if args.emit_agent_state or args.verify_agent_contract or args.write_agent_state is not None:
+        emit_agent_state(write_path=args.write_agent_state, fail_on_error=args.verify_agent_contract)
     elif args.dry_run:
         run_dry_run()
     else:

@@ -1,13 +1,16 @@
 AI-native workflow skill for this repository.
 
 Purpose:
-- Treat this repository as an agent-operated research codebase, not a human tutorial.
+- Treat this repository as an agent-operated research codebase, not a human tutorial or manual tool.
 - Prefer machine-readable state, text logs, explicit commands, and stable handoff records.
 - Preserve scientific honesty: candidate ranking is formula-level prioritization, not a discovery claim.
+- Project scope is AI for BN research-grade demo work.
+- Use `assets/deep-research-report.md` as research context.
+- Use `assets/poc_workflow_brief.txt` as an editable coding plan; agents may revise it when the implementation evidence justifies doing so.
 
 Default agent loop:
 1. Read root AGENTS.md, this skill, docs/AGENT_MANIFEST.json, docs/HANDOFF.md, and the nearest module AGENTS.md before changing a module.
-2. Run `python3 main.py --agent-doctor` before larger edits to inspect the current AI-native contract.
+2. Run `python3 main.py --verify-agent-contract` before larger edits to inspect the current AI-native contract.
 3. Use `python3 main.py --dry-run` for fast wiring checks before deciding whether a full pipeline run is justified.
 4. Update the nearest PY_FILES_SUMMARY.md whenever public functions, classes, commands, or module boundaries change.
 5. Keep generated artifacts, data caches, credentials, and local runtime files out of commits unless the current task explicitly asks for them.

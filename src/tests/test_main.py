@@ -375,7 +375,7 @@ def test_run_dry_run_validates_fast_smoke_path(monkeypatch, capsys):
     assert "configured model types: ['hist_gradient_boosting', 'linear_regression']" in out
 
 
-def test_run_agent_state_emits_machine_readable_project_state(monkeypatch, capsys, tmp_path):
+def test_emit_agent_state_emits_machine_readable_project_state(monkeypatch, capsys, tmp_path):
     spec = spec_from_file_location('main_module_under_test', ROOT / 'main.py')
     main_module = module_from_spec(spec)
     assert spec is not None and spec.loader is not None
@@ -404,7 +404,7 @@ def test_run_agent_state_emits_machine_readable_project_state(monkeypatch, capsy
     )
 
     report_path = tmp_path / 'agent_state.json'
-    report = main_module.run_agent_state(write_path=report_path, fail_on_error=True)
+    report = main_module.emit_agent_state(write_path=report_path, fail_on_error=True)
 
     assert report is state
     assert calls == [
