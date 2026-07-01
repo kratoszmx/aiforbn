@@ -1,0 +1,4 @@
+interface:
+  display_name: "AI-for-BN Workflow"
+  short_description: "Work safely inside the aiforbn repo."
+  default_prompt: "Use $aiforbn-workflow to plan and verify this aiforbn repository task."
