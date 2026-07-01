@@ -83,9 +83,12 @@ JSON_SECTIONS = [
 
 
 def render_streamlit_app() -> None:
-    st.set_page_config(page_title='BN Explorer', layout='wide')
-    st.title('BN Explorer')
-    st.write('Minimal PoC UI for BN property prediction, grouped evaluation, and demo candidate ranking.')
+    st.set_page_config(page_title='AI-Powered Boron Nitride Material Exploration', layout='wide')
+    st.title('AI-Powered Boron Nitride Material Exploration')
+    st.write(
+        'Uncertainty-aware Boron Nitride formula-level exploration '
+        'pipeline with transparent candidate prioritization and structure follow-up outputs.'
+    )
 
     if ARTIFACT_PATHS['metrics'].exists():
         st.subheader('Metrics')

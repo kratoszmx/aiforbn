@@ -64,15 +64,15 @@ def test_default_config_has_expected_poc_defaults():
     )
     assert cfg['bn_stratified_error']['group_column'] == 'formula'
     assert cfg['bn_stratified_error']['n_splits'] == 5
-    assert cfg['screening']['objective_name'] == 'bn_themed_formula_level_wide_gap_followup_prioritization'
+    assert cfg['screening']['objective_name'] == 'ai_powered_boron_nitride_material_exploration'
     assert cfg['screening']['objective_target_property'] == 'band_gap'
-    assert cfg['screening']['objective_target_direction'] == 'maximize'
+    assert cfg['screening']['objective_target_direction'] == 'target_window_proxy'
     assert cfg['screening']['objective_decision_unit'] == 'formula_level_candidate'
     assert (
         cfg['screening']['objective_decision_consequence']
         == 'low_confidence_prioritization_for_structure_followup'
     )
-    assert 'not a direct' in cfg['screening']['objective_note']
+    assert 'candidate-prioritization pipeline' in cfg['screening']['objective_note']
     assert cfg['screening']['candidate_generation_strategy'] == 'bn_anchored_formula_family_grid'
     assert cfg['screening']['candidate_space_name'] == 'bn_anchored_formula_family_grid'
     assert cfg['screening']['candidate_space_kind'] == 'bn_family_demo'

@@ -239,6 +239,24 @@ def _decision_policy_config(cfg: dict | None = None) -> dict[str, object]:
         'minimum_top_10_selection_frequency': float(
             policy_cfg.get('minimum_top_10_selection_frequency', 0.5)
         ),
+        'application_tracks': policy_cfg.get('application_tracks', [
+            {
+                'label': 'uv_wide_band_gap',
+                'target_window_eV': [4.5, 6.5],
+                'note': (
+                    'Formula-stage proxy for the UV/wide-band-gap track. Direct-gap '
+                    'evidence is unavailable until structure-resolved follow-up.'
+                ),
+            },
+            {
+                'label': 'dielectric_2d_support',
+                'target_window_eV': [4.5, 8.0],
+                'note': (
+                    'Formula-stage broad insulating-gap proxy for dielectric / 2D-support '
+                    'candidates; dielectric tensors and stability require structures.'
+                ),
+            },
+        ]),
         'note': str(
             policy_cfg.get(
                 'note',
@@ -250,4 +268,3 @@ def _decision_policy_config(cfg: dict | None = None) -> dict[str, object]:
             )
         ),
     }
-

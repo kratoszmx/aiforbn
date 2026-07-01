@@ -97,12 +97,12 @@ def test_reporting_writes_expected_artifacts(tmp_path):
             'note': 'demo bn stratified error note',
         },
         'screening': {
-            'objective_name': 'bn_themed_formula_level_wide_gap_followup_prioritization',
+            'objective_name': 'ai_powered_boron_nitride_material_exploration',
             'objective_target_property': 'band_gap',
-            'objective_target_direction': 'maximize',
+            'objective_target_direction': 'target_window_proxy',
             'objective_decision_unit': 'formula_level_candidate',
             'objective_decision_consequence': 'low_confidence_prioritization_for_structure_followup',
-            'objective_note': 'Use the ranking as low-confidence formula-level prioritization for structure follow-up, not direct discovery.',
+            'objective_note': 'Uncertainty-aware BN-material candidate prioritization for downstream structure exploration, not direct discovery.',
             'candidate_generation_strategy': 'bn_anchored_formula_family_grid',
             'candidate_space_name': 'bn_anchored_formula_family_grid',
             'candidate_space_kind': 'bn_family_demo',
@@ -990,6 +990,17 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     assert experiment_summary['screening']['decision_policy']['artifact'] == (
         'demo_candidate_ranking_uncertainty.csv'
     )
+    assert experiment_summary['screening']['decision_policy']['application_tracks'][0] == {
+        'label': 'uv_wide_band_gap',
+        'target_window_eV': [4.5, 6.5],
+        'note': (
+            'Formula-stage proxy for the UV/wide-band-gap track. Direct-gap '
+            'evidence is unavailable until structure-resolved follow-up.'
+        ),
+    }
+    assert experiment_summary['screening']['decision_policy']['application_tracks'][1][
+        'label'
+    ] == 'dielectric_2d_support'
     assert experiment_summary['screening']['decision_policy']['abstained_candidate_count'] >= 0
     assert experiment_summary['screening']['candidate_annotations'] == [
         'candidate_family',
@@ -1113,6 +1124,11 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         'abstain_flag',
         'reason_for_abstention',
         'final_action_label',
+        'recommended_action_label',
+        'application_track_primary',
+        'application_track_secondary',
+        'application_track_target_window_eV',
+        'application_track_note',
     ]
     assert (artifact_dir / 'predictions.csv').exists()
     assert (artifact_dir / 'bn_slice.csv').exists()
@@ -1189,6 +1205,26 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         == len(followup_report_df)
     )
     assert (artifact_dir / 'demo_candidate_ranking_uncertainty.csv').exists()
+    uncertainty_df = pd.read_csv(artifact_dir / 'demo_candidate_ranking_uncertainty.csv')
+    assert {'control', 'priority', 'explore', 'hold'}.issuperset(
+        set(uncertainty_df['final_action_label'].dropna().unique().tolist())
+    )
+    assert {'control', 'priority', 'explore', 'hold'}.issuperset(
+        set(uncertainty_df['recommended_action_label'].dropna().unique().tolist())
+    )
+    assert uncertainty_df['final_action_label'].equals(
+        uncertainty_df['recommended_action_label']
+    )
+    assert uncertainty_df['application_track_target_window_eV'].dropna().isin(
+        {'4.5-6.5', '4.5-8'}
+    ).all()
+    assert {
+        'application_track_primary',
+        'application_track_secondary',
+        'application_track_target_window_eV',
+        'application_track_note',
+        'recommended_action_label',
+    }.issubset(set(uncertainty_df.columns))
     assert (artifact_dir / 'demo_candidate_structure_generation_seeds.csv').exists()
     assert (artifact_dir / 'demo_candidate_structure_generation_handoff.json').exists()
     assert (artifact_dir / 'demo_candidate_structure_generation_reference_records.json').exists()

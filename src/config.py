@@ -188,16 +188,16 @@ CONFIG = {
             'feasibility, or real discovery.'
         ),
         'ranking_label': 'demo_candidate_ranking',
-        'objective_name': 'bn_themed_formula_level_wide_gap_followup_prioritization',
+        'objective_name': 'ai_powered_boron_nitride_material_exploration',
         'objective_target_property': 'band_gap',
-        'objective_target_direction': 'maximize',
+        'objective_target_direction': 'target_window_proxy',
         'objective_decision_unit': 'formula_level_candidate',
         'objective_decision_consequence': 'low_confidence_prioritization_for_structure_followup',
         'objective_note': (
-            'The screening objective is to prioritize BN-themed formula-level candidates with '
-            'higher predicted band gap for downstream structure follow-up. This is not a direct '
-            'BN discovery claim, a calibrated confidence estimate, or a proof of structure '
-            'stability/synthesizability.'
+            'The screening objective is uncertainty-aware BN-material exploration at the formula level: '
+            'prioritize BN-themed candidates by predicted band gap for downstream structure-follow-up. '
+            'This is a candidate-prioritization pipeline, not a direct discovery claim, structure '
+            'stability guarantee, synthesis feasibility claim, or calibrated confidence estimate.'
         ),
         'use_model_disagreement': True,
         'uncertainty_method': 'small_feature_model_disagreement',
@@ -391,6 +391,24 @@ CONFIG = {
             'prediction_std_above_quantile': 0.75,
             'rank_std_above_quantile': 0.75,
             'minimum_top_10_selection_frequency': 0.5,
+            'application_tracks': [
+                {
+                    'label': 'uv_wide_band_gap',
+                    'target_window_eV': [4.5, 6.5],
+                    'note': (
+                        'Formula-stage proxy for the UV/wide-band-gap track. Direct-gap '
+                        'evidence is unavailable until structure-resolved follow-up.'
+                    ),
+                },
+                {
+                    'label': 'dielectric_2d_support',
+                    'target_window_eV': [4.5, 8.0],
+                    'note': (
+                        'Formula-stage broad insulating-gap proxy for dielectric / 2D-support '
+                        'candidates; dielectric tensors and stability require structures.'
+                    ),
+                },
+            ],
             'note': (
                 'Turns the formula-level ranking into a lightweight decision policy by combining '
                 'chemical plausibility, domain support, BN-local support, prediction/rank '

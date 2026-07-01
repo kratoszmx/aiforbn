@@ -77,7 +77,7 @@ def test_streamlit_app_reads_generated_artifacts(tmp_path, monkeypatch):
     spec.loader.exec_module(module)
     module.render_streamlit_app()
 
-    assert ('title', 'BN Explorer') in fake_streamlit.calls
+    assert ('title', 'AI-Powered Boron Nitride Material Exploration') in fake_streamlit.calls
     assert ('subheader', 'Metrics') in fake_streamlit.calls
     assert ('subheader', 'Experiment summary') in fake_streamlit.calls
     assert ('subheader', 'Benchmark results') in fake_streamlit.calls

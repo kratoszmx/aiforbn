@@ -953,6 +953,91 @@ def _candidate_ranking_uncertainty_table(
 ) -> tuple[pd.DataFrame, dict[str, object]]:
     stability_cfg = _ranking_stability_config(cfg)
     decision_cfg = _decision_policy_config(cfg)
+    application_tracks = decision_cfg.get('application_tracks') or []
+    if not isinstance(application_tracks, list):
+        application_tracks = []
+
+    def _normalize_application_track_defs(raw_tracks: list[object]) -> list[dict[str, object]]:
+        normalized_tracks: list[dict[str, object]] = []
+        for raw_track in raw_tracks:
+            if not isinstance(raw_track, dict):
+                continue
+            track_label = (
+                _safe_text(raw_track.get('label'))
+                or _safe_text(raw_track.get('name'))
+                or _safe_text(raw_track.get('track_label'))
+            )
+            if not track_label:
+                continue
+            window = raw_track.get('target_window_eV')
+            if not isinstance(window, (list, tuple)) or len(window) != 2:
+                continue
+            try:
+                lower = float(window[0])
+                upper = float(window[1])
+            except (TypeError, ValueError):
+                continue
+            if pd.isna(lower) or pd.isna(upper):
+                continue
+            window_lower, window_upper = (lower, upper) if lower <= upper else (upper, lower)
+            normalized_tracks.append(
+                {
+                    'label': track_label,
+                    'target_window_eV': [float(window_lower), float(window_upper)],
+                    'note': _safe_text(raw_track.get('note')) or '',
+                }
+            )
+        return normalized_tracks
+
+    application_tracks = _normalize_application_track_defs(application_tracks)
+
+    def _infer_application_tracks(
+        predicted_band_gap: float | None,
+    ) -> tuple[str | None, str | None, str | None, str | None]:
+        if (
+            predicted_band_gap is None
+            or pd.isna(predicted_band_gap)
+            or not application_tracks
+        ):
+            return None, None, None, None
+        candidates: list[tuple[float, dict[str, object]]] = []
+        for track in application_tracks:
+            track_window = track['target_window_eV']
+            if (
+                not isinstance(track_window, list)
+                or len(track_window) != 2
+                or pd.isna(track_window[0])
+                or pd.isna(track_window[1])
+            ):
+                continue
+            lower_bound = float(track_window[0])
+            upper_bound = float(track_window[1])
+            if lower_bound <= float(predicted_band_gap) <= upper_bound:
+                distance = 0.0
+            else:
+                distance = min(
+                    abs(float(predicted_band_gap) - lower_bound),
+                    abs(float(predicted_band_gap) - upper_bound),
+                )
+            candidates.append((distance, track))
+        if not candidates:
+            return None, None, None, None
+        candidates.sort(key=lambda candidate: candidate[0])
+        primary_track = candidates[0][1]
+        secondary_label = candidates[1][1]['label'] if len(candidates) > 1 else None
+        primary_window = primary_track.get('target_window_eV')
+        if not isinstance(primary_window, list):
+            primary_window = None
+        window_text = None
+        if primary_window is not None and len(primary_window) == 2:
+            window_text = f'{float(primary_window[0]):g}-{float(primary_window[1]):g}'
+        return (
+            _safe_text(primary_track.get('label')),
+            _safe_text(secondary_label),
+            window_text,
+            _safe_text(primary_track.get('note')),
+        )
+
     top_k_reference = int((cfg.get('screening') or {}).get('top_k', 10))
     requested_top_k_values = sorted({*stability_cfg['top_k_values'], top_k_reference})
     source_prediction_df = _build_candidate_ranking_source_predictions(
@@ -993,6 +1078,7 @@ def _candidate_ranking_uncertainty_table(
         'proposal_shortlist_rank',
         'extrapolation_shortlist_selected',
         'extrapolation_shortlist_rank',
+        'bn_band_gap_alignment_label',
     ]
     selected_columns = [column for column in selected_columns if column in summary_df.columns]
     summary_df = summary_df[selected_columns].copy()
@@ -1118,6 +1204,10 @@ def _candidate_ranking_uncertainty_table(
     abstain_reasons = []
     abstain_flags = []
     final_action_labels = []
+    application_track_primaries: list[str | None] = []
+    application_track_secondaries: list[str | None] = []
+    application_track_target_windows: list[str | None] = []
+    application_track_notes: list[str | None] = []
     for _, row in summary_df.iterrows():
         chemical_plausibility_pass = bool(row.get('chemical_plausibility_pass', True))
         candidate_novelty_bucket = str(row.get('candidate_novelty_bucket', ''))
@@ -1135,6 +1225,16 @@ def _candidate_ranking_uncertainty_table(
         top_10_frequency = pd.to_numeric(
             pd.Series([row.get(top_10_frequency_column)]), errors='coerce'
         ).iloc[0]
+        predicted_band_gap = pd.to_numeric(
+            pd.Series([row.get('predicted_band_gap')]), errors='coerce'
+        ).iloc[0]
+        bn_band_gap_alignment_label = _safe_text(row.get('bn_band_gap_alignment_label'))
+        if bn_band_gap_alignment_label == 'below_local_bn_analog_band_gap_window':
+            reasons.append('target_window_below')
+        elif bn_band_gap_alignment_label == 'above_local_bn_analog_band_gap_window':
+            reasons.append('target_window_above')
+        elif bn_band_gap_alignment_label == 'within_local_bn_analog_band_gap_window':
+            pass
         if chemical_plausibility_pass:
             if pd.notna(domain_support_percentile) and (
                 float(domain_support_percentile)
@@ -1158,24 +1258,42 @@ def _candidate_ranking_uncertainty_table(
                 float(top_10_frequency) < float(decision_cfg['minimum_top_10_selection_frequency'])
             ):
                 reasons.append('low_top_10_selection_frequency')
-        abstain_flag = bool(chemical_plausibility_pass and len(reasons) > 0)
+            if pd.notna(predicted_band_gap) and predicted_band_gap < 0.0:
+                reasons.append('nonphysical_negative_band_gap')
+        abstain_flag = bool(
+            (chemical_plausibility_pass and len(reasons) > 0)
+            or (not chemical_plausibility_pass)
+        )
+        application_track_primary, application_track_secondary, application_track_window, application_track_note = (
+            _infer_application_tracks(_safe_float(predicted_band_gap))
+        )
         if not chemical_plausibility_pass:
-            final_action_label = 'reject_formula_level'
+            recommended_action_label = 'hold'
         elif candidate_novelty_bucket == NOVELTY_BUCKET_TRAIN_PLUS_VAL_REDISCOVERY:
-            final_action_label = 'reuse_reference_control'
+            recommended_action_label = 'control'
         elif abstain_flag:
-            final_action_label = 'abstain_model_unreliable'
+            recommended_action_label = 'hold'
         elif bool(row.get('structure_followup_shortlist_selected', False)):
-            final_action_label = 'low_risk_followup'
+            recommended_action_label = 'priority'
         else:
-            final_action_label = 'uncertain_but_interesting'
+            recommended_action_label = 'explore'
+        final_action_label = recommended_action_label
         abstain_reasons.append('|'.join(reasons))
         abstain_flags.append(abstain_flag)
         final_action_labels.append(final_action_label)
+        application_track_primaries.append(application_track_primary)
+        application_track_secondaries.append(application_track_secondary)
+        application_track_target_windows.append(application_track_window)
+        application_track_notes.append(application_track_note)
 
     summary_df['abstain_flag'] = abstain_flags
     summary_df['reason_for_abstention'] = abstain_reasons
     summary_df['final_action_label'] = final_action_labels
+    summary_df['recommended_action_label'] = final_action_labels
+    summary_df['application_track_primary'] = application_track_primaries
+    summary_df['application_track_secondary'] = application_track_secondaries
+    summary_df['application_track_target_window_eV'] = application_track_target_windows
+    summary_df['application_track_note'] = application_track_notes
     if 'ranking_rank' not in summary_df.columns:
         summary_df['ranking_rank'] = np.arange(1, len(summary_df) + 1, dtype=int)
     summary_df = summary_df.sort_values(

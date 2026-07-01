@@ -1164,10 +1164,13 @@ def build_experiment_summary(
             'objective': {
                 'name': cfg['screening'].get(
                     'objective_name',
-                    'bn_themed_formula_level_wide_gap_followup_prioritization',
+                    'ai_powered_boron_nitride_material_exploration',
                 ),
                 'target_property': cfg['screening'].get('objective_target_property', target_col),
-                'target_direction': cfg['screening'].get('objective_target_direction', 'maximize'),
+                'target_direction': cfg['screening'].get(
+                    'objective_target_direction',
+                    'target_window_proxy',
+                ),
                 'decision_unit': cfg['screening'].get(
                     'objective_decision_unit',
                     'formula_level_candidate',
@@ -1178,8 +1181,10 @@ def build_experiment_summary(
                 ),
                 'note': cfg['screening'].get(
                     'objective_note',
-                    'The screening objective is low-confidence formula-level candidate '
-                    'prioritization for downstream structure follow-up, not direct discovery.',
+                    'The screening objective is uncertainty-aware BN-material exploration at the '
+                    'formula level. It is a candidate-prioritization pipeline for downstream '
+                    'structure follow-up, not direct discovery, stability, synthesis feasibility, '
+                    'or calibrated confidence claims.',
                 ),
             },
             'candidate_family_counts': candidate_family_counts,
@@ -1246,10 +1251,14 @@ def build_experiment_summary(
                 'minimum_top_10_selection_frequency': float(
                     decision_policy_cfg['minimum_top_10_selection_frequency']
                 ),
+                'application_tracks': decision_policy_cfg['application_tracks'],
                 'abstained_candidate_count': int(
                     candidate_ranking_uncertainty_summary['abstained_candidate_count']
                 ),
                 'final_action_counts': candidate_ranking_uncertainty_summary['final_action_counts'],
+                'recommended_action_counts': candidate_ranking_uncertainty_summary[
+                    'final_action_counts'
+                ],
             },
             **proposal_shortlist_summary,
             **extrapolation_shortlist_summary,
@@ -1533,6 +1542,11 @@ def build_experiment_summary(
                 'abstain_flag',
                 'reason_for_abstention',
                 'final_action_label',
+                'recommended_action_label',
+                'application_track_primary',
+                'application_track_secondary',
+                'application_track_target_window_eV',
+                'application_track_note',
             ],
         },
     }
