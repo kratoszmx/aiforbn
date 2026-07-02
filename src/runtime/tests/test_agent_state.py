@@ -282,6 +282,31 @@ def test_validate_agent_layout_rejects_incomplete_source_of_truth_surface(
 
 
 @pytest.mark.parametrize(
+    'mutate_manifest',
+    [
+        lambda manifest: manifest.update({'modules': []}),
+        lambda manifest: manifest.update({
+            'modules': [
+                module
+                for module in manifest['modules']
+                if module['name'] != 'runtime'
+            ],
+        }),
+    ],
+)
+def test_validate_agent_layout_rejects_incomplete_module_contract_surface(
+    mutate_manifest,
+):
+    manifest = json.loads(json.dumps(load_agent_manifest(ROOT)))
+    mutate_manifest(manifest)
+
+    validation = validate_agent_layout(ROOT, manifest)
+
+    assert validation['status'] == 'error'
+    assert any(error['code'] == 'missing_required_modules' for error in validation['errors'])
+
+
+@pytest.mark.parametrize(
     ('mutate_alignment', 'expected_error_code'),
     [
         (

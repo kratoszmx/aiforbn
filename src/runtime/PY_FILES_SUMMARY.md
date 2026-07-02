@@ -23,7 +23,7 @@ Anything underscore-prefixed or omitted here should be treated as internal.
 - `load_agent_manifest(project_root_path='.', manifest_path='docs/AGENT_MANIFEST.json')`
   - Load the checked-in machine-readable AI-native manifest.
 - `validate_agent_layout(project_root_path='.', manifest=None)`
-  - Validate required agent-facing files, source-of-truth surfaces, command surfaces, module contracts, exact v18 source-file and ordered deliverable-chain alignment, validation profiles, dependency imports, and known layout warnings.
+  - Validate required agent-facing files, source-of-truth surfaces, command surfaces, module contract surfaces, exact v18 source-file and ordered deliverable-chain alignment, validation profiles, dependency imports, and known layout warnings.
 - `build_agent_state(project_root_path='.', manifest_path='docs/AGENT_MANIFEST.json')`
   - Build the live JSON-serializable agent-state payload used by `main.py --emit-agent-state` and `main.py --verify-agent-contract`.
 - `build_agent_command_index(project_root_path='.', manifest_path='docs/AGENT_MANIFEST.json')`

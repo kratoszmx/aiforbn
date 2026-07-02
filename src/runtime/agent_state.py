@@ -67,6 +67,15 @@ REQUIRED_SOURCE_OF_TRUTH_FILES = {
     'skills/ai_native_workflow.txt',
 }
 
+REQUIRED_MODULE_NAMES = {
+    'runtime',
+    'materials',
+    'torch_models',
+    'ui',
+    'tests',
+    'template',
+}
+
 
 def _project_root(path: str | Path = '.') -> Path:
     return Path(path).expanduser().resolve()
@@ -452,6 +461,19 @@ def validate_agent_layout(
             'message': 'Manifest field `modules` must be a list.',
         })
         modules = []
+    else:
+        module_names = {
+            module.get('name')
+            for module in modules
+            if isinstance(module, dict) and isinstance(module.get('name'), str)
+        }
+        missing_modules = sorted(REQUIRED_MODULE_NAMES - module_names)
+        if missing_modules:
+            errors.append({
+                'code': 'missing_required_modules',
+                'path': 'docs/AGENT_MANIFEST.json:modules',
+                'message': f'Missing required module contract names: {missing_modules}',
+            })
     for module in modules:
         if not isinstance(module, dict):
             errors.append({
