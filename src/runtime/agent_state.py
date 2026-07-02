@@ -10,6 +10,11 @@ from typing import Any
 
 DEFAULT_AGENT_MANIFEST_PATH = Path('docs/AGENT_MANIFEST.json')
 
+REQUIRED_RESEARCH_PLAN_SOURCE_FILES = (
+    'human_docs/research_plan/ai_for_bn_research_plan_v18.tex',
+    'human_docs/research_plan/ai_for_bn_research_plan_v18.bib',
+)
+
 REQUIRED_RESEARCH_PLAN_ALIGNMENT_ANCHORS = {
     'bounded_bn_centered_design_space',
     'provenance_aware_bn_data_layer',
@@ -171,6 +176,17 @@ def _validate_research_plan_alignment(
                     'path': relative_path,
                     'message': f'Research-plan alignment source is missing or not a file: {relative_path}',
                 })
+        if all(isinstance(source_file, str) for source_file in source_files) and (
+            source_files != list(REQUIRED_RESEARCH_PLAN_SOURCE_FILES)
+        ):
+            errors.append({
+                'code': 'unexpected_research_plan_alignment_sources',
+                'path': 'docs/AGENT_MANIFEST.json:research_plan_alignment.source_files',
+                'message': (
+                    '`research_plan_alignment.source_files` must exactly match '
+                    f'{list(REQUIRED_RESEARCH_PLAN_SOURCE_FILES)}.'
+                ),
+            })
 
     anchors = alignment.get('implementation_anchors', [])
     if not isinstance(anchors, list) or not all(

@@ -174,6 +174,16 @@ def test_validate_agent_layout_rejects_incomplete_v18_alignment_contract():
         ),
         (
             lambda alignment: alignment.update({
+                'source_files': [
+                    'human_docs/research_plan/ai_for_bn_research_plan_v18.tex',
+                    'human_docs/research_plan/ai_for_bn_research_plan_v18.bib',
+                    'AGENTS.md',
+                ],
+            }),
+            'unexpected_research_plan_alignment_sources',
+        ),
+        (
+            lambda alignment: alignment.update({
                 'non_claims': ['open_ended_material_discovery'],
             }),
             'missing_research_plan_non_claims',
