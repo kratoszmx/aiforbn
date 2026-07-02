@@ -11,6 +11,12 @@ Anything underscore-prefixed or omitted here should be treated as internal.
   - Create the configured runtime directories needed by the project.
 - `clear_project_cache(project_root_path='.')`
   - Delete Python/cache artifacts for the project root.
+- `read_json_file(path)`
+  - Read JSON through the shared `myutils/file_utils/json_io.py` helper.
+- `write_json_file(payload, path, ...)`
+  - Write JSON through the shared `myutils/file_utils/json_io.py` helper.
+- `make_json_safe(value)`
+  - Convert numpy/pandas/path-like values into JSON-serializable objects through `myutils`.
 
 ## agent_state.py
 
