@@ -166,6 +166,36 @@ def test_validate_agent_layout_rejects_incomplete_v18_alignment_contract():
 
 
 @pytest.mark.parametrize(
+    ('mutate_manifest', 'expected_error_code'),
+    [
+        (
+            lambda manifest: manifest.pop('validation_profiles'),
+            'invalid_validation_profiles',
+        ),
+        (
+            lambda manifest: manifest.update({'validation_profiles': []}),
+            'invalid_validation_profiles',
+        ),
+        (
+            lambda manifest: manifest['validation_profiles'][0].pop('use_when'),
+            'missing_validation_profile_use_when',
+        ),
+    ],
+)
+def test_validate_agent_layout_rejects_incomplete_validation_profiles(
+    mutate_manifest,
+    expected_error_code,
+):
+    manifest = json.loads(json.dumps(load_agent_manifest(ROOT)))
+    mutate_manifest(manifest)
+
+    validation = validate_agent_layout(ROOT, manifest)
+
+    assert validation['status'] == 'error'
+    assert any(error['code'] == expected_error_code for error in validation['errors'])
+
+
+@pytest.mark.parametrize(
     ('mutate_alignment', 'expected_error_code'),
     [
         (

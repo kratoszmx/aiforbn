@@ -306,58 +306,64 @@ def validate_agent_layout(
         errors,
     )
     validation_profiles = manifest_payload.get('validation_profiles', [])
-    if validation_profiles:
-        if not isinstance(validation_profiles, list):
-            errors.append({
-                'code': 'invalid_validation_profiles',
-                'path': 'docs/AGENT_MANIFEST.json',
-                'message': 'Manifest field `validation_profiles` must be a list when present.',
-            })
-        else:
-            seen_profiles: set[str] = set()
-            for index, profile in enumerate(validation_profiles):
-                if not isinstance(profile, dict):
-                    errors.append({
-                        'code': 'invalid_validation_profile',
-                        'path': f'docs/AGENT_MANIFEST.json:validation_profiles[{index}]',
-                        'message': 'Every validation profile must be a JSON object.',
-                    })
-                    continue
-                profile_name = str(profile.get('name', '')).strip()
-                if not profile_name:
-                    errors.append({
-                        'code': 'missing_validation_profile_name',
-                        'path': f'docs/AGENT_MANIFEST.json:validation_profiles[{index}]',
-                        'message': 'Every validation profile needs a stable `name`.',
-                    })
-                elif profile_name in seen_profiles:
-                    errors.append({
-                        'code': 'duplicate_validation_profile_name',
-                        'path': f'docs/AGENT_MANIFEST.json:validation_profiles[{index}]',
-                        'message': f'Duplicate validation profile name: {profile_name}',
-                    })
-                else:
-                    seen_profiles.add(profile_name)
-                commands = profile.get('commands', [])
-                if not isinstance(commands, list) or not all(
-                    isinstance(command, str) and command.strip() for command in commands
-                ):
-                    errors.append({
-                        'code': 'invalid_validation_profile_commands',
-                        'path': f'docs/AGENT_MANIFEST.json:validation_profiles[{index}]',
-                        'message': 'Validation profile `commands` must be a non-empty string list.',
-                    })
-                    continue
-                missing_commands = sorted(set(commands) - validation_command_names)
-                if missing_commands:
-                    errors.append({
-                        'code': 'validation_profile_unknown_command',
-                        'path': f'docs/AGENT_MANIFEST.json:validation_profiles[{index}]',
-                        'message': (
-                            f'Validation profile `{profile_name}` references unknown '
-                            f'validation command names: {missing_commands}'
-                        ),
-                    })
+    if not isinstance(validation_profiles, list) or not validation_profiles:
+        errors.append({
+            'code': 'invalid_validation_profiles',
+            'path': 'docs/AGENT_MANIFEST.json',
+            'message': 'Manifest field `validation_profiles` must be a non-empty list.',
+        })
+    else:
+        seen_profiles: set[str] = set()
+        for index, profile in enumerate(validation_profiles):
+            if not isinstance(profile, dict):
+                errors.append({
+                    'code': 'invalid_validation_profile',
+                    'path': f'docs/AGENT_MANIFEST.json:validation_profiles[{index}]',
+                    'message': 'Every validation profile must be a JSON object.',
+                })
+                continue
+            profile_name = str(profile.get('name', '')).strip()
+            if not profile_name:
+                errors.append({
+                    'code': 'missing_validation_profile_name',
+                    'path': f'docs/AGENT_MANIFEST.json:validation_profiles[{index}]',
+                    'message': 'Every validation profile needs a stable `name`.',
+                })
+            elif profile_name in seen_profiles:
+                errors.append({
+                    'code': 'duplicate_validation_profile_name',
+                    'path': f'docs/AGENT_MANIFEST.json:validation_profiles[{index}]',
+                    'message': f'Duplicate validation profile name: {profile_name}',
+                })
+            else:
+                seen_profiles.add(profile_name)
+            use_when = str(profile.get('use_when', '')).strip()
+            if not use_when:
+                errors.append({
+                    'code': 'missing_validation_profile_use_when',
+                    'path': f'docs/AGENT_MANIFEST.json:validation_profiles[{index}]',
+                    'message': 'Every validation profile needs a non-empty `use_when` selector.',
+                })
+            commands = profile.get('commands', [])
+            if not isinstance(commands, list) or not all(
+                isinstance(command, str) and command.strip() for command in commands
+            ):
+                errors.append({
+                    'code': 'invalid_validation_profile_commands',
+                    'path': f'docs/AGENT_MANIFEST.json:validation_profiles[{index}]',
+                    'message': 'Validation profile `commands` must be a non-empty string list.',
+                })
+                continue
+            missing_commands = sorted(set(commands) - validation_command_names)
+            if missing_commands:
+                errors.append({
+                    'code': 'validation_profile_unknown_command',
+                    'path': f'docs/AGENT_MANIFEST.json:validation_profiles[{index}]',
+                    'message': (
+                        f'Validation profile `{profile_name}` references unknown '
+                        f'validation command names: {missing_commands}'
+                    ),
+                })
 
     required_paths = list(manifest_payload.get('source_of_truth_files', []))
     required_paths.extend([
