@@ -196,6 +196,56 @@ def test_validate_agent_layout_rejects_incomplete_validation_profiles(
 
 
 @pytest.mark.parametrize(
+    ('mutate_manifest', 'expected_error_code'),
+    [
+        (
+            lambda manifest: manifest.update({
+                'entrypoints': [
+                    entry
+                    for entry in manifest['entrypoints']
+                    if entry['name'] != 'emit_agent_commands'
+                ],
+            }),
+            'missing_required_entrypoints',
+        ),
+        (
+            lambda manifest: (
+                manifest.update({
+                    'validation_commands': [
+                        command
+                        for command in manifest['validation_commands']
+                        if command['name'] != 'full_src_tests'
+                    ],
+                }),
+                [
+                    profile.update({
+                        'commands': [
+                            command
+                            for command in profile['commands']
+                            if command != 'full_src_tests'
+                        ],
+                    })
+                    for profile in manifest['validation_profiles']
+                ],
+            ),
+            'missing_required_validation_commands',
+        ),
+    ],
+)
+def test_validate_agent_layout_rejects_incomplete_command_surface(
+    mutate_manifest,
+    expected_error_code,
+):
+    manifest = json.loads(json.dumps(load_agent_manifest(ROOT)))
+    mutate_manifest(manifest)
+
+    validation = validate_agent_layout(ROOT, manifest)
+
+    assert validation['status'] == 'error'
+    assert any(error['code'] == expected_error_code for error in validation['errors'])
+
+
+@pytest.mark.parametrize(
     ('mutate_alignment', 'expected_error_code'),
     [
         (

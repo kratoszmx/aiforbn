@@ -44,6 +44,19 @@ REQUIRED_RESEARCH_PLAN_NON_CLAIMS = {
     'direct_gap_claim_before_structure_review',
 }
 
+REQUIRED_ENTRYPOINT_NAMES = {
+    'fast_smoke',
+    'emit_agent_commands',
+    'verify_agent_contract',
+}
+
+REQUIRED_VALIDATION_COMMAND_NAMES = {
+    'verify_agent_contract',
+    'fast_smoke',
+    'focused_regression',
+    'full_src_tests',
+}
+
 
 def _project_root(path: str | Path = '.') -> Path:
     return Path(path).expanduser().resolve()
@@ -299,12 +312,30 @@ def validate_agent_layout(
 
     _validate_research_plan_alignment(root, manifest_payload, errors, checks)
 
-    _validate_command_entries(manifest_payload, 'entrypoints', errors)
+    entrypoint_names = _validate_command_entries(manifest_payload, 'entrypoints', errors)
+    missing_entrypoints = sorted(REQUIRED_ENTRYPOINT_NAMES - entrypoint_names)
+    if missing_entrypoints:
+        errors.append({
+            'code': 'missing_required_entrypoints',
+            'path': 'docs/AGENT_MANIFEST.json:entrypoints',
+            'message': f'Missing required agent entrypoint names: {missing_entrypoints}',
+        })
     validation_command_names = _validate_command_entries(
         manifest_payload,
         'validation_commands',
         errors,
     )
+    missing_validation_commands = sorted(
+        REQUIRED_VALIDATION_COMMAND_NAMES - validation_command_names
+    )
+    if missing_validation_commands:
+        errors.append({
+            'code': 'missing_required_validation_commands',
+            'path': 'docs/AGENT_MANIFEST.json:validation_commands',
+            'message': (
+                f'Missing required validation command names: {missing_validation_commands}'
+            ),
+        })
     validation_profiles = manifest_payload.get('validation_profiles', [])
     if not isinstance(validation_profiles, list) or not validation_profiles:
         errors.append({
