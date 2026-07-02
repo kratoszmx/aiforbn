@@ -284,7 +284,7 @@
 ### 应继续保留并视为主状态文件
 - `HANDOFF.md`：中文交接与当前状态摘要
 - `PY_FILES_SUMMARY.md`：AI-facing Python surface 摘要
-- `tasks/literature_mining/MODEL_UPGRADE_RESEARCH_2026-04-20.md`：AI-facing 建模方向技术备忘
+- `human_docs/task_notes/literature_mining/MODEL_UPGRADE_RESEARCH_2026-04-20.md`：AI-facing 建模方向技术备忘
 
 ### 当前实验 / 汇报 artifacts
 - `artifacts/pilot/fractional_attention_pilot_*`
@@ -328,9 +328,9 @@
    - 通过后再 `git add / commit / push`
 
 只有当任务明确涉及老师回覆、导师汇报或 proposal 时，才额外读：
-   - `docs/老師回覆.txt`
-   - `docs/项目汇报.md`
-   - `docs/给见微的说明.md`
+   - `human_docs/project_reports/老師回覆.txt`
+   - `human_docs/project_reports/项目汇报.md`
+   - `human_docs/project_reports/给见微的说明.md`
 
 ## 当前不应丢失的判断
 - 不要因为本机不是 CUDA 机器就自动退缩换方向。

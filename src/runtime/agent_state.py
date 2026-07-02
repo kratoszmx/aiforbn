@@ -541,7 +541,7 @@ def build_agent_state(
     git_status_short = _git_stdout(root, ['status', '--short', '--branch'])
     tracked_research_plan_count = _git_stdout(
         root,
-        ['ls-files', 'docs/research_plan'],
+        ['ls-files', 'human_docs/research_plan'],
     )
     tracked_research_paths = [
         line for line in (tracked_research_plan_count or '').splitlines() if line

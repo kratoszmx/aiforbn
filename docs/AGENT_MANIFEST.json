@@ -70,8 +70,8 @@
   "research_plan_alignment": {
     "status": "v18_alignment_contract",
     "source_files": [
-      "docs/research_plan/ai_for_bn_research_plan_v18.tex",
-      "docs/research_plan/ai_for_bn_research_plan_v18.bib"
+      "human_docs/research_plan/ai_for_bn_research_plan_v18.tex",
+      "human_docs/research_plan/ai_for_bn_research_plan_v18.bib"
     ],
     "implementation_anchors": [
       "bounded_bn_centered_design_space",
@@ -282,7 +282,7 @@
       "new large generated artifacts"
     ],
     "sensitive_but_currently_tracked": [
-      "docs/research_plan/"
+      "human_docs/research_plan/"
     ],
     "default_generated_output_dirs": [
       "artifacts/",

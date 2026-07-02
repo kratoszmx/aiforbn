@@ -6,7 +6,7 @@ This repository is maintained for autonomous AI agents. Do not treat it as an ap
 
 `aiforbn` is a research-grade AI-for-BN demo project.
 
-The project combines literature/research planning, materials data pipelines, structure generation, model experiments, reporting, and demo artifacts. Treat `.agents/skills/aiforbn-workflow/SKILL.md` and `.agents/skills/aiforbn-overleaf-proposal/SKILL.md` as the repo-scoped Codex skills. Treat `skills/ai_native_workflow.txt` as the compact project runtime guidance. Treat `assets/deep-research-report.md` as research context and `assets/poc_workflow_brief.txt` as an editable coding plan rather than a fixed contract.
+The project combines literature/research planning, materials data pipelines, structure generation, model experiments, reporting, and demo artifacts. Treat `.agents/skills/aiforbn-workflow/SKILL.md` and `.agents/skills/aiforbn-overleaf-proposal/SKILL.md` as the repo-scoped Codex skills. Treat `skills/ai_native_workflow.txt` as the compact project runtime guidance. Treat `human_docs/research_context/deep-research-report.md` as research context and `human_docs/research_context/poc_workflow_brief.txt` as an editable coding plan rather than a fixed contract.
 
 ## AI-Native Working Mode
 
@@ -25,9 +25,9 @@ The project combines literature/research planning, materials data pipelines, str
 - `src/torch_models/`: neural model components and experiments.
 - `src/ui/`: optional artifact viewer; not a primary operation surface.
 - `src/tests/`: cross-module tests.
-- `tasks/`: task-specific research and implementation areas.
-- `docs/`: agent handoff notes, machine-readable state, project reports, and research plans.
-- `assets/`: prompts, deep research report, and proof-of-concept planning notes.
+- `tasks/`: task-specific implementation areas.
+- `docs/`: agent handoff notes, machine-readable state, and Python surface summaries.
+- `human_docs/`: human-readable research context, project reports, proposal/research-plan files, task notes, and images.
 - `data/`: raw and processed project data.
 - `artifacts/`: generated research/demo artifacts; check sensitivity and reproducibility before committing new files.
 - `.agents/skills/`: repo-scoped Codex `SKILL.md` files that trigger only for this project scope.
@@ -36,7 +36,7 @@ The project combines literature/research planning, materials data pipelines, str
 ## Current State
 
 - Several subtrees already have local `AGENTS.md` and `PY_FILES_SUMMARY.md`; keep them aligned when changing public modules or task boundaries.
-- `docs/research_plan/` is a sensitive research-plan bundle already present in the current tracked history. Do not edit, expand, or re-stage similar generated proposal files unless the task explicitly asks for research-plan work.
+- `human_docs/research_plan/` is a sensitive research-plan bundle already present in the current tracked history. Do not edit, expand, or re-stage similar generated proposal files unless the task explicitly asks for research-plan work.
 - `docs/AGENT_MANIFEST.json` records the AI-native contract for entrypoints, module boundaries, validation commands, and safety boundaries.
 - Legacy `skills/*_skill.txt`, `skills/template.txt`, and `skills/workflow.txt` are retired; their still-current instructions are consolidated into `skills/ai_native_workflow.txt`, `.agents/skills/`, this file, or module-local `AGENTS.md`.
 - `.DS_Store`, caches, local environment files, and generated scratch outputs should remain untracked.

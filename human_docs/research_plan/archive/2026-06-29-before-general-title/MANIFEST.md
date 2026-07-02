@@ -9,11 +9,11 @@ Do not delete or overwrite these files. In particular, `ai_for_bn_research_plan_
 ## Contents
 
 - `drafts/`: copied versions of `ai_for_bn_research_plan_v3` through `ai_for_bn_research_plan_v8`, including both `.tex` and `.pdf` files.
-- `template/`: copied template source materials from `docs/research_plan/`, including the original Word template, extracted text, and the local template requirements note.
+- `template/`: copied template source materials from `human_docs/research_plan/`, including the original Word template, extracted text, and the local template requirements note.
 
 ## Source Paths
 
-- Original drafts remain in `/Users/zmx/Projects/aiforbn/docs/research_plan/`.
-- Original template materials remain in `/Users/zmx/Projects/aiforbn/docs/research_plan/`.
+- Original drafts remain in `/Users/zmx/Projects/aiforbn/human_docs/research_plan/`.
+- Original template materials remain in `/Users/zmx/Projects/aiforbn/human_docs/research_plan/`.
 
 This is a preservation snapshot, not the formal submission bundle.

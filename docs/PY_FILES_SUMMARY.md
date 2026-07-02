@@ -64,7 +64,7 @@ What it does:
 - validates source-of-truth files, module-local `AGENTS.md` / `PY_FILES_SUMMARY.md` / `utils.py` contracts, and known layout warnings
 - validates the strict machine-readable v18 research-plan alignment contract and source files
 - checks whether manifest-declared runtime imports such as `pyarrow` are available
-- reports Git branch / HEAD / remote-main state and tracked `docs/research_plan/` file count
+- reports Git branch / HEAD / remote-main state and tracked `human_docs/research_plan/` file count
 - prints a JSON state payload to stdout
 - exits nonzero under `--verify-agent-contract` only when blocking layout errors are present
 

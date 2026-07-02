@@ -37,8 +37,8 @@ def test_agent_manifest_loads_machine_readable_contract():
     assert any(entry['name'] == 'emit_agent_commands' for entry in manifest['entrypoints'])
     research_alignment = manifest['research_plan_alignment']
     assert research_alignment['source_files'] == [
-        'docs/research_plan/ai_for_bn_research_plan_v18.tex',
-        'docs/research_plan/ai_for_bn_research_plan_v18.bib',
+        'human_docs/research_plan/ai_for_bn_research_plan_v18.tex',
+        'human_docs/research_plan/ai_for_bn_research_plan_v18.bib',
     ]
     assert {
         'bounded_bn_centered_design_space',
@@ -62,16 +62,16 @@ def test_validate_agent_layout_accepts_current_repo_contract():
     assert '.agents/skills/aiforbn-overleaf-proposal/SKILL.md' in checked_paths
     assert 'src/runtime/PY_FILES_SUMMARY.md' in checked_paths
     assert 'skills/ai_native_workflow.txt' in checked_paths
-    assert 'docs/research_plan/ai_for_bn_research_plan_v18.tex' in checked_paths
-    assert 'docs/research_plan/ai_for_bn_research_plan_v18.bib' in checked_paths
+    assert 'human_docs/research_plan/ai_for_bn_research_plan_v18.tex' in checked_paths
+    assert 'human_docs/research_plan/ai_for_bn_research_plan_v18.bib' in checked_paths
     research_source_checks = {
         check['path']
         for check in validation['checks']
         if check['kind'] == 'research_plan_alignment_source'
     }
     assert research_source_checks == {
-        'docs/research_plan/ai_for_bn_research_plan_v18.tex',
-        'docs/research_plan/ai_for_bn_research_plan_v18.bib',
+        'human_docs/research_plan/ai_for_bn_research_plan_v18.tex',
+        'human_docs/research_plan/ai_for_bn_research_plan_v18.bib',
     }
     required_checked_paths = {
         check['path']
@@ -116,8 +116,8 @@ def test_build_agent_command_index_returns_validation_profiles():
     }
     assert research_alignment['status'] == 'v18_alignment_contract'
     assert research_alignment['source_files'] == [
-        'docs/research_plan/ai_for_bn_research_plan_v18.tex',
-        'docs/research_plan/ai_for_bn_research_plan_v18.bib',
+        'human_docs/research_plan/ai_for_bn_research_plan_v18.tex',
+        'human_docs/research_plan/ai_for_bn_research_plan_v18.bib',
     ]
     assert {
         'bounded_bn_centered_design_space',

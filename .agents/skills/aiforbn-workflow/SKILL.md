@@ -30,7 +30,7 @@ Use `python3 main.py --emit-agent-commands` to choose validation commands withou
 
 - Optimize for agent search, execution, verification, rollback, and handoff only.
 - Do not optimize for manual use, notebooks, onboarding, or UI comfort.
-- Do not edit `docs/research_plan/` unless the task is explicitly proposal/research-plan work.
+- Do not edit `human_docs/research_plan/` unless the task is explicitly proposal/research-plan work.
 - Do not commit caches, credentials, private datasets, or large generated artifacts without explicit task intent.
 - Preserve scientific honesty: ranking output is prioritization evidence, not discovery.
 - Do not restore retired guidance shards under `skills/`; the active plain-text guidance is `skills/ai_native_workflow.txt`.
