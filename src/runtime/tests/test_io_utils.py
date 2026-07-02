@@ -87,3 +87,30 @@ def test_clear_project_cache_tolerates_concurrent_cache_deletion(tmp_path: Path,
 
     assert clear_project_cache(tmp_path) is None
     assert calls == [tmp_path]
+
+
+def test_clear_project_cache_raises_for_missing_project_root(tmp_path: Path):
+    missing_root = tmp_path / 'missing-root'
+
+    try:
+        clear_project_cache(missing_root)
+    except FileNotFoundError as exc:
+        assert str(missing_root) in str(exc)
+    else:
+        raise AssertionError('missing project root should raise FileNotFoundError')
+
+
+def test_clear_project_cache_reraises_non_cache_file_not_found(tmp_path: Path, monkeypatch):
+    missing_payload = tmp_path / 'data' / 'missing.json'
+
+    def fake_delete_cache(_path):
+        raise FileNotFoundError(missing_payload)
+
+    monkeypatch.setattr('runtime.io_utils.delete_cache_dirs', fake_delete_cache)
+
+    try:
+        clear_project_cache(tmp_path)
+    except FileNotFoundError as exc:
+        assert exc.args == (missing_payload,)
+    else:
+        raise AssertionError('non-cache FileNotFoundError should not be swallowed')
