@@ -184,6 +184,20 @@ def test_validate_agent_layout_rejects_incomplete_v18_alignment_contract():
             }),
             'missing_research_plan_deliverables',
         ),
+        (
+            lambda alignment: alignment.update({
+                'deliverable_chain': [
+                    'bn_dataset',
+                    'benchmarked_models',
+                    'ranked_candidates',
+                    'structure_handoff',
+                    'ranked_candidates',
+                    'structure_handoff',
+                    'technical_report',
+                ],
+            }),
+            'unexpected_research_plan_deliverable_chain',
+        ),
     ],
 )
 def test_validate_agent_layout_rejects_incomplete_v18_alignment_fields(

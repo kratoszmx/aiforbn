@@ -22,13 +22,15 @@ REQUIRED_RESEARCH_PLAN_ALIGNMENT_ANCHORS = {
     'machine_verifiable_deliverable_chain',
 }
 
-REQUIRED_RESEARCH_PLAN_DELIVERABLES = {
+REQUIRED_RESEARCH_PLAN_DELIVERABLE_CHAIN = (
     'bn_dataset',
     'benchmarked_models',
     'ranked_candidates',
     'structure_handoff',
     'technical_report',
-}
+)
+
+REQUIRED_RESEARCH_PLAN_DELIVERABLES = set(REQUIRED_RESEARCH_PLAN_DELIVERABLE_CHAIN)
 
 REQUIRED_RESEARCH_PLAN_NON_CLAIMS = {
     'open_ended_material_discovery',
@@ -207,6 +209,15 @@ def _validate_research_plan_alignment(
                 'code': 'missing_research_plan_deliverables',
                 'path': 'docs/AGENT_MANIFEST.json:research_plan_alignment.deliverable_chain',
                 'message': f'Missing v18 deliverable-chain entries: {missing_deliverables}',
+            })
+        elif deliverable_chain != list(REQUIRED_RESEARCH_PLAN_DELIVERABLE_CHAIN):
+            errors.append({
+                'code': 'unexpected_research_plan_deliverable_chain',
+                'path': 'docs/AGENT_MANIFEST.json:research_plan_alignment.deliverable_chain',
+                'message': (
+                    '`research_plan_alignment.deliverable_chain` must exactly match '
+                    f'{list(REQUIRED_RESEARCH_PLAN_DELIVERABLE_CHAIN)}.'
+                ),
             })
 
     non_claims = alignment.get('non_claims', [])
