@@ -107,8 +107,36 @@ def test_build_agent_command_index_returns_validation_profiles():
     assert {'verify_agent_contract', 'fast_smoke', 'full_src_tests'}.issubset(validation_names)
     assert any(profile['name'] == 'architecture_doc_skill_edit' for profile in command_index['validation_profiles'])
     research_alignment = command_index['research_plan_alignment']
+    assert set(research_alignment) >= {
+        'status',
+        'source_files',
+        'implementation_anchors',
+        'non_claims',
+        'deliverable_chain',
+    }
     assert research_alignment['status'] == 'v18_alignment_contract'
-    assert 'machine_verifiable_deliverable_chain' in research_alignment['implementation_anchors']
+    assert research_alignment['source_files'] == [
+        'docs/research_plan/ai_for_bn_research_plan_v18.tex',
+        'docs/research_plan/ai_for_bn_research_plan_v18.bib',
+    ]
+    assert {
+        'bounded_bn_centered_design_space',
+        'formula_only_candidate_compatible_screening',
+        'machine_verifiable_deliverable_chain',
+    }.issubset(research_alignment['implementation_anchors'])
+    assert {
+        'open_ended_material_discovery',
+        'experimental_synthesis_proof',
+        'formula_stage_structure_dependent_property_claims',
+        'direct_gap_claim_before_structure_review',
+    }.issubset(research_alignment['non_claims'])
+    assert research_alignment['deliverable_chain'] == [
+        'bn_dataset',
+        'benchmarked_models',
+        'ranked_candidates',
+        'structure_handoff',
+        'technical_report',
+    ]
 
 
 def test_build_agent_state_returns_json_serializable_status():
