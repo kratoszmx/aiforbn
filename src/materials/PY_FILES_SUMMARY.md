@@ -5,10 +5,41 @@ Anything underscore-prefixed or omitted here should be treated as internal imple
 
 ## data.py
 
+- `STRUCTURE_SUMMARY_COLUMNS`
+  - Shared structure-derived column contract used by feature building, screening, benchmarking, and structure handoff.
+- `REFERENCE_PROPERTY_COLUMNS`
+  - Shared source-property column contract retained for provenance-aware BN records and reference evidence.
 - `load_cached_raw_record_lookup(cfg)`
   - Load the cached raw-record lookup used by downstream artifact writers.
 - `load_or_build_dataset(cfg)`
   - Build or reload the normalized dataset and its manifest.
+
+## constants.py
+
+No callable public surface. The following non-callable contracts are imported across `materials` files and tests for agent-visible v18 screening, novelty, support, and structure-boundary behavior:
+
+- `FRACTIONAL_COMPOSITION_FEATURE_SET`
+  - Formula-only fractional-composition feature-set identifier.
+- `STRUCTURE_AWARE_FEATURE_SET`
+  - Structure-dependent feature-set identifier that must stay out of formula-only screening.
+- `NOVELTY_BUCKET_TRAIN_PLUS_VAL_REDISCOVERY`
+  - Novelty bucket for train/validation rediscovery candidates.
+- `NOVELTY_BUCKET_HELD_OUT_KNOWN_FORMULA`
+  - Novelty bucket for known held-out formulas.
+- `NOVELTY_BUCKET_FORMULA_LEVEL_EXTRAPOLATION`
+  - Novelty bucket for formula-level extrapolation candidates.
+- `DOMAIN_SUPPORT_RANKING_NOTE`
+  - Ranking-note fragment for formula-space domain-support penalties.
+- `BN_SUPPORT_RANKING_NOTE`
+  - Ranking-note fragment for BN-local support penalties.
+- `BN_BAND_GAP_ALIGNMENT_RANKING_NOTE`
+  - Ranking-note fragment for BN-local band-gap alignment evidence.
+- `BN_ANALOG_EVIDENCE_RANKING_NOTE`
+  - Ranking-note fragment for BN analog-evidence context.
+- `GROUPED_ROBUSTNESS_UNCERTAINTY_RANKING_NOTE`
+  - Ranking-note fragment for grouped-fold candidate robustness uncertainty.
+- `NOVELTY_ANNOTATION_RANKING_NOTE`
+  - Ranking-note fragment for novelty annotation.
 
 ## candidate_space.py
 
@@ -137,7 +168,6 @@ Anything underscore-prefixed or omitted here should be treated as internal imple
 ## Internal-only files
 
 These files currently expose no supported external call surface:
-- `constants.py`
 - `common.py`
 - `ranking_tables.py`
 - `structure_artifacts.py`
