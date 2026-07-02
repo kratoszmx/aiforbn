@@ -246,6 +246,42 @@ def test_validate_agent_layout_rejects_incomplete_command_surface(
 
 
 @pytest.mark.parametrize(
+    ('mutate_manifest', 'expected_error_code'),
+    [
+        (
+            lambda manifest: manifest.update({'source_of_truth_files': []}),
+            'missing_source_of_truth_files',
+        ),
+        (
+            lambda manifest: manifest.update({
+                'source_of_truth_files': [
+                    path
+                    for path in manifest['source_of_truth_files']
+                    if path != 'AGENTS.md'
+                ],
+            }),
+            'missing_source_of_truth_files',
+        ),
+        (
+            lambda manifest: manifest.update({'source_of_truth_files': 'AGENTS.md'}),
+            'invalid_source_of_truth_files',
+        ),
+    ],
+)
+def test_validate_agent_layout_rejects_incomplete_source_of_truth_surface(
+    mutate_manifest,
+    expected_error_code,
+):
+    manifest = json.loads(json.dumps(load_agent_manifest(ROOT)))
+    mutate_manifest(manifest)
+
+    validation = validate_agent_layout(ROOT, manifest)
+
+    assert validation['status'] == 'error'
+    assert any(error['code'] == expected_error_code for error in validation['errors'])
+
+
+@pytest.mark.parametrize(
     ('mutate_alignment', 'expected_error_code'),
     [
         (

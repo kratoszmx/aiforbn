@@ -57,6 +57,16 @@ REQUIRED_VALIDATION_COMMAND_NAMES = {
     'full_src_tests',
 }
 
+REQUIRED_SOURCE_OF_TRUTH_FILES = {
+    'AGENTS.md',
+    '.agents/skills/aiforbn-workflow/SKILL.md',
+    '.agents/skills/aiforbn-overleaf-proposal/SKILL.md',
+    'docs/AGENT_MANIFEST.json',
+    'docs/HANDOFF.md',
+    'docs/PY_FILES_SUMMARY.md',
+    'skills/ai_native_workflow.txt',
+}
+
 
 def _project_root(path: str | Path = '.') -> Path:
     return Path(path).expanduser().resolve()
@@ -396,7 +406,28 @@ def validate_agent_layout(
                     ),
                 })
 
-    required_paths = list(manifest_payload.get('source_of_truth_files', []))
+    source_of_truth_files = manifest_payload.get('source_of_truth_files', [])
+    if not isinstance(source_of_truth_files, list) or not all(
+        isinstance(path, str) and path.strip() for path in source_of_truth_files
+    ):
+        errors.append({
+            'code': 'invalid_source_of_truth_files',
+            'path': 'docs/AGENT_MANIFEST.json:source_of_truth_files',
+            'message': '`source_of_truth_files` must be a non-empty string list.',
+        })
+        source_of_truth_files = []
+    else:
+        missing_source_files = sorted(
+            REQUIRED_SOURCE_OF_TRUTH_FILES - set(source_of_truth_files)
+        )
+        if missing_source_files:
+            errors.append({
+                'code': 'missing_source_of_truth_files',
+                'path': 'docs/AGENT_MANIFEST.json:source_of_truth_files',
+                'message': f'Missing required source-of-truth files: {missing_source_files}',
+            })
+
+    required_paths = list(source_of_truth_files)
     required_paths.extend([
         'main.py',
         'src/config.py',
