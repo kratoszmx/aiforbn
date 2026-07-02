@@ -1,6 +1,8 @@
 from pathlib import Path
 import json
 
+import pytest
+
 from runtime.agent_state import (
     agent_state_to_json,
     build_agent_command_index,
@@ -133,3 +135,37 @@ def test_validate_agent_layout_rejects_incomplete_v18_alignment_contract():
         error['code'] == 'missing_research_plan_alignment_anchors'
         for error in validation['errors']
     )
+
+
+@pytest.mark.parametrize(
+    ('mutate_alignment', 'expected_error_code'),
+    [
+        (
+            lambda alignment: alignment.update({'source_files': [123]}),
+            'invalid_research_plan_alignment_source',
+        ),
+        (
+            lambda alignment: alignment.update({
+                'non_claims': ['open_ended_material_discovery'],
+            }),
+            'missing_research_plan_non_claims',
+        ),
+        (
+            lambda alignment: alignment.update({
+                'deliverable_chain': ['bn_dataset', 'benchmarked_models'],
+            }),
+            'missing_research_plan_deliverables',
+        ),
+    ],
+)
+def test_validate_agent_layout_rejects_incomplete_v18_alignment_fields(
+    mutate_alignment,
+    expected_error_code,
+):
+    manifest = json.loads(json.dumps(load_agent_manifest(ROOT)))
+    mutate_alignment(manifest['research_plan_alignment'])
+
+    validation = validate_agent_layout(ROOT, manifest)
+
+    assert validation['status'] == 'error'
+    assert any(error['code'] == expected_error_code for error in validation['errors'])

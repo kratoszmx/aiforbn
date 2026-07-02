@@ -30,6 +30,13 @@ REQUIRED_RESEARCH_PLAN_DELIVERABLES = {
     'technical_report',
 }
 
+REQUIRED_RESEARCH_PLAN_NON_CLAIMS = {
+    'open_ended_material_discovery',
+    'experimental_synthesis_proof',
+    'formula_stage_structure_dependent_property_claims',
+    'direct_gap_claim_before_structure_review',
+}
+
 
 def _project_root(path: str | Path = '.') -> Path:
     return Path(path).expanduser().resolve()
@@ -139,7 +146,14 @@ def _validate_research_plan_alignment(
         })
     else:
         for index, source_file in enumerate(source_files):
-            relative_path = str(source_file).strip()
+            if not isinstance(source_file, str):
+                errors.append({
+                    'code': 'invalid_research_plan_alignment_source',
+                    'path': f'docs/AGENT_MANIFEST.json:research_plan_alignment.source_files[{index}]',
+                    'message': 'Every research-plan alignment source path must be a string.',
+                })
+                continue
+            relative_path = source_file.strip()
             if not relative_path:
                 errors.append({
                     'code': 'missing_research_plan_alignment_source',
@@ -204,6 +218,14 @@ def _validate_research_plan_alignment(
             'path': 'docs/AGENT_MANIFEST.json:research_plan_alignment.non_claims',
             'message': '`research_plan_alignment.non_claims` must be a string list.',
         })
+    else:
+        missing_non_claims = sorted(REQUIRED_RESEARCH_PLAN_NON_CLAIMS - set(non_claims))
+        if missing_non_claims:
+            errors.append({
+                'code': 'missing_research_plan_non_claims',
+                'path': 'docs/AGENT_MANIFEST.json:research_plan_alignment.non_claims',
+                'message': f'Missing v18 non-claim safety boundaries: {missing_non_claims}',
+            })
 
 
 def load_agent_manifest(

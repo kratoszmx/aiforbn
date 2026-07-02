@@ -62,7 +62,7 @@ Machine-readable AI-native project inspection entrypoint used by agent control c
 What it does:
 - loads `docs/AGENT_MANIFEST.json`
 - validates source-of-truth files, module-local `AGENTS.md` / `PY_FILES_SUMMARY.md` / `utils.py` contracts, and known layout warnings
-- validates the machine-readable v18 research-plan alignment contract and source files
+- validates the strict machine-readable v18 research-plan alignment contract and source files
 - checks whether manifest-declared runtime imports such as `pyarrow` are available
 - reports Git branch / HEAD / remote-main state and tracked `docs/research_plan/` file count
 - prints a JSON state payload to stdout
@@ -151,7 +151,7 @@ Purpose:
 Loads the checked-in agent manifest.
 
 ### `validate_agent_layout(project_root_path='.', manifest=None)`
-Checks required agent-facing files, module contracts, v18 research-plan alignment, and manifest-declared dependency imports.
+Checks required agent-facing files, module contracts, strict v18 research-plan alignment, and manifest-declared dependency imports.
 Returns:
 - `status`
 - `errors`
