@@ -33,6 +33,20 @@ def test_agent_manifest_loads_machine_readable_contract():
     assert 'skills/codex_skill.txt' in manifest['retired_guidance_files']
     assert any(entry['name'] == 'verify_agent_contract' for entry in manifest['entrypoints'])
     assert any(entry['name'] == 'emit_agent_commands' for entry in manifest['entrypoints'])
+    research_alignment = manifest['research_plan_alignment']
+    assert research_alignment['source_files'] == [
+        'docs/research_plan/ai_for_bn_research_plan_v18.tex',
+        'docs/research_plan/ai_for_bn_research_plan_v18.bib',
+    ]
+    assert {
+        'bounded_bn_centered_design_space',
+        'formula_only_candidate_compatible_screening',
+        'validation_ready_structure_handoff_not_synthesis_proof',
+    }.issubset(research_alignment['implementation_anchors'])
+    assert research_alignment['deliverable_chain'][-2:] == [
+        'structure_handoff',
+        'technical_report',
+    ]
 
 
 def test_validate_agent_layout_accepts_current_repo_contract():
@@ -46,6 +60,17 @@ def test_validate_agent_layout_accepts_current_repo_contract():
     assert '.agents/skills/aiforbn-overleaf-proposal/SKILL.md' in checked_paths
     assert 'src/runtime/PY_FILES_SUMMARY.md' in checked_paths
     assert 'skills/ai_native_workflow.txt' in checked_paths
+    assert 'docs/research_plan/ai_for_bn_research_plan_v18.tex' in checked_paths
+    assert 'docs/research_plan/ai_for_bn_research_plan_v18.bib' in checked_paths
+    research_source_checks = {
+        check['path']
+        for check in validation['checks']
+        if check['kind'] == 'research_plan_alignment_source'
+    }
+    assert research_source_checks == {
+        'docs/research_plan/ai_for_bn_research_plan_v18.tex',
+        'docs/research_plan/ai_for_bn_research_plan_v18.bib',
+    }
     required_checked_paths = {
         check['path']
         for check in validation['checks']
@@ -79,6 +104,9 @@ def test_build_agent_command_index_returns_validation_profiles():
     validation_names = {entry['name'] for entry in command_index['validation_commands']}
     assert {'verify_agent_contract', 'fast_smoke', 'full_src_tests'}.issubset(validation_names)
     assert any(profile['name'] == 'architecture_doc_skill_edit' for profile in command_index['validation_profiles'])
+    research_alignment = command_index['research_plan_alignment']
+    assert research_alignment['status'] == 'v18_alignment_contract'
+    assert 'machine_verifiable_deliverable_chain' in research_alignment['implementation_anchors']
 
 
 def test_build_agent_state_returns_json_serializable_status():
@@ -90,3 +118,18 @@ def test_build_agent_state_returns_json_serializable_status():
     assert state['git']['branch'] is not None
     parsed = json.loads(agent_state_to_json(state))
     assert parsed['schema_version'] == 'aiforbn.agent_state.v1'
+
+
+def test_validate_agent_layout_rejects_incomplete_v18_alignment_contract():
+    manifest = json.loads(json.dumps(load_agent_manifest(ROOT)))
+    manifest['research_plan_alignment']['implementation_anchors'] = [
+        'bounded_bn_centered_design_space'
+    ]
+
+    validation = validate_agent_layout(ROOT, manifest)
+
+    assert validation['status'] == 'error'
+    assert any(
+        error['code'] == 'missing_research_plan_alignment_anchors'
+        for error in validation['errors']
+    )

@@ -67,6 +67,37 @@
     "skills/template.txt",
     "skills/workflow.txt"
   ],
+  "research_plan_alignment": {
+    "status": "v18_alignment_contract",
+    "source_files": [
+      "docs/research_plan/ai_for_bn_research_plan_v18.tex",
+      "docs/research_plan/ai_for_bn_research_plan_v18.bib"
+    ],
+    "implementation_anchors": [
+      "bounded_bn_centered_design_space",
+      "provenance_aware_bn_data_layer",
+      "formula_only_candidate_compatible_screening",
+      "structure_resolved_followup_after_handoff",
+      "grouped_formula_and_bn_family_holdout_diagnostics",
+      "uncertainty_calibration_rank_stability_domain_support_novelty_action_labels",
+      "conservative_formula_stage_directness_and_structure_properties",
+      "validation_ready_structure_handoff_not_synthesis_proof",
+      "machine_verifiable_deliverable_chain"
+    ],
+    "non_claims": [
+      "open_ended_material_discovery",
+      "experimental_synthesis_proof",
+      "formula_stage_structure_dependent_property_claims",
+      "direct_gap_claim_before_structure_review"
+    ],
+    "deliverable_chain": [
+      "bn_dataset",
+      "benchmarked_models",
+      "ranked_candidates",
+      "structure_handoff",
+      "technical_report"
+    ]
+  },
   "entrypoints": [
     {
       "name": "full_pipeline",

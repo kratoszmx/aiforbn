@@ -10,6 +10,26 @@ from typing import Any
 
 DEFAULT_AGENT_MANIFEST_PATH = Path('docs/AGENT_MANIFEST.json')
 
+REQUIRED_RESEARCH_PLAN_ALIGNMENT_ANCHORS = {
+    'bounded_bn_centered_design_space',
+    'provenance_aware_bn_data_layer',
+    'formula_only_candidate_compatible_screening',
+    'structure_resolved_followup_after_handoff',
+    'grouped_formula_and_bn_family_holdout_diagnostics',
+    'uncertainty_calibration_rank_stability_domain_support_novelty_action_labels',
+    'conservative_formula_stage_directness_and_structure_properties',
+    'validation_ready_structure_handoff_not_synthesis_proof',
+    'machine_verifiable_deliverable_chain',
+}
+
+REQUIRED_RESEARCH_PLAN_DELIVERABLES = {
+    'bn_dataset',
+    'benchmarked_models',
+    'ranked_candidates',
+    'structure_handoff',
+    'technical_report',
+}
+
 
 def _project_root(path: str | Path = '.') -> Path:
     return Path(path).expanduser().resolve()
@@ -95,6 +115,97 @@ def _validate_command_entries(
     return command_names
 
 
+def _validate_research_plan_alignment(
+    root: Path,
+    manifest_payload: dict[str, Any],
+    errors: list[dict[str, str]],
+    checks: list[dict[str, object]],
+) -> None:
+    alignment = manifest_payload.get('research_plan_alignment')
+    if not isinstance(alignment, dict):
+        errors.append({
+            'code': 'invalid_research_plan_alignment',
+            'path': 'docs/AGENT_MANIFEST.json',
+            'message': 'Manifest field `research_plan_alignment` must be a JSON object.',
+        })
+        return
+
+    source_files = alignment.get('source_files', [])
+    if not isinstance(source_files, list) or not source_files:
+        errors.append({
+            'code': 'invalid_research_plan_alignment_sources',
+            'path': 'docs/AGENT_MANIFEST.json:research_plan_alignment.source_files',
+            'message': '`research_plan_alignment.source_files` must be a non-empty string list.',
+        })
+    else:
+        for index, source_file in enumerate(source_files):
+            relative_path = str(source_file).strip()
+            if not relative_path:
+                errors.append({
+                    'code': 'missing_research_plan_alignment_source',
+                    'path': f'docs/AGENT_MANIFEST.json:research_plan_alignment.source_files[{index}]',
+                    'message': 'Every research-plan alignment source needs a non-empty path.',
+                })
+                continue
+            check = _path_check(root, relative_path)
+            checks.append({**check, 'kind': 'research_plan_alignment_source'})
+            if not check['is_file']:
+                errors.append({
+                    'code': 'missing_research_plan_alignment_source_file',
+                    'path': relative_path,
+                    'message': f'Research-plan alignment source is missing or not a file: {relative_path}',
+                })
+
+    anchors = alignment.get('implementation_anchors', [])
+    if not isinstance(anchors, list) or not all(
+        isinstance(anchor, str) and anchor.strip() for anchor in anchors
+    ):
+        errors.append({
+            'code': 'invalid_research_plan_alignment_anchors',
+            'path': 'docs/AGENT_MANIFEST.json:research_plan_alignment.implementation_anchors',
+            'message': '`research_plan_alignment.implementation_anchors` must be a string list.',
+        })
+    else:
+        missing_anchors = sorted(REQUIRED_RESEARCH_PLAN_ALIGNMENT_ANCHORS - set(anchors))
+        if missing_anchors:
+            errors.append({
+                'code': 'missing_research_plan_alignment_anchors',
+                'path': 'docs/AGENT_MANIFEST.json:research_plan_alignment.implementation_anchors',
+                'message': f'Missing v18 alignment anchors: {missing_anchors}',
+            })
+
+    deliverable_chain = alignment.get('deliverable_chain', [])
+    if not isinstance(deliverable_chain, list) or not all(
+        isinstance(deliverable, str) and deliverable.strip()
+        for deliverable in deliverable_chain
+    ):
+        errors.append({
+            'code': 'invalid_research_plan_deliverable_chain',
+            'path': 'docs/AGENT_MANIFEST.json:research_plan_alignment.deliverable_chain',
+            'message': '`research_plan_alignment.deliverable_chain` must be a string list.',
+        })
+    else:
+        missing_deliverables = sorted(
+            REQUIRED_RESEARCH_PLAN_DELIVERABLES - set(deliverable_chain)
+        )
+        if missing_deliverables:
+            errors.append({
+                'code': 'missing_research_plan_deliverables',
+                'path': 'docs/AGENT_MANIFEST.json:research_plan_alignment.deliverable_chain',
+                'message': f'Missing v18 deliverable-chain entries: {missing_deliverables}',
+            })
+
+    non_claims = alignment.get('non_claims', [])
+    if not isinstance(non_claims, list) or not all(
+        isinstance(non_claim, str) and non_claim.strip() for non_claim in non_claims
+    ):
+        errors.append({
+            'code': 'invalid_research_plan_non_claims',
+            'path': 'docs/AGENT_MANIFEST.json:research_plan_alignment.non_claims',
+            'message': '`research_plan_alignment.non_claims` must be a string list.',
+        })
+
+
 def load_agent_manifest(
     project_root_path: str | Path = '.',
     manifest_path: str | Path = DEFAULT_AGENT_MANIFEST_PATH,
@@ -136,6 +247,8 @@ def validate_agent_layout(
             'path': 'docs/AGENT_MANIFEST.json',
             'message': 'AI-native contract requires `project.primary_entrypoint` to be AGENTS.md.',
         })
+
+    _validate_research_plan_alignment(root, manifest_payload, errors, checks)
 
     _validate_command_entries(manifest_payload, 'entrypoints', errors)
     validation_command_names = _validate_command_entries(
@@ -392,6 +505,7 @@ def build_agent_command_index(
         'source_of_truth_files': manifest.get('source_of_truth_files', []),
         'project_skills': manifest.get('project_skills', []),
         'retired_guidance_files': manifest.get('retired_guidance_files', []),
+        'research_plan_alignment': manifest.get('research_plan_alignment', {}),
     }
 
 

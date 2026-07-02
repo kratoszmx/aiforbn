@@ -62,6 +62,7 @@ Machine-readable AI-native project inspection entrypoint used by agent control c
 What it does:
 - loads `docs/AGENT_MANIFEST.json`
 - validates source-of-truth files, module-local `AGENTS.md` / `PY_FILES_SUMMARY.md` / `utils.py` contracts, and known layout warnings
+- validates the machine-readable v18 research-plan alignment contract and source files
 - checks whether manifest-declared runtime imports such as `pyarrow` are available
 - reports Git branch / HEAD / remote-main state and tracked `docs/research_plan/` file count
 - prints a JSON state payload to stdout
@@ -75,7 +76,7 @@ Machine-readable command-index entrypoint used by:
 
 What it does:
 - loads `docs/AGENT_MANIFEST.json`
-- prints entrypoints, validation commands, validation profiles, project skills, source-of-truth files, and retired guidance files as JSON
+- prints entrypoints, validation commands, validation profiles, project skills, source-of-truth files, retired guidance files, and v18 research-plan alignment as JSON
 
 Use it to choose the smallest sufficient validation profile for a change without rereading long prose docs.
 
@@ -150,7 +151,7 @@ Purpose:
 Loads the checked-in agent manifest.
 
 ### `validate_agent_layout(project_root_path='.', manifest=None)`
-Checks required agent-facing files, module contracts, and manifest-declared dependency imports.
+Checks required agent-facing files, module contracts, v18 research-plan alignment, and manifest-declared dependency imports.
 Returns:
 - `status`
 - `errors`
@@ -161,7 +162,7 @@ Returns:
 Builds the JSON-serializable live state used by `main.py --emit-agent-state` and `main.py --verify-agent-contract`.
 
 ### `build_agent_command_index(project_root_path='.', manifest_path='docs/AGENT_MANIFEST.json')`
-Builds the JSON-serializable command index used by `main.py --emit-agent-commands`.
+Builds the JSON-serializable command index used by `main.py --emit-agent-commands`, including the v18 research-plan alignment contract.
 
 ### `agent_state_to_json(state)`
 Serializes the live state for stdout or log capture.

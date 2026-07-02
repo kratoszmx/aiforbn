@@ -59,6 +59,7 @@
 当前新增的 AI-native inspection 层：
 - `docs/AGENT_MANIFEST.json`
   - 机器可读的项目契约，记录入口命令、模块边界、验证命令和安全边界
+  - 现已记录 v18 research-plan alignment：源文件、实现锚点、非 claim 边界、以及 deliverable chain，并由 `--verify-agent-contract` 检查
 - `python3 main.py --emit-agent-commands`
   - 输出 entrypoints、validation commands、validation profiles、project skills 和 retired guidance 文件清单
 - `python3 main.py --emit-agent-state`
