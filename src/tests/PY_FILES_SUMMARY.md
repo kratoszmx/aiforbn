@@ -12,6 +12,8 @@
   - Validates the real `src/config.py` defaults.
 - `test_main.py`
   - Covers the top-level pipeline entrypoint, `--dry-run`, `--emit-agent-state`, and `--emit-agent-commands` paths.
+- `test_public_surfaces.py`
+  - Verifies explicit cross-module imports are documented in the source module's `PY_FILES_SUMMARY.md`.
 - `utils.py`
   - Currently exposes no public helper functions.
 
