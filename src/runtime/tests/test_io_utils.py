@@ -74,3 +74,16 @@ def test_clear_project_cache_uses_myutils_filesystem_cleanup(tmp_path: Path):
 
     assert deleted == [pycache_dir]
     assert not pycache_dir.exists()
+
+
+def test_clear_project_cache_tolerates_concurrent_cache_deletion(tmp_path: Path, monkeypatch):
+    calls = []
+
+    def fake_delete_cache(path):
+        calls.append(Path(path))
+        raise FileNotFoundError(tmp_path / '.pytest_cache')
+
+    monkeypatch.setattr('runtime.io_utils.delete_cache_dirs', fake_delete_cache)
+
+    assert clear_project_cache(tmp_path) is None
+    assert calls == [tmp_path]

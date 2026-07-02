@@ -10,7 +10,7 @@ Anything underscore-prefixed or omitted here should be treated as internal.
 - `ensure_runtime_dirs(cfg)`
   - Create the configured runtime directories needed by the project.
 - `clear_project_cache(project_root_path='.')`
-  - Delete Python/cache artifacts for the project root.
+  - Delete Python/cache artifacts for the project root; treats already-removed cache paths as a successful concurrent cleanup.
 - `read_json_file(path)`
   - Read JSON through the shared `myutils/file_utils/json_io.py` helper.
 - `write_json_file(payload, path, ...)`

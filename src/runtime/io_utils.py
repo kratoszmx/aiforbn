@@ -49,4 +49,8 @@ def ensure_runtime_dirs(cfg: dict) -> None:
 
 
 def clear_project_cache(project_root_path: str | Path = '.'):
-    return delete_cache_dirs(project_root_path)
+    try:
+        return delete_cache_dirs(project_root_path)
+    except FileNotFoundError:
+        # Parallel agent validations can race while deleting the same cache tree.
+        return None
