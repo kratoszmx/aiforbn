@@ -1,42 +1,42 @@
 ---
 name: aiforbn-workflow
-description: Use for routine work in /Users/zmx/Projects/aiforbn, including AI-native architecture, AGENT_MANIFEST, HANDOFF, PY_FILES_SUMMARY, project skills, validation-profile selection, materials pipeline changes, model wiring, tests, and artifact/reporting maintenance.
+description: 用于 /Users/zmx/Projects/aiforbn 的常规维护工作，包括 AI-native 架构、AGENT_MANIFEST、HANDOFF、PY_FILES_SUMMARY、项目 skills、验证档位选择、materials 流水线修改、模型接线、测试，以及 artifact/reporting 维护。
 ---
 
-# AI-for-BN Workflow
+# AI-for-BN 工作流
 
-Use this as the repo-scoped dispatcher for `aiforbn`. It routes agents to the smallest reliable context and validation path. Do not treat it as a tutorial.
+把本 skill 作为 `aiforbn` 仓库范围内的调度入口使用。它的目标是把 agent 引到最小可靠上下文和验证路径；不要把它写成人类教程。
 
-## First Reads
+## 首要读取
 
-Before edits:
+编辑前先读：
 
 1. `/Users/zmx/Projects/aiforbn/AGENTS.md`
 2. `/Users/zmx/Projects/aiforbn/docs/AGENT_MANIFEST.json`
 3. `/Users/zmx/Projects/aiforbn/docs/HANDOFF.md`
 4. `/Users/zmx/Projects/aiforbn/skills/ai_native_workflow.txt`
-5. The nearest module `AGENTS.md` when touching `src/**`
+5. 修改 `src/**` 时，再读最近的模块级 `AGENTS.md`
 
-Use `python3 main.py --emit-agent-commands` to choose validation commands without rereading long prose.
+使用 `python3 main.py --emit-agent-commands` 选择验证命令，避免重复阅读长篇说明。
 
-## Dispatch
+## 分派
 
-- Architecture/docs/skill/manifest edits: keep changes machine-readable and run the architecture validation profile.
-- Materials or model logic edits: update the nearest `PY_FILES_SUMMARY.md`, run focused tests, then `python3 -m pytest -q src` when dependencies are available.
-- Research-plan or Overleaf delivery work: switch to `$aiforbn-overleaf-proposal`.
-- Generated artifact refresh: only run full `python3 main.py` when the task needs regenerated artifacts or scientific behavior changed.
+- 架构、文档、skill 或 manifest 修改：保持改动机器可读，并运行 architecture validation profile。
+- materials 或模型逻辑修改：更新最近的 `PY_FILES_SUMMARY.md`，运行聚焦测试；依赖可用时再运行 `python3 -m pytest -q src`。
+- research-plan 或 Overleaf 交付工作：切换使用 `$aiforbn-overleaf-proposal`。
+- 生成 artifact 刷新：只有任务需要重新生成 artifacts，或科学行为发生变化时，才运行完整 `python3 main.py`。
 
-## Boundaries
+## 边界
 
-- Optimize for agent search, execution, verification, rollback, and handoff only.
-- Do not optimize for manual use, notebooks, onboarding, or UI comfort.
-- Do not edit `human_docs/research_plan/` unless the task is explicitly proposal/research-plan work.
-- Do not commit caches, credentials, private datasets, or large generated artifacts without explicit task intent.
-- Preserve scientific honesty: ranking output is prioritization evidence, not discovery.
-- Do not restore retired guidance shards under `skills/`; the active plain-text guidance is `skills/ai_native_workflow.txt`.
+- 只优化 agent 的检索、执行、验证、回滚和交接。
+- 不为手动使用、notebook、onboarding 或 UI 舒适度做优化。
+- 除非任务明确涉及 proposal/research-plan，否则不要编辑 `human_docs/research_plan/`。
+- 没有明确任务意图时，不要提交缓存、凭据、私有数据集或大型生成 artifacts。
+- 保持科学诚实：ranking 输出是优先级排序证据，不是 discovery。
+- 不要恢复 `skills/` 下已经退役的 guidance shards；当前 active plain-text guidance 是 `skills/ai_native_workflow.txt`。
 
-## Delegation
+## 委派
 
-- Use `$blocking-question-soft-gate` before risky local state changes.
-- Use `$small-fast-coding` / `spark_coder` only for narrow, low-risk, easily reviewed code slices.
-- Main Codex owns diff review, tests, staging, commit, and push.
+- 在有风险的本地状态修改前，使用 `$blocking-question-soft-gate`。
+- 只把范围窄、低风险、容易审查的代码片段交给 `$small-fast-coding` / `spark_coder`。
+- 主 Codex 负责 diff 审查、测试、暂存、提交和推送。

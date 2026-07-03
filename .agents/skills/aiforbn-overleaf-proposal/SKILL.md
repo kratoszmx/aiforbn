@@ -1,43 +1,43 @@
 ---
 name: aiforbn-overleaf-proposal
-description: Use for /Users/zmx/Projects/aiforbn research-plan and Overleaf delivery work, including LaTeX proposal editing, XeLaTeX/fontspec/xeCJK compiler checks, Overleaf source/PDF sync, collaborator privilege verification, and final PDF/source handoff.
+description: 用于 /Users/zmx/Projects/aiforbn 的 research-plan 和 Overleaf 交付工作，包括 LaTeX proposal 编辑、XeLaTeX/fontspec/xeCJK 编译器检查、Overleaf source/PDF 同步、协作者权限验证，以及最终 PDF/source 交接。
 ---
 
 # AI-for-BN Overleaf Proposal
 
-Use this skill only for research-plan or Overleaf delivery tasks in `aiforbn`.
+仅在 `aiforbn` 的 research-plan 或 Overleaf 交付任务中使用本 skill。
 
-## Scope
+## 范围
 
-This skill covers:
+本 skill 覆盖：
 
-- proposal LaTeX source maintenance
-- Overleaf compiler and collaborator checks
-- PDF upload or source ZIP comparison
-- project read/write access verification
-- Git sync after proposal delivery
+- proposal LaTeX 源文件维护
+- Overleaf 编译器和协作者检查
+- PDF 上传或 source ZIP 对比
+- 项目读写权限验证
+- proposal 交付后的 Git 同步
 
-Do not use it for ordinary materials pipeline or model code changes.
+不要把本 skill 用于普通 materials pipeline 或模型代码修改。
 
-## Known Pitfalls
+## 已知坑点
 
-- If the proposal uses `fontspec` or `xeCJK`, Overleaf must compile with XeLaTeX. pdfLaTeX will fail on the `fontspec` path.
-- Editability comes from member privileges, not from possession of a project-management URL alone.
-- After uploading a PDF to Overleaf, the file tree may lag. Verify by downloading the source ZIP and comparing the PDF byte-for-byte when exact upload proof matters.
-- Research-plan files may contain sensitive institutional or personal context. Summarize only what the task needs.
+- 如果 proposal 使用 `fontspec` 或 `xeCJK`，Overleaf 必须使用 XeLaTeX 编译；pdfLaTeX 会在 `fontspec` 路径失败。
+- 可编辑性来自 member privileges，而不是单纯拥有 project-management URL。
+- PDF 上传到 Overleaf 后，文件树可能有延迟；如果需要精确上传证明，下载 source ZIP 并逐字节比较 PDF。
+- Research-plan 文件可能包含敏感的机构或个人上下文；只总结任务需要的内容。
 
-## Workflow
+## 工作流
 
-1. Read `/Users/zmx/Projects/aiforbn/AGENTS.md` and the current proposal task context.
-2. Identify the exact local proposal source and output files before editing.
-3. Use `$mcp-overleaf` when remote Overleaf source inspection, ZIP download, Git mirror work, or browser-session fallback is needed.
-4. Verify compiler choice and collaborator privilege with textual evidence.
-5. Keep raw Overleaf downloads in ignored temporary or artifact paths unless the task explicitly asks to track them.
-6. Before commit or push, use `$git-sync` and stage only intentional proposal artifacts.
+1. 读取 `/Users/zmx/Projects/aiforbn/AGENTS.md` 和当前 proposal 任务上下文。
+2. 编辑前确认准确的本地 proposal source 和 output 文件。
+3. 需要远程 Overleaf source 检查、ZIP 下载、Git mirror 工作或 browser-session fallback 时，使用 `$mcp-overleaf`。
+4. 用文字证据验证编译器选择和协作者权限。
+5. 除非任务明确要求追踪原始下载，否则把 Overleaf 原始下载放在 ignored temporary 或 artifact 路径。
+6. commit 或 push 前，使用 `$git-sync`，并且只 stage 有意的 proposal artifacts。
 
-## Validation
+## 验证
 
-- Local source and generated PDF names are explicit.
-- XeLaTeX requirement is checked when `fontspec` or `xeCJK` is present.
-- Overleaf write access is proven by member privilege or a successful controlled update.
-- Uploaded or downloaded artifacts are verified by file size, checksum, or byte comparison when exactness matters.
+- 本地 source 和生成 PDF 的文件名明确。
+- 出现 `fontspec` 或 `xeCJK` 时，已检查 XeLaTeX 要求。
+- Overleaf 写权限由 member privilege 或成功的受控更新证明。
+- 在需要精确性时，通过文件大小、checksum 或逐字节比较验证上传/下载 artifacts。

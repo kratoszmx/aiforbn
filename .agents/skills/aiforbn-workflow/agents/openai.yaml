@@ -1,4 +1,4 @@
 interface:
-  display_name: "AI-for-BN Workflow"
-  short_description: "Dispatch AI-native aiforbn work."
-  default_prompt: "Use $aiforbn-workflow to inspect the aiforbn command index, choose the smallest validation profile, and complete this repository task."
+  display_name: "AI-for-BN 工作流"
+  short_description: "调度 aiforbn 的 AI-native 工作。"
+  default_prompt: "使用 $aiforbn-workflow 检查 aiforbn 命令索引，选择最小验证档位，并完成这个仓库任务。"
