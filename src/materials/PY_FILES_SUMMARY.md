@@ -144,6 +144,7 @@ No callable public surface. The following non-callable contracts are imported ac
   - Add BN analog-evidence annotations.
 - `screen_candidates(candidate_df, model, feature_columns, cfg, ...)`
   - Build the final candidate ranking artifact.
+  - Downstream decision-policy artifacts hold candidates outside every configured application target window, even when uncertainty/support/rank checks pass.
 
 ## summary.py
 

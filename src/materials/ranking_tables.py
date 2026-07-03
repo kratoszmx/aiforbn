@@ -993,14 +993,17 @@ def _candidate_ranking_uncertainty_table(
 
     def _infer_application_tracks(
         predicted_band_gap: float | None,
-    ) -> tuple[str | None, str | None, str | None, str | None]:
+    ) -> tuple[str | None, str | None, str | None, str | None, str | None]:
         if (
             predicted_band_gap is None
             or pd.isna(predicted_band_gap)
             or not application_tracks
         ):
-            return None, None, None, None
+            return None, None, None, None, None
         candidates: list[tuple[float, dict[str, object]]] = []
+        in_any_target_window = False
+        lower_bounds: list[float] = []
+        upper_bounds: list[float] = []
         for track in application_tracks:
             track_window = track['target_window_eV']
             if (
@@ -1012,8 +1015,11 @@ def _candidate_ranking_uncertainty_table(
                 continue
             lower_bound = float(track_window[0])
             upper_bound = float(track_window[1])
+            lower_bounds.append(lower_bound)
+            upper_bounds.append(upper_bound)
             if lower_bound <= float(predicted_band_gap) <= upper_bound:
                 distance = 0.0
+                in_any_target_window = True
             else:
                 distance = min(
                     abs(float(predicted_band_gap) - lower_bound),
@@ -1021,7 +1027,7 @@ def _candidate_ranking_uncertainty_table(
                 )
             candidates.append((distance, track))
         if not candidates:
-            return None, None, None, None
+            return None, None, None, None, None
         candidates.sort(key=lambda candidate: candidate[0])
         primary_track = candidates[0][1]
         secondary_label = candidates[1][1]['label'] if len(candidates) > 1 else None
@@ -1031,11 +1037,20 @@ def _candidate_ranking_uncertainty_table(
         window_text = None
         if primary_window is not None and len(primary_window) == 2:
             window_text = f'{float(primary_window[0]):g}-{float(primary_window[1]):g}'
+        target_window_failure = None
+        if not in_any_target_window:
+            if lower_bounds and float(predicted_band_gap) < min(lower_bounds):
+                target_window_failure = 'application_target_window_below'
+            elif upper_bounds and float(predicted_band_gap) > max(upper_bounds):
+                target_window_failure = 'application_target_window_above'
+            else:
+                target_window_failure = 'application_target_window_outside'
         return (
             _safe_text(primary_track.get('label')),
             _safe_text(secondary_label),
             window_text,
             _safe_text(primary_track.get('note')),
+            target_window_failure,
         )
 
     top_k_reference = int((cfg.get('screening') or {}).get('top_k', 10))
@@ -1264,9 +1279,16 @@ def _candidate_ranking_uncertainty_table(
             (chemical_plausibility_pass and len(reasons) > 0)
             or (not chemical_plausibility_pass)
         )
-        application_track_primary, application_track_secondary, application_track_window, application_track_note = (
-            _infer_application_tracks(_safe_float(predicted_band_gap))
-        )
+        (
+            application_track_primary,
+            application_track_secondary,
+            application_track_window,
+            application_track_note,
+            application_target_window_failure,
+        ) = _infer_application_tracks(_safe_float(predicted_band_gap))
+        if application_target_window_failure:
+            reasons.append(application_target_window_failure)
+            abstain_flag = True
         if not chemical_plausibility_pass:
             recommended_action_label = 'hold'
         elif candidate_novelty_bucket == NOVELTY_BUCKET_TRAIN_PLUS_VAL_REDISCOVERY:

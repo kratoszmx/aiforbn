@@ -5,9 +5,83 @@ import json
 import pandas as pd
 
 from materials.artifacts import save_metrics_and_predictions
+from materials.constants import NOVELTY_BUCKET_FORMULA_LEVEL_EXTRAPOLATION
 from materials.plots import save_basic_plots
+from materials.ranking_tables import _candidate_ranking_uncertainty_table
 from materials.summary import build_experiment_summary
 from materials.structure_execution import build_structure_first_pass_execution_artifacts
+
+
+def test_decision_policy_holds_candidates_outside_application_target_windows():
+    cfg = {
+        'screening': {
+            'top_k': 10,
+            'decision_policy': {
+                'enabled': True,
+                'global_support_abstain_below_percentile': 25.0,
+                'bn_support_abstain_below_percentile': 25.0,
+                'prediction_std_above_quantile': 0.75,
+                'rank_std_above_quantile': 0.75,
+                'minimum_top_10_selection_frequency': 0.5,
+                'application_tracks': [
+                    {
+                        'label': 'uv_wide_band_gap',
+                        'target_window_eV': [4.5, 6.5],
+                        'note': 'UV/WBG formula-stage proxy.',
+                    },
+                    {
+                        'label': 'dielectric_2d_support',
+                        'target_window_eV': [4.5, 8.0],
+                        'note': 'Dielectric support formula-stage proxy.',
+                    },
+                ],
+            },
+        },
+    }
+    candidate_df = pd.DataFrame({
+        'formula': ['XBN'],
+        'ranking_rank': [1],
+        'ranking_score': [10.0],
+        'predicted_band_gap': [8.6],
+        'ensemble_predicted_band_gap_mean': [8.6],
+        'ensemble_predicted_band_gap_std': [0.0],
+        'domain_support_percentile': [100.0],
+        'domain_support_mean_k_distance': [0.1],
+        'bn_support_percentile': [100.0],
+        'bn_support_mean_k_distance': [0.1],
+        'chemical_plausibility_pass': [True],
+        'candidate_novelty_bucket': [NOVELTY_BUCKET_FORMULA_LEVEL_EXTRAPOLATION],
+        'proposal_shortlist_selected': [False],
+        'proposal_shortlist_rank': [pd.NA],
+        'extrapolation_shortlist_selected': [True],
+        'extrapolation_shortlist_rank': [1],
+        'bn_band_gap_alignment_label': ['within_local_bn_analog_band_gap_window'],
+    })
+    structure_followup_shortlist_df = pd.DataFrame({
+        'formula': ['XBN'],
+        'structure_followup_shortlist_selected': [True],
+        'structure_followup_shortlist_rank': [1],
+        'structure_followup_priority_score': [1.0],
+        'structure_followup_best_queue_rank': [1],
+        'structure_followup_best_action_label': ['prototype_transfer'],
+        'structure_followup_readiness_label': ['ready'],
+    })
+
+    uncertainty_df, summary = _candidate_ranking_uncertainty_table(
+        candidate_df,
+        formula_col='formula',
+        cfg=cfg,
+        structure_followup_shortlist_df=structure_followup_shortlist_df,
+    )
+
+    row = uncertainty_df.iloc[0]
+    assert row['application_track_primary'] == 'dielectric_2d_support'
+    assert row['application_track_target_window_eV'] == '4.5-8'
+    assert bool(row['abstain_flag']) is True
+    assert row['final_action_label'] == 'hold'
+    assert row['recommended_action_label'] == 'hold'
+    assert 'application_target_window_above' in row['reason_for_abstention']
+    assert summary['final_action_counts'] == {'hold': 1}
 
 
 def test_reporting_writes_expected_artifacts(tmp_path):
