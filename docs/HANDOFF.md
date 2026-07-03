@@ -271,7 +271,7 @@
 - `python3 main.py --dry-run`
 - `python3 -m pytest -q src/tests/test_main.py src/runtime/tests/test_agent_state.py src/runtime/tests/test_io_utils.py`
 - `python3 -m pytest -q src`
-- `quick_validate.py` for `.agents/skills/aiforbn-workflow`, `.agents/skills/aiforbn-overleaf-proposal`, global `ai-native-projects`, and global `small-fast-coding`
+- `quick_validate.py` for `.agents/skills/aiforbn-workflow`, `.agents/skills/aiforbn-overleaf-proposal`, global `ainative-workflow`, and global `small-fast-coding`
 - 结果：focused regression `13 passed`; full src `43 passed, 6 warnings`; command-only JSON stdout 已确认干净
 
 因此当前最准确的表述应是：
