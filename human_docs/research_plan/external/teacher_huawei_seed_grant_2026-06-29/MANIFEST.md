@@ -11,7 +11,7 @@ Do not edit these reference files directly. Do not publish, commit, or share the
 - Overleaf link provided by user: `https://www.overleaf.com/6619955561txhqhtrptdpg#d1a01a`
 - Resolved project name observed in Overleaf: `Huawei_donation_proposal`
 - Resolved project id observed in Overleaf: `68830119f72f3a257de97fed`
-- Temporary download source before preservation: `/Users/zmx/tmp/artifacts/overleafmcp/projects/teacher-Huawei_donation_proposal-source/`
+- Temporary download source before preservation: `/Users/zmx/tmp/shared/artifacts/overleafmcp/projects/teacher-Huawei_donation_proposal-source/`
 
 ## Files
 
