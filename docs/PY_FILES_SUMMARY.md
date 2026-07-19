@@ -109,6 +109,7 @@ There are no longer `src/pipeline/*.py` façade modules, and the earlier `core /
 ### test layout
 - `src/runtime/tests/`
 - `src/materials/tests/`
+- `src/torch_models/tests/`
 - `src/ui/tests/`
 - `src/tests/`
   - top-level entrypoint/config tests, plus its own local `AGENTS.md`, `PY_FILES_SUMMARY.md`, and `utils.py`
@@ -120,7 +121,7 @@ Root `tests/` has been removed.
 ## src/runtime/io_utils.py
 
 Purpose:
-- bootstraps the latest `../myutils` directory-style module layout by adding its classified subdirectories to `sys.path`
+- locates the nearest ancestor-adjacent `myutils` checkout, with `MYUTILS_ROOT` as an explicit override, and adds only `file_utils/` to `sys.path`
 - exposes the repo's config loading / runtime-dir / cache-clear helpers
 - reuses shared JSON helpers from `myutils/file_utils/json_io.py`
 
@@ -151,7 +152,7 @@ Purpose:
 Loads the checked-in agent manifest.
 
 ### `validate_agent_layout(project_root_path='.', manifest=None)`
-Checks required agent-facing files, module contracts, strict v18 research-plan alignment, and manifest-declared dependency imports.
+Checks required agent-facing files, exact control/validation commands, local instruction paths, module contracts, strict v18 research-plan alignment, and manifest-declared dependency imports.
 Returns:
 - `status`
 - `errors`
@@ -181,7 +182,7 @@ Returns:
 - manifest dict
 
 Current behavior:
-- prefers cached processed parquet when it already has the required normalized columns
+- prefers cached processed parquet only when its manifest matches the requested dataset, source, and target column and the dataframe has all required normalized columns
 - rebuilds stale processed cache from cached raw JSON when needed
 - downloads from JARVIS only when cached raw JSON is absent
 - writes lightweight structure-summary columns derived from cached `atoms` / lattice data
@@ -533,7 +534,7 @@ Important:
 - this groups BN formulas by reduced BN-local chemical system and leaves one family out at a time
 - it is still a small-sample BN diagnostic, but stricter than formula-level leave-one-out for family-local extrapolation claims
 
-### `benchmark_bn_stratified_errors(dataset_df, feature_tables, cfg, selected_feature_set, selected_model_type, screening_feature_set, screening_model_type)`
+### `benchmark_bn_stratified_errors(feature_tables, cfg, selected_feature_set, selected_model_type, screening_feature_set, screening_model_type)`
 Runs grouped-by-formula cross-validation and reports separate BN vs non-BN errors.
 It returns one dataframe with:
 - `bn_mae`, `bn_rmse`, `bn_r2`
@@ -543,6 +544,7 @@ It returns one dataframe with:
 Important:
 - this does not prove BN generalization
 - it quantifies whether BN-containing systems are systematically harder than the broader 2D-material population
+- its group column must match the configured formula column so duplicate formula rows cannot cross train/test folds; metrics are aggregated once per unique held-out formula
 
 ### `select_bn_centered_candidate_screening_combo(bn_slice_benchmark_df, cfg, fallback_feature_set=None, fallback_model_type=None)`
 Selects the **best candidate-compatible BN-centered screening combo** from the BN-slice benchmark.
@@ -760,7 +762,7 @@ Useful fields include:
 ### `screen_candidates(candidate_df, model, feature_columns, cfg, feature_set, model_type, best_overall_feature_set=None, best_overall_model_type=None, screening_selection_note=None, dataset_df=None, split_masks=None, ensemble_prediction_df=None, grouped_robustness_prediction_df=None, reference_feature_df=None)`
 Builds the final demo ranking dataframe.
 Current behavior:
-- keeps the full candidate source pool in the artifact instead of silently dropping failed formulas
+- fails the ranking atomically when any candidate formula cannot be featurized, rather than silently dropping failed formulas and writing a partial artifact
 - sorts candidates by `chemical_plausibility_pass` first, then by ranking score
 - marks the reported top-k explicitly with `screening_selected_for_top_k`
 - records why a formula was or was not selected via `screening_selection_decision`
@@ -866,6 +868,7 @@ Important:
 
 ### `save_metrics_and_predictions(metrics, prediction_df, bn_df, screened_df, benchmark_df, robustness_df, bn_slice_benchmark_df, bn_slice_prediction_df, bn_centered_screened_df, structure_generation_seed_df, experiment_summary, manifest, cfg)`
 Writes the main artifact files under `artifacts/`.
+Configurable structure-execution outputs must remain under that directory, use the expected JSON/CSV types, avoid core/pairwise/alias collisions, and place CIF files directly under the configured structure directory. Empty execution results remove stale execution outputs from a previous run.
 This now includes both shortlist CSVs, BN-slice benchmark artifacts, BN-family / stratified BN evaluation artifacts, the BN-centered alternative ranking artifact, the ranking-stability / abstention artifact, the BN candidate-compatible evaluation artifact, and the structure-generation bridge artifacts in addition to the full ranking artifact:
 - `bn_slice_benchmark_results.csv`
 - `bn_slice_predictions.csv`
@@ -896,8 +899,8 @@ Writes the parity plot.
 
 ## src/ui/streamlit_app.py
 
-No reusable exported functions.
-It is the actual artifact viewer and reads JSON artifacts via `myutils/file_utils/json_io.py` rather than depending on `runtime` just for JSON helpers.
+### `render_streamlit_app()`
+Renders the artifact viewer and reads JSON through the documented `runtime.io_utils.read_json_file` public helper, keeping local `myutils` discovery centralized in `runtime`.
 It displays:
 - `metrics.json`
 - `experiment_summary.json`

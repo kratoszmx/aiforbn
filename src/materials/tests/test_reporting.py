@@ -1,15 +1,40 @@
 from __future__ import annotations
 
+import ast
 import json
+from pathlib import Path
 
 import pandas as pd
+import pytest
 
+from materials import artifacts as artifacts_module
 from materials.artifacts import save_metrics_and_predictions
 from materials.constants import NOVELTY_BUCKET_FORMULA_LEVEL_EXTRAPOLATION
 from materials.plots import save_basic_plots
 from materials.ranking_tables import _candidate_ranking_uncertainty_table
 from materials.summary import build_experiment_summary
 from materials.structure_execution import build_structure_first_pass_execution_artifacts
+from materials.structure_helpers import _structure_first_pass_execution_config
+
+
+def test_reserved_artifact_collision_contract_covers_writer_literals():
+    source_path = Path(artifacts_module.__file__)
+    tree = ast.parse(source_path.read_text(encoding='utf-8'), filename=str(source_path))
+    writer_node = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name == 'save_metrics_and_predictions'
+    )
+    literal_artifact_names = {
+        node.value
+        for node in ast.walk(writer_node)
+        if isinstance(node, ast.Constant)
+        and isinstance(node.value, str)
+        and node.value.endswith(('.csv', '.json', '.png'))
+    }
+
+    assert literal_artifact_names <= artifacts_module._RESERVED_REPORT_ARTIFACT_NAMES
 
 
 def test_decision_policy_holds_candidates_outside_application_target_windows():
@@ -82,6 +107,513 @@ def test_decision_policy_holds_candidates_outside_application_target_windows():
     assert row['recommended_action_label'] == 'hold'
     assert 'application_target_window_above' in row['reason_for_abstention']
     assert summary['final_action_counts'] == {'hold': 1}
+
+
+def test_disabled_decision_policy_leaves_ranking_uncertainty_policy_neutral():
+    cfg = {
+        'screening': {
+            'top_k': 10,
+            'decision_policy': {
+                'enabled': False,
+                'global_support_abstain_below_percentile': 25.0,
+                'bn_support_abstain_below_percentile': 25.0,
+                'prediction_std_above_quantile': 0.75,
+                'rank_std_above_quantile': 0.75,
+                'minimum_top_10_selection_frequency': 0.5,
+                'application_tracks': [
+                    {
+                        'label': 'uv_wide_band_gap',
+                        'target_window_eV': [4.5, 6.5],
+                        'note': 'UV/WBG formula-stage proxy.',
+                    },
+                ],
+            },
+        },
+    }
+    candidate_df = pd.DataFrame({
+        'formula': ['XBN'],
+        'ranking_rank': [1],
+        'ranking_score': [10.0],
+        'predicted_band_gap': [8.6],
+        'ensemble_predicted_band_gap_mean': [8.6],
+        'ensemble_predicted_band_gap_std': [0.5],
+        'domain_support_percentile': [0.0],
+        'domain_support_mean_k_distance': [10.0],
+        'bn_support_percentile': [0.0],
+        'bn_support_mean_k_distance': [10.0],
+        'chemical_plausibility_pass': [True],
+        'candidate_novelty_bucket': [NOVELTY_BUCKET_FORMULA_LEVEL_EXTRAPOLATION],
+        'proposal_shortlist_selected': [False],
+        'proposal_shortlist_rank': [pd.NA],
+        'extrapolation_shortlist_selected': [True],
+        'extrapolation_shortlist_rank': [1],
+        'bn_band_gap_alignment_label': ['above_local_bn_analog_band_gap_window'],
+    })
+    structure_followup_shortlist_df = pd.DataFrame({
+        'formula': ['XBN'],
+        'structure_followup_shortlist_selected': [True],
+        'structure_followup_shortlist_rank': [1],
+        'structure_followup_priority_score': [1.0],
+        'structure_followup_best_queue_rank': [1],
+        'structure_followup_best_action_label': ['prototype_transfer'],
+        'structure_followup_readiness_label': ['ready'],
+    })
+
+    uncertainty_df, summary = _candidate_ranking_uncertainty_table(
+        candidate_df,
+        formula_col='formula',
+        cfg=cfg,
+        structure_followup_shortlist_df=structure_followup_shortlist_df,
+    )
+
+    row = uncertainty_df.iloc[0]
+    assert row['predicted_band_gap_mean'] == 8.6
+    assert bool(row['abstain_flag']) is False
+    assert row['reason_for_abstention'] == ''
+    assert pd.isna(row['final_action_label'])
+    assert pd.isna(row['recommended_action_label'])
+    assert pd.isna(row['application_track_primary'])
+    assert summary['prediction_std_abstain_threshold'] is None
+    assert summary['rank_std_abstain_threshold'] is None
+    assert summary['abstained_candidate_count'] == 0
+    assert summary['final_action_counts'] == {}
+
+
+@pytest.mark.parametrize(
+    'artifact_field',
+    ['artifact', 'summary_artifact', 'variants_artifact', 'structure_dir'],
+)
+def test_structure_first_pass_config_rejects_artifact_path_escape(
+    tmp_path,
+    artifact_field,
+):
+    for unsafe_value in ('../outside', str(tmp_path / 'absolute-outside')):
+        cfg = {
+            'screening': {
+                'structure_first_pass_execution': {
+                    artifact_field: unsafe_value,
+                },
+            },
+        }
+        with pytest.raises(ValueError, match='artifact directory'):
+            _structure_first_pass_execution_config(cfg)
+
+
+def test_structure_first_pass_config_preserves_contained_relative_paths():
+    cfg = {
+        'screening': {
+            'structure_first_pass_execution': {
+                'artifact': 'nested/execution.json',
+                'summary_artifact': 'nested/summary.csv',
+                'variants_artifact': 'nested/variants.csv',
+                'structure_dir': 'nested/structures',
+            },
+        },
+    }
+
+    execution_cfg = _structure_first_pass_execution_config(cfg)
+
+    assert execution_cfg['artifact'] == 'nested/execution.json'
+    assert execution_cfg['summary_artifact'] == 'nested/summary.csv'
+    assert execution_cfg['variants_artifact'] == 'nested/variants.csv'
+    assert execution_cfg['structure_dir'] == 'nested/structures'
+
+
+@pytest.mark.parametrize(
+    'execution_overrides',
+    [
+        {'artifact': 'metrics.json'},
+        {'artifact': 'METRICS.JSON'},
+        {'summary_artifact': 'predictions.csv'},
+        {'variants_artifact': 'benchmark_results.csv'},
+        {'structure_dir': 'manifest.json/structures'},
+        {
+            'summary_artifact': 'nested/shared.csv',
+            'variants_artifact': 'nested/shared.csv',
+        },
+        {
+            'summary_artifact': 'nested/shared.csv',
+            'variants_artifact': 'nested/SHARED.CSV',
+        },
+        {
+            'summary_artifact': 'nested/caf\u00e9.csv',
+            'variants_artifact': 'nested/cafe\u0301.csv',
+        },
+        {
+            'artifact': 'nested/execution.json',
+            'summary_artifact': 'nested/execution.json/summary.csv',
+        },
+        {
+            'artifact': 'nested/execution.json',
+            'structure_dir': 'nested/execution.json/structures',
+        },
+    ],
+    ids=[
+        'core-json-collision',
+        'casefolded-core-json-collision',
+        'core-summary-collision',
+        'core-variants-collision',
+        'structure-dir-beneath-core-file',
+        'pairwise-file-collision',
+        'casefolded-pairwise-file-collision',
+        'unicode-normalized-pairwise-file-collision',
+        'file-path-contains-file-path',
+        'structure-dir-beneath-configured-file',
+    ],
+)
+def test_reporting_rejects_structure_execution_output_path_collisions(
+    tmp_path,
+    execution_overrides,
+):
+    artifact_dir = tmp_path / 'artifacts'
+    artifact_dir.mkdir()
+    bn_centered_sentinel_path = artifact_dir / 'demo_candidate_bn_centered_ranking.csv'
+    bn_centered_sentinel_path.write_text('sentinel\n', encoding='utf-8')
+    cfg = {
+        'project': {'artifact_dir': str(artifact_dir)},
+        'data': {'formula_column': 'formula'},
+        'screening': {'structure_first_pass_execution': execution_overrides},
+    }
+    empty_df = pd.DataFrame()
+
+    with pytest.raises(ValueError, match='collide|contain|nested beneath'):
+        save_metrics_and_predictions(
+            metrics={'must': 'survive'},
+            prediction_df=empty_df,
+            bn_df=empty_df,
+            screened_df=pd.DataFrame(columns=['formula', 'ranking_rank']),
+            benchmark_df=empty_df,
+            robustness_df=empty_df,
+            bn_slice_benchmark_df=empty_df,
+            bn_slice_prediction_df=empty_df,
+            bn_centered_screened_df=empty_df,
+            structure_generation_seed_df=empty_df,
+            experiment_summary={},
+            manifest={},
+            cfg=cfg,
+            structure_first_pass_execution_payload={},
+        )
+
+    assert not (artifact_dir / 'metrics.json').exists()
+    assert not (artifact_dir / 'predictions.csv').exists()
+    assert bn_centered_sentinel_path.read_text(encoding='utf-8') == 'sentinel\n'
+
+
+@pytest.mark.parametrize(
+    ('artifact_field', 'invalid_path'),
+    [
+        ('artifact', 'nested/execution.csv'),
+        ('summary_artifact', 'nested/summary.json'),
+        ('variants_artifact', 'nested/variants.json'),
+    ],
+)
+def test_reporting_rejects_structure_execution_output_extension_mismatch(
+    tmp_path,
+    artifact_field,
+    invalid_path,
+):
+    artifact_dir = tmp_path / 'artifacts'
+    cfg = {
+        'project': {'artifact_dir': str(artifact_dir)},
+        'data': {'formula_column': 'formula'},
+        'screening': {
+            'structure_first_pass_execution': {artifact_field: invalid_path},
+        },
+    }
+    empty_df = pd.DataFrame()
+
+    with pytest.raises(ValueError, match='file path'):
+        save_metrics_and_predictions(
+            metrics={},
+            prediction_df=empty_df,
+            bn_df=empty_df,
+            screened_df=pd.DataFrame(columns=['formula', 'ranking_rank']),
+            benchmark_df=empty_df,
+            robustness_df=empty_df,
+            bn_slice_benchmark_df=empty_df,
+            bn_slice_prediction_df=empty_df,
+            bn_centered_screened_df=empty_df,
+            structure_generation_seed_df=empty_df,
+            experiment_summary={},
+            manifest={},
+            cfg=cfg,
+        )
+
+
+def test_reporting_rejects_hardlink_alias_to_reserved_artifact(tmp_path):
+    artifact_dir = tmp_path / 'artifacts'
+    artifact_dir.mkdir()
+    metrics_path = artifact_dir / 'metrics.json'
+    metrics_path.write_text('{"sentinel": true}\n', encoding='utf-8')
+    execution_alias_path = artifact_dir / 'custom_execution.json'
+    execution_alias_path.hardlink_to(metrics_path)
+    cfg = {
+        'project': {'artifact_dir': str(artifact_dir)},
+        'data': {'formula_column': 'formula'},
+        'screening': {
+            'structure_first_pass_execution': {
+                'artifact': execution_alias_path.name,
+            },
+        },
+    }
+    empty_df = pd.DataFrame()
+
+    with pytest.raises(ValueError, match='hard links'):
+        save_metrics_and_predictions(
+            metrics={'replacement': True},
+            prediction_df=empty_df,
+            bn_df=empty_df,
+            screened_df=pd.DataFrame(columns=['formula', 'ranking_rank']),
+            benchmark_df=empty_df,
+            robustness_df=empty_df,
+            bn_slice_benchmark_df=empty_df,
+            bn_slice_prediction_df=empty_df,
+            bn_centered_screened_df=empty_df,
+            structure_generation_seed_df=empty_df,
+            experiment_summary={},
+            manifest={},
+            cfg=cfg,
+            structure_first_pass_execution_payload={},
+        )
+
+    assert metrics_path.read_text(encoding='utf-8') == '{"sentinel": true}\n'
+    assert execution_alias_path.read_text(encoding='utf-8') == '{"sentinel": true}\n'
+
+
+@pytest.mark.parametrize(
+    ('first_name', 'second_name'),
+    [
+        ('variant.cif', 'variant.cif'),
+        ('variant.cif', 'VARIANT.CIF'),
+        ('caf\u00e9.cif', 'cafe\u0301.cif'),
+    ],
+    ids=['exact', 'casefolded', 'unicode-normalized'],
+)
+def test_reporting_rejects_duplicate_cif_output_aliases(
+    tmp_path,
+    first_name,
+    second_name,
+):
+    artifact_dir = tmp_path / 'artifacts'
+    cfg = {
+        'project': {'artifact_dir': str(artifact_dir)},
+        'data': {'formula_column': 'formula'},
+    }
+    execution_cfg = _structure_first_pass_execution_config(cfg)
+    structure_dir = execution_cfg['structure_dir']
+    structure_payload = {
+        **{
+            field: execution_cfg[field]
+            for field in ('artifact', 'summary_artifact', 'variants_artifact', 'structure_dir')
+        },
+        'candidates': [
+            {
+                'formula': 'XBN',
+                'variants': [
+                    {
+                        'generated_structure_cif_path': f'{structure_dir}/{first_name}',
+                        '_cif_text': 'first',
+                    },
+                    {
+                        'generated_structure_cif_path': f'{structure_dir}/{second_name}',
+                        '_cif_text': 'second',
+                    },
+                ],
+            },
+        ],
+    }
+    empty_df = pd.DataFrame()
+
+    with pytest.raises(ValueError, match='must be unique'):
+        save_metrics_and_predictions(
+            metrics={},
+            prediction_df=empty_df,
+            bn_df=empty_df,
+            screened_df=pd.DataFrame(columns=['formula', 'ranking_rank']),
+            benchmark_df=empty_df,
+            robustness_df=empty_df,
+            bn_slice_benchmark_df=empty_df,
+            bn_slice_prediction_df=empty_df,
+            bn_centered_screened_df=empty_df,
+            structure_generation_seed_df=empty_df,
+            experiment_summary={},
+            manifest={},
+            cfg=cfg,
+            structure_first_pass_execution_variant_df=pd.DataFrame([
+                {'formula': 'XBN', 'variant': 1},
+                {'formula': 'XBN', 'variant': 2},
+            ]),
+            structure_first_pass_execution_summary_df=pd.DataFrame([
+                {'formula': 'XBN'},
+            ]),
+            structure_first_pass_execution_payload=structure_payload,
+        )
+
+    assert not (artifact_dir / 'metrics.json').exists()
+
+
+def test_reporting_rejects_structure_artifact_write_or_cleanup_escape(tmp_path):
+    artifact_dir = tmp_path / 'artifacts'
+    outside_dir = tmp_path / 'outside'
+    artifact_dir.mkdir()
+    outside_dir.mkdir()
+    outside_artifact = outside_dir / 'execution.json'
+    outside_artifact.write_text('keep', encoding='utf-8')
+    (artifact_dir / 'escape').symlink_to(outside_dir, target_is_directory=True)
+    cfg = {
+        'project': {'artifact_dir': str(artifact_dir)},
+        'data': {'formula_column': 'formula'},
+    }
+    empty_df = pd.DataFrame()
+    screened_df = pd.DataFrame(columns=['formula', 'ranking_rank'])
+
+    def save_structure_payload(structure_payload, *, summary_df=None, variant_df=None):
+        save_metrics_and_predictions(
+            metrics={},
+            prediction_df=empty_df,
+            bn_df=empty_df,
+            screened_df=screened_df,
+            benchmark_df=empty_df,
+            robustness_df=empty_df,
+            bn_slice_benchmark_df=empty_df,
+            bn_slice_prediction_df=empty_df,
+            bn_centered_screened_df=empty_df,
+            structure_generation_seed_df=empty_df,
+            experiment_summary={},
+            manifest={},
+            cfg=cfg,
+            structure_first_pass_execution_variant_df=variant_df,
+            structure_first_pass_execution_summary_df=summary_df,
+            structure_first_pass_execution_payload=structure_payload,
+        )
+
+    for artifact_value in ('../outside/execution.json', 'escape/execution.json'):
+        structure_payload = {
+            'artifact': artifact_value,
+            'summary_artifact': 'nested/summary.csv',
+            'variants_artifact': 'nested/variants.csv',
+            'structure_dir': 'nested/structures',
+            'candidates': [],
+        }
+        with pytest.raises(ValueError, match='artifact directory'):
+            save_structure_payload(structure_payload)
+        assert outside_artifact.read_text(encoding='utf-8') == 'keep'
+
+    outside_cif = outside_dir / 'variant.cif'
+    outside_cif.write_text('keep-cif', encoding='utf-8')
+    cfg['screening'] = {
+        'structure_first_pass_execution': {
+            'artifact': 'nested/execution.json',
+            'summary_artifact': 'nested/summary.csv',
+            'variants_artifact': 'nested/variants.csv',
+            'structure_dir': 'nested/structures',
+        },
+    }
+    structure_payload = {
+        'artifact': 'nested/execution.json',
+        'summary_artifact': 'nested/summary.csv',
+        'variants_artifact': 'nested/variants.csv',
+        'structure_dir': 'nested/structures',
+        'candidates': [
+            {
+                'formula': 'XBN',
+                'variants': [
+                    {
+                        'generated_structure_cif_path': 'escape/variant.cif',
+                        '_cif_text': 'do-not-write',
+                    },
+                ],
+            },
+        ],
+    }
+    with pytest.raises(ValueError, match='artifact directory'):
+        save_structure_payload(
+            structure_payload,
+            summary_df=pd.DataFrame([{'formula': 'XBN'}]),
+            variant_df=pd.DataFrame([{'formula': 'XBN'}]),
+        )
+    assert outside_cif.read_text(encoding='utf-8') == 'keep-cif'
+    assert not (artifact_dir / 'metrics.json').exists()
+    assert not (artifact_dir / 'nested/summary.csv').exists()
+    assert not (artifact_dir / 'nested/variants.csv').exists()
+
+    structure_payload['candidates'][0]['variants'][0][
+        'generated_structure_cif_path'
+    ] = 'metrics.json'
+    with pytest.raises(ValueError, match='directly under'):
+        save_structure_payload(
+            structure_payload,
+            summary_df=pd.DataFrame([{'formula': 'XBN'}]),
+            variant_df=pd.DataFrame([{'formula': 'XBN'}]),
+        )
+    assert not (artifact_dir / 'metrics.json').exists()
+
+
+def test_reporting_clears_stale_structure_execution_artifacts_on_empty_second_run(tmp_path):
+    artifact_dir = tmp_path / 'artifacts'
+    cfg = {
+        'project': {'artifact_dir': str(artifact_dir)},
+        'data': {'formula_column': 'formula'},
+    }
+    empty_df = pd.DataFrame()
+    screened_df = pd.DataFrame(columns=['formula', 'ranking_rank'])
+    execution_cfg = _structure_first_pass_execution_config(cfg)
+    cif_relative_path = f"{execution_cfg['structure_dir']}/xbn__variant_1.cif"
+    structure_payload = {
+        **{
+            field: execution_cfg[field]
+            for field in ('artifact', 'summary_artifact', 'variants_artifact', 'structure_dir')
+        },
+        'candidates': [
+            {
+                'formula': 'XBN',
+                'variants': [
+                    {
+                        'generated_structure_cif_path': cif_relative_path,
+                        '_cif_text': 'data_XBN\n',
+                    },
+                ],
+            },
+        ],
+    }
+
+    def save_structure_outputs(*, payload, summary_df=None, variant_df=None):
+        save_metrics_and_predictions(
+            metrics={},
+            prediction_df=empty_df,
+            bn_df=empty_df,
+            screened_df=screened_df,
+            benchmark_df=empty_df,
+            robustness_df=empty_df,
+            bn_slice_benchmark_df=empty_df,
+            bn_slice_prediction_df=empty_df,
+            bn_centered_screened_df=empty_df,
+            structure_generation_seed_df=empty_df,
+            experiment_summary={},
+            manifest={},
+            cfg=cfg,
+            structure_first_pass_execution_variant_df=variant_df,
+            structure_first_pass_execution_summary_df=summary_df,
+            structure_first_pass_execution_payload=payload,
+        )
+
+    save_structure_outputs(
+        payload=structure_payload,
+        summary_df=pd.DataFrame([{'formula': 'XBN'}]),
+        variant_df=pd.DataFrame([{'formula': 'XBN'}]),
+    )
+    stale_paths = [
+        artifact_dir / execution_cfg['artifact'],
+        artifact_dir / execution_cfg['summary_artifact'],
+        artifact_dir / execution_cfg['variants_artifact'],
+        artifact_dir / cif_relative_path,
+        artifact_dir / 'demo_candidate_structure_followup_report.csv',
+    ]
+    assert all(path.exists() for path in stale_paths)
+
+    save_structure_outputs(payload={})
+
+    assert all(not path.exists() for path in stale_paths)
 
 
 def test_reporting_writes_expected_artifacts(tmp_path):

@@ -184,17 +184,33 @@ def _normalize(raw: list[dict], target_col: str) -> pd.DataFrame:
     return df
 
 
-def _build_manifest(dataset_name: str, version_hint: str) -> dict:
+def _build_manifest(dataset_name: str, target_col: str, version_hint: str) -> dict:
     return DatasetManifest(
         name=dataset_name,
         source='jarvis-tools/figshare',
         retrieved_at=datetime.now(timezone.utc).isoformat(),
+        target_column=target_col,
         version_hint=version_hint,
     ).model_dump()
 
 
 def _has_required_normalized_columns(df: pd.DataFrame) -> bool:
     return all(column in df.columns for column in REQUIRED_NORMALIZED_COLUMNS)
+
+
+def _cached_dataset_matches_request(
+    df: pd.DataFrame,
+    manifest: object,
+    dataset_name: str,
+    target_col: str,
+) -> bool:
+    return bool(
+        _has_required_normalized_columns(df)
+        and isinstance(manifest, dict)
+        and manifest.get('name') == dataset_name
+        and manifest.get('source') == 'jarvis-tools/figshare'
+        and manifest.get('target_column') == target_col
+    )
 
 
 def _load_cached_raw(raw_path: Path) -> list[dict] | None:
@@ -236,7 +252,11 @@ def _write_dataset_artifacts(
 ) -> tuple[pd.DataFrame, dict]:
     df = _normalize(raw, target_col)
     df.to_parquet(processed_path, index=False)
-    manifest = _build_manifest(dataset_name, version_hint=version_hint)
+    manifest = _build_manifest(
+        dataset_name,
+        target_col=target_col,
+        version_hint=version_hint,
+    )
     write_json_file(manifest, manifest_path, indent=2)
     return df, manifest
 
@@ -253,7 +273,12 @@ def load_or_build_dataset(cfg: dict) -> tuple[pd.DataFrame, dict]:
     if processed_path.exists() and manifest_path.exists():
         cached_df = pd.read_parquet(processed_path)
         cached_manifest = read_json_file(manifest_path)
-        if _has_required_normalized_columns(cached_df):
+        if _cached_dataset_matches_request(
+            cached_df,
+            cached_manifest,
+            dataset_name,
+            target_col,
+        ):
             return cached_df, cached_manifest
 
         cached_raw = _load_cached_raw(raw_path)

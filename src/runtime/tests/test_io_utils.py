@@ -2,7 +2,9 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import pytest
 
+from runtime import io_utils
 from runtime.io_utils import (
     clear_project_cache,
     ensure_runtime_dirs,
@@ -11,6 +13,45 @@ from runtime.io_utils import (
     read_json_file,
     write_json_file,
 )
+
+
+def _make_myutils_file_layout(root: Path) -> None:
+    file_utils_dir = root / 'file_utils'
+    file_utils_dir.mkdir(parents=True)
+    (file_utils_dir / 'filesystem.py').write_text('', encoding='utf-8')
+    (file_utils_dir / 'json_io.py').write_text('', encoding='utf-8')
+
+
+@pytest.mark.parametrize('checkout_prefix', [('aiforbn',), ('projects', 'aiforbn')])
+def test_find_myutils_root_handles_nested_checkout_layouts(
+    tmp_path: Path,
+    monkeypatch,
+    checkout_prefix,
+):
+    myutils_root = tmp_path / 'myutils'
+    _make_myutils_file_layout(myutils_root)
+    source_path = tmp_path.joinpath(*checkout_prefix, 'src', 'runtime', 'io_utils.py')
+    monkeypatch.delenv('MYUTILS_ROOT', raising=False)
+
+    assert io_utils._find_myutils_root(source_path) == myutils_root.resolve()
+
+
+def test_find_myutils_root_honors_explicit_override(tmp_path: Path, monkeypatch):
+    myutils_root = tmp_path / 'external-myutils'
+    _make_myutils_file_layout(myutils_root)
+    monkeypatch.setenv('MYUTILS_ROOT', str(myutils_root))
+
+    assert io_utils._find_myutils_root('/unrelated/checkout/io_utils.py') == myutils_root.resolve()
+
+
+def test_find_myutils_root_reports_actionable_failure(tmp_path: Path, monkeypatch):
+    missing_root = tmp_path / 'missing-myutils'
+    monkeypatch.setenv('MYUTILS_ROOT', str(missing_root))
+
+    with pytest.raises(ModuleNotFoundError, match='Set MYUTILS_ROOT') as exc_info:
+        io_utils._find_myutils_root('/unrelated/checkout/io_utils.py')
+
+    assert str(missing_root) in str(exc_info.value)
 
 
 def test_load_config_from_python_module(tmp_path: Path):

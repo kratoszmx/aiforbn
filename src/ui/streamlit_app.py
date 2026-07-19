@@ -6,12 +6,11 @@ import sys
 import pandas as pd
 import streamlit as st
 
-_MYUTILS_ROOT = Path(__file__).resolve().parents[3] / 'myutils'
-_MYUTILS_FILE_UTILS_DIR = _MYUTILS_ROOT / 'file_utils'
-if str(_MYUTILS_FILE_UTILS_DIR) not in sys.path:
-    sys.path.insert(0, str(_MYUTILS_FILE_UTILS_DIR))
+SRC_DIR = Path(__file__).resolve().parents[1]
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
 
-from json_io import read_json_file
+from runtime.io_utils import read_json_file
 
 
 ARTIFACT_PATHS = {

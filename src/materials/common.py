@@ -146,6 +146,38 @@ STRUCTURE_GENERATION_FOLLOWUP_EXTRAPOLATION_SHORTLIST_NOTE = (
 )
 
 
+def _artifact_relative_path(value: object, *, field_name: str) -> str:
+    path_text = '' if value is None else str(value).strip()
+    relative_path = Path(path_text)
+    if not path_text or relative_path.is_absolute():
+        raise ValueError(
+            f'{field_name} must be a non-empty relative path under the artifact directory'
+        )
+
+    normalized_path = Path(os.path.normpath(path_text))
+    if normalized_path == Path('.') or (
+        normalized_path.parts and normalized_path.parts[0] == '..'
+    ):
+        raise ValueError(f'{field_name} must stay within the artifact directory')
+    return path_text
+
+
+def _resolve_artifact_path(
+    artifact_dir: str | Path,
+    value: object,
+    *,
+    field_name: str,
+) -> Path:
+    relative_path = Path(_artifact_relative_path(value, field_name=field_name))
+    artifact_root = Path(artifact_dir).resolve(strict=False)
+    resolved_path = (artifact_root / relative_path).resolve(strict=False)
+    try:
+        resolved_path.relative_to(artifact_root)
+    except ValueError as exc:
+        raise ValueError(f'{field_name} must resolve inside the artifact directory') from exc
+    return resolved_path
+
+
 def _structure_followup_shortlist_config(cfg: dict | None = None) -> dict[str, object]:
     screening_cfg = {} if cfg is None else cfg.get('screening', {})
     shortlist_cfg = screening_cfg.get('structure_followup_shortlist', {})

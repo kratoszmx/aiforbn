@@ -3,6 +3,7 @@ import json
 
 import pytest
 
+from runtime import agent_state
 from runtime.agent_state import (
     agent_state_to_json,
     build_agent_command_index,
@@ -90,7 +91,15 @@ def test_validate_agent_layout_accepts_current_repo_contract():
         for check in validation['checks']
         if check['kind'] == 'dependency_import'
     }
-    assert {'pandas', 'numpy', 'sklearn', 'pyarrow', 'torch'}.issubset(dependency_modules)
+    assert {
+        'pandas',
+        'numpy',
+        'sklearn',
+        'pyarrow',
+        'torch',
+        'streamlit',
+        'jarvis',
+    }.issubset(dependency_modules)
 
 
 def test_build_agent_command_index_returns_validation_profiles():
@@ -230,6 +239,22 @@ def test_validate_agent_layout_rejects_incomplete_validation_profiles(
             ),
             'missing_required_validation_commands',
         ),
+        (
+            lambda manifest: next(
+                entry
+                for entry in manifest['entrypoints']
+                if entry['name'] == 'fast_smoke'
+            ).update({'command': 'python3 broken.py'}),
+            'unexpected_entrypoints_command',
+        ),
+        (
+            lambda manifest: next(
+                entry
+                for entry in manifest['validation_commands']
+                if entry['name'] == 'full_src_tests'
+            ).update({'command': 'python3 -m pytest -q tests'}),
+            'unexpected_validation_commands_command',
+        ),
     ],
 )
 def test_validate_agent_layout_rejects_incomplete_command_surface(
@@ -243,6 +268,24 @@ def test_validate_agent_layout_rejects_incomplete_command_surface(
 
     assert validation['status'] == 'error'
     assert any(error['code'] == expected_error_code for error in validation['errors'])
+
+
+def test_local_instruction_path_validation_rejects_missing_absolute_path(tmp_path: Path):
+    skill_path = tmp_path / '.agents' / 'skills' / 'demo' / 'SKILL.md'
+    skill_path.parent.mkdir(parents=True)
+    skill_path.write_text('Read `/definitely/missing/aiforbn/AGENTS.md`.\n', encoding='utf-8')
+    errors = []
+
+    agent_state._validate_local_instruction_paths(
+        tmp_path,
+        {
+            'project_skills': [{'path': '.agents/skills/demo/SKILL.md'}],
+            'modules': [],
+        },
+        errors,
+    )
+
+    assert [error['code'] for error in errors] == ['stale_local_instruction_path']
 
 
 @pytest.mark.parametrize(

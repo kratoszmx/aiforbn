@@ -1,6 +1,6 @@
 ---
 name: aiforbn-overleaf-proposal
-description: 用于 /Users/zmx/Projects/aiforbn 的 research-plan 和 Overleaf 交付工作，包括 LaTeX proposal 编辑、XeLaTeX/fontspec/xeCJK 编译器检查、Overleaf source/PDF 同步、协作者权限验证，以及最终 PDF/source 交接。
+description: 用于 aiforbn 仓库的 research-plan 和 Overleaf 交付工作，包括 LaTeX proposal 编辑、XeLaTeX/fontspec/xeCJK 编译器检查、Overleaf source/PDF 同步、协作者权限验证，以及最终 PDF/source 交接。
 ---
 
 # AI-for-BN Overleaf Proposal
@@ -28,7 +28,7 @@ description: 用于 /Users/zmx/Projects/aiforbn 的 research-plan 和 Overleaf �
 
 ## 工作流
 
-1. 读取 `/Users/zmx/Projects/aiforbn/AGENTS.md` 和当前 proposal 任务上下文。
+1. 读取仓库根目录的 `AGENTS.md` 和当前 proposal 任务上下文。
 2. 编辑前确认准确的本地 proposal source 和 output 文件。
 3. 需要远程 Overleaf source 检查、ZIP 下载、Git mirror 工作或 browser-session fallback 时，使用 `$mcp-overleaf`。
 4. 用文字证据验证编译器选择和协作者权限。

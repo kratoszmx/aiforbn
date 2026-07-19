@@ -953,7 +953,12 @@ def _candidate_ranking_uncertainty_table(
 ) -> tuple[pd.DataFrame, dict[str, object]]:
     stability_cfg = _ranking_stability_config(cfg)
     decision_cfg = _decision_policy_config(cfg)
-    application_tracks = decision_cfg.get('application_tracks') or []
+    decision_policy_enabled = bool(decision_cfg['enabled'])
+    application_tracks = (
+        decision_cfg.get('application_tracks') or []
+        if decision_policy_enabled
+        else []
+    )
     if not isinstance(application_tracks, list):
         application_tracks = []
 
@@ -1206,12 +1211,12 @@ def _candidate_ranking_uncertainty_table(
     prediction_std_threshold = None
     rank_std_threshold = None
     numeric_prediction_std = pd.to_numeric(summary_df['predicted_band_gap_std'], errors='coerce').dropna()
-    if not numeric_prediction_std.empty:
+    if decision_policy_enabled and not numeric_prediction_std.empty:
         prediction_std_threshold = float(
             numeric_prediction_std.quantile(float(decision_cfg['prediction_std_above_quantile']))
         )
     numeric_rank_std = pd.to_numeric(summary_df['rank_std'], errors='coerce').dropna()
-    if not numeric_rank_std.empty:
+    if decision_policy_enabled and not numeric_rank_std.empty:
         rank_std_threshold = float(
             numeric_rank_std.quantile(float(decision_cfg['rank_std_above_quantile']))
         )
@@ -1224,6 +1229,15 @@ def _candidate_ranking_uncertainty_table(
     application_track_target_windows: list[str | None] = []
     application_track_notes: list[str | None] = []
     for _, row in summary_df.iterrows():
+        if not decision_policy_enabled:
+            abstain_reasons.append('')
+            abstain_flags.append(False)
+            final_action_labels.append(None)
+            application_track_primaries.append(None)
+            application_track_secondaries.append(None)
+            application_track_target_windows.append(None)
+            application_track_notes.append(None)
+            continue
         chemical_plausibility_pass = bool(row.get('chemical_plausibility_pass', True))
         candidate_novelty_bucket = str(row.get('candidate_novelty_bucket', ''))
         reasons: list[str] = []

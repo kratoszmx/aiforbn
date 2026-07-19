@@ -13,7 +13,7 @@ from materials.data import STRUCTURE_SUMMARY_COLUMNS, _structure_summary_from_at
 from materials.candidate_space import _formula_amount_map, _structure_generation_seed_config
 from materials.constants import STRUCTURE_AWARE_FEATURE_SET
 from materials.feature_building import build_feature_table
-from materials.common import _structure_followup_shortlist_config
+from materials.common import _artifact_relative_path, _structure_followup_shortlist_config
 from materials.structure_artifacts import (
     _build_structure_generation_first_pass_queue_payload,
     _build_structure_generation_followup_shortlist_df,
@@ -111,6 +111,16 @@ def _structure_first_pass_execution_config(cfg: dict | None = None) -> dict[str,
         raise ValueError(
             'structure_first_pass_execution geometry thresholds must satisfy '
             '0 < overlap_threshold <= pass_threshold'
+        )
+    for artifact_field in (
+        'artifact',
+        'summary_artifact',
+        'variants_artifact',
+        'structure_dir',
+    ):
+        out[artifact_field] = _artifact_relative_path(
+            out[artifact_field],
+            field_name=f'structure_first_pass_execution.{artifact_field}',
         )
     return out
 
@@ -457,4 +467,3 @@ def _clean_variant_basename(candidate_formula: str, variant_rank: int) -> str:
     safe_formula = ''.join(ch.lower() if ch.isalnum() else '_' for ch in str(candidate_formula))
     safe_formula = safe_formula.strip('_') or 'candidate'
     return f'{safe_formula}__variant_{variant_rank:02d}'
-

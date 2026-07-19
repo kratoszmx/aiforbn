@@ -367,6 +367,22 @@ def _formula_level_regression_metrics(y_true: list[float], y_pred: list[float]) 
     return metrics
 
 
+def _aggregate_held_out_formula_predictions(
+    prediction_frames: list[pd.DataFrame],
+) -> pd.DataFrame:
+    if not prediction_frames:
+        return pd.DataFrame(columns=['formula', 'target', 'prediction', 'is_bn'])
+    formula_prediction_df = (
+        pd.concat(prediction_frames, ignore_index=True)
+        .groupby('formula', as_index=False)[['target', 'prediction']]
+        .mean()
+    )
+    formula_prediction_df['is_bn'] = formula_prediction_df['formula'].astype(str).apply(
+        lambda value: {'B', 'N'}.issubset(set(extract_elements(value)))
+    )
+    return formula_prediction_df
+
+
 def benchmark_bn_slice(
     dataset_df: pd.DataFrame,
     feature_tables: dict[str, pd.DataFrame],
@@ -1020,12 +1036,18 @@ def benchmark_bn_stratified_errors(
     baseline_types = _ordered_model_types(cfg['model'].get('benchmark_baselines', ['dummy_mean']))
     requested_splits = int(benchmark_cfg['n_splits'])
     group_col = str(benchmark_cfg['group_column'])
+    formula_col = str((cfg.get('data') or {}).get('formula_column') or 'formula')
+    if group_col != formula_col:
+        raise ValueError(
+            'bn_stratified_error.group_column must match data.formula_column so duplicate '
+            'formula rows cannot leak across grouped train/test folds'
+        )
 
     rows: list[dict[str, object]] = []
     for feature_set in candidate_feature_sets:
         feature_df = feature_tables[feature_set]
         feature_info = summarize_feature_table(feature_df, feature_set=feature_set)
-        feature_formula_col = group_col if group_col in feature_df.columns else 'formula'
+        feature_formula_col = formula_col
         for model_type in candidate_model_types:
             row: dict[str, object] = {
                 'feature_set': feature_set,
@@ -1130,7 +1152,9 @@ def benchmark_bn_stratified_errors(
                     rows.append(row)
                     continue
 
-                formula_prediction_df = pd.concat(formula_prediction_rows, ignore_index=True)
+                formula_prediction_df = _aggregate_held_out_formula_predictions(
+                    formula_prediction_rows
+                )
                 bn_formula_df = formula_prediction_df.loc[formula_prediction_df['is_bn'].fillna(False)].copy()
                 non_bn_formula_df = formula_prediction_df.loc[
                     ~formula_prediction_df['is_bn'].fillna(False)
@@ -1138,7 +1162,7 @@ def benchmark_bn_stratified_errors(
                 row['completed_folds'] = int(len(split_payloads))
                 row['bn_formula_count'] = int(bn_formula_df['formula'].astype(str).nunique())
                 row['non_bn_formula_count'] = int(non_bn_formula_df['formula'].astype(str).nunique())
-                if len(bn_formula_df) >= 2:
+                if int(row['bn_formula_count']) >= 2:
                     row.update({
                         'bn_mae': _formula_level_regression_metrics(
                             bn_formula_df['target'].tolist(),
@@ -1153,7 +1177,7 @@ def benchmark_bn_stratified_errors(
                             bn_formula_df['prediction'].tolist(),
                         )['r2'],
                     })
-                if len(non_bn_formula_df) >= 2:
+                if int(row['non_bn_formula_count']) >= 2:
                     row.update({
                         'non_bn_mae': _formula_level_regression_metrics(
                             non_bn_formula_df['target'].tolist(),
@@ -1170,6 +1194,12 @@ def benchmark_bn_stratified_errors(
                     })
                 if pd.notna(row['bn_mae']) and pd.notna(row['non_bn_mae']) and float(row['non_bn_mae']) > 0:
                     row['bn_to_non_bn_mae_ratio'] = float(row['bn_mae']) / float(row['non_bn_mae'])
+                if int(row['bn_formula_count']) < 2 or int(row['non_bn_formula_count']) < 2:
+                    row['benchmark_status'] = 'insufficient_stratified_formulas'
+                    row['benchmark_note'] = (
+                        'Grouped stratified benchmark requires at least two held-out BN formulas '
+                        'and two held-out non-BN formulas.'
+                    )
             except Exception as exc:
                 row['benchmark_status'] = 'evaluation_failed'
                 row['benchmark_note'] = f'{type(exc).__name__}: {exc}'
@@ -1178,7 +1208,7 @@ def benchmark_bn_stratified_errors(
     selected_feature_df = feature_tables[selected_feature_set]
     selected_feature_columns = _feature_columns(selected_feature_df)
     selected_feature_count = len(selected_feature_columns)
-    feature_formula_col = group_col if group_col in selected_feature_df.columns else 'formula'
+    feature_formula_col = formula_col
     for model_type in baseline_types:
         row = {
             'feature_set': DUMMY_FEATURE_SET,
@@ -1255,7 +1285,9 @@ def benchmark_bn_stratified_errors(
                 formula_prediction_rows.append(grouped_prediction_df)
 
             if formula_prediction_rows:
-                formula_prediction_df = pd.concat(formula_prediction_rows, ignore_index=True)
+                formula_prediction_df = _aggregate_held_out_formula_predictions(
+                    formula_prediction_rows
+                )
                 bn_formula_df = formula_prediction_df.loc[formula_prediction_df['is_bn'].fillna(False)].copy()
                 non_bn_formula_df = formula_prediction_df.loc[
                     ~formula_prediction_df['is_bn'].fillna(False)
@@ -1263,7 +1295,7 @@ def benchmark_bn_stratified_errors(
                 row['completed_folds'] = int(len(split_payloads))
                 row['bn_formula_count'] = int(bn_formula_df['formula'].astype(str).nunique())
                 row['non_bn_formula_count'] = int(non_bn_formula_df['formula'].astype(str).nunique())
-                if len(bn_formula_df) >= 2:
+                if int(row['bn_formula_count']) >= 2:
                     bn_metrics = _formula_level_regression_metrics(
                         bn_formula_df['target'].tolist(),
                         bn_formula_df['prediction'].tolist(),
@@ -1271,7 +1303,7 @@ def benchmark_bn_stratified_errors(
                     row['bn_mae'] = bn_metrics['mae']
                     row['bn_rmse'] = bn_metrics['rmse']
                     row['bn_r2'] = bn_metrics['r2']
-                if len(non_bn_formula_df) >= 2:
+                if int(row['non_bn_formula_count']) >= 2:
                     non_bn_metrics = _formula_level_regression_metrics(
                         non_bn_formula_df['target'].tolist(),
                         non_bn_formula_df['prediction'].tolist(),
@@ -1281,6 +1313,12 @@ def benchmark_bn_stratified_errors(
                     row['non_bn_r2'] = non_bn_metrics['r2']
                 if pd.notna(row['bn_mae']) and pd.notna(row['non_bn_mae']) and float(row['non_bn_mae']) > 0:
                     row['bn_to_non_bn_mae_ratio'] = float(row['bn_mae']) / float(row['non_bn_mae'])
+                if int(row['bn_formula_count']) < 2 or int(row['non_bn_formula_count']) < 2:
+                    row['benchmark_status'] = 'insufficient_stratified_formulas'
+                    row['benchmark_note'] = (
+                        'Grouped stratified benchmark requires at least two held-out BN formulas '
+                        'and two held-out non-BN formulas.'
+                    )
             else:
                 row['benchmark_status'] = 'insufficient_predictions'
                 row['benchmark_note'] = (
@@ -1340,12 +1378,11 @@ def select_bn_centered_candidate_screening_combo(
         return summary
 
     candidate_mask = bn_slice_benchmark_df['benchmark_status'].astype(str).eq('ok')
+    candidate_mask &= bn_slice_benchmark_df['feature_set'].astype(str).map(
+        feature_set_supports_formula_only_screening
+    )
     if 'candidate_compatible' in bn_slice_benchmark_df.columns:
         candidate_mask &= bn_slice_benchmark_df['candidate_compatible'].fillna(False).astype(bool)
-    else:
-        candidate_mask &= bn_slice_benchmark_df['feature_set'].astype(str).map(
-            feature_set_supports_formula_only_screening
-        )
     if 'benchmark_role' in bn_slice_benchmark_df.columns:
         candidate_mask &= ~bn_slice_benchmark_df['benchmark_role'].astype(str).isin(
             ['global_dummy_mean_baseline', 'bn_local_reference_baseline']
@@ -1401,4 +1438,3 @@ def _split_pipe_delimited_values(value: object) -> list[str]:
     if not isinstance(value, str):
         value = str(value)
     return _ordered_values([item.strip() for item in value.split('|') if item and item.strip()])
-

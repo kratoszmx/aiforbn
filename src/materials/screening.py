@@ -394,6 +394,16 @@ def build_candidate_prediction_ensemble(
     cfg: dict,
     candidate_feature_sets: list[str] | None = None,
 ) -> pd.DataFrame:
+    candidate_feature_sets = _candidate_prediction_feature_sets(
+        feature_tables,
+        cfg,
+        candidate_feature_sets,
+    )
+    if not candidate_feature_sets:
+        raise ValueError(
+            'No formula-only candidate-compatible feature set was available for candidate '
+            'ensemble prediction'
+        )
     prediction_df = build_candidate_prediction_members(
         candidate_df,
         feature_tables,
@@ -417,6 +427,29 @@ def build_candidate_prediction_ensemble(
     return aggregated
 
 
+def _candidate_prediction_feature_sets(
+    feature_tables: dict[str, pd.DataFrame],
+    cfg: dict,
+    candidate_feature_sets: list[str] | None,
+) -> list[str]:
+    requested_feature_sets = candidate_feature_sets or get_candidate_screening_feature_sets(cfg)
+    return [
+        feature_set
+        for feature_set in requested_feature_sets
+        if feature_set in feature_tables
+        and feature_set_supports_formula_only_screening(feature_set)
+    ]
+
+
+def _require_formula_only_candidate_feature_set(feature_set: str, boundary: str) -> None:
+    if feature_set_supports_formula_only_screening(feature_set):
+        return
+    raise ValueError(
+        f'{boundary} requires a feature set compatible with formula-only candidate screening; '
+        f'feature_set={feature_set!r} is not candidate-compatible.'
+    )
+
+
 def build_candidate_prediction_members(
     candidate_df: pd.DataFrame,
     feature_tables: dict[str, pd.DataFrame],
@@ -424,10 +457,16 @@ def build_candidate_prediction_members(
     cfg: dict,
     candidate_feature_sets: list[str] | None = None,
 ) -> pd.DataFrame:
-    candidate_feature_sets = candidate_feature_sets or [
-        value for value in get_candidate_screening_feature_sets(cfg) if value in feature_tables
-    ]
-    candidate_feature_sets = [value for value in candidate_feature_sets if value in feature_tables]
+    candidate_feature_sets = _candidate_prediction_feature_sets(
+        feature_tables,
+        cfg,
+        candidate_feature_sets,
+    )
+    if not candidate_feature_sets:
+        raise ValueError(
+            'No formula-only candidate-compatible feature set was available for candidate '
+            'prediction members'
+        )
     candidate_feature_tables = {
         feature_set: build_feature_table(candidate_df, formula_col='formula', feature_set=feature_set)
         for feature_set in candidate_feature_sets
@@ -514,6 +553,10 @@ def build_candidate_grouped_robustness_predictions(
     model_type: str,
     formula_col: str = 'formula',
 ) -> pd.DataFrame:
+    _require_formula_only_candidate_feature_set(
+        feature_set,
+        'Grouped candidate robustness prediction',
+    )
     robustness_cfg = _robustness_config(cfg)
     grouped_uncertainty_cfg = _grouped_robustness_uncertainty_config(cfg)
     out = pd.DataFrame({
@@ -600,6 +643,10 @@ def build_candidate_grouped_robustness_prediction_members(
     model_type: str,
     formula_col: str = 'formula',
 ) -> pd.DataFrame:
+    _require_formula_only_candidate_feature_set(
+        feature_set,
+        'Grouped candidate robustness prediction members',
+    )
     robustness_cfg = _robustness_config(cfg)
     grouped_uncertainty_cfg = _grouped_robustness_uncertainty_config(cfg)
     empty_prediction_df = pd.DataFrame(
@@ -686,9 +733,15 @@ def annotate_candidate_dataset_overlap(
     formula_col: str = 'formula',
 ) -> pd.DataFrame:
     dataset_formula_counts = dataset_df[formula_col].astype(str).value_counts()
-    out = pd.DataFrame({'formula': candidate_df['formula'].astype(str)})
-    out['seen_in_dataset'] = out['formula'].map(dataset_formula_counts).fillna(0).astype(int) > 0
-    out['dataset_formula_row_count'] = out['formula'].map(dataset_formula_counts).fillna(0).astype(int)
+    out = pd.DataFrame({
+        formula_col: candidate_df[formula_col].astype(str),
+    })
+    out['seen_in_dataset'] = (
+        out[formula_col].map(dataset_formula_counts).fillna(0).astype(int) > 0
+    )
+    out['dataset_formula_row_count'] = (
+        out[formula_col].map(dataset_formula_counts).fillna(0).astype(int)
+    )
 
     if split_masks is not None:
         train_plus_val_mask = np.asarray(split_masks['train']) | np.asarray(split_masks['val'])
@@ -696,10 +749,10 @@ def annotate_candidate_dataset_overlap(
             dataset_df.loc[train_plus_val_mask, formula_col].astype(str).value_counts()
         )
         out['seen_in_train_plus_val'] = (
-            out['formula'].map(train_plus_val_formula_counts).fillna(0).astype(int) > 0
+            out[formula_col].map(train_plus_val_formula_counts).fillna(0).astype(int) > 0
         )
         out['train_plus_val_formula_row_count'] = (
-            out['formula'].map(train_plus_val_formula_counts).fillna(0).astype(int)
+            out[formula_col].map(train_plus_val_formula_counts).fillna(0).astype(int)
         )
     return out
 
@@ -1308,6 +1361,7 @@ def screen_candidates(
     grouped_robustness_prediction_df: pd.DataFrame | None = None,
     reference_feature_df: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
+    _require_formula_only_candidate_feature_set(feature_set, 'Candidate ranking')
     annotated_candidate_df = annotate_candidate_chemical_plausibility(candidate_df, cfg=cfg, formula_col='formula')
     feature_df = build_feature_table(annotated_candidate_df, formula_col='formula', feature_set=feature_set)
     feature_info = summarize_feature_table(feature_df, feature_set=feature_set)

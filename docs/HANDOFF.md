@@ -2,9 +2,9 @@
 
 ## 项目
 - 名称：AI for BN PoC
-- 路径：`/Users/zmx/Projects/aiforbn`
+- 路径：`/Users/zmx/Projects/projects/aiforbn`
 - 默认执行环境：agent shell 下的 `quant`
-- 当前优先级：**AI-native contract hardening：使用机器可读 command index、repo-scoped skills 和验证档位接管后续工作；旧 `skills/*.txt` shards 已退役**
+- 当前优先级：**保持 relocated checkout 可执行，并以契约测试锁住 formula-only screening、BN diagnostics、artifact 安全边界与完整测试入口**
 
 ## 一句话结论
 - **最后一个可直接回退的稳定主线**仍然是此前已完整验证并已保存的主线波次。
@@ -76,6 +76,8 @@
 当前 `quant` 环境已补齐 `requirements.txt` 中完整测试需要的关键依赖：
 - `pyarrow`
 - `torch`
+- `streamlit`
+- `jarvis-tools`
 
 因此新的默认广覆盖验证命令可以使用：
 - `python3 -m pytest -q src`
@@ -83,6 +85,7 @@
 测试布局也已随模块调整为：
 - `src/runtime/tests/`
 - `src/materials/tests/`
+- `src/torch_models/tests/`
 - `src/ui/tests/`
 - `src/tests/`
 
@@ -96,9 +99,9 @@
 - 顶层模块目录已去掉 `__init__.py`、package-relative imports 和依赖 `__all__` 的包式导出，回到“repo root + src 路径直接使用”的非包态模式
 - `core` 这个顶层名字已移除，原通用运行时职责收敛到 `src/runtime/`
 - `reporting` 和 `structure_execution` 不再作为假独立 sibling module 存在，而是并回 `materials`，避免只在目录层面独立、实际仍强依赖主业务流
-- Streamlit UI 仍位于 `src/ui/streamlit_app.py`，并已去掉对 `runtime` 的不必要模块依赖，直接复用 `myutils` 的 JSON 读取能力
+- Streamlit UI 仍位于 `src/ui/streamlit_app.py`，并通过公开的 `runtime.io_utils.read_json_file` 复用 JSON 读取能力，避免重复维护 `myutils` 定位逻辑
 - `src/runtime/io_utils.py` 的 `ensure_runtime_dirs(...)` 已去掉对 `apps/`、`tests/`、`notebooks/` 这类非运行时目录的自动创建逻辑，因此旧的 notebook/notebooks 自动生成来源已经移除
-- `src/runtime/io_utils.py` 已对齐当前 `myutils` 的目录式布局，直接使用 `file_utils/`、`ai_utils/`、`net_utils/` 等子目录导入
+- `src/runtime/io_utils.py` 会从仓库位置向上寻找相邻的 `myutils/file_utils/`，也支持显式 `MYUTILS_ROOT`；不再依赖固定父目录深度
 - 项目里重复出现的 JSON 读写 / JSON-safe 转换逻辑继续尽量复用 `myutils/file_utils/json_io.py`
 
 根 `skill.txt` 和旧 `skills/*_skill.txt` shards 已不再作为入口文件；项目级 agent 规则收敛到：
@@ -232,53 +235,41 @@
    - not BN-centered discovery
 
 ## 当前验证状态
-本轮围绕“模块拆分后兼容性”已经做过这些验证：
+2026-07-19 接管轮已修复 relocated checkout 暴露的固定父目录导入故障，并完成测试完备性补强。当前验证证据：
 
-1. 语法级验证：
-- `python3 -m compileall src main.py`
+1. AI-native contract 与命令索引：
+- `conda run -n quant python3 main.py --emit-agent-commands`
+- `conda run -n quant python3 main.py --verify-agent-contract`
+- 结果：两者通过，contract status 为 `ok`，无 warnings / errors
+
+2. 快速主线烟测：
+- `conda run -n quant python3 main.py --dry-run`
+- 结果：通过；候选空间、4 组 feature sets、4 组默认模型与 dummy baseline 均可导入和实例化
+
+3. 完整 src 测试：
+- `conda run -n quant python3 -m pytest -q src`
+- 结果：`136 passed, 6 warnings`
+- warnings 来自 PyTorch nested-tensor prototype 提示和 sklearn feature-name 提示，不是测试失败
+
+4. 语法与 diff 卫生：
+- `conda run -n quant python3 -m compileall -q main.py src`
+- `git diff --check`
 - 结果：通过
 
-2. 定向回归验证：
-- `pytest -q src/materials/tests/test_features_pipeline.py -k "feature_pipeline_can_train_evaluate_benchmark_and_rank_demo_candidates or screen_candidates_can_apply_bn_local_band_gap_alignment_penalty"`
-- 结果：通过
+本轮新增或强化的主要契约测试覆盖：
+- relocated checkout 与 `MYUTILS_ROOT` override
+- control-plane 命令在 `myutils` 不可用时仍保持纯 JSON、可独立检查 contract
+- manifest command mapping、模块依赖边界、跨模块 private/wildcard imports、反向 public-surface 文档校验
+- 完整 `main.py` BN-centered alternative branch 与 summary/artifact 参数传递
+- formula-only screening 强边界、候选公式 featurization 原子失败、自定义 formula column
+- BN diagnostic disabled / insufficient-data 状态与 BN-centered selection 复核
+- processed-cache provenance 与 target-column identity、raw-record lookup、Pydantic schema、Torch regressor 快速契约
+- BN stratified diagnostics 强制 formula grouping 并按唯一公式聚合，避免重复公式跨 fold 泄漏
+- decision policy disabled 语义、结构工件路径 containment、core/pairwise/case/Unicode/hardlink alias 防护，以及空结果第二轮清除旧 JSON/CSV/CIF
 
-3. 入口与配置兼容验证：
-- `pytest -q src/tests/test_config.py src/tests/test_main.py`
-- 结果：`2 passed`
-
-4. 模块拆分后的完整 src 测试：
-- `PYTHONPATH=src pytest -q src`
-- 结果：`36 passed, 6 warnings in 5.67s`
-
-5. 快速 dry-run 烟测：
-- `python3 main.py --dry-run`
-- 结果：通过，已确认配置加载、候选空间生成、tiny in-memory feature-table 构建、以及配置中模型的导入/实例化均可完成
-
-6. reporting-artifact 波次的短验证：
-- `/opt/homebrew/Caskroom/miniforge/base/envs/quant/bin/python3 main.py --dry-run`
-- `/opt/homebrew/Caskroom/miniforge/base/envs/quant/bin/python3 -m pytest -q src/materials/tests/test_reporting.py`
-- 结果：`2 passed`
-
-7. `main.py` 烟测：
-- 在 agent shell / `quant` 环境里实际启动过 `python3 main.py`
-- 修复 `src/config.py` 缺失后，程序已不再在入口阶段立即因 import/config 路径报错
-- 该运行随后进入持续计算阶段，未在本轮等待到完整结束
-
-8. AI-native contract hardening 验证：
-- `python3 -m compileall main.py src/runtime/agent_state.py src/runtime/tests/test_agent_state.py src/tests/test_main.py`
-- `python3 main.py --emit-agent-commands | python3 -m json.tool`
-- `python3 main.py --verify-agent-contract | python3 -m json.tool`
-- `python3 main.py --dry-run`
-- `python3 -m pytest -q src/tests/test_main.py src/runtime/tests/test_agent_state.py src/runtime/tests/test_io_utils.py`
-- `python3 -m pytest -q src`
-- `quick_validate.py` for `.agents/skills/aiforbn-workflow`, `.agents/skills/aiforbn-overleaf-proposal`, global `ainative-workflow`, and global `small-fast-coding`
-- 结果：focused regression `13 passed`; full src `43 passed, 6 warnings`; command-only JSON stdout 已确认干净
-
-因此当前最准确的表述应是：
-- **当前 AI-native contract / command index / project skills / runtime tests 已通过**
-- **模块拆分后的 `pytest -q src` 已通过；最新结果是 `43 passed, 6 warnings`**
-- **`main.py` 已确认能启动并进入主流程，但本轮未等待到完整跑完**
-- 这更接近“结构重构已验证、主流程做过短烟测”的状态，而不是“完整重算后的新稳定 checkpoint”
+因此当前最准确的表述是：
+- **代码、contract、dry-run 与完整测试套件均已通过**
+- **本轮没有重算完整 scientific artifacts；如需刷新 research/demo 产物，应单独运行 full pipeline 并审查生成物**
 
 ## 当前最重要的记录文件
 ### 应继续保留并视为主状态文件
@@ -340,7 +331,7 @@
   - **TabPFN license/token**
 - 从结构规范角度看，当前代码已经进一步收敛到 4 个正式生产模块：`runtime`、`materials`、`torch_models`、`ui`。
 - 模块模板要求目前已满足，每个正式模块都带有自己的 `AGENTS.md` 和 `utils.py`。
-- 当前生产依赖关系也已明显收敛：`runtime -> []`、`torch_models -> []`、`ui -> []`、`materials -> [runtime, torch_models]`。
+- 当前生产依赖关系也已明显收敛：`runtime -> []`、`torch_models -> []`、`ui -> [runtime]`、`materials -> [runtime, torch_models]`。
 - 也就是说，之前那种 `reporting` / `structure_execution` 只是目录独立、实现上却从属于主业务链的问题，已经通过并回 `materials` 解决。
 - 当前工程动作应先通过 `--emit-agent-commands` 选择最小验证 profile，再进入单模块 coding 或 artifact regeneration。
 - 当前科研动作仍不应盲目扩展实验面；只有任务明确涉及导师汇报时，才回到老师回覆与证据口径补齐。

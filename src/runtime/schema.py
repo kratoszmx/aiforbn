@@ -7,6 +7,7 @@ class DatasetManifest(BaseModel):
     name: str
     source: str
     retrieved_at: str
+    target_column: str
     version_hint: str | None = None
 
 

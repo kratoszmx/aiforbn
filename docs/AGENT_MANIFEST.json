@@ -168,7 +168,9 @@
       "public_surface": "src/ui/PY_FILES_SUMMARY.md",
       "agent_rules": "src/ui/AGENTS.md",
       "local_utils": "src/ui/utils.py",
-      "allowed_dependencies": []
+      "allowed_dependencies": [
+        "runtime"
+      ]
     },
     {
       "name": "tests",
@@ -266,6 +268,16 @@
       "package": "torch",
       "module": "torch",
       "required_for": "torch_model_families"
+    },
+    {
+      "package": "streamlit",
+      "module": "streamlit",
+      "required_for": "artifact_viewer"
+    },
+    {
+      "package": "jarvis-tools",
+      "module": "jarvis",
+      "required_for": "dataset_download_when_cache_is_missing"
     }
   ],
   "safety_boundaries": {

@@ -1,21 +1,46 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 from pathlib import Path
 import sys
 
-_MYUTILS_ROOT = Path(__file__).resolve().parents[3] / 'myutils'
-_MYUTILS_MODULE_DIRS = (
-    _MYUTILS_ROOT / 'file_utils',
-    _MYUTILS_ROOT / 'ai_utils',
-    _MYUTILS_ROOT / 'net_utils',
-    _MYUTILS_ROOT / 'other_utils',
-    _MYUTILS_ROOT / 'viz_utils',
+_REQUIRED_MYUTILS_PATHS = (
+    Path('file_utils/filesystem.py'),
+    Path('file_utils/json_io.py'),
 )
-for module_dir in _MYUTILS_MODULE_DIRS:
-    module_dir_str = str(module_dir)
-    if module_dir_str not in sys.path:
-        sys.path.insert(0, module_dir_str)
+
+
+def _find_myutils_root(source_path: str | Path | None = None) -> Path:
+    override = os.environ.get('MYUTILS_ROOT', '').strip()
+    if override:
+        candidates = [Path(override).expanduser()]
+    else:
+        source = Path(source_path or __file__).expanduser().resolve()
+        candidates = [parent / 'myutils' for parent in source.parents]
+
+    checked: list[Path] = []
+    for candidate in candidates:
+        resolved_candidate = candidate.resolve()
+        if resolved_candidate in checked:
+            continue
+        checked.append(resolved_candidate)
+        if all((resolved_candidate / relative_path).is_file() for relative_path in _REQUIRED_MYUTILS_PATHS):
+            return resolved_candidate
+
+    checked_text = ', '.join(str(path) for path in checked) or '<none>'
+    raise ModuleNotFoundError(
+        'Unable to locate the local myutils checkout containing '
+        '`file_utils/filesystem.py` and `file_utils/json_io.py`. '
+        'Set MYUTILS_ROOT to the myutils repository root. '
+        f'Checked: {checked_text}'
+    )
+
+
+_MYUTILS_ROOT = _find_myutils_root()
+_MYUTILS_FILE_UTILS_DIR = _MYUTILS_ROOT / 'file_utils'
+if str(_MYUTILS_FILE_UTILS_DIR) not in sys.path:
+    sys.path.insert(0, str(_MYUTILS_FILE_UTILS_DIR))
 
 from filesystem import delete_cache as delete_cache_dirs, ensure_dirs
 from json_io import make_json_safe, read_json_file, write_json_file

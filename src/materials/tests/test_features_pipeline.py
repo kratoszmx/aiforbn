@@ -32,6 +32,8 @@ from materials.modeling import (
     train_baseline_model,
 )
 from materials.screening import (
+    annotate_candidate_dataset_overlap,
+    build_candidate_grouped_robustness_prediction_members,
     build_candidate_grouped_robustness_predictions,
     build_candidate_prediction_ensemble,
     build_candidate_prediction_members,
@@ -1734,6 +1736,147 @@ def test_grouped_candidate_robustness_predictions_skip_incompatible_attention_fe
         'fractional_composition_vector',
         regex=False,
     ).all()
+
+
+@pytest.mark.parametrize(
+    ('builder', 'result_kind'),
+    [
+        (build_candidate_prediction_members, 'members'),
+        (build_candidate_prediction_ensemble, 'ensemble'),
+    ],
+    ids=['members', 'ensemble'],
+)
+def test_candidate_prediction_boundaries_exclude_explicit_structure_aware_feature_sets(
+    builder,
+    result_kind,
+):
+    cfg = copy.deepcopy(CFG)
+    cfg['model']['type'] = 'linear_regression'
+    cfg['model']['candidate_types'] = ['linear_regression']
+
+    dataset_df = _structure_signal_df()
+    split_masks = make_split_masks(dataset_df, cfg)
+    feature_tables = {
+        'basic_formula_composition': build_feature_table(
+            dataset_df,
+            feature_set='basic_formula_composition',
+        ),
+        STRUCTURE_AWARE_FEATURE_SET: build_feature_table(
+            dataset_df,
+            feature_set=STRUCTURE_AWARE_FEATURE_SET,
+        ),
+    }
+    candidate_df = dataset_df.head(3).drop(columns=['target']).reset_index(drop=True)
+
+    prediction_df = builder(
+        candidate_df,
+        feature_tables,
+        split_masks,
+        cfg,
+        candidate_feature_sets=[
+            'basic_formula_composition',
+            STRUCTURE_AWARE_FEATURE_SET,
+        ],
+    )
+
+    if result_kind == 'members':
+        assert set(prediction_df['feature_set']) == {'basic_formula_composition'}
+    else:
+        assert set(prediction_df['formula']) == set(candidate_df['formula'])
+        assert prediction_df['ensemble_member_count'].eq(1).all()
+
+
+@pytest.mark.parametrize(
+    'builder',
+    [
+        build_candidate_grouped_robustness_prediction_members,
+        build_candidate_grouped_robustness_predictions,
+    ],
+    ids=['members', 'summary'],
+)
+def test_grouped_candidate_robustness_boundaries_reject_structure_aware_feature_set(builder):
+    cfg = copy.deepcopy(CFG)
+    cfg['robustness']['enabled'] = False
+    dataset_df = _structure_signal_df()
+    feature_df = build_feature_table(
+        dataset_df,
+        feature_set=STRUCTURE_AWARE_FEATURE_SET,
+    )
+    split_masks = make_split_masks(dataset_df, cfg)
+
+    with pytest.raises(ValueError, match='formula-only candidate screening'):
+        builder(
+            dataset_df.head(3),
+            feature_df,
+            split_masks,
+            cfg,
+            feature_set=STRUCTURE_AWARE_FEATURE_SET,
+            model_type='linear_regression',
+        )
+
+
+def test_screen_candidates_rejects_structure_aware_feature_set_before_prediction():
+    with pytest.raises(ValueError, match='formula-only candidate screening'):
+        screen_candidates(
+            _structure_signal_df().head(2),
+            model=None,
+            feature_columns=[],
+            cfg=copy.deepcopy(CFG),
+            feature_set=STRUCTURE_AWARE_FEATURE_SET,
+            model_type='linear_regression',
+        )
+
+
+def test_annotate_candidate_dataset_overlap_honors_custom_formula_column():
+    formula_col = 'material_formula'
+    candidate_df = pd.DataFrame({formula_col: ['BN', 'GaN', 'Si2BN']})
+    dataset_df = pd.DataFrame({formula_col: ['BN', 'BN', 'GaN', 'AlN']})
+    split_masks = {
+        'train': np.asarray([True, False, False, False], dtype=bool),
+        'val': np.asarray([False, True, False, False], dtype=bool),
+        'test': np.asarray([False, False, True, True], dtype=bool),
+    }
+
+    overlap_df = annotate_candidate_dataset_overlap(
+        candidate_df,
+        dataset_df,
+        split_masks=split_masks,
+        formula_col=formula_col,
+    )
+
+    assert overlap_df[formula_col].tolist() == ['BN', 'GaN', 'Si2BN']
+    assert 'formula' not in overlap_df.columns
+    assert overlap_df['seen_in_dataset'].tolist() == [True, True, False]
+    assert overlap_df['dataset_formula_row_count'].tolist() == [2, 1, 0]
+    assert overlap_df['seen_in_train_plus_val'].tolist() == [True, False, False]
+    assert overlap_df['train_plus_val_formula_row_count'].tolist() == [2, 0, 0]
+
+
+def test_screen_candidates_fails_fast_when_any_candidate_formula_cannot_be_featurized():
+    class PredictionMustNotRun:
+        called = False
+
+        def predict(self, _feature_df):
+            self.called = True
+            raise AssertionError('prediction must not run after candidate featurization failure')
+
+    model = PredictionMustNotRun()
+    candidate_df = pd.DataFrame({'formula': ['BN', '??']})
+
+    with pytest.raises(
+        ValueError,
+        match='could not featurize candidate formulas',
+    ):
+        screen_candidates(
+            candidate_df,
+            model,
+            feature_columns=[],
+            cfg=copy.deepcopy(CFG),
+            feature_set='matminer_composition',
+            model_type='linear_regression',
+        )
+
+    assert model.called is False
 
 
 def test_make_model_rejects_unknown_model_type():

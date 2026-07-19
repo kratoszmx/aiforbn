@@ -7,7 +7,12 @@ import types
 import pandas as pd
 import pytest
 
-from materials.data import REFERENCE_PROPERTY_COLUMNS, STRUCTURE_SUMMARY_COLUMNS, load_or_build_dataset
+from materials.data import (
+    REFERENCE_PROPERTY_COLUMNS,
+    STRUCTURE_SUMMARY_COLUMNS,
+    load_cached_raw_record_lookup,
+    load_or_build_dataset,
+)
 
 
 def _raw_entry(jid: str, formula: str | None, target: float, *, composition: str | None = None) -> dict:
@@ -84,6 +89,7 @@ def test_load_or_build_dataset_builds_normalized_cache_and_reuses_it(tmp_path, m
     assert json.loads((raw_dir / 'twod_matpd.json').read_text())[0]['formula'] == 'BN'
     assert (processed_dir / 'twod_matpd.parquet').exists()
     assert manifest1['name'] == 'twod_matpd'
+    assert manifest1['target_column'] == 'band_gap'
 
     def should_not_be_called(_dataset):
         raise AssertionError('jarvis download should not run when cache exists')
@@ -141,3 +147,96 @@ def test_load_or_build_dataset_rebuilds_stale_processed_cache_from_cached_raw_js
     assert len(rebuilt_df) == 2
     assert rebuilt_df.loc[0, 'structure_thickness_fraction'] == pytest.approx(0.1)
     assert rebuilt_manifest['version_hint'] == 'rebuilt from cached raw json'
+
+
+def test_load_or_build_dataset_rebuilds_cache_with_mismatched_manifest(tmp_path, monkeypatch):
+    raw_dir = tmp_path / 'raw'
+    processed_dir = tmp_path / 'processed'
+    raw_dir.mkdir()
+    processed_dir.mkdir()
+    raw_payload = [_raw_entry('fresh', 'BN', 5.5)]
+    (raw_dir / 'twod_matpd.json').write_text(json.dumps(raw_payload), encoding='utf-8')
+    stale_df = pd.DataFrame([{column: 0.0 for column in STRUCTURE_SUMMARY_COLUMNS}])
+    stale_df['record_id'] = 'stale'
+    stale_df['source'] = 'other_dataset'
+    stale_df['formula'] = 'AlN'
+    stale_df['target'] = 2.0
+    for column in REFERENCE_PROPERTY_COLUMNS:
+        stale_df[column] = 0.0
+    stale_df.to_parquet(processed_dir / 'twod_matpd.parquet', index=False)
+    (processed_dir / 'manifest.json').write_text(
+        json.dumps({'name': 'other_dataset', 'source': 'jarvis-tools/figshare'}),
+        encoding='utf-8',
+    )
+
+    cfg = {
+        'data': {
+            'dataset': 'twod_matpd',
+            'raw_dir': str(raw_dir),
+            'processed_dir': str(processed_dir),
+            'target_column': 'band_gap',
+        }
+    }
+
+    rebuilt_df, rebuilt_manifest = load_or_build_dataset(cfg)
+
+    assert rebuilt_df['record_id'].tolist() == ['fresh']
+    assert rebuilt_manifest['name'] == 'twod_matpd'
+    assert rebuilt_manifest['version_hint'] == 'rebuilt from cached raw json'
+
+
+def test_load_or_build_dataset_rebuilds_processed_cache_when_target_column_changes(tmp_path):
+    raw_dir = tmp_path / 'raw'
+    processed_dir = tmp_path / 'processed'
+    raw_dir.mkdir()
+    processed_dir.mkdir()
+    raw_payload = [_raw_entry('target-switch', 'BN', 5.5)]
+    (raw_dir / 'twod_matpd.json').write_text(
+        json.dumps(raw_payload),
+        encoding='utf-8',
+    )
+    cfg = {
+        'data': {
+            'dataset': 'twod_matpd',
+            'raw_dir': str(raw_dir),
+            'processed_dir': str(processed_dir),
+            'target_column': 'band_gap',
+        }
+    }
+
+    band_gap_df, band_gap_manifest = load_or_build_dataset(cfg)
+    cfg['data']['target_column'] = 'energy_per_atom'
+    energy_df, energy_manifest = load_or_build_dataset(cfg)
+
+    assert band_gap_df['target'].tolist() == [5.5]
+    assert band_gap_manifest['target_column'] == 'band_gap'
+    assert energy_df['target'].tolist() == [-8.0]
+    assert energy_manifest['target_column'] == 'energy_per_atom'
+    assert energy_manifest['version_hint'] == 'rebuilt from cached raw json'
+
+
+def test_load_cached_raw_record_lookup_handles_missing_non_list_and_duplicate_ids(tmp_path):
+    raw_dir = tmp_path / 'raw'
+    raw_dir.mkdir()
+    cfg = {'data': {'dataset': 'twod_matpd', 'raw_dir': str(raw_dir)}}
+
+    assert load_cached_raw_record_lookup(cfg) == {}
+
+    raw_path = raw_dir / 'twod_matpd.json'
+    raw_path.write_text(json.dumps({'not': 'a list'}), encoding='utf-8')
+    assert load_cached_raw_record_lookup(cfg) == {}
+
+    raw_path.write_text(
+        json.dumps([
+            {'jid': 'dup', 'formula': 'BN', 'value': 1},
+            'ignored',
+            {'jid': 'dup', 'formula': 'BN', 'value': 2},
+            {'formula': 'AlN'},
+        ]),
+        encoding='utf-8',
+    )
+
+    assert load_cached_raw_record_lookup(cfg) == {
+        'dup': {'jid': 'dup', 'formula': 'BN', 'value': 2},
+        '3': {'formula': 'AlN'},
+    }

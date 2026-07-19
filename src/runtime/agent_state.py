@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 import json
 import importlib.util
 from pathlib import Path
+import re
 import subprocess
 from typing import Any
 
@@ -44,18 +45,27 @@ REQUIRED_RESEARCH_PLAN_NON_CLAIMS = {
     'direct_gap_claim_before_structure_review',
 }
 
-REQUIRED_ENTRYPOINT_NAMES = {
-    'fast_smoke',
-    'emit_agent_commands',
-    'verify_agent_contract',
+REQUIRED_ENTRYPOINT_COMMANDS = {
+    'full_pipeline': 'python3 main.py',
+    'fast_smoke': 'python3 main.py --dry-run',
+    'emit_agent_state': 'python3 main.py --emit-agent-state',
+    'emit_agent_commands': 'python3 main.py --emit-agent-commands',
+    'verify_agent_contract': 'python3 main.py --verify-agent-contract',
 }
 
-REQUIRED_VALIDATION_COMMAND_NAMES = {
-    'verify_agent_contract',
-    'fast_smoke',
-    'focused_regression',
-    'full_src_tests',
+REQUIRED_ENTRYPOINT_NAMES = set(REQUIRED_ENTRYPOINT_COMMANDS)
+
+REQUIRED_VALIDATION_COMMANDS = {
+    'verify_agent_contract': 'python3 main.py --verify-agent-contract',
+    'fast_smoke': 'python3 main.py --dry-run',
+    'focused_regression': (
+        'python3 -m pytest -q src/tests/test_main.py '
+        'src/runtime/tests/test_agent_state.py src/runtime/tests/test_io_utils.py'
+    ),
+    'full_src_tests': 'python3 -m pytest -q src',
 }
+
+REQUIRED_VALIDATION_COMMAND_NAMES = set(REQUIRED_VALIDATION_COMMANDS)
 
 REQUIRED_SOURCE_OF_TRUTH_FILES = {
     'AGENTS.md',
@@ -75,6 +85,8 @@ REQUIRED_MODULE_NAMES = {
     'tests',
     'template',
 }
+
+BACKTICKED_LOCAL_PATH_PATTERN = re.compile(r'`((?:/[^`\n]+)|(?:~/[^`\n]+))`')
 
 
 def _project_root(path: str | Path = '.') -> Path:
@@ -159,6 +171,66 @@ def _validate_command_entries(
                 'message': f'Every `{field_name}` entry needs a non-empty `command`.',
             })
     return command_names
+
+
+def _validate_required_command_mappings(
+    manifest_payload: dict[str, Any],
+    field_name: str,
+    required_commands: dict[str, str],
+    errors: list[dict[str, str]],
+) -> None:
+    entries = manifest_payload.get(field_name, [])
+    if not isinstance(entries, list):
+        return
+    actual_commands = {
+        str(entry.get('name', '')).strip(): str(entry.get('command', '')).strip()
+        for entry in entries
+        if isinstance(entry, dict) and str(entry.get('name', '')).strip()
+    }
+    for name, required_command in required_commands.items():
+        actual_command = actual_commands.get(name)
+        if actual_command is None or actual_command == required_command:
+            continue
+        errors.append({
+            'code': f'unexpected_{field_name}_command',
+            'path': f'docs/AGENT_MANIFEST.json:{field_name}.{name}',
+            'message': (
+                f'Command `{name}` must be `{required_command}`, '
+                f'not `{actual_command}`.'
+            ),
+        })
+
+
+def _validate_local_instruction_paths(
+    root: Path,
+    manifest_payload: dict[str, Any],
+    errors: list[dict[str, str]],
+) -> None:
+    relative_paths: list[str] = []
+    for field_name, path_key in (('project_skills', 'path'), ('modules', 'agent_rules')):
+        entries = manifest_payload.get(field_name, [])
+        if not isinstance(entries, list):
+            continue
+        relative_paths.extend(
+            str(entry.get(path_key, '')).strip()
+            for entry in entries
+            if isinstance(entry, dict) and str(entry.get(path_key, '')).strip()
+        )
+
+    for relative_path in dict.fromkeys(relative_paths):
+        instruction_path = root / relative_path
+        text = _read_text_if_present(instruction_path)
+        for raw_path in BACKTICKED_LOCAL_PATH_PATTERN.findall(text):
+            local_path = Path(raw_path).expanduser()
+            if local_path.exists():
+                continue
+            errors.append({
+                'code': 'stale_local_instruction_path',
+                'path': relative_path,
+                'message': (
+                    f'Agent instruction references a missing local path: {raw_path}'
+                ),
+            })
 
 
 def _validate_research_plan_alignment(
@@ -332,6 +404,12 @@ def validate_agent_layout(
     _validate_research_plan_alignment(root, manifest_payload, errors, checks)
 
     entrypoint_names = _validate_command_entries(manifest_payload, 'entrypoints', errors)
+    _validate_required_command_mappings(
+        manifest_payload,
+        'entrypoints',
+        REQUIRED_ENTRYPOINT_COMMANDS,
+        errors,
+    )
     missing_entrypoints = sorted(REQUIRED_ENTRYPOINT_NAMES - entrypoint_names)
     if missing_entrypoints:
         errors.append({
@@ -342,6 +420,12 @@ def validate_agent_layout(
     validation_command_names = _validate_command_entries(
         manifest_payload,
         'validation_commands',
+        errors,
+    )
+    _validate_required_command_mappings(
+        manifest_payload,
+        'validation_commands',
+        REQUIRED_VALIDATION_COMMANDS,
         errors,
     )
     missing_validation_commands = sorted(
@@ -563,6 +647,8 @@ def validate_agent_layout(
                     'AGENTS.md, project skills, or docs/AGENT_MANIFEST.json.'
                 ),
             })
+
+    _validate_local_instruction_paths(root, manifest_payload, errors)
 
     if (root / 'README.md').exists():
         warnings.append({

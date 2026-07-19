@@ -1,6 +1,6 @@
 ---
 name: aiforbn-workflow
-description: 用于 /Users/zmx/Projects/aiforbn 的常规维护工作，包括 AI-native 架构、AGENT_MANIFEST、HANDOFF、PY_FILES_SUMMARY、项目 skills、验证档位选择、materials 流水线修改、模型接线、测试，以及 artifact/reporting 维护。
+description: 用于 aiforbn 仓库的常规维护工作，包括 AI-native 架构、AGENT_MANIFEST、HANDOFF、PY_FILES_SUMMARY、项目 skills、验证档位选择、materials 流水线修改、模型接线、测试，以及 artifact/reporting 维护。
 ---
 
 # AI-for-BN 工作流
@@ -11,10 +11,10 @@ description: 用于 /Users/zmx/Projects/aiforbn 的常规维护工作，包括 A
 
 编辑前先读：
 
-1. `/Users/zmx/Projects/aiforbn/AGENTS.md`
-2. `/Users/zmx/Projects/aiforbn/docs/AGENT_MANIFEST.json`
-3. `/Users/zmx/Projects/aiforbn/docs/HANDOFF.md`
-4. `/Users/zmx/Projects/aiforbn/skills/ai_native_workflow.txt`
+1. `AGENTS.md`
+2. `docs/AGENT_MANIFEST.json`
+3. `docs/HANDOFF.md`
+4. `skills/ai_native_workflow.txt`
 5. 修改 `src/**` 时，再读最近的模块级 `AGENTS.md`
 
 使用 `python3 main.py --emit-agent-commands` 选择验证命令，避免重复阅读长篇说明。

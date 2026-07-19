@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import copy
 import importlib
-import inspect
 from pathlib import Path
 import sys
 
@@ -18,9 +17,11 @@ from runtime.agent_state import (
     build_agent_state,
     write_agent_state,
 )
-from runtime.io_utils import clear_project_cache, ensure_runtime_dirs, load_config
 
 
+clear_project_cache = None
+ensure_runtime_dirs = None
+load_config = None
 pd = None
 STRUCTURE_SUMMARY_COLUMNS = None
 STRUCTURE_AWARE_FEATURE_SET = None
@@ -63,6 +64,9 @@ def _bind_missing(name: str, module_name: str, attr_name: str | None = None) -> 
 
 
 def _ensure_dry_run_dependencies_loaded() -> None:
+    _bind_missing('clear_project_cache', 'runtime.io_utils', 'clear_project_cache')
+    _bind_missing('ensure_runtime_dirs', 'runtime.io_utils', 'ensure_runtime_dirs')
+    _bind_missing('load_config', 'runtime.io_utils', 'load_config')
     _bind_missing('pd', 'pandas')
     _bind_missing('STRUCTURE_SUMMARY_COLUMNS', 'materials.data', 'STRUCTURE_SUMMARY_COLUMNS')
     _bind_missing('generate_bn_candidates', 'materials.candidate_space', 'generate_bn_candidates')
@@ -524,12 +528,7 @@ def main() -> None:
         'structure_first_pass_execution_payload': structure_first_pass_payload,
         'cfg': cfg,
     }
-    supported_summary_kwargs = {
-        key: value
-        for key, value in summary_kwargs.items()
-        if key in inspect.signature(build_experiment_summary).parameters
-    }
-    experiment_summary = build_experiment_summary(**supported_summary_kwargs)
+    experiment_summary = build_experiment_summary(**summary_kwargs)
 
     save_kwargs = {
         'metrics': metrics,
@@ -555,12 +554,7 @@ def main() -> None:
         'structure_first_pass_execution_summary_df': structure_first_pass_summary_df,
         'structure_first_pass_execution_payload': structure_first_pass_payload,
     }
-    supported_save_kwargs = {
-        key: value
-        for key, value in save_kwargs.items()
-        if key in inspect.signature(save_metrics_and_predictions).parameters
-    }
-    save_metrics_and_predictions(**supported_save_kwargs)
+    save_metrics_and_predictions(**save_kwargs)
     save_basic_plots(prediction_df, cfg)
 
     print('=== BN AI PoC pipeline completed ===')

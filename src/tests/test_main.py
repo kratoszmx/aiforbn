@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import json
+import os
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 import subprocess
 import sys
 
 import pandas as pd
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -18,6 +20,9 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
     assert spec is not None and spec.loader is not None
     spec.loader.exec_module(main_module)
     calls: list[str] = []
+    captured_summary_kwargs: list[dict] = []
+    captured_save_kwargs: list[dict] = []
+    screening_disagreement_flags: list[object] = []
 
     dataset_df = pd.DataFrame({'formula': ['BN', 'AlN'], 'target': [5.0, 2.0]})
     bn_df = pd.DataFrame({'formula': ['BN']})
@@ -112,7 +117,12 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
         'screening_selection_matches_overall': True,
         'screening_selection_note': 'Best overall validation combo is candidate-compatible, so screening reuses it.',
     }
-    bn_centered_screening_selection = {'enabled': False, 'selection_note': 'disabled in test'}
+    bn_centered_screening_selection = {
+        'enabled': True,
+        'feature_set': 'matminer_composition',
+        'model_type': 'linear_regression',
+        'selection_note': 'enabled in orchestration test',
+    }
     experiment_summary = {'dataset': {'rows': 2}}
 
     monkeypatch.setattr(main_module, 'clear_project_cache', lambda path: calls.append('clear_project_cache'))
@@ -219,11 +229,22 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
         'build_candidate_grouped_robustness_predictions',
         lambda candidate_df, feature_df, split_masks, cfg, feature_set, model_type: calls.append('build_candidate_grouped_robustness_predictions') or candidate_grouped_robustness_df,
     )
-    monkeypatch.setattr(
-        main_module,
-        'screen_candidates',
-        lambda candidate_df, model, feature_columns, cfg, feature_set, model_type, best_overall_feature_set=None, best_overall_model_type=None, screening_selection_note=None, dataset_df=None, split_masks=None, ensemble_prediction_df=None, grouped_robustness_prediction_df=None, reference_feature_df=None: calls.append('screen_candidates') or ranked_candidate_df,
-    )
+    def fake_screen_candidates(
+        candidate_df,
+        model,
+        feature_columns,
+        cfg,
+        feature_set,
+        model_type,
+        **_kwargs,
+    ):
+        calls.append('screen_candidates')
+        screening_disagreement_flags.append(
+            (cfg.get('screening') or {}).get('use_model_disagreement')
+        )
+        return ranked_candidate_df
+
+    monkeypatch.setattr(main_module, 'screen_candidates', fake_screen_candidates)
     monkeypatch.setattr(
         main_module,
         'build_candidate_structure_generation_seeds',
@@ -238,16 +259,17 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
             structure_first_pass_payload,
         ),
     )
-    monkeypatch.setattr(
-        main_module,
-        'build_experiment_summary',
-        lambda dataset_df, bn_df, candidate_df, split_masks, selection_summary, cfg, robustness_df=None, bn_slice_benchmark_df=None, bn_centered_candidate_df=None, bn_centered_screening_selection=None, structure_generation_seed_df=None: calls.append('build_experiment_summary') or experiment_summary,
-    )
-    monkeypatch.setattr(
-        main_module,
-        'save_metrics_and_predictions',
-        lambda metrics, prediction_df, bn_df, screened_df, benchmark_df, robustness_df, bn_slice_benchmark_df, bn_slice_prediction_df, bn_centered_screened_df, structure_generation_seed_df, experiment_summary, manifest, cfg: calls.append('save_metrics_and_predictions'),
-    )
+    def fake_build_experiment_summary(**kwargs):
+        calls.append('build_experiment_summary')
+        captured_summary_kwargs.append(kwargs)
+        return experiment_summary
+
+    def fake_save_metrics_and_predictions(**kwargs):
+        calls.append('save_metrics_and_predictions')
+        captured_save_kwargs.append(kwargs)
+
+    monkeypatch.setattr(main_module, 'build_experiment_summary', fake_build_experiment_summary)
+    monkeypatch.setattr(main_module, 'save_metrics_and_predictions', fake_save_metrics_and_predictions)
     monkeypatch.setattr(main_module, 'save_basic_plots', lambda prediction_df, cfg: calls.append('save_basic_plots'))
 
     main_module.main()
@@ -275,12 +297,33 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
         'build_candidate_grouped_robustness_prediction_members',
         'build_candidate_grouped_robustness_predictions',
         'screen_candidates',
+        'build_candidate_grouped_robustness_prediction_members',
+        'build_candidate_grouped_robustness_predictions',
+        'screen_candidates',
         'build_candidate_structure_generation_seeds',
         'build_structure_first_pass_execution_artifacts',
         'build_experiment_summary',
         'save_metrics_and_predictions',
         'save_basic_plots',
     ]
+    assert screening_disagreement_flags == [None, False]
+    assert captured_summary_kwargs[0]['bn_family_benchmark_df'] is bn_family_benchmark_df
+    assert captured_summary_kwargs[0]['bn_stratified_error_df'] is bn_stratified_error_df
+    assert captured_summary_kwargs[0]['bn_centered_candidate_df'] is ranked_candidate_df
+    assert (
+        captured_summary_kwargs[0]['candidate_prediction_member_df']
+        is candidate_prediction_member_df
+    )
+    assert (
+        captured_summary_kwargs[0]['structure_first_pass_execution_payload']
+        is structure_first_pass_payload
+    )
+    assert captured_save_kwargs[0]['bn_family_prediction_df'] is bn_family_prediction_df
+    assert captured_save_kwargs[0]['bn_centered_screened_df'] is ranked_candidate_df
+    assert (
+        captured_save_kwargs[0]['structure_first_pass_execution_variant_df']
+        is structure_first_pass_variant_df
+    )
 
     out = capsys.readouterr().out
     assert 'BN AI PoC pipeline completed' in out
@@ -288,6 +331,7 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
     assert 'bn slice benchmark rows: 1' in out
     assert 'bn family benchmark rows: 1' in out
     assert 'bn stratified error rows: 1' in out
+    assert 'bn-centered alternative ranking rows: 1' in out
     assert 'structure-generation seed rows: 1' in out
     assert 'split method: group_by_formula' in out
     assert 'selected feature set: matminer_composition' in out
@@ -418,6 +462,24 @@ def test_emit_agent_state_emits_machine_readable_project_state(monkeypatch, caps
     assert capsys.readouterr().out == '{"status":"ok"}\n'
 
 
+def test_emit_agent_state_exits_nonzero_for_blocking_contract_error(monkeypatch, capsys):
+    spec = spec_from_file_location('main_module_under_test', ROOT / 'main.py')
+    main_module = module_from_spec(spec)
+    assert spec is not None and spec.loader is not None
+    spec.loader.exec_module(main_module)
+    monkeypatch.setattr(
+        main_module,
+        'build_agent_state',
+        lambda root: {'schema_version': 'aiforbn.agent_state.v1', 'status': 'error'},
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        main_module.emit_agent_state(fail_on_error=True)
+
+    assert exc_info.value.code == 1
+    assert json.loads(capsys.readouterr().out)['status'] == 'error'
+
+
 def test_emit_agent_commands_emits_machine_readable_command_index(monkeypatch, capsys):
     spec = spec_from_file_location('main_module_under_test', ROOT / 'main.py')
     main_module = module_from_spec(spec)
@@ -450,16 +512,29 @@ def test_emit_agent_commands_emits_machine_readable_command_index(monkeypatch, c
     assert capsys.readouterr().out == '{"schema_version":"aiforbn.agent_command_index.v1"}\n'
 
 
-def test_emit_agent_commands_cli_stdout_is_pure_json():
+@pytest.mark.parametrize(
+    ('flag', 'expected_schema'),
+    [
+        ('--emit-agent-commands', 'aiforbn.agent_command_index.v1'),
+        ('--emit-agent-state', 'aiforbn.agent_state.v1'),
+        ('--verify-agent-contract', 'aiforbn.agent_state.v1'),
+    ],
+)
+def test_control_plane_cli_stdout_is_pure_json_without_myutils(flag, expected_schema):
+    env = os.environ.copy()
+    env.pop('PYTHONPATH', None)
+    env['MYUTILS_ROOT'] = str(ROOT / 'missing-myutils-for-control-plane-test')
     result = subprocess.run(
-        [sys.executable, 'main.py', '--emit-agent-commands'],
+        [sys.executable, 'main.py', flag],
         cwd=ROOT,
         check=False,
         capture_output=True,
         text=True,
+        env=env,
     )
 
     assert result.returncode == 0
+    assert result.stderr == ''
     assert result.stdout.lstrip().startswith('{')
     payload = json.loads(result.stdout)
-    assert payload['schema_version'] == 'aiforbn.agent_command_index.v1'
+    assert payload['schema_version'] == expected_schema

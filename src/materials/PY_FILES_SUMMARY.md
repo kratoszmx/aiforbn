@@ -13,6 +13,7 @@ Anything underscore-prefixed or omitted here should be treated as internal imple
   - Load the cached raw-record lookup used by downstream artifact writers.
 - `load_or_build_dataset(cfg)`
   - Build or reload the normalized dataset and its manifest.
+  - Reuse a processed cache only when dataset name, source, required columns, and target column all match the request.
 
 ## constants.py
 
@@ -116,7 +117,7 @@ No callable public surface. The following non-callable contracts are imported ac
 - `benchmark_bn_family_holdout(dataset_df, feature_tables, cfg, ...)`
   - Run the BN-family holdout benchmark.
 - `benchmark_bn_stratified_errors(feature_tables, cfg, ...)`
-  - Run grouped BN-vs-non-BN stratified error benchmarking.
+  - Run formula-grouped BN-vs-non-BN stratified error benchmarking; non-formula grouping is rejected to prevent duplicate-formula train/test leakage.
 - `select_bn_centered_candidate_screening_combo(bn_slice_benchmark_df, cfg, ...)`
   - Pick the BN-centered alternative screening combo.
 
@@ -144,7 +145,8 @@ No callable public surface. The following non-callable contracts are imported ac
   - Add BN analog-evidence annotations.
 - `screen_candidates(candidate_df, model, feature_columns, cfg, ...)`
   - Build the final candidate ranking artifact.
-  - Downstream decision-policy artifacts hold candidates outside every configured application target window, even when uncertainty/support/rank checks pass.
+  - Reject structure-aware feature sets at this formula-only ranking boundary.
+  - When decision policy is enabled, downstream artifacts hold candidates outside every configured application target window even when uncertainty/support/rank checks pass; disabling the policy emits neutral action fields instead.
 
 ## summary.py
 
@@ -155,6 +157,7 @@ No callable public surface. The following non-callable contracts are imported ac
 
 - `save_metrics_and_predictions(...)`
   - Write the main artifact bundle under the configured artifact directory.
+  - Contain configurable structure-execution paths beneath that directory, reject reserved/pairwise/filesystem-alias collisions before mutation, and remove stale execution artifacts when the current run produces no execution payload.
 
 ## plots.py
 
@@ -174,3 +177,8 @@ These files currently expose no supported external call surface:
 - `structure_artifacts.py`
 - `structure_helpers.py`
 - `utils.py`
+
+## tests/
+
+- `test_diagnostic_edge_cases.py` locks disabled and insufficient-data status semantics for BN diagnostics and alternative screening selection.
+- `test_structure_execution_contracts.py` locks relabel, vacancy, unsupported edit, and structure-aware proxy execution behavior.

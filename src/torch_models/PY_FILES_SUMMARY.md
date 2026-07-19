@@ -32,6 +32,10 @@ Anything underscore-prefixed or omitted here should be treated as internal.
 
 - No public functions are currently exposed.
 
+## tests/
+
+- `test_regressor_contracts.py` covers fast sklearn-style input, fit-state, attention-shape, device-policy, and ensemble-seed contracts.
+
 ## Notes
 
 - External business logic usually reaches these classes through `materials.modeling.make_model(...)`.

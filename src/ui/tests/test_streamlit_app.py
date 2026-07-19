@@ -75,6 +75,9 @@ def test_streamlit_app_reads_generated_artifacts(tmp_path, monkeypatch):
     module = module_from_spec(spec)
     assert spec is not None and spec.loader is not None
     spec.loader.exec_module(module)
+    from runtime.io_utils import read_json_file as shared_read_json_file
+
+    assert module.read_json_file is shared_read_json_file
     module.render_streamlit_app()
 
     assert ('title', 'AI-Powered Boron Nitride Material Exploration') in fake_streamlit.calls
