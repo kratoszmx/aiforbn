@@ -238,6 +238,18 @@ def _validated_jarvis_download_metadata(
     return url, json_tag, message, reference
 
 
+def _validated_jarvis_records(payload: object) -> list[dict]:
+    if (
+        not isinstance(payload, list)
+        or not payload
+        or not all(isinstance(record, dict) for record in payload)
+    ):
+        raise ValueError(
+            'JARVIS dataset payload must be a non-empty list of record objects'
+        )
+    return payload
+
+
 def _has_required_normalized_columns(df: pd.DataFrame) -> bool:
     return all(column in df.columns for column in REQUIRED_NORMALIZED_COLUMNS)
 
@@ -368,19 +380,27 @@ def load_or_build_dataset(cfg: dict) -> tuple[pd.DataFrame, dict]:
     jarvis_url, jarvis_json_tag, jarvis_message, jarvis_reference = (
         _validated_jarvis_download_metadata(get_db_info(), dataset_name)
     )
-    validate_runtime_output_path(
+    archive_path = validate_runtime_output_path(
         raw_dir / f'{jarvis_json_tag}.zip',
         required_parent_path=raw_dir,
         expected_output_kind='file',
     )
+    archive_existed = archive_path.exists()
     raw_dir.mkdir(parents=True, exist_ok=True)
     print(jarvis_message)
     print(f'Reference:{jarvis_reference}')
-    raw = get_request_data(
-        js_tag=jarvis_json_tag,
-        url=jarvis_url,
-        store_dir=str(raw_dir),
-    )
+    try:
+        raw = _validated_jarvis_records(
+            get_request_data(
+                js_tag=jarvis_json_tag,
+                url=jarvis_url,
+                store_dir=str(raw_dir),
+            )
+        )
+    except Exception:
+        if not archive_existed and archive_path.is_file():
+            archive_path.unlink()
+        raise
     if cfg['data'].get('cache_raw_json', True):
         write_json_file(raw, raw_path, indent=None)
 

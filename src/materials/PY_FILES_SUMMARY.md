@@ -17,6 +17,7 @@ Anything underscore-prefixed or omitted here should be treated as internal imple
   - Build or reload the normalized dataset and its manifest.
   - Reuse a processed cache only when dataset name, source, required columns, and target column all match the request.
   - Preflight the concrete raw JSON, processed Parquet, manifest, JARVIS archive, and dependency-cache root before imports or writes; one validated metadata snapshot supplies a plain JSON archive name, URL, and canonical guarded raw directory directly to JARVIS.
+  - Require a non-empty list of record objects before project cache writes; remove only a newly created unreadable/invalid dependency archive so a later request can retry, while preserving pre-existing archive leaves.
 
 ## constants.py
 

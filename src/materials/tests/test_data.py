@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import builtins
+from io import BytesIO
 import json
 import sys
 import types
+import zipfile
 
 import pandas as pd
 import pytest
@@ -181,6 +183,53 @@ def _install_fake_jarvis(
     monkeypatch.setitem(sys.modules, 'jarvis.db', fake_db)
     monkeypatch.setitem(sys.modules, 'jarvis.db.figshare', fake_figshare)
     return fake_figshare
+
+
+class _JarvisResponse:
+    def __init__(self, body: bytes, status_code: int = 200):
+        self.body = body
+        self.status_code = status_code
+        self.headers = {'content-length': str(len(body))}
+
+    def iter_content(self, block_size: int):
+        for start in range(0, len(self.body), block_size):
+            yield self.body[start:start + block_size]
+
+
+def _jarvis_archive_bytes(
+    member_name: str,
+    member_payload: str | None,
+    *,
+    extra_members: tuple[tuple[str, str], ...] = (),
+) -> bytes:
+    output = BytesIO()
+    with zipfile.ZipFile(output, 'w') as archive:
+        if member_payload is not None:
+            archive.writestr(member_name, member_payload)
+        for name, payload in extra_members:
+            archive.writestr(name, payload)
+    return output.getvalue()
+
+
+def _installed_jarvis_case(tmp_path, monkeypatch):
+    import jarvis.db.figshare as installed_figshare
+
+    monkeypatch.setattr(io_utils, 'PROJECT_ROOT', tmp_path)
+    monkeypatch.setenv('MPLCONFIGDIR', str(tmp_path / 'mpl-cache'))
+    raw_dir = tmp_path / 'raw'
+    processed_dir = tmp_path / 'processed'
+    processed_dir.mkdir()
+    metadata = installed_figshare.get_db_info()['twod_matpd']
+    cfg = {
+        'data': {
+            'dataset': 'twod_matpd',
+            'raw_dir': str(raw_dir),
+            'processed_dir': str(processed_dir),
+            'target_column': 'band_gap',
+            'cache_raw_json': True,
+        }
+    }
+    return installed_figshare, cfg, raw_dir, processed_dir, metadata
 
 
 def test_load_or_build_dataset_uses_one_guarded_jarvis_metadata_snapshot(
@@ -471,6 +520,157 @@ def test_load_or_build_dataset_preflights_jarvis_archive_leaf(
     else:
         assert archive_path.is_dir()
     assert not processed_dir.exists()
+
+
+def test_load_or_build_dataset_uses_installed_jarvis_request_implementation(
+    tmp_path,
+    monkeypatch,
+):
+    installed_figshare, cfg, raw_dir, processed_dir, metadata = (
+        _installed_jarvis_case(tmp_path, monkeypatch)
+    )
+    expected_url, json_tag = metadata[:2]
+    payload = [_raw_entry('installed-1', 'BN', 5.5)]
+    response_body = _jarvis_archive_bytes(
+        json_tag,
+        json.dumps(payload),
+        extra_members=(
+            ('../ignored-traversal.json', '{}'),
+            ('/ignored-absolute.json', '{}'),
+        ),
+    )
+    request_calls = []
+
+    def fake_get(url, stream=True):
+        request_calls.append((url, stream))
+        return _JarvisResponse(response_body)
+
+    monkeypatch.setattr(installed_figshare.requests, 'get', fake_get)
+
+    dataset_df, manifest = load_or_build_dataset(cfg)
+
+    assert request_calls == [(expected_url, True)]
+    assert dataset_df[['record_id', 'formula', 'target']].to_dict('records') == [
+        {'record_id': 'installed-1', 'formula': 'BN', 'target': 5.5},
+    ]
+    assert manifest['name'] == 'twod_matpd'
+    assert (raw_dir / f'{json_tag}.zip').is_file()
+    assert (raw_dir / 'twod_matpd.json').is_file()
+    assert (processed_dir / 'twod_matpd.parquet').is_file()
+    assert (processed_dir / 'manifest.json').is_file()
+    assert not (tmp_path / 'ignored-traversal.json').exists()
+    assert not (tmp_path / 'ignored-absolute.json').exists()
+    assert not (tmp_path / 'human_docs').exists()
+
+
+@pytest.mark.parametrize(
+    ('failure_kind', 'expected_error'),
+    [
+        ('http-error', zipfile.BadZipFile),
+        ('empty-response', zipfile.BadZipFile),
+        ('non-archive', zipfile.BadZipFile),
+        ('missing-member', KeyError),
+        ('malformed-json', json.JSONDecodeError),
+        ('wrong-top-level', ValueError),
+        ('empty-payload', ValueError),
+        ('non-object-record', ValueError),
+    ],
+)
+def test_load_or_build_dataset_cleans_new_invalid_installed_jarvis_archive(
+    tmp_path,
+    monkeypatch,
+    failure_kind,
+    expected_error,
+):
+    installed_figshare, cfg, raw_dir, processed_dir, metadata = (
+        _installed_jarvis_case(tmp_path, monkeypatch)
+    )
+    json_tag = metadata[1]
+    if failure_kind == 'http-error':
+        invalid_response = _JarvisResponse(b'service unavailable', status_code=503)
+    elif failure_kind == 'empty-response':
+        invalid_response = _JarvisResponse(b'')
+    elif failure_kind == 'non-archive':
+        invalid_response = _JarvisResponse(b'not a zip archive')
+    elif failure_kind == 'missing-member':
+        invalid_response = _JarvisResponse(
+            _jarvis_archive_bytes('other.json', '[]')
+        )
+    elif failure_kind == 'malformed-json':
+        invalid_response = _JarvisResponse(
+            _jarvis_archive_bytes(json_tag, '{broken')
+        )
+    elif failure_kind == 'empty-payload':
+        invalid_response = _JarvisResponse(
+            _jarvis_archive_bytes(json_tag, '[]')
+        )
+    elif failure_kind == 'non-object-record':
+        invalid_response = _JarvisResponse(
+            _jarvis_archive_bytes(json_tag, '[1]')
+        )
+    else:
+        invalid_response = _JarvisResponse(
+            _jarvis_archive_bytes(json_tag, json.dumps({'unexpected': 'mapping'}))
+        )
+    valid_response = _JarvisResponse(
+        _jarvis_archive_bytes(
+            json_tag,
+            json.dumps([_raw_entry('retry-1', 'BN', 5.5)]),
+        )
+    )
+    responses = iter((invalid_response, valid_response))
+    request_calls = []
+
+    def fake_get(url, stream=True):
+        request_calls.append((url, stream))
+        return next(responses)
+
+    monkeypatch.setattr(installed_figshare.requests, 'get', fake_get)
+    archive_path = raw_dir / f'{json_tag}.zip'
+    raw_json_path = raw_dir / 'twod_matpd.json'
+    processed_path = processed_dir / 'twod_matpd.parquet'
+    manifest_path = processed_dir / 'manifest.json'
+
+    with pytest.raises(expected_error):
+        load_or_build_dataset(cfg)
+
+    assert not archive_path.exists()
+    assert not raw_json_path.exists()
+    assert not processed_path.exists()
+    assert not manifest_path.exists()
+    assert not (tmp_path / 'human_docs').exists()
+
+    dataset_df, manifest = load_or_build_dataset(cfg)
+
+    assert len(request_calls) == 2
+    assert dataset_df['record_id'].tolist() == ['retry-1']
+    assert manifest['name'] == 'twod_matpd'
+
+
+def test_load_or_build_dataset_preserves_preexisting_invalid_jarvis_archive(
+    tmp_path,
+    monkeypatch,
+):
+    installed_figshare, cfg, raw_dir, processed_dir, metadata = (
+        _installed_jarvis_case(tmp_path, monkeypatch)
+    )
+    raw_dir.mkdir()
+    json_tag = metadata[1]
+    archive_path = raw_dir / f'{json_tag}.zip'
+    archive_path.write_bytes(b'preexisting invalid cache')
+
+    def reject_request(*_args, **_kwargs):
+        raise AssertionError('An existing archive must not trigger a request')
+
+    monkeypatch.setattr(installed_figshare.requests, 'get', reject_request)
+
+    with pytest.raises(zipfile.BadZipFile):
+        load_or_build_dataset(cfg)
+
+    assert archive_path.read_bytes() == b'preexisting invalid cache'
+    assert not (raw_dir / 'twod_matpd.json').exists()
+    assert not (processed_dir / 'twod_matpd.parquet').exists()
+    assert not (processed_dir / 'manifest.json').exists()
 
 
 def test_load_or_build_dataset_builds_normalized_cache_and_reuses_it(tmp_path, monkeypatch):
