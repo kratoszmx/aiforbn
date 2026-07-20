@@ -148,8 +148,11 @@ def validate_runtime_output_path(
 
 def configure_matplotlib_cache() -> Path:
     os.environ.setdefault('MPLBACKEND', 'Agg')
+    configured_cache = os.environ.get('MPLCONFIGDIR')
+    if configured_cache is None or not configured_cache.strip():
+        configured_cache = '/tmp/ai_for_bn_mplconfig'
     config_dir = validate_runtime_output_path(
-        os.environ.get('MPLCONFIGDIR', '/tmp/ai_for_bn_mplconfig'),
+        configured_cache,
         expected_output_kind='directory',
     )
     os.environ['MPLCONFIGDIR'] = str(config_dir)

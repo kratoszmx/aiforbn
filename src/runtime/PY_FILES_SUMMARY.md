@@ -12,7 +12,7 @@ Anything underscore-prefixed or omitted here should be treated as internal.
 - `validate_runtime_output_path(path, project_root_path=None, *, required_parent_path=None, reject_leaf_symlink=False, expected_output_kind=None)`
   - Return the canonical path used by writers after enforcing canonical/declared human-doc exclusion, optional configured-root containment, leaf kind and symlink rules, directory-only parent chains, and hardlink rejection. An alternate declared root cannot weaken the canonical guard.
 - `configure_matplotlib_cache()`
-  - Canonicalize and guard `MPLCONFIGDIR`, then return and export the exact safe path that Matplotlib and JARVIS may use for dependency caches.
+  - Treat unset or blank `MPLCONFIGDIR` as the safe temporary default, then canonicalize, guard, return, and export the exact path used by Matplotlib and JARVIS.
 - `ensure_runtime_dirs(cfg, project_root_path='.')`
   - Preflight every configured runtime directory, then create them together; invalid file leaves or parent chains fail without partial directory creation.
 - `clear_project_cache(project_root_path='.')`
@@ -29,7 +29,7 @@ Anything underscore-prefixed or omitted here should be treated as internal.
 - `load_agent_manifest(project_root_path='.', manifest_path='docs/AGENT_MANIFEST.json')`
   - Load the checked-in machine-readable AI-native manifest.
 - `validate_agent_layout(project_root_path='.', manifest=None)`
-  - Validate required agent-facing files, exact command and validation-profile mappings, exact active project-skill and retired-guidance records, the human-document ownership policy and its declared instruction-surface markers, source-of-truth surfaces, the exact six-module contracts, local instruction paths, v18 alignment, dependency imports, and known layout warnings.
+  - Validate required agent-facing files, exact command and validation-profile mappings, exact active project-skill and retired-guidance records, the human-document ownership policy and its declared instruction-surface markers, source-of-truth surfaces, the exact six-module contracts, local instruction paths, the stable v18 alignment status and boundaries, dependency imports, and known layout warnings.
 - `build_agent_state(project_root_path='.', manifest_path='docs/AGENT_MANIFEST.json')`
   - Build the live JSON-serializable agent-state payload used by `main.py --emit-agent-state` and `main.py --verify-agent-contract`.
 - `build_agent_command_index(project_root_path='.', manifest_path='docs/AGENT_MANIFEST.json')`

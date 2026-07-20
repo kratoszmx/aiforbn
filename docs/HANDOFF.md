@@ -248,6 +248,7 @@
 - grouped robustness 预测保留 DataFrame feature names，消除 sklearn feature-name warnings
 - Round 3 进一步封死伪造 project root、直接/软链接 human-doc cache root、输出叶子软链接和硬链接别名；runtime/dataset/report/plot 会在任何目录创建、写入或删除前预检全部目录及具体输出叶子的根目录归属、类型和父链，结构配置、动态 CIF 及 stale-CIF 清理均保留/检查原始叶子身份，cache 清理安全跳过目录软链接
 - Round 4 补齐大小写等价的 human-doc 路径识别、cache root 任意软链接组件与 discovery 逃逸阻断、JSON/agent-state 序列化先于目录创建，并把 Python config bytecode、Matplotlib/JARVIS 的间接 cache/archive 写入纳入同一 canonical guard；没有修改或重算 `human_docs/` 与 scientific artifacts
+- Round 5 固定单次校验后的 JARVIS metadata snapshot，拒绝绝对路径、遍历、分隔符、空值和畸形 archive tag 后再把同一 URL/tag 与 canonical `store_dir` 交给依赖；空白 `MPLCONFIGDIR` 不再退化为当前目录，v18 alignment status 也纳入 contract verifier；没有联网下载、修改 `human_docs/` 或重算 scientific artifacts
 - contract verifier 现精确锁定 validation-profile 命令序列、三个 active project-skill 记录与七个 retired-guidance 路径；public-surface 测试同时核对模块摘要及根摘要的 callable 参数顺序和 keyword-only 边界
 - `--verify-agent-contract` 现会精确锁定六个 module 的 path/role/public-surface/agent-rules/local-utils/allowed-dependencies；公开 surface 测试逐个要求四个生产模块非空，并显式覆盖 import re-export
 
@@ -262,7 +263,7 @@
 
 3. 完整 src 测试：
 - `conda run -n quant python3 -m pytest -q src`
-- 结果：`224 passed, 1 warning`
+- 结果：`258 passed, 1 warning`
 - 剩余 warning 是 PyTorch nested-tensor prototype 提示，不是测试失败；原 sklearn feature-name warnings 已消除
 
 4. UI 文字化验证：

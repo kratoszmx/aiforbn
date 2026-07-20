@@ -19,6 +19,8 @@ REQUIRED_RESEARCH_PLAN_SOURCE_FILES = (
     'human_docs/research_plan/ai_for_bn_research_plan_v18.bib',
 )
 
+REQUIRED_RESEARCH_PLAN_ALIGNMENT_STATUS = 'v18_alignment_contract'
+
 REQUIRED_RESEARCH_PLAN_ALIGNMENT_ANCHORS = {
     'bounded_bn_centered_design_space',
     'provenance_aware_bn_data_layer',
@@ -444,6 +446,16 @@ def _validate_research_plan_alignment(
             'message': 'Manifest field `research_plan_alignment` must be a JSON object.',
         })
         return
+
+    if alignment.get('status') != REQUIRED_RESEARCH_PLAN_ALIGNMENT_STATUS:
+        errors.append({
+            'code': 'unexpected_research_plan_alignment_status',
+            'path': 'docs/AGENT_MANIFEST.json:research_plan_alignment.status',
+            'message': (
+                '`research_plan_alignment.status` must be '
+                f'`{REQUIRED_RESEARCH_PLAN_ALIGNMENT_STATUS}`.'
+            ),
+        })
 
     source_files = alignment.get('source_files', [])
     if not isinstance(source_files, list) or not source_files:

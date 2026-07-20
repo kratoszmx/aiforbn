@@ -16,7 +16,7 @@ Anything underscore-prefixed or omitted here should be treated as internal imple
 - `load_or_build_dataset(cfg)`
   - Build or reload the normalized dataset and its manifest.
   - Reuse a processed cache only when dataset name, source, required columns, and target column all match the request.
-  - Preflight the concrete raw JSON, processed Parquet, manifest, JARVIS archive, and dependency-cache root before imports or writes; JARVIS receives the canonical guarded raw directory instead of its environment-selected default cache.
+  - Preflight the concrete raw JSON, processed Parquet, manifest, JARVIS archive, and dependency-cache root before imports or writes; one validated metadata snapshot supplies a plain JSON archive name, URL, and canonical guarded raw directory directly to JARVIS.
 
 ## constants.py
 

@@ -133,7 +133,7 @@ Compiles a trusted Python config without emitting `__pycache__`, returns its `CO
 Returns the canonical path used by writers after enforcing canonical/declared human-doc exclusion, optional configured-root containment, leaf kind and symlink rules, directory-only parent chains, and hardlink rejection. An alternate declared root cannot weaken the canonical guard. Public dataset, artifact, plot, and JSON writers call this before mutation.
 
 ### `configure_matplotlib_cache()`
-Validates and canonicalizes `MPLCONFIGDIR` before Matplotlib or JARVIS import-time cache creation, exports the exact guarded path back to the environment, and leaves directory creation to the dependency.
+Treats unset or blank `MPLCONFIGDIR` as the safe temporary default, validates and canonicalizes it before Matplotlib or JARVIS import-time cache creation, exports the exact guarded path back to the environment, and leaves directory creation to the dependency.
 
 ### `ensure_runtime_dirs(cfg, project_root_path='.')`
 Preflights all configured runtime directories before creating any of them, so invalid file leaves or parent chains fail without partial directory creation.
@@ -159,7 +159,7 @@ Purpose:
 Loads the checked-in agent manifest.
 
 ### `validate_agent_layout(project_root_path='.', manifest=None)`
-Checks required agent-facing files, exact control/validation commands and validation-profile command sequences, exact active project-skill and retired-guidance records, local instruction paths, the exact six-module contracts, strict v18 research-plan alignment, and manifest-declared dependency imports.
+Checks required agent-facing files, exact control/validation commands and validation-profile command sequences, exact active project-skill and retired-guidance records, local instruction paths, the exact six-module contracts, the stable v18 alignment status and scientific boundaries, and manifest-declared dependency imports.
 Returns:
 - `status`
 - `errors`
@@ -193,7 +193,7 @@ Current behavior:
 - prefers cached processed parquet only when its manifest matches the requested dataset, source, and target column and the dataframe has all required normalized columns
 - rebuilds stale processed cache from cached raw JSON when needed
 - downloads from JARVIS only when cached raw JSON is absent
-- guards `MPLCONFIGDIR` before the JARVIS import, preflights the concrete JARVIS archive leaf, and binds JARVIS `store_dir` to the canonical raw directory instead of trusting `ATOMGPTLAB_CACHE`
+- guards `MPLCONFIGDIR` before the JARVIS import, validates one metadata snapshot as a plain JSON archive name, preflights that concrete archive leaf, and passes the same URL/tag plus canonical raw `store_dir` directly to JARVIS instead of trusting `ATOMGPTLAB_CACHE`
 - writes lightweight structure-summary columns derived from cached `atoms` / lattice data
 
 Important normalized columns include:

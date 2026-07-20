@@ -1,4 +1,6 @@
 from pathlib import Path
+import os
+import subprocess
 import sys
 
 import numpy as np
@@ -8,6 +10,7 @@ import pytest
 from runtime import io_utils
 from runtime.io_utils import (
     clear_project_cache,
+    configure_matplotlib_cache,
     ensure_runtime_dirs,
     load_config,
     make_json_safe,
@@ -157,6 +160,92 @@ def test_ensure_runtime_dirs_rejects_non_directory_targets_before_any_creation(
     assert not (tmp_path / 'new-raw').exists()
     assert not (tmp_path / 'new-artifacts').exists()
     assert processed_file.read_text(encoding='utf-8') == 'keep'
+
+
+@pytest.mark.parametrize(
+    'configured_value',
+    [
+        None,
+        '',
+        '   ',
+        'relative-mpl',
+        './nested/../normalized-mpl',
+        '~/tilde-mpl',
+        'absolute',
+    ],
+    ids=['unset', 'empty', 'whitespace', 'relative', 'normalized', 'tilde', 'absolute'],
+)
+def test_configure_matplotlib_cache_exports_one_canonical_idempotent_path(
+    tmp_path: Path,
+    monkeypatch,
+    configured_value,
+):
+    monkeypatch.setattr(io_utils, 'PROJECT_ROOT', tmp_path)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv('HOME', str(tmp_path))
+    monkeypatch.delenv('MPLBACKEND', raising=False)
+    if configured_value is None or not configured_value.strip():
+        if configured_value is None:
+            monkeypatch.delenv('MPLCONFIGDIR', raising=False)
+        else:
+            monkeypatch.setenv('MPLCONFIGDIR', configured_value)
+        expected_path = Path('/tmp/ai_for_bn_mplconfig').resolve(strict=False)
+    else:
+        declared_path = (
+            tmp_path / 'absolute-mpl'
+            if configured_value == 'absolute'
+            else Path(configured_value)
+        )
+        monkeypatch.setenv('MPLCONFIGDIR', str(declared_path))
+        expected_path = declared_path.expanduser().resolve(strict=False)
+    existed_before = expected_path.exists()
+
+    first_result = configure_matplotlib_cache()
+    second_result = configure_matplotlib_cache()
+
+    assert first_result == expected_path
+    assert second_result == expected_path
+    assert io_utils.os.environ['MPLCONFIGDIR'] == str(expected_path)
+    assert io_utils.os.environ['MPLBACKEND'] == 'Agg'
+    if not existed_before:
+        assert not expected_path.exists()
+
+
+def test_empty_matplotlib_cache_env_cannot_place_font_cache_in_cwd(tmp_path: Path):
+    project_root = tmp_path / 'synthetic-project'
+    project_root.mkdir()
+    env = dict(os.environ)
+    env.update({
+        'AIFORBN_SYNTHETIC_PROJECT_ROOT': str(project_root),
+        'MPLCONFIGDIR': '',
+        'PYTHONDONTWRITEBYTECODE': '1',
+        'PYTHONPATH': str(Path(__file__).resolve().parents[2]),
+    })
+    script = (
+        'import os\n'
+        'from pathlib import Path\n'
+        'from runtime import io_utils\n'
+        "root = Path(os.environ['AIFORBN_SYNTHETIC_PROJECT_ROOT'])\n"
+        'io_utils.PROJECT_ROOT = root\n'
+        'import materials.plots\n'
+        'import matplotlib\n'
+        "expected = str(Path('/tmp/ai_for_bn_mplconfig').resolve())\n"
+        "assert os.environ['MPLCONFIGDIR'] == expected\n"
+        'assert matplotlib.get_configdir() == expected\n'
+        "assert not list(root.glob('fontlist-*.json'))\n"
+    )
+
+    result = subprocess.run(
+        [sys.executable, '-c', script],
+        cwd=project_root,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert list(project_root.iterdir()) == []
 
 
 def test_json_helpers_delegate_to_myutils_json_io(tmp_path: Path, monkeypatch):

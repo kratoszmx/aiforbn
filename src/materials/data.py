@@ -199,6 +199,45 @@ def _build_manifest(dataset_name: str, target_col: str, version_hint: str) -> di
     ).model_dump()
 
 
+def _validated_jarvis_download_metadata(
+    db_info: object,
+    dataset_name: str,
+) -> tuple[str, str, str, str]:
+    if not isinstance(db_info, dict) or dataset_name not in db_info:
+        raise ValueError('Check DB name options.')
+
+    metadata = db_info[dataset_name]
+    if (
+        not isinstance(metadata, (list, tuple))
+        or len(metadata) < 4
+        or not all(isinstance(value, str) for value in metadata[:4])
+    ):
+        raise ValueError(
+            'JARVIS dataset metadata must contain URL, JSON filename, message, '
+            'and reference strings'
+        )
+    url, json_tag, message, reference = metadata[:4]
+    tag_path = Path(json_tag)
+    if (
+        not url
+        or url != url.strip()
+        or not json_tag
+        or json_tag != json_tag.strip()
+        or json_tag.startswith('~')
+        or '/' in json_tag
+        or '\\' in json_tag
+        or '\x00' in json_tag
+        or tag_path.is_absolute()
+        or tag_path.name != json_tag
+        or tag_path.suffix.lower() != '.json'
+    ):
+        raise ValueError(
+            'JARVIS archive metadata must use a non-empty plain JSON filename '
+            'and URL'
+        )
+    return url, json_tag, message, reference
+
+
 def _has_required_normalized_columns(df: pd.DataFrame) -> bool:
     return all(column in df.columns for column in REQUIRED_NORMALIZED_COLUMNS)
 
@@ -324,19 +363,24 @@ def load_or_build_dataset(cfg: dict) -> tuple[pd.DataFrame, dict]:
         )
 
     configure_matplotlib_cache()
-    from jarvis.db.figshare import data as jarvis_data, get_db_info
+    from jarvis.db.figshare import get_db_info, get_request_data
 
-    jarvis_dataset_info = get_db_info()
-    if dataset_name not in jarvis_dataset_info:
-        raise ValueError('Check DB name options.')
-    jarvis_json_tag = str(jarvis_dataset_info[dataset_name][1])
+    jarvis_url, jarvis_json_tag, jarvis_message, jarvis_reference = (
+        _validated_jarvis_download_metadata(get_db_info(), dataset_name)
+    )
     validate_runtime_output_path(
         raw_dir / f'{jarvis_json_tag}.zip',
         required_parent_path=raw_dir,
         expected_output_kind='file',
     )
     raw_dir.mkdir(parents=True, exist_ok=True)
-    raw = jarvis_data(dataset_name, store_dir=str(raw_dir))
+    print(jarvis_message)
+    print(f'Reference:{jarvis_reference}')
+    raw = get_request_data(
+        js_tag=jarvis_json_tag,
+        url=jarvis_url,
+        store_dir=str(raw_dir),
+    )
     if cfg['data'].get('cache_raw_json', True):
         write_json_file(raw, raw_path, indent=None)
 

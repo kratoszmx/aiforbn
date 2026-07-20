@@ -777,6 +777,10 @@ def test_validate_agent_layout_rejects_duplicate_or_unknown_module_contracts(
     ('mutate_alignment', 'expected_error_code'),
     [
         (
+            lambda alignment: alignment.update({'status': 'weakened'}),
+            'unexpected_research_plan_alignment_status',
+        ),
+        (
             lambda alignment: alignment.update({'source_files': [123]}),
             'invalid_research_plan_alignment_source',
         ),

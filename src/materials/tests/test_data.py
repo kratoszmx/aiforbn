@@ -155,12 +155,24 @@ def _raw_entry(jid: str, formula: str | None, target: float, *, composition: str
     return entry
 
 
-def _install_fake_jarvis(monkeypatch, data_func):
+def _install_fake_jarvis(
+    monkeypatch,
+    data_func,
+    *,
+    get_db_info_func=None,
+    get_request_data_func=None,
+):
     fake_figshare = types.ModuleType('jarvis.db.figshare')
     fake_figshare.data = data_func
-    fake_figshare.get_db_info = lambda: {
+    fake_figshare.get_db_info = get_db_info_func or (lambda: {
         'twod_matpd': ('unused-url', 'twodmatpd.json', 'message', 'reference'),
-    }
+    })
+    fake_figshare.get_request_data = get_request_data_func or (
+        lambda *, js_tag, url, store_dir: data_func(
+            'twod_matpd',
+            store_dir=store_dir,
+        )
+    )
     fake_db = types.ModuleType('jarvis.db')
     fake_db.figshare = fake_figshare
     fake_jarvis = types.ModuleType('jarvis')
@@ -169,6 +181,168 @@ def _install_fake_jarvis(monkeypatch, data_func):
     monkeypatch.setitem(sys.modules, 'jarvis.db', fake_db)
     monkeypatch.setitem(sys.modules, 'jarvis.db.figshare', fake_figshare)
     return fake_figshare
+
+
+def test_load_or_build_dataset_uses_one_guarded_jarvis_metadata_snapshot(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(io_utils, 'PROJECT_ROOT', tmp_path)
+    monkeypatch.setenv('MPLCONFIGDIR', str(tmp_path / 'mpl-cache'))
+    raw_dir = tmp_path / 'raw'
+    processed_dir = tmp_path / 'processed'
+    processed_dir.mkdir()
+    safe_metadata = ('unused-url', 'twodmatpd.json', 'message', 'reference')
+    changed_metadata = (
+        'unused-url',
+        '../human_docs/escaped.json',
+        'message',
+        'reference',
+    )
+    metadata_calls = []
+    request_calls = []
+    payload = [_raw_entry('1', 'BN', 5.5)]
+    fake_figshare = None
+
+    def changing_db_info():
+        metadata_calls.append(len(metadata_calls) + 1)
+        metadata = safe_metadata if len(metadata_calls) == 1 else changed_metadata
+        return {'twod_matpd': metadata}
+
+    def fake_request_data(*, js_tag, url, store_dir):
+        request_calls.append((js_tag, url, store_dir))
+        assert js_tag == safe_metadata[1], 'dependency consumed unguarded metadata'
+        return payload
+
+    def fake_data(dataset, store_dir=None):
+        metadata = fake_figshare.get_db_info()[dataset]
+        return fake_figshare.get_request_data(
+            js_tag=metadata[1],
+            url=metadata[0],
+            store_dir=store_dir,
+        )
+
+    fake_figshare = _install_fake_jarvis(
+        monkeypatch,
+        fake_data,
+        get_db_info_func=changing_db_info,
+        get_request_data_func=fake_request_data,
+    )
+    cfg = {
+        'data': {
+            'dataset': 'twod_matpd',
+            'raw_dir': str(raw_dir),
+            'processed_dir': str(processed_dir),
+            'target_column': 'band_gap',
+            'cache_raw_json': False,
+        }
+    }
+
+    load_or_build_dataset(cfg)
+
+    assert metadata_calls == [1]
+    assert request_calls == [(
+        safe_metadata[1],
+        safe_metadata[0],
+        str(raw_dir.resolve()),
+    )]
+    assert not (tmp_path / 'human_docs').exists()
+
+
+def _jarvis_db_info(metadata):
+    return {'twod_matpd': metadata}
+
+
+@pytest.mark.parametrize(
+    'db_info',
+    [
+        _jarvis_db_info(('unused-url', '/absolute.json', 'message', 'reference')),
+        _jarvis_db_info(('unused-url', '../escape.json', 'message', 'reference')),
+        _jarvis_db_info(('unused-url', 'nested/name.json', 'message', 'reference')),
+        _jarvis_db_info(('unused-url', '~/escape.json', 'message', 'reference')),
+        _jarvis_db_info((
+            'unused-url',
+            '../HUMAN_DOCS/escape.json',
+            'message',
+            'reference',
+        )),
+        _jarvis_db_info(('unused-url', '', 'message', 'reference')),
+        _jarvis_db_info(('unused-url', '.', 'message', 'reference')),
+        _jarvis_db_info(('unused-url', '..', 'message', 'reference')),
+        _jarvis_db_info(('unused-url', 'directory/', 'message', 'reference')),
+        _jarvis_db_info(('unused-url', 'not-json.txt', 'message', 'reference')),
+        _jarvis_db_info(('unused-url', 'nested\\name.json', 'message', 'reference')),
+        _jarvis_db_info(('unused-url', '\x00.json', 'message', 'reference')),
+        _jarvis_db_info((' unused-url', 'safe.json', 'message', 'reference')),
+        _jarvis_db_info(('', 'safe.json', 'message', 'reference')),
+        _jarvis_db_info(('unused-url', ' safe.json', 'message', 'reference')),
+        None,
+        [],
+        {},
+        _jarvis_db_info(None),
+        _jarvis_db_info(('url', 'safe.json', 'message')),
+        _jarvis_db_info(('url', None, 'message', 'reference')),
+    ],
+    ids=[
+        'absolute',
+        'parent-traversal',
+        'nested-separator',
+        'tilde',
+        'case-equivalent-human-docs-traversal',
+        'empty',
+        'dot',
+        'dot-dot',
+        'directory-valued',
+        'wrong-extension',
+        'windows-separator',
+        'nul',
+        'url-leading-whitespace',
+        'empty-url',
+        'tag-leading-whitespace',
+        'non-mapping',
+        'sequence-root',
+        'missing-dataset',
+        'null-entry',
+        'short-entry',
+        'non-string-field',
+    ],
+)
+def test_load_or_build_dataset_rejects_invalid_jarvis_metadata_before_effects(
+    tmp_path,
+    monkeypatch,
+    db_info,
+):
+    monkeypatch.setattr(io_utils, 'PROJECT_ROOT', tmp_path)
+    monkeypatch.setenv('MPLCONFIGDIR', str(tmp_path / 'mpl-cache'))
+    request_calls = []
+
+    def reject_request(**kwargs):
+        request_calls.append(kwargs)
+        raise AssertionError('JARVIS request must not run for invalid metadata')
+
+    _install_fake_jarvis(
+        monkeypatch,
+        lambda *_args, **_kwargs: None,
+        get_db_info_func=lambda: db_info,
+        get_request_data_func=reject_request,
+    )
+    cfg = {
+        'data': {
+            'dataset': 'twod_matpd',
+            'raw_dir': str(tmp_path / 'raw'),
+            'processed_dir': str(tmp_path / 'processed'),
+            'target_column': 'band_gap',
+            'cache_raw_json': False,
+        }
+    }
+
+    with pytest.raises(ValueError, match='Check DB name options|JARVIS'):
+        load_or_build_dataset(cfg)
+
+    assert request_calls == []
+    assert not (tmp_path / 'raw').exists()
+    assert not (tmp_path / 'processed').exists()
+    assert not (tmp_path / 'human_docs').exists()
 
 
 def test_load_or_build_dataset_binds_jarvis_cache_to_guarded_raw_dir(
@@ -242,17 +416,31 @@ def test_load_or_build_dataset_rejects_mpl_cache_before_jarvis_import(
     assert not (tmp_path / 'processed').exists()
 
 
+@pytest.mark.parametrize(
+    'leaf_kind',
+    ['human-docs-symlink', 'dangling-symlink', 'hardlink', 'directory'],
+)
 def test_load_or_build_dataset_preflights_jarvis_archive_leaf(
     tmp_path,
     monkeypatch,
+    leaf_kind,
 ):
     monkeypatch.setattr(io_utils, 'PROJECT_ROOT', tmp_path)
     raw_dir = tmp_path / 'raw'
     processed_dir = tmp_path / 'processed'
     raw_dir.mkdir()
-    archive_target = tmp_path / 'human_docs' / 'twodmatpd.json.zip'
-    archive_path = raw_dir / archive_target.name
-    archive_path.symlink_to(archive_target)
+    archive_path = raw_dir / 'twodmatpd.json.zip'
+    archive_target = tmp_path / 'human_docs' / archive_path.name
+    if leaf_kind == 'human-docs-symlink':
+        archive_path.symlink_to(archive_target)
+    elif leaf_kind == 'dangling-symlink':
+        archive_path.symlink_to(raw_dir / 'missing-archive.zip')
+    elif leaf_kind == 'hardlink':
+        archive_target.parent.mkdir()
+        archive_target.write_text('user-owned', encoding='utf-8')
+        archive_path.hardlink_to(archive_target)
+    else:
+        archive_path.mkdir()
 
     _install_fake_jarvis(
         monkeypatch,
@@ -270,11 +458,18 @@ def test_load_or_build_dataset_preflights_jarvis_archive_leaf(
         }
     }
 
-    with pytest.raises(ValueError, match='user-owned human_docs'):
+    with pytest.raises(
+        ValueError,
+        match='user-owned human_docs|symbolic-link|multiple hard links|regular-file',
+    ):
         load_or_build_dataset(cfg)
 
-    assert archive_path.is_symlink()
-    assert not archive_target.exists()
+    if leaf_kind in {'human-docs-symlink', 'dangling-symlink'}:
+        assert archive_path.is_symlink()
+    elif leaf_kind == 'hardlink':
+        assert archive_target.read_text(encoding='utf-8') == 'user-owned'
+    else:
+        assert archive_path.is_dir()
     assert not processed_dir.exists()
 
 
@@ -321,10 +516,10 @@ def test_load_or_build_dataset_builds_normalized_cache_and_reuses_it(tmp_path, m
     assert manifest1['name'] == 'twod_matpd'
     assert manifest1['target_column'] == 'band_gap'
 
-    def should_not_be_called(_dataset):
+    def should_not_be_called(**_kwargs):
         raise AssertionError('jarvis download should not run when cache exists')
 
-    fake_figshare.data = should_not_be_called
+    fake_figshare.get_request_data = should_not_be_called
     df2, manifest2 = load_or_build_dataset(cfg)
 
     pd.testing.assert_frame_equal(df2, df1)
