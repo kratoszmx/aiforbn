@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from runtime.io_utils import read_json_file, write_json_file
+from runtime.io_utils import read_json_file, validate_runtime_output_path, write_json_file
 from runtime.schema import DatasetManifest
 
 
@@ -264,6 +264,8 @@ def _write_dataset_artifacts(
 def load_or_build_dataset(cfg: dict) -> tuple[pd.DataFrame, dict]:
     raw_dir = Path(cfg['data']['raw_dir'])
     processed_dir = Path(cfg['data']['processed_dir'])
+    validate_runtime_output_path(raw_dir)
+    validate_runtime_output_path(processed_dir)
     target_col = cfg['data']['target_column']
     dataset_name = cfg['data']['dataset']
     raw_path = raw_dir / f'{dataset_name}.json'

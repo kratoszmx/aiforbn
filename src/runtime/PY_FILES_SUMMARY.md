@@ -9,6 +9,8 @@ Anything underscore-prefixed or omitted here should be treated as internal.
 
 - `load_config(path)`
   - Load a Python config file and return its top-level `CONFIG` dict.
+- `validate_runtime_output_path(path, project_root_path=None)`
+  - Resolve a runtime output path and reject any target under user-owned `human_docs/`.
 - `ensure_runtime_dirs(cfg, project_root_path='.')`
   - Create the configured runtime directories needed by the project, rejecting runtime state under user-owned `human_docs/`.
 - `clear_project_cache(project_root_path='.')`
@@ -16,7 +18,7 @@ Anything underscore-prefixed or omitted here should be treated as internal.
 - `read_json_file(path)`
   - Read JSON through the shared `myutils/file_utils/json_io.py` helper.
 - `write_json_file(payload, path, ...)`
-  - Write JSON through the shared `myutils/file_utils/json_io.py` helper.
+  - Write JSON through the shared `myutils/file_utils/json_io.py` helper after enforcing the runtime output boundary.
 - `make_json_safe(value)`
   - Convert numpy/pandas/path-like values into JSON-serializable objects through `myutils`.
 

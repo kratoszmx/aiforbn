@@ -129,6 +129,9 @@ Purpose:
 ### `load_config(path)`
 Loads the Python config module and returns its `CONFIG` dict.
 
+### `validate_runtime_output_path(path, project_root_path=None)`
+Resolves a runtime output path and rejects any target under user-owned `human_docs/`; public dataset, artifact, plot, and JSON writers call this before mutation.
+
 ### `ensure_runtime_dirs(cfg, project_root_path='.')`
 Creates only the configured runtime directories if missing and rejects runtime state under user-owned `human_docs/`.
 Currently this means the config-driven data/cache/artifact directories, rather than legacy source-tree folders like `apps/` or `notebooks/`.
@@ -138,7 +141,7 @@ Uses the current `myutils/file_utils/filesystem.py` discovery API, then removes 
 Use before tests or batch runs, per project skill requirements.
 
 ### `read_json_file(path)` / `write_json_file(payload, path, ...)` / `make_json_safe(value)`
-Re-exported shared JSON helpers from `myutils`.
+Shared JSON helpers from `myutils`; the write wrapper first enforces the runtime output boundary.
 Use these instead of ad hoc `json.loads(path.read_text())` or `path.write_text(json.dumps(...))` patterns when reading/writing repo artifacts.
 
 ---

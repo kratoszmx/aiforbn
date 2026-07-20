@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from runtime.io_utils import make_json_safe, write_json_file
+from runtime.io_utils import make_json_safe, validate_runtime_output_path, write_json_file
 from materials.data import load_cached_raw_record_lookup
 from materials.constants import *
 from materials.candidate_space import *
@@ -205,6 +205,7 @@ def save_metrics_and_predictions(
     bn_stratified_error_df=None,
 ):
     artifact_dir = Path(cfg['project']['artifact_dir'])
+    validate_runtime_output_path(artifact_dir)
     artifact_dir.mkdir(parents=True, exist_ok=True)
     formula_col = ((cfg.get('data') or {}).get('formula_column') or 'formula')
     bn_family_benchmark_df = (

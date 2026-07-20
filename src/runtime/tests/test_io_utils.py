@@ -11,6 +11,7 @@ from runtime.io_utils import (
     load_config,
     make_json_safe,
     read_json_file,
+    validate_runtime_output_path,
     write_json_file,
 )
 
@@ -106,7 +107,8 @@ def test_ensure_runtime_dirs_rejects_human_docs_output(tmp_path: Path, monkeypat
     assert not (tmp_path / 'human_docs').exists()
 
 
-def test_json_helpers_delegate_to_myutils_json_io(tmp_path: Path):
+def test_json_helpers_delegate_to_myutils_json_io(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(io_utils, 'PROJECT_ROOT', tmp_path)
     path = tmp_path / 'payload.json'
     payload = {
         'count': np.int64(2),
@@ -124,6 +126,12 @@ def test_json_helpers_delegate_to_myutils_json_io(tmp_path: Path):
         'path': str(tmp_path / 'artifact.csv'),
     }
     assert make_json_safe({'nested': [np.int64(1), pd.NA]}) == {'nested': [1, None]}
+
+    human_docs_path = tmp_path / 'human_docs' / 'runtime-state.json'
+    with pytest.raises(ValueError, match='user-owned human_docs'):
+        write_json_file({'forbidden': True}, human_docs_path)
+    assert not human_docs_path.exists()
+    assert validate_runtime_output_path(path) == path.resolve()
 
 
 def test_clear_project_cache_uses_myutils_discovery_and_preserves_human_docs(tmp_path: Path):

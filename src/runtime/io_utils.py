@@ -44,7 +44,7 @@ if str(_MYUTILS_FILE_UTILS_DIR) not in sys.path:
     sys.path.insert(0, str(_MYUTILS_FILE_UTILS_DIR))
 
 from filesystem import ensure_dirs, find_cache_dirs
-from json_io import make_json_safe, read_json_file, write_json_file
+from json_io import make_json_safe, read_json_file, write_json_file as _shared_write_json_file
 
 
 RUNTIME_DIR_KEYS = (
@@ -55,6 +55,7 @@ RUNTIME_DIR_KEYS = (
 
 CACHE_DIR_NAMES = frozenset({'__pycache__', '.pytest_cache'})
 HUMAN_DOCS_DIR = Path('human_docs')
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 def load_config(path: str | Path) -> dict:
@@ -72,20 +73,42 @@ def load_config(path: str | Path) -> dict:
     return cfg
 
 
+def validate_runtime_output_path(
+    path: str | Path,
+    project_root_path: str | Path | None = None,
+) -> Path:
+    project_root = (
+        PROJECT_ROOT
+        if project_root_path is None
+        else Path(project_root_path).expanduser().resolve()
+    )
+    human_docs_root = (project_root / HUMAN_DOCS_DIR).resolve(strict=False)
+    resolved_path = Path(path).expanduser().resolve(strict=False)
+    try:
+        resolved_path.relative_to(human_docs_root)
+    except ValueError:
+        return resolved_path
+    raise ValueError('Runtime output paths must not be placed under user-owned human_docs/')
+
+
 def ensure_runtime_dirs(cfg: dict, project_root_path: str | Path = '.') -> None:
     runtime_dirs = [cfg[section][key] for section, key in RUNTIME_DIR_KEYS]
-    project_root = Path(project_root_path).expanduser().resolve()
-    human_docs_root = (project_root / HUMAN_DOCS_DIR).resolve(strict=False)
     for runtime_dir in runtime_dirs:
-        resolved_runtime_dir = Path(runtime_dir).expanduser().resolve(strict=False)
         try:
-            resolved_runtime_dir.relative_to(human_docs_root)
-        except ValueError:
-            continue
-        raise ValueError(
-            'Configured runtime directories must not be placed under user-owned human_docs/'
-        )
+            validate_runtime_output_path(
+                runtime_dir,
+                project_root_path=project_root_path,
+            )
+        except ValueError as exc:
+            raise ValueError(
+                'Configured runtime directories must not be placed under user-owned human_docs/'
+            ) from exc
     ensure_dirs(runtime_dirs)
+
+
+def write_json_file(payload, path: str | Path, *args, **kwargs):
+    validate_runtime_output_path(path)
+    return _shared_write_json_file(payload, path, *args, **kwargs)
 
 
 def _missing_path_from_file_not_found(exc: FileNotFoundError) -> Path | None:

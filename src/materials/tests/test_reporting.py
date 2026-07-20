@@ -7,6 +7,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+from runtime import io_utils
 from materials import artifacts as artifacts_module
 from materials.artifacts import save_metrics_and_predictions
 from materials.constants import NOVELTY_BUCKET_FORMULA_LEVEL_EXTRAPOLATION
@@ -15,6 +16,34 @@ from materials.ranking_tables import _candidate_ranking_uncertainty_table
 from materials.summary import build_experiment_summary
 from materials.structure_execution import build_structure_first_pass_execution_artifacts
 from materials.structure_helpers import _structure_first_pass_execution_config
+
+
+def test_public_artifact_and_plot_writers_reject_human_docs_output(tmp_path, monkeypatch):
+    monkeypatch.setattr(io_utils, 'PROJECT_ROOT', tmp_path)
+    cfg = {'project': {'artifact_dir': str(tmp_path / 'human_docs' / 'artifacts')}}
+    empty_df = pd.DataFrame()
+
+    with pytest.raises(ValueError, match='user-owned human_docs'):
+        save_basic_plots(empty_df, cfg)
+
+    with pytest.raises(ValueError, match='user-owned human_docs'):
+        save_metrics_and_predictions(
+            {},
+            empty_df,
+            empty_df,
+            empty_df,
+            empty_df,
+            empty_df,
+            empty_df,
+            empty_df,
+            empty_df,
+            empty_df,
+            {},
+            {},
+            cfg,
+        )
+
+    assert not (tmp_path / 'human_docs').exists()
 
 
 def test_reserved_artifact_collision_contract_covers_writer_literals():

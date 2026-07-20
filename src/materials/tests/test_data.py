@@ -7,12 +7,30 @@ import types
 import pandas as pd
 import pytest
 
+from runtime import io_utils
 from materials.data import (
     REFERENCE_PROPERTY_COLUMNS,
     STRUCTURE_SUMMARY_COLUMNS,
     load_cached_raw_record_lookup,
     load_or_build_dataset,
 )
+
+
+def test_load_or_build_dataset_rejects_human_docs_cache_paths(tmp_path, monkeypatch):
+    monkeypatch.setattr(io_utils, 'PROJECT_ROOT', tmp_path)
+    cfg = {
+        'data': {
+            'raw_dir': str(tmp_path / 'human_docs' / 'raw'),
+            'processed_dir': str(tmp_path / 'processed'),
+            'target_column': 'band_gap',
+            'dataset': 'twod_matpd',
+        },
+    }
+
+    with pytest.raises(ValueError, match='user-owned human_docs'):
+        load_or_build_dataset(cfg)
+
+    assert not (tmp_path / 'human_docs').exists()
 
 
 def _raw_entry(jid: str, formula: str | None, target: float, *, composition: str | None = None) -> dict:

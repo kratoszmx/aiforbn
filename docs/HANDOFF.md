@@ -243,7 +243,7 @@
 - 移除零仓内调用、仅作 backward compatibility 的 `select_model_type(...)` façade
 - 把 Streamlit 已过期的 `use_container_width` 参数迁移为 `width='stretch'`，新增真实 Streamlit `AppTest` render regression，并完成有时限的 headless server health check
 - 严格复核后补齐 command index 的模块依赖 round-trip，并把 public-surface AST guard 接入 architecture focused profile；修复了原先标题解析不匹配导致的空集合假通过
-- 对 runtime 目录、agent-state 输出和 cache 清理加入 `human_docs/` 写入/删除阻断，同时把全部 manifest module public surfaces 纳入 policy marker 验证
+- 对 runtime 目录、agent-state、JSON、dataset、artifact、plot 输出和 cache 清理加入 `human_docs/` 写入/删除阻断，同时把全部 manifest module public surfaces 纳入 policy marker 验证
 - 退役仍可执行的非 BN toy candidate grid，保留且测试唯一的 bounded BN-centered candidate space；移除零引用的旧 rank-stability table builder
 - grouped robustness 预测保留 DataFrame feature names，消除 sklearn feature-name warnings
 
@@ -258,7 +258,7 @@
 
 3. 完整 src 测试：
 - `conda run -n quant python3 -m pytest -q src`
-- 结果：`146 passed, 1 warning`
+- 结果：`148 passed, 1 warning`
 - 剩余 warning 是 PyTorch nested-tensor prototype 提示，不是测试失败；原 sklearn feature-name warnings 已消除
 
 4. UI 文字化验证：

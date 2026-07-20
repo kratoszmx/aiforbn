@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from runtime.io_utils import make_json_safe, write_json_file
+from runtime.io_utils import make_json_safe, validate_runtime_output_path, write_json_file
 from materials.data import load_cached_raw_record_lookup
 from materials.constants import *
 from materials.candidate_space import *
@@ -20,6 +20,7 @@ from materials.common import *
 
 def save_basic_plots(prediction_df, cfg):
     artifact_dir = Path(cfg['project']['artifact_dir'])
+    validate_runtime_output_path(artifact_dir)
     artifact_dir.mkdir(parents=True, exist_ok=True)
 
     fig, ax = plt.subplots(figsize=(5, 5))
@@ -30,4 +31,3 @@ def save_basic_plots(prediction_df, cfg):
     fig.tight_layout()
     fig.savefig(artifact_dir / 'parity_plot.png', dpi=160)
     plt.close(fig)
-
