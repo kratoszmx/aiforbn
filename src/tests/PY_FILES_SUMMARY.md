@@ -1,5 +1,7 @@
 # tests module public surface
 
+`HUMAN_DOCS_POLICY=user_owned_read_only_unless_explicit_human_document_task`; `human_docs/` is user-owned contextual evidence, never runtime-owned state.
+
 `src/tests` is a pytest coverage directory, not a production API module.
 
 ## Public callable surface

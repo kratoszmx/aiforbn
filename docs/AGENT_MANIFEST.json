@@ -212,8 +212,8 @@
     },
     {
       "name": "focused_regression",
-      "command": "python3 -m pytest -q src/tests/test_main.py src/runtime/tests/test_agent_state.py src/runtime/tests/test_io_utils.py",
-      "scope": "entrypoints_runtime_agent_state"
+      "command": "python3 -m pytest -q src/tests/test_main.py src/tests/test_public_surfaces.py src/runtime/tests/test_agent_state.py src/runtime/tests/test_io_utils.py",
+      "scope": "entrypoints_runtime_agent_state_public_surfaces"
     },
     {
       "name": "full_src_tests",

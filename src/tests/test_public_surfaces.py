@@ -10,7 +10,9 @@ ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = ROOT / 'src'
 MODULE_DIRS = {'runtime', 'materials', 'torch_models', 'ui', 'tests', 'template'}
 PUBLIC_NAME_PATTERN = re.compile(r'`([A-Za-z_][A-Za-z0-9_]*)\s*(?:\(|`)')
-FILE_HEADING_PATTERN = re.compile(r'^##\s+`([^`]+\.py)`\s*$')
+FILE_HEADING_PATTERN = re.compile(
+    r'^##\s+(?:`(?P<quoted>[^`]+\.py)`|(?P<plain>\S+\.py))\s*$'
+)
 PUBLIC_ENTRY_PATTERN = re.compile(r'^- `([A-Za-z_][A-Za-z0-9_]*)\s*(?:\([^`]*\))?`')
 
 
@@ -50,7 +52,7 @@ def _documented_names_by_file(summary_path: Path) -> dict[str, set[str]]:
     for line in summary_path.read_text(encoding='utf-8').splitlines():
         heading_match = FILE_HEADING_PATTERN.match(line)
         if heading_match:
-            current_file = heading_match.group(1)
+            current_file = heading_match.group('quoted') or heading_match.group('plain')
             documented.setdefault(current_file, set())
             continue
         if line.startswith('## '):
@@ -74,6 +76,17 @@ def _defined_top_level_names(source_path: Path) -> set[str]:
             )
         elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
             names.add(node.target.id)
+        elif isinstance(node, ast.ImportFrom):
+            names.update(
+                alias.asname or alias.name
+                for alias in node.names
+                if alias.name != '*'
+            )
+        elif isinstance(node, ast.Import):
+            names.update(
+                alias.asname or alias.name.split('.')[0]
+                for alias in node.names
+            )
     return names
 
 
@@ -159,9 +172,11 @@ def test_production_cross_module_imports_follow_manifest_boundaries():
 
 def test_every_documented_public_symbol_exists_in_its_declared_file():
     missing: list[tuple[str, str]] = []
+    checked_symbol_count = 0
     for module_name in MODULE_DIRS:
         summary_path = SRC_ROOT / module_name / 'PY_FILES_SUMMARY.md'
         for file_name, documented_names in _documented_names_by_file(summary_path).items():
+            checked_symbol_count += len(documented_names)
             source_path = SRC_ROOT / module_name / file_name
             if not source_path.is_file():
                 missing.extend((str(source_path.relative_to(ROOT)), name) for name in documented_names)
@@ -172,4 +187,5 @@ def test_every_documented_public_symbol_exists_in_its_declared_file():
                 for name in sorted(documented_names - defined_names)
             )
 
+    assert checked_symbol_count > 0, 'No documented public symbols were parsed from module summaries'
     assert missing == []

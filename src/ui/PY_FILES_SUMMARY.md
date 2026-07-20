@@ -1,5 +1,7 @@
 # ui module public surface
 
+`HUMAN_DOCS_POLICY=user_owned_read_only_unless_explicit_human_document_task`; `human_docs/` is user-owned contextual evidence, never runtime-owned state.
+
 This file lists the stable public functions that external code may call from `ui`.
 Anything underscore-prefixed or omitted here should be treated as internal.
 

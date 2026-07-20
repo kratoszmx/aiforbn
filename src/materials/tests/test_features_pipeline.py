@@ -15,7 +15,7 @@ from materials.benchmarking import (
     benchmark_regressors,
     select_bn_centered_candidate_screening_combo,
 )
-from materials.candidate_space import generate_bn_candidates
+from materials.candidate_space import extract_elements, generate_bn_candidates
 from materials.constants import (
     FRACTIONAL_COMPOSITION_FEATURE_SET,
     STRUCTURE_AWARE_FEATURE_SET,
@@ -387,6 +387,9 @@ def test_generate_bn_candidates_adds_bn_anchored_family_metadata_and_chemical_pl
     assert candidate_df['candidate_generation_strategy'].eq(
         'bn_anchored_formula_family_grid'
     ).all()
+    assert candidate_df['formula'].map(
+        lambda formula: {'B', 'N'}.issubset(set(extract_elements(formula)))
+    ).all()
     assert {'BN', 'BC2N', 'Si2BN', 'Ge2BN', 'AlBN2', 'Tl2BN'}.issubset(set(candidate_df['formula']))
     assert candidate_df['candidate_family'].nunique() >= 4
     assert candidate_df['candidate_template'].isin({'B1N1', 'B1X1N1', 'B1X2N1', 'B1X1N2', 'X1B1N1', 'X2B1N1', 'X1B1N2'}).all()
@@ -411,6 +414,14 @@ def test_generate_bn_candidates_adds_bn_anchored_family_metadata_and_chemical_pl
     assert 'No charge-balanced common oxidation-state assignment' in (
         candidate_df.loc[candidate_df['formula'] == 'AlBN', 'chemical_plausibility_note'].iloc[0]
     )
+
+
+def test_generate_bn_candidates_rejects_retired_non_bn_toy_grid():
+    cfg = copy.deepcopy(CFG)
+    cfg['screening']['candidate_generation_strategy'] = 'toy_iii_v_demo_grid'
+
+    with pytest.raises(ValueError, match='Unsupported candidate_generation_strategy'):
+        generate_bn_candidates(cfg)
 
 
 def test_select_feature_model_combo_can_choose_matminer_representation():

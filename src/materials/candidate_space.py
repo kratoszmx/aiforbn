@@ -99,29 +99,6 @@ def _candidate_row(
     }
 
 
-def _generate_toy_iii_v_candidates(metadata: dict[str, str]) -> list[dict[str, str]]:
-    group13 = ['B', 'Al', 'Ga', 'In', 'Tl']
-    group15 = ['N', 'P', 'As', 'Sb', 'Bi']
-    family_note = (
-        'Legacy control grid copied from the 2DMatPedia-style Group 13/15 binary substitution '
-        'idea. Useful as a transparent control candidate space, but weakly aligned with BN as a '
-        'research target.'
-    )
-    rows: list[dict[str, str]] = []
-    for left in group13:
-        for right in group15:
-            rows.append(
-                _candidate_row(
-                    formula=f'{left}{right}',
-                    metadata=metadata,
-                    candidate_family='group13_group15_binary_analog',
-                    candidate_template='A1B1',
-                    candidate_family_note=family_note,
-                )
-            )
-    return rows
-
-
 def _generate_bn_anchored_candidates(metadata: dict[str, str]) -> list[dict[str, str]]:
     group14 = ['C', 'Si', 'Ge', 'Sn']
     group13 = ['Al', 'Ga', 'In', 'Tl']
@@ -213,9 +190,7 @@ def _generate_bn_anchored_candidates(metadata: dict[str, str]) -> list[dict[str,
 def generate_bn_candidates(cfg: dict | None = None) -> pd.DataFrame:
     metadata = _candidate_space_metadata(cfg)
     strategy = metadata['candidate_generation_strategy']
-    if strategy == TOY_CANDIDATE_GENERATION_STRATEGY:
-        rows = _generate_toy_iii_v_candidates(metadata)
-    elif strategy == BN_ANCHORED_CANDIDATE_GENERATION_STRATEGY:
+    if strategy == BN_ANCHORED_CANDIDATE_GENERATION_STRATEGY:
         rows = _generate_bn_anchored_candidates(metadata)
     else:  # pragma: no cover
         raise ValueError(f'Unsupported candidate_generation_strategy: {strategy}')
@@ -1048,4 +1023,3 @@ def annotate_candidate_chemical_plausibility(
     ])
     preserved_columns = [column for column in out.columns if column not in annotation_df.columns or column == formula_col]
     return out[preserved_columns].merge(annotation_df, on=formula_col, how='left')
-

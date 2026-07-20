@@ -1,5 +1,7 @@
 # runtime module public surface
 
+`HUMAN_DOCS_POLICY=user_owned_read_only_unless_explicit_human_document_task`; `human_docs/` is user-owned contextual evidence, never runtime-owned state.
+
 This file lists the stable public functions and classes that other modules may import from `runtime`.
 Anything underscore-prefixed or omitted here should be treated as internal.
 
@@ -7,10 +9,10 @@ Anything underscore-prefixed or omitted here should be treated as internal.
 
 - `load_config(path)`
   - Load a Python config file and return its top-level `CONFIG` dict.
-- `ensure_runtime_dirs(cfg)`
-  - Create the configured runtime directories needed by the project.
+- `ensure_runtime_dirs(cfg, project_root_path='.')`
+  - Create the configured runtime directories needed by the project, rejecting runtime state under user-owned `human_docs/`.
 - `clear_project_cache(project_root_path='.')`
-  - Delete Python/cache artifacts for an existing project root; treats already-removed cache paths as a successful concurrent cleanup.
+  - Delete Python/cache artifacts for an existing project root while preserving every path under user-owned `human_docs/`; treats already-removed cache paths as a successful concurrent cleanup.
 - `read_json_file(path)`
   - Read JSON through the shared `myutils/file_utils/json_io.py` helper.
 - `write_json_file(payload, path, ...)`
@@ -27,11 +29,11 @@ Anything underscore-prefixed or omitted here should be treated as internal.
 - `build_agent_state(project_root_path='.', manifest_path='docs/AGENT_MANIFEST.json')`
   - Build the live JSON-serializable agent-state payload used by `main.py --emit-agent-state` and `main.py --verify-agent-contract`.
 - `build_agent_command_index(project_root_path='.', manifest_path='docs/AGENT_MANIFEST.json')`
-  - Build the live JSON-serializable command index, including the human-document policy and v18 research-plan alignment, used by `main.py --emit-agent-commands`.
+  - Build the live JSON-serializable command index, including module dependencies, the human-document policy, and v18 research-plan alignment, used by `main.py --emit-agent-commands`.
 - `agent_state_to_json(state)`
   - Serialize an agent-state payload for stdout or logs.
 - `write_agent_state(state, path)`
-  - Write an agent-state payload to a JSON file.
+  - Write an agent-state payload to a JSON file while refusing runtime-state output under user-owned `human_docs/`.
 
 ## schema.py
 

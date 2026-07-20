@@ -129,12 +129,12 @@ Purpose:
 ### `load_config(path)`
 Loads the Python config module and returns its `CONFIG` dict.
 
-### `ensure_runtime_dirs(cfg)`
-Creates only the configured runtime directories if missing.
+### `ensure_runtime_dirs(cfg, project_root_path='.')`
+Creates only the configured runtime directories if missing and rejects runtime state under user-owned `human_docs/`.
 Currently this means the config-driven data/cache/artifact directories, rather than legacy source-tree folders like `apps/` or `notebooks/`.
 
 ### `clear_project_cache(project_root_path='.')`
-Delegates cache cleanup for this repo via the current `myutils/file_utils/filesystem.py` implementation.
+Uses the current `myutils/file_utils/filesystem.py` discovery API, then removes cache directories outside user-owned `human_docs/` only.
 Use before tests or batch runs, per project skill requirements.
 
 ### `read_json_file(path)` / `write_json_file(payload, path, ...)` / `make_json_safe(value)`
@@ -164,13 +164,13 @@ Returns:
 Builds the JSON-serializable live state used by `main.py --emit-agent-state` and `main.py --verify-agent-contract`.
 
 ### `build_agent_command_index(project_root_path='.', manifest_path='docs/AGENT_MANIFEST.json')`
-Builds the JSON-serializable command index used by `main.py --emit-agent-commands`, including the v18 research-plan alignment contract.
+Builds the JSON-serializable command index used by `main.py --emit-agent-commands`, including module dependencies and the v18 research-plan alignment contract.
 
 ### `agent_state_to_json(state)`
 Serializes the live state for stdout or log capture.
 
 ### `write_agent_state(state, path)`
-Writes the live state to a JSON file.
+Writes the live state to a JSON file while refusing runtime-state output under user-owned `human_docs/`.
 
 ---
 

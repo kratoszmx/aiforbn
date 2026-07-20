@@ -59,7 +59,7 @@ REQUIRED_VALIDATION_COMMANDS = {
     'verify_agent_contract': 'python3 main.py --verify-agent-contract',
     'fast_smoke': 'python3 main.py --dry-run',
     'focused_regression': (
-        'python3 -m pytest -q src/tests/test_main.py '
+        'python3 -m pytest -q src/tests/test_main.py src/tests/test_public_surfaces.py '
         'src/runtime/tests/test_agent_state.py src/runtime/tests/test_io_utils.py'
     ),
     'full_src_tests': 'python3 -m pytest -q src',
@@ -297,11 +297,14 @@ def _validate_human_docs_policy(
         )
     modules = manifest_payload.get('modules', [])
     if isinstance(modules, list):
-        policy_surfaces.extend(
-            str(module.get('agent_rules', '')).strip()
-            for module in modules
-            if isinstance(module, dict) and str(module.get('agent_rules', '')).strip()
-        )
+        for module in modules:
+            if not isinstance(module, dict):
+                continue
+            policy_surfaces.extend(
+                path
+                for field_name in ('agent_rules', 'public_surface')
+                if (path := str(module.get(field_name, '')).strip())
+            )
 
     for relative_path in dict.fromkeys(policy_surfaces):
         check = _path_check(root, relative_path)
@@ -818,6 +821,7 @@ def build_agent_command_index(
         'validation_profiles': manifest.get('validation_profiles', []),
         'source_of_truth_files': manifest.get('source_of_truth_files', []),
         'project_skills': manifest.get('project_skills', []),
+        'modules': manifest.get('modules', []),
         'human_docs_policy': manifest.get('human_docs_policy', {}),
         'retired_guidance_files': manifest.get('retired_guidance_files', []),
         'research_plan_alignment': manifest.get('research_plan_alignment', {}),
@@ -872,5 +876,18 @@ def agent_state_to_json(state: dict[str, Any]) -> str:
 
 def write_agent_state(state: dict[str, Any], path: str | Path) -> None:
     path = Path(path)
+    project_root = _project_root(state.get('project_root', '.'))
+    human_docs_root = (project_root / REQUIRED_HUMAN_DOCS_POLICY['path']).resolve(
+        strict=False
+    )
+    resolved_path = path.expanduser().resolve(strict=False)
+    try:
+        resolved_path.relative_to(human_docs_root)
+    except ValueError:
+        pass
+    else:
+        raise ValueError(
+            'Agent runtime state must not be written under user-owned human_docs/'
+        )
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(agent_state_to_json(state) + '\n', encoding='utf-8')

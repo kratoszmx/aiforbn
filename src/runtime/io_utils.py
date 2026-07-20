@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import os
 from pathlib import Path
+import shutil
 import sys
 
 _REQUIRED_MYUTILS_PATHS = (
@@ -42,7 +43,7 @@ _MYUTILS_FILE_UTILS_DIR = _MYUTILS_ROOT / 'file_utils'
 if str(_MYUTILS_FILE_UTILS_DIR) not in sys.path:
     sys.path.insert(0, str(_MYUTILS_FILE_UTILS_DIR))
 
-from filesystem import delete_cache as delete_cache_dirs, ensure_dirs
+from filesystem import ensure_dirs, find_cache_dirs
 from json_io import make_json_safe, read_json_file, write_json_file
 
 
@@ -53,6 +54,7 @@ RUNTIME_DIR_KEYS = (
 )
 
 CACHE_DIR_NAMES = frozenset({'__pycache__', '.pytest_cache'})
+HUMAN_DOCS_DIR = Path('human_docs')
 
 
 def load_config(path: str | Path) -> dict:
@@ -70,8 +72,19 @@ def load_config(path: str | Path) -> dict:
     return cfg
 
 
-def ensure_runtime_dirs(cfg: dict) -> None:
+def ensure_runtime_dirs(cfg: dict, project_root_path: str | Path = '.') -> None:
     runtime_dirs = [cfg[section][key] for section, key in RUNTIME_DIR_KEYS]
+    project_root = Path(project_root_path).expanduser().resolve()
+    human_docs_root = (project_root / HUMAN_DOCS_DIR).resolve(strict=False)
+    for runtime_dir in runtime_dirs:
+        resolved_runtime_dir = Path(runtime_dir).expanduser().resolve(strict=False)
+        try:
+            resolved_runtime_dir.relative_to(human_docs_root)
+        except ValueError:
+            continue
+        raise ValueError(
+            'Configured runtime directories must not be placed under user-owned human_docs/'
+        )
     ensure_dirs(runtime_dirs)
 
 
@@ -96,11 +109,31 @@ def clear_project_cache(project_root_path: str | Path = '.'):
     if not root_path.exists():
         raise FileNotFoundError(f'Project root does not exist: {root_path}')
 
+    human_docs_root = (root_path.resolve() / HUMAN_DOCS_DIR).resolve(strict=False)
     try:
-        return delete_cache_dirs(root_path)
+        cache_dirs = find_cache_dirs(root_path)
     except FileNotFoundError as exc:
         # Parallel agent validations can race while deleting the same cache tree.
         missing_path = _missing_path_from_file_not_found(exc)
         if missing_path is not None and _is_cache_path(missing_path):
             return None
         raise
+
+    deleted: list[Path] = []
+    for cache_dir in cache_dirs:
+        resolved_cache_dir = cache_dir.resolve(strict=False)
+        try:
+            resolved_cache_dir.relative_to(human_docs_root)
+        except ValueError:
+            pass
+        else:
+            continue
+        try:
+            shutil.rmtree(cache_dir)
+        except FileNotFoundError as exc:
+            missing_path = _missing_path_from_file_not_found(exc)
+            if missing_path is not None and _is_cache_path(missing_path):
+                continue
+            raise
+        deleted.append(cache_dir)
+    return deleted

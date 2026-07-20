@@ -30,17 +30,9 @@ ATOMIC_NUMBERS = {
     'H': 1, 'B': 5, 'C': 6, 'N': 7, 'O': 8, 'Al': 13, 'Si': 14, 'P': 15,
     'Ga': 31, 'Ge': 32, 'As': 33, 'In': 49, 'Sn': 50, 'Sb': 51, 'Tl': 81, 'Pb': 82, 'Bi': 83,
 }
-TOY_CANDIDATE_GENERATION_STRATEGY = 'toy_iii_v_demo_grid'
 BN_ANCHORED_CANDIDATE_GENERATION_STRATEGY = 'bn_anchored_formula_family_grid'
 DEFAULT_CANDIDATE_GENERATION_STRATEGY = BN_ANCHORED_CANDIDATE_GENERATION_STRATEGY
 CANDIDATE_SPACE_DEFAULTS = {
-    TOY_CANDIDATE_GENERATION_STRATEGY: {
-        'candidate_space_name': 'toy_iii_v_demo_grid',
-        'candidate_space_kind': 'toy_demo',
-        'candidate_space_note': (
-            'Formula-only Group 13/15 enumeration without stability, structure, or synthesis constraints.'
-        ),
-    },
     BN_ANCHORED_CANDIDATE_GENERATION_STRATEGY: {
         'candidate_space_name': 'bn_anchored_formula_family_grid',
         'candidate_space_kind': 'bn_family_demo',
@@ -374,4 +366,3 @@ BASE_PASSTHROUGH_COLUMNS = (
     'candidate_template',
     'candidate_family_note',
 )
-

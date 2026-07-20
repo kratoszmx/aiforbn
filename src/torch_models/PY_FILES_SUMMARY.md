@@ -1,5 +1,7 @@
 # torch_models module public surface
 
+`HUMAN_DOCS_POLICY=user_owned_read_only_unless_explicit_human_document_task`; `human_docs/` is user-owned contextual evidence, never runtime-owned state.
+
 This file lists the documented public classes that external code may instantiate or import from `torch_models`.
 Anything underscore-prefixed or omitted here should be treated as internal.
 

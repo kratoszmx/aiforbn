@@ -141,6 +141,7 @@ def test_validate_agent_layout_accepts_current_repo_contract():
 
 def test_build_agent_command_index_returns_validation_profiles():
     command_index = build_agent_command_index(ROOT)
+    manifest = load_agent_manifest(ROOT)
 
     assert command_index['schema_version'] == 'aiforbn.agent_command_index.v1'
     assert command_index['first_inspection_command'] == 'python3 main.py --verify-agent-contract'
@@ -158,6 +159,7 @@ def test_build_agent_command_index_returns_validation_profiles():
     }.issubset(validation_names)
     assert any(profile['name'] == 'architecture_doc_skill_edit' for profile in command_index['validation_profiles'])
     assert any(profile['name'] == 'ui_edit' for profile in command_index['validation_profiles'])
+    assert command_index['modules'] == manifest['modules']
     assert command_index['human_docs_policy']['policy_id'] == (
         'user_owned_read_only_unless_explicit_human_document_task'
     )
@@ -192,6 +194,19 @@ def test_build_agent_command_index_returns_validation_profiles():
         'structure_handoff',
         'technical_report',
     ]
+
+
+def test_write_agent_state_rejects_human_docs_output(tmp_path):
+    state = {
+        'project_root': str(tmp_path),
+        'schema_version': 'aiforbn.agent_state.v1',
+    }
+    output_path = tmp_path / 'human_docs' / 'agent_state.json'
+
+    with pytest.raises(ValueError, match='user-owned human_docs'):
+        agent_state.write_agent_state(state, output_path)
+
+    assert not output_path.exists()
 
 
 def test_build_agent_state_returns_json_serializable_status():
@@ -258,12 +273,16 @@ def test_validate_agent_layout_rejects_weakened_human_docs_policy(
     assert any(error['code'] == expected_error_code for error in validation['errors'])
 
 
-def test_validate_agent_layout_rejects_missing_human_docs_marker(monkeypatch):
+@pytest.mark.parametrize(
+    'relative_path',
+    ['AGENTS.md', 'src/runtime/PY_FILES_SUMMARY.md'],
+)
+def test_validate_agent_layout_rejects_missing_human_docs_marker(monkeypatch, relative_path):
     original_read = agent_state._read_text_if_present
 
     def read_without_root_marker(path: Path) -> str:
         text = original_read(path)
-        if path == ROOT / 'AGENTS.md':
+        if path == ROOT / relative_path:
             return text.replace(agent_state.HUMAN_DOCS_POLICY_MARKER, '')
         return text
 
@@ -274,7 +293,7 @@ def test_validate_agent_layout_rejects_missing_human_docs_marker(monkeypatch):
     assert validation['status'] == 'error'
     assert any(
         error['code'] == 'missing_human_docs_policy_marker'
-        and error['path'] == 'AGENTS.md'
+        and error['path'] == relative_path
         for error in validation['errors']
     )
 

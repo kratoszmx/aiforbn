@@ -86,6 +86,26 @@ def test_ensure_runtime_dirs_only_creates_configured_runtime_dirs(tmp_path: Path
     assert not (tmp_path / 'tests').exists()
 
 
+def test_ensure_runtime_dirs_rejects_human_docs_output(tmp_path: Path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    cfg = {
+        'data': {
+            'raw_dir': 'data/raw',
+            'processed_dir': 'human_docs/runtime-cache',
+        },
+        'project': {
+            'artifact_dir': 'artifacts',
+        },
+    }
+
+    with pytest.raises(ValueError, match='user-owned human_docs'):
+        ensure_runtime_dirs(cfg)
+
+    assert not (tmp_path / 'data').exists()
+    assert not (tmp_path / 'artifacts').exists()
+    assert not (tmp_path / 'human_docs').exists()
+
+
 def test_json_helpers_delegate_to_myutils_json_io(tmp_path: Path):
     path = tmp_path / 'payload.json'
     payload = {
@@ -106,25 +126,29 @@ def test_json_helpers_delegate_to_myutils_json_io(tmp_path: Path):
     assert make_json_safe({'nested': [np.int64(1), pd.NA]}) == {'nested': [1, None]}
 
 
-def test_clear_project_cache_uses_myutils_filesystem_cleanup(tmp_path: Path):
+def test_clear_project_cache_uses_myutils_discovery_and_preserves_human_docs(tmp_path: Path):
     pycache_dir = tmp_path / 'pkg' / '__pycache__'
     pycache_dir.mkdir(parents=True)
     (pycache_dir / 'mod.pyc').write_text('x', encoding='utf-8')
+    human_docs_cache_dir = tmp_path / 'human_docs' / 'notes' / '__pycache__'
+    human_docs_cache_dir.mkdir(parents=True)
+    (human_docs_cache_dir / 'user.pyc').write_text('user-owned', encoding='utf-8')
 
     deleted = clear_project_cache(tmp_path)
 
     assert deleted == [pycache_dir]
     assert not pycache_dir.exists()
+    assert human_docs_cache_dir.exists()
 
 
 def test_clear_project_cache_tolerates_concurrent_cache_deletion(tmp_path: Path, monkeypatch):
     calls = []
 
-    def fake_delete_cache(path):
+    def fake_find_cache_dirs(path):
         calls.append(Path(path))
         raise FileNotFoundError(tmp_path / '.pytest_cache')
 
-    monkeypatch.setattr('runtime.io_utils.delete_cache_dirs', fake_delete_cache)
+    monkeypatch.setattr('runtime.io_utils.find_cache_dirs', fake_find_cache_dirs)
 
     assert clear_project_cache(tmp_path) is None
     assert calls == [tmp_path]
@@ -144,10 +168,10 @@ def test_clear_project_cache_raises_for_missing_project_root(tmp_path: Path):
 def test_clear_project_cache_reraises_non_cache_file_not_found(tmp_path: Path, monkeypatch):
     missing_payload = tmp_path / 'data' / 'missing.json'
 
-    def fake_delete_cache(_path):
+    def fake_find_cache_dirs(_path):
         raise FileNotFoundError(missing_payload)
 
-    monkeypatch.setattr('runtime.io_utils.delete_cache_dirs', fake_delete_cache)
+    monkeypatch.setattr('runtime.io_utils.find_cache_dirs', fake_find_cache_dirs)
 
     try:
         clear_project_cache(tmp_path)

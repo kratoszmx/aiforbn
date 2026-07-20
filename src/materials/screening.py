@@ -696,7 +696,7 @@ def build_candidate_grouped_robustness_prediction_members(
             f'invalid for formulas: {failed_formulas}'
         )
 
-    candidate_matrix = candidate_feature_df[feature_columns].to_numpy(dtype=float)
+    candidate_matrix = candidate_feature_df[feature_columns]
     fold_predictions: list[pd.DataFrame] = []
     for fold_payload in split_payloads:
         fold_idx = int(fold_payload['fold_index'])
