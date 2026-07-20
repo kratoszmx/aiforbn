@@ -196,6 +196,24 @@ def test_build_agent_command_index_returns_validation_profiles():
     ]
 
 
+def test_agent_command_index_round_trips_every_manifest_contract_section():
+    command_index = build_agent_command_index(ROOT)
+    manifest = load_agent_manifest(ROOT)
+
+    for field in (
+        'entrypoints',
+        'validation_commands',
+        'validation_profiles',
+        'project_skills',
+        'source_of_truth_files',
+        'retired_guidance_files',
+        'research_plan_alignment',
+        'modules',
+        'human_docs_policy',
+    ):
+        assert command_index[field] == manifest[field]
+
+
 def test_write_agent_state_rejects_human_docs_output(tmp_path):
     state = {
         'project_root': str(tmp_path),
@@ -207,6 +225,75 @@ def test_write_agent_state_rejects_human_docs_output(tmp_path):
         agent_state.write_agent_state(state, output_path)
 
     assert not output_path.exists()
+
+
+def test_write_agent_state_does_not_trust_a_deceptive_state_project_root(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(agent_state, 'PROJECT_ROOT', tmp_path)
+    state = {
+        'project_root': str(tmp_path / 'different-project'),
+        'schema_version': 'aiforbn.agent_state.v1',
+    }
+    output_path = tmp_path / 'human_docs' / 'agent_state.json'
+
+    with pytest.raises(ValueError, match='user-owned human_docs'):
+        agent_state.write_agent_state(state, output_path)
+
+    assert not output_path.parent.exists()
+
+
+def test_write_agent_state_rejects_a_hardlinked_output_alias(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(agent_state, 'PROJECT_ROOT', tmp_path)
+    human_docs_file = tmp_path / 'human_docs' / 'agent_state.json'
+    human_docs_file.parent.mkdir()
+    human_docs_file.write_text('{"user_owned": true}\n', encoding='utf-8')
+    output_alias = tmp_path / 'artifacts' / 'agent_state.json'
+    output_alias.parent.mkdir()
+    output_alias.hardlink_to(human_docs_file)
+    state = {
+        'project_root': str(tmp_path),
+        'schema_version': 'aiforbn.agent_state.v1',
+    }
+
+    with pytest.raises(ValueError, match='multiple hard links'):
+        agent_state.write_agent_state(state, output_alias)
+
+    assert human_docs_file.read_text(encoding='utf-8') == '{"user_owned": true}\n'
+
+
+def test_write_agent_state_rejects_symbolic_link_directory_and_file_parent_outputs(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(agent_state, 'PROJECT_ROOT', tmp_path)
+    state = {
+        'project_root': str(tmp_path),
+        'schema_version': 'aiforbn.agent_state.v1',
+    }
+    target = tmp_path / 'allowed-target.json'
+    target.write_text('{"keep": true}\n', encoding='utf-8')
+    symlink_output = tmp_path / 'artifacts' / 'symlink.json'
+    symlink_output.parent.mkdir()
+    symlink_output.symlink_to(target)
+    with pytest.raises(ValueError, match='symbolic-link'):
+        agent_state.write_agent_state(state, symlink_output)
+
+    directory_output = tmp_path / 'artifacts' / 'directory.json'
+    directory_output.mkdir()
+    with pytest.raises(ValueError, match='regular-file'):
+        agent_state.write_agent_state(state, directory_output)
+
+    file_parent = tmp_path / 'artifacts' / 'file-parent'
+    file_parent.write_text('keep', encoding='utf-8')
+    with pytest.raises(ValueError, match='parent paths'):
+        agent_state.write_agent_state(state, file_parent / 'state.json')
+
+    assert target.read_text(encoding='utf-8') == '{"keep": true}\n'
 
 
 def test_build_agent_state_returns_json_serializable_status():
@@ -248,7 +335,31 @@ def test_validate_agent_layout_rejects_incomplete_v18_alignment_contract():
         ),
         (
             lambda manifest: manifest['human_docs_policy'].update({
+                'policy_id': 'agent_owned',
+            }),
+            'unexpected_human_docs_policy',
+        ),
+        (
+            lambda manifest: manifest['human_docs_policy'].update({
+                'path': 'agent_docs/',
+            }),
+            'unexpected_human_docs_policy',
+        ),
+        (
+            lambda manifest: manifest['human_docs_policy'].update({
+                'owner': 'agent',
+            }),
+            'unexpected_human_docs_policy',
+        ),
+        (
+            lambda manifest: manifest['human_docs_policy'].update({
                 'default_access': 'read_write',
+            }),
+            'unexpected_human_docs_policy',
+        ),
+        (
+            lambda manifest: manifest['human_docs_policy'].update({
+                'write_condition': 'implicit_agent_task',
             }),
             'unexpected_human_docs_policy',
         ),
@@ -471,6 +582,92 @@ def test_validate_agent_layout_rejects_incomplete_module_contract_surface(
 
     assert validation['status'] == 'error'
     assert any(error['code'] == 'missing_required_modules' for error in validation['errors'])
+
+
+@pytest.mark.parametrize(
+    'mutate_module',
+    [
+        lambda module: module.update({'allowed_dependencies': ['ui']}),
+        lambda module: module.update({'path': 'src/materials'}),
+        lambda module: module.update({'public_surface': 'src/materials/PY_FILES_SUMMARY.md'}),
+        lambda module: module.update({'agent_rules': 'src/materials/AGENTS.md'}),
+        lambda module: module.update({'local_utils': 'src/materials/utils.py'}),
+        lambda module: module.update({'role': 'weakened_runtime_role'}),
+    ],
+)
+def test_validate_agent_layout_rejects_mutated_module_contract(
+    mutate_module,
+):
+    manifest = json.loads(json.dumps(load_agent_manifest(ROOT)))
+    runtime_module = next(
+        module for module in manifest['modules'] if module['name'] == 'runtime'
+    )
+    mutate_module(runtime_module)
+
+    validation = validate_agent_layout(ROOT, manifest)
+
+    assert validation['status'] == 'error'
+    assert any(
+        error['code'] == 'unexpected_module_contract'
+        for error in validation['errors']
+    )
+
+
+@pytest.mark.parametrize(
+    'module_name',
+    ['runtime', 'materials', 'torch_models', 'ui', 'tests', 'template'],
+)
+def test_validate_agent_layout_pins_every_declared_module_contract(module_name):
+    manifest = json.loads(json.dumps(load_agent_manifest(ROOT)))
+    module = next(
+        entry for entry in manifest['modules'] if entry['name'] == module_name
+    )
+    module['role'] = f'weakened_{module_name}_role'
+
+    validation = validate_agent_layout(ROOT, manifest)
+
+    assert validation['status'] == 'error'
+    assert any(
+        error['code'] == 'unexpected_module_contract'
+        for error in validation['errors']
+    )
+
+
+@pytest.mark.parametrize(
+    ('mutate_modules', 'expected_error_code'),
+    [
+        (
+            lambda modules: modules.append(json.loads(json.dumps(modules[0]))),
+            'duplicate_module_contracts',
+        ),
+        (
+            lambda modules: modules.append({
+                'name': 'unknown',
+                'path': 'src/runtime',
+                'role': 'unexpected',
+                'public_surface': 'src/runtime/PY_FILES_SUMMARY.md',
+                'agent_rules': 'src/runtime/AGENTS.md',
+                'local_utils': 'src/runtime/utils.py',
+                'allowed_dependencies': [],
+            }),
+            'unexpected_module_contract',
+        ),
+    ],
+)
+def test_validate_agent_layout_rejects_duplicate_or_unknown_module_contracts(
+    mutate_modules,
+    expected_error_code,
+):
+    manifest = json.loads(json.dumps(load_agent_manifest(ROOT)))
+    mutate_modules(manifest['modules'])
+
+    validation = validate_agent_layout(ROOT, manifest)
+
+    assert validation['status'] == 'error'
+    assert any(
+        error['code'] == expected_error_code
+        for error in validation['errors']
+    )
 
 
 @pytest.mark.parametrize(

@@ -129,19 +129,19 @@ Purpose:
 ### `load_config(path)`
 Loads the Python config module and returns its `CONFIG` dict.
 
-### `validate_runtime_output_path(path, project_root_path=None)`
-Resolves a runtime output path and rejects any target under user-owned `human_docs/`; public dataset, artifact, plot, and JSON writers call this before mutation.
+### `validate_runtime_output_path(path, project_root_path=None, *, required_parent_path=None, reject_leaf_symlink=False, expected_output_kind=None)`
+Returns the canonical path used by writers after enforcing canonical/declared human-doc exclusion, optional configured-root containment, leaf kind and symlink rules, directory-only parent chains, and hardlink rejection. An alternate declared root cannot weaken the canonical guard. Public dataset, artifact, plot, and JSON writers call this before mutation.
 
 ### `ensure_runtime_dirs(cfg, project_root_path='.')`
-Creates only the configured runtime directories if missing and rejects runtime state under user-owned `human_docs/`.
+Preflights all configured runtime directories before creating any of them, so invalid file leaves or parent chains fail without partial directory creation.
 Currently this means the config-driven data/cache/artifact directories, rather than legacy source-tree folders like `apps/` or `notebooks/`.
 
 ### `clear_project_cache(project_root_path='.')`
-Uses the current `myutils/file_utils/filesystem.py` discovery API, then removes cache directories outside user-owned `human_docs/` only.
+Rejects roots that resolve inside the canonical user-owned `human_docs/` before discovery, then uses the current `myutils/file_utils/filesystem.py` discovery API and removes real cache directories outside protected human-doc paths while safely skipping cache-directory symlinks.
 Use before tests or batch runs, per project skill requirements.
 
 ### `read_json_file(path)` / `write_json_file(payload, path, ...)` / `make_json_safe(value)`
-Shared JSON helpers from `myutils`; the write wrapper first enforces the runtime output boundary.
+Shared JSON helpers from `myutils`; the write wrapper first enforces the runtime output and filesystem-alias boundary.
 Use these instead of ad hoc `json.loads(path.read_text())` or `path.write_text(json.dumps(...))` patterns when reading/writing repo artifacts.
 
 ---
@@ -156,7 +156,7 @@ Purpose:
 Loads the checked-in agent manifest.
 
 ### `validate_agent_layout(project_root_path='.', manifest=None)`
-Checks required agent-facing files, exact control/validation commands, local instruction paths, module contracts, strict v18 research-plan alignment, and manifest-declared dependency imports.
+Checks required agent-facing files, exact control/validation commands, local instruction paths, the exact six-module path/role/public-surface/local-utils/dependency contracts, strict v18 research-plan alignment, and manifest-declared dependency imports.
 Returns:
 - `status`
 - `errors`
@@ -173,7 +173,7 @@ Builds the JSON-serializable command index used by `main.py --emit-agent-command
 Serializes the live state for stdout or log capture.
 
 ### `write_agent_state(state, path)`
-Writes the live state to a JSON file while refusing runtime-state output under user-owned `human_docs/`.
+Writes the live state to a JSON file while refusing runtime-state output under the canonical or state-declared user-owned `human_docs/` and existing file leaves with multiple hard links; the payload cannot redirect the canonical guard.
 
 ---
 
@@ -181,6 +181,7 @@ Writes the live state to a JSON file while refusing runtime-state output under u
 
 ### `load_or_build_dataset(cfg)`
 Builds the normalized dataframe from raw JARVIS / 2DMatPedia data or reloads the processed cache.
+Preflights the concrete raw JSON, processed Parquet, and manifest leaves before any cache write so symlink or hardlink aliases cannot redirect output into user-owned `human_docs/`.
 Returns:
 - normalized dataframe
 - manifest dict
@@ -869,7 +870,7 @@ Important:
 
 ### `save_metrics_and_predictions(metrics, prediction_df, bn_df, screened_df, benchmark_df, robustness_df, bn_slice_benchmark_df, bn_slice_prediction_df, bn_centered_screened_df, structure_generation_seed_df, experiment_summary, manifest, cfg)`
 Writes the main artifact files under `artifacts/`.
-Configurable structure-execution outputs must remain under that directory, use the expected JSON/CSV types, avoid core/pairwise/alias collisions, and place CIF files directly under the configured structure directory. Empty execution results remove stale execution outputs from a previous run.
+Every fixed, configurable, dynamic, and stale-cleanup CIF leaf is preflighted in its originally declared form before directory creation. Configurable structure-execution outputs must remain under that directory, use the expected JSON/CSV types, avoid core/pairwise/alias collisions, and place CIF files directly under the configured structure directory. Empty execution results remove only preflighted stale execution outputs from a previous run.
 This now includes both shortlist CSVs, BN-slice benchmark artifacts, BN-family / stratified BN evaluation artifacts, the BN-centered alternative ranking artifact, the ranking-stability / abstention artifact, the BN candidate-compatible evaluation artifact, and the structure-generation bridge artifacts in addition to the full ranking artifact:
 - `bn_slice_benchmark_results.csv`
 - `bn_slice_predictions.csv`
@@ -894,7 +895,7 @@ This now includes both shortlist CSVs, BN-slice benchmark artifacts, BN-family /
 - `demo_candidate_extrapolation_shortlist.csv`
 
 ### `save_basic_plots(prediction_df, cfg)`
-Writes the parity plot.
+Preflights and writes the parity plot without following a leaf alias into user-owned `human_docs/`.
 
 ---
 

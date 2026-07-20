@@ -114,6 +114,30 @@ def _reject_hardlinked_output(field_name: str, output_path: Path) -> None:
         )
 
 
+def _resolve_and_validate_artifact_output_path(
+    artifact_dir: Path,
+    value: object,
+    *,
+    field_name: str,
+    expected_output_kind: str,
+    required_parent_path: Path | None = None,
+) -> Path:
+    resolved_path = _resolve_artifact_path(
+        artifact_dir,
+        value,
+        field_name=field_name,
+    )
+    declared_path = artifact_dir / Path(str(value).strip())
+    validate_runtime_output_path(
+        declared_path,
+        required_parent_path=(
+            artifact_dir if required_parent_path is None else required_parent_path
+        ),
+        expected_output_kind=expected_output_kind,
+    )
+    return resolved_path
+
+
 def _validate_structure_execution_output_paths(
     artifact_dir: Path,
     output_paths: dict[str, Path],
@@ -205,8 +229,10 @@ def save_metrics_and_predictions(
     bn_stratified_error_df=None,
 ):
     artifact_dir = Path(cfg['project']['artifact_dir'])
-    validate_runtime_output_path(artifact_dir)
-    artifact_dir.mkdir(parents=True, exist_ok=True)
+    artifact_dir = validate_runtime_output_path(
+        artifact_dir,
+        expected_output_kind='directory',
+    )
     formula_col = ((cfg.get('data') or {}).get('formula_column') or 'formula')
     bn_family_benchmark_df = (
         pd.DataFrame() if bn_family_benchmark_df is None else bn_family_benchmark_df.copy()
@@ -265,17 +291,20 @@ def save_metrics_and_predictions(
     structure_first_pass_execution_cfg = _structure_first_pass_execution_config(cfg)
     structure_first_pass_execution_paths = {}
     for path_field in ('artifact', 'summary_artifact', 'variants_artifact', 'structure_dir'):
-        configured_path = _resolve_artifact_path(
+        output_kind = 'directory' if path_field == 'structure_dir' else 'file'
+        configured_path = _resolve_and_validate_artifact_output_path(
             artifact_dir,
             structure_first_pass_execution_cfg[path_field],
             field_name=f'structure_first_pass_execution.{path_field}',
+            expected_output_kind=output_kind,
         )
         structure_first_pass_execution_paths[path_field] = configured_path
         if structure_first_pass_execution_payload:
-            payload_path = _resolve_artifact_path(
+            payload_path = _resolve_and_validate_artifact_output_path(
                 artifact_dir,
                 structure_first_pass_execution_payload.get(path_field),
                 field_name=f'structure_first_pass_execution.{path_field}',
+                expected_output_kind=output_kind,
             )
             if payload_path != configured_path:
                 raise ValueError(
@@ -321,10 +350,12 @@ def save_metrics_and_predictions(
             cif_relative_path = variant_payload.get('generated_structure_cif_path')
             if not cif_text or not cif_relative_path:
                 continue
-            cif_output_path = _resolve_artifact_path(
+            cif_output_path = _resolve_and_validate_artifact_output_path(
                 artifact_dir,
                 cif_relative_path,
                 field_name='generated_structure_cif_path',
+                expected_output_kind='file',
+                required_parent_path=structure_first_pass_execution_structure_dir,
             )
             _reject_hardlinked_output(
                 'generated_structure_cif_path',
@@ -345,6 +376,34 @@ def save_metrics_and_predictions(
                     'generated_structure_cif_path must be a .cif file directly under the '
                     'configured structure_first_pass_execution.structure_dir'
                 )
+
+    existing_cif_paths: tuple[Path, ...] = ()
+    if structure_first_pass_execution_structure_dir.exists():
+        existing_cif_paths = tuple(
+            structure_first_pass_execution_structure_dir.glob('*.cif')
+        )
+        for existing_cif_path in existing_cif_paths:
+            validate_runtime_output_path(
+                existing_cif_path,
+                required_parent_path=structure_first_pass_execution_structure_dir,
+                expected_output_kind='file',
+            )
+
+    for artifact_name in _RESERVED_REPORT_ARTIFACT_NAMES - {'parity_plot.png'}:
+        validate_runtime_output_path(
+            artifact_dir / artifact_name,
+            required_parent_path=artifact_dir,
+            expected_output_kind='file',
+        )
+    for path_field, structure_output_path in structure_first_pass_execution_paths.items():
+        validate_runtime_output_path(
+            structure_output_path,
+            required_parent_path=artifact_dir,
+            expected_output_kind=(
+                'directory' if path_field == 'structure_dir' else 'file'
+            ),
+        )
+    artifact_dir.mkdir(parents=True, exist_ok=True)
 
     if bn_centered_screened_df is not None and not bn_centered_screened_df.empty:
         bn_centered_screened_df.to_csv(bn_centered_ranking_path, index=False)
@@ -518,7 +577,7 @@ def save_metrics_and_predictions(
         )
         if structure_first_pass_execution_structure_dir is not None:
             structure_first_pass_execution_structure_dir.mkdir(parents=True, exist_ok=True)
-            for existing_cif_path in structure_first_pass_execution_structure_dir.glob('*.cif'):
+            for existing_cif_path in existing_cif_paths:
                 existing_cif_path.unlink()
         sanitized_candidates = []
         for candidate_payload in structure_first_pass_execution_payload.get('candidates', []):
@@ -572,8 +631,8 @@ def save_metrics_and_predictions(
         ):
             if cleanup_path is not None and cleanup_path.exists():
                 cleanup_path.unlink()
-        if structure_first_pass_execution_structure_dir is not None and structure_first_pass_execution_structure_dir.exists():
-            for existing_cif_path in structure_first_pass_execution_structure_dir.glob('*.cif'):
+        if structure_first_pass_execution_structure_dir is not None:
+            for existing_cif_path in existing_cif_paths:
                 existing_cif_path.unlink()
     for selected_column, rank_column, artifact_name in (
         (

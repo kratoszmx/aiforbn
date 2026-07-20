@@ -264,13 +264,26 @@ def _write_dataset_artifacts(
 def load_or_build_dataset(cfg: dict) -> tuple[pd.DataFrame, dict]:
     raw_dir = Path(cfg['data']['raw_dir'])
     processed_dir = Path(cfg['data']['processed_dir'])
-    validate_runtime_output_path(raw_dir)
-    validate_runtime_output_path(processed_dir)
+    raw_dir = validate_runtime_output_path(raw_dir, expected_output_kind='directory')
+    processed_dir = validate_runtime_output_path(
+        processed_dir,
+        expected_output_kind='directory',
+    )
     target_col = cfg['data']['target_column']
     dataset_name = cfg['data']['dataset']
     raw_path = raw_dir / f'{dataset_name}.json'
     processed_path = processed_dir / f'{dataset_name}.parquet'
     manifest_path = processed_dir / 'manifest.json'
+    for runtime_path, required_parent in (
+        (raw_path, raw_dir),
+        (processed_path, processed_dir),
+        (manifest_path, processed_dir),
+    ):
+        validate_runtime_output_path(
+            runtime_path,
+            required_parent_path=required_parent,
+            expected_output_kind='file',
+        )
 
     if processed_path.exists() and manifest_path.exists():
         cached_df = pd.read_parquet(processed_path)

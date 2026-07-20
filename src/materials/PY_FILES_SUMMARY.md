@@ -16,6 +16,7 @@ Anything underscore-prefixed or omitted here should be treated as internal imple
 - `load_or_build_dataset(cfg)`
   - Build or reload the normalized dataset and its manifest.
   - Reuse a processed cache only when dataset name, source, required columns, and target column all match the request.
+  - Preflight the concrete raw JSON, processed Parquet, and manifest leaves so symlink or hardlink aliases cannot redirect cache writes into user-owned `human_docs/`.
 
 ## constants.py
 
@@ -156,12 +157,12 @@ No callable public surface. The following non-callable contracts are imported ac
 
 - `save_metrics_and_predictions(...)`
   - Write the main artifact bundle under the configured artifact directory.
-  - Contain configurable structure-execution paths beneath that directory, reject reserved/pairwise/filesystem-alias collisions before mutation, and remove stale execution artifacts when the current run produces no execution payload.
+  - Preflight every fixed, configurable, dynamic, and stale-cleanup CIF leaf in its originally declared form before directory creation; contain structure-execution paths beneath their configured roots, reject kind/parent-chain/reserved/pairwise/filesystem-alias collisions before mutation, and remove valid stale execution artifacts when the current run produces no execution payload.
 
 ## plots.py
 
 - `save_basic_plots(prediction_df, cfg)`
-  - Write the standard parity-plot artifact.
+  - Preflight and write the standard parity-plot artifact without following a leaf alias into user-owned `human_docs/`.
 
 ## structure_execution.py
 

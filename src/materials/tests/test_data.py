@@ -33,6 +33,100 @@ def test_load_or_build_dataset_rejects_human_docs_cache_paths(tmp_path, monkeypa
     assert not (tmp_path / 'human_docs').exists()
 
 
+@pytest.mark.parametrize('alias_kind', ['broken_symlink', 'hardlink'])
+def test_load_or_build_dataset_rejects_processed_leaf_aliases_into_human_docs(
+    tmp_path,
+    monkeypatch,
+    alias_kind,
+):
+    monkeypatch.setattr(io_utils, 'PROJECT_ROOT', tmp_path)
+    processed_dir = tmp_path / 'processed'
+    processed_dir.mkdir()
+    human_docs_file = tmp_path / 'human_docs' / 'twod_matpd.parquet'
+    human_docs_file.parent.mkdir()
+    processed_alias = processed_dir / 'twod_matpd.parquet'
+    if alias_kind == 'broken_symlink':
+        processed_alias.symlink_to(human_docs_file)
+    else:
+        human_docs_file.write_text('user-owned', encoding='utf-8')
+        processed_alias.hardlink_to(human_docs_file)
+    cfg = {
+        'data': {
+            'raw_dir': str(tmp_path / 'raw'),
+            'processed_dir': str(processed_dir),
+            'target_column': 'band_gap',
+            'dataset': 'twod_matpd',
+        },
+    }
+
+    with pytest.raises(ValueError, match='human_docs|multiple hard links'):
+        load_or_build_dataset(cfg)
+
+    if alias_kind == 'broken_symlink':
+        assert not human_docs_file.exists()
+    else:
+        assert human_docs_file.read_text(encoding='utf-8') == 'user-owned'
+
+
+@pytest.mark.parametrize(
+    'invalid_leaf_kind',
+    ['external_symlink', 'in_root_symlink', 'directory'],
+)
+def test_load_or_build_dataset_rejects_invalid_processed_file_leaves_before_effects(
+    tmp_path,
+    monkeypatch,
+    invalid_leaf_kind,
+):
+    monkeypatch.setattr(io_utils, 'PROJECT_ROOT', tmp_path)
+    processed_dir = tmp_path / 'processed'
+    processed_dir.mkdir()
+    processed_path = processed_dir / 'twod_matpd.parquet'
+    external_target = tmp_path / 'outside' / 'twod_matpd.parquet'
+    if invalid_leaf_kind == 'external_symlink':
+        processed_path.symlink_to(external_target)
+    elif invalid_leaf_kind == 'in_root_symlink':
+        processed_path.symlink_to(processed_dir / 'manifest.json')
+    else:
+        processed_path.mkdir()
+    cfg = {
+        'data': {
+            'raw_dir': str(tmp_path / 'raw'),
+            'processed_dir': str(processed_dir),
+            'target_column': 'band_gap',
+            'dataset': 'twod_matpd',
+        },
+    }
+
+    with pytest.raises(ValueError, match='configured output root|symbolic-link|regular-file'):
+        load_or_build_dataset(cfg)
+
+    assert not external_target.exists()
+    assert not (processed_dir / 'manifest.json').exists()
+
+
+def test_load_or_build_dataset_rejects_non_directory_output_roots_before_effects(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(io_utils, 'PROJECT_ROOT', tmp_path)
+    processed_file = tmp_path / 'processed-file'
+    processed_file.write_text('keep', encoding='utf-8')
+    cfg = {
+        'data': {
+            'raw_dir': str(tmp_path / 'new-raw'),
+            'processed_dir': str(processed_file),
+            'target_column': 'band_gap',
+            'dataset': 'twod_matpd',
+        },
+    }
+
+    with pytest.raises(ValueError, match='directory'):
+        load_or_build_dataset(cfg)
+
+    assert not (tmp_path / 'new-raw').exists()
+    assert processed_file.read_text(encoding='utf-8') == 'keep'
+
+
 def _raw_entry(jid: str, formula: str | None, target: float, *, composition: str | None = None) -> dict:
     atoms = {
         'lattice_mat': [[2.0, 0.0, 0.0], [0.0, 2.0, 0.0], [0.0, 0.0, 20.0]],

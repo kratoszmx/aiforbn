@@ -246,6 +246,8 @@
 - 对 runtime 目录、agent-state、JSON、dataset、artifact、plot 输出和 cache 清理加入 `human_docs/` 写入/删除阻断，同时把全部 manifest module public surfaces 纳入 policy marker 验证
 - 退役仍可执行的非 BN toy candidate grid，保留且测试唯一的 bounded BN-centered candidate space；移除零引用的旧 rank-stability table builder
 - grouped robustness 预测保留 DataFrame feature names，消除 sklearn feature-name warnings
+- Round 3 进一步封死伪造 project root、直接/软链接 human-doc cache root、输出叶子软链接和硬链接别名；runtime/dataset/report/plot 会在任何目录创建、写入或删除前预检全部目录及具体输出叶子的根目录归属、类型和父链，结构配置、动态 CIF 及 stale-CIF 清理均保留/检查原始叶子身份，cache 清理安全跳过目录软链接
+- `--verify-agent-contract` 现会精确锁定六个 module 的 path/role/public-surface/agent-rules/local-utils/allowed-dependencies；公开 surface 测试逐个要求四个生产模块非空，并显式覆盖 import re-export
 
 1. AI-native contract 与命令索引：
 - `conda run -n quant python3 main.py --emit-agent-commands`
@@ -258,7 +260,7 @@
 
 3. 完整 src 测试：
 - `conda run -n quant python3 -m pytest -q src`
-- 结果：`148 passed, 1 warning`
+- 结果：`203 passed, 1 warning`
 - 剩余 warning 是 PyTorch nested-tensor prototype 提示，不是测试失败；原 sklearn feature-name warnings 已消除
 
 4. UI 文字化验证：

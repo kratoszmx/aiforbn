@@ -20,7 +20,16 @@ from materials.common import *
 
 def save_basic_plots(prediction_df, cfg):
     artifact_dir = Path(cfg['project']['artifact_dir'])
-    validate_runtime_output_path(artifact_dir)
+    artifact_dir = validate_runtime_output_path(
+        artifact_dir,
+        expected_output_kind='directory',
+    )
+    parity_plot_path = artifact_dir / 'parity_plot.png'
+    validate_runtime_output_path(
+        parity_plot_path,
+        required_parent_path=artifact_dir,
+        expected_output_kind='file',
+    )
     artifact_dir.mkdir(parents=True, exist_ok=True)
 
     fig, ax = plt.subplots(figsize=(5, 5))
@@ -29,5 +38,5 @@ def save_basic_plots(prediction_df, cfg):
     ax.set_ylabel('Predicted target')
     ax.set_title('Parity plot')
     fig.tight_layout()
-    fig.savefig(artifact_dir / 'parity_plot.png', dpi=160)
+    fig.savefig(parity_plot_path, dpi=160)
     plt.close(fig)

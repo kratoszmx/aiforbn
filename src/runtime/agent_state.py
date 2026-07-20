@@ -10,6 +10,7 @@ from typing import Any
 
 
 DEFAULT_AGENT_MANIFEST_PATH = Path('docs/AGENT_MANIFEST.json')
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 REQUIRED_RESEARCH_PLAN_SOURCE_FILES = (
     'human_docs/research_plan/ai_for_bn_research_plan_v18.tex',
@@ -78,14 +79,63 @@ REQUIRED_SOURCE_OF_TRUTH_FILES = {
     'skills/ai_native_workflow.txt',
 }
 
-REQUIRED_MODULE_NAMES = {
-    'runtime',
-    'materials',
-    'torch_models',
-    'ui',
-    'tests',
-    'template',
+REQUIRED_MODULE_CONTRACTS = {
+    'runtime': {
+        'name': 'runtime',
+        'path': 'src/runtime',
+        'role': 'config_loading_runtime_dirs_cache_schema_agent_state_and_command_index',
+        'public_surface': 'src/runtime/PY_FILES_SUMMARY.md',
+        'agent_rules': 'src/runtime/AGENTS.md',
+        'local_utils': 'src/runtime/utils.py',
+        'allowed_dependencies': [],
+    },
+    'materials': {
+        'name': 'materials',
+        'path': 'src/materials',
+        'role': 'materials_data_features_models_benchmarks_screening_reporting_structure_handoff',
+        'public_surface': 'src/materials/PY_FILES_SUMMARY.md',
+        'agent_rules': 'src/materials/AGENTS.md',
+        'local_utils': 'src/materials/utils.py',
+        'allowed_dependencies': ['runtime', 'torch_models'],
+    },
+    'torch_models': {
+        'name': 'torch_models',
+        'path': 'src/torch_models',
+        'role': 'repo_local_sklearn_style_torch_regressors',
+        'public_surface': 'src/torch_models/PY_FILES_SUMMARY.md',
+        'agent_rules': 'src/torch_models/AGENTS.md',
+        'local_utils': 'src/torch_models/utils.py',
+        'allowed_dependencies': [],
+    },
+    'ui': {
+        'name': 'ui',
+        'path': 'src/ui',
+        'role': 'text_verifiable_streamlit_artifact_viewer',
+        'public_surface': 'src/ui/PY_FILES_SUMMARY.md',
+        'agent_rules': 'src/ui/AGENTS.md',
+        'local_utils': 'src/ui/utils.py',
+        'allowed_dependencies': ['runtime'],
+    },
+    'tests': {
+        'name': 'tests',
+        'path': 'src/tests',
+        'role': 'top_level_pytest_entrypoint_and_config_coverage',
+        'public_surface': 'src/tests/PY_FILES_SUMMARY.md',
+        'agent_rules': 'src/tests/AGENTS.md',
+        'local_utils': 'src/tests/utils.py',
+        'allowed_dependencies': [],
+    },
+    'template': {
+        'name': 'template',
+        'path': 'src/template',
+        'role': 'copyable_ai_native_module_template',
+        'public_surface': 'src/template/PY_FILES_SUMMARY.md',
+        'agent_rules': 'src/template/AGENTS.md',
+        'local_utils': 'src/template/utils.py',
+        'allowed_dependencies': [],
+    },
 }
+REQUIRED_MODULE_NAMES = set(REQUIRED_MODULE_CONTRACTS)
 
 HUMAN_DOCS_POLICY_MARKER = (
     'HUMAN_DOCS_POLICY=user_owned_read_only_unless_explicit_human_document_task'
@@ -636,17 +686,29 @@ def validate_agent_layout(
         })
         modules = []
     else:
-        module_names = {
+        module_name_list = [
             module.get('name')
             for module in modules
             if isinstance(module, dict) and isinstance(module.get('name'), str)
-        }
+        ]
+        module_names = set(module_name_list)
         missing_modules = sorted(REQUIRED_MODULE_NAMES - module_names)
         if missing_modules:
             errors.append({
                 'code': 'missing_required_modules',
                 'path': 'docs/AGENT_MANIFEST.json:modules',
                 'message': f'Missing required module contract names: {missing_modules}',
+            })
+        duplicate_modules = sorted({
+            module_name
+            for module_name in module_name_list
+            if module_name_list.count(module_name) > 1
+        })
+        if duplicate_modules:
+            errors.append({
+                'code': 'duplicate_module_contracts',
+                'path': 'docs/AGENT_MANIFEST.json:modules',
+                'message': f'Duplicate module contract names: {duplicate_modules}',
             })
     for module in modules:
         if not isinstance(module, dict):
@@ -656,6 +718,17 @@ def validate_agent_layout(
                 'message': 'Every manifest module entry must be a JSON object.',
             })
             continue
+        module_name = module.get('name')
+        expected_module = REQUIRED_MODULE_CONTRACTS.get(module_name)
+        if expected_module is None or module != expected_module:
+            errors.append({
+                'code': 'unexpected_module_contract',
+                'path': f'docs/AGENT_MANIFEST.json:modules:{module_name or "<unnamed>"}',
+                'message': (
+                    f'Module `{module_name or "<unnamed>"}` does not match the required '
+                    'path, role, public-surface, agent-rules, local-utils, and dependency contract.'
+                ),
+            })
         for field in ('path', 'public_surface', 'agent_rules', 'local_utils'):
             relative_path = str(module.get(field, ''))
             if not relative_path:
@@ -875,19 +948,46 @@ def agent_state_to_json(state: dict[str, Any]) -> str:
 
 
 def write_agent_state(state: dict[str, Any], path: str | Path) -> None:
-    path = Path(path)
-    project_root = _project_root(state.get('project_root', '.'))
-    human_docs_root = (project_root / REQUIRED_HUMAN_DOCS_POLICY['path']).resolve(
-        strict=False
-    )
+    path = Path(path).expanduser()
     resolved_path = path.expanduser().resolve(strict=False)
-    try:
-        resolved_path.relative_to(human_docs_root)
-    except ValueError:
-        pass
-    else:
+    project_roots = [PROJECT_ROOT.resolve()]
+    declared_project_root = _project_root(state.get('project_root', '.'))
+    if declared_project_root not in project_roots:
+        project_roots.append(declared_project_root)
+    for project_root in project_roots:
+        human_docs_root = (
+            project_root / REQUIRED_HUMAN_DOCS_POLICY['path']
+        ).resolve(strict=False)
+        try:
+            resolved_path.relative_to(human_docs_root)
+        except ValueError:
+            continue
         raise ValueError(
             'Agent runtime state must not be written under user-owned human_docs/'
         )
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(agent_state_to_json(state) + '\n', encoding='utf-8')
+    if path.is_symlink():
+        raise ValueError('Agent runtime state must not target a symbolic-link leaf')
+    if path.exists() and not path.is_file():
+        raise ValueError('Agent runtime state must target a regular-file leaf')
+    invalid_parent = next(
+        (
+            parent
+            for parent in path.parents
+            if (parent.exists() or parent.is_symlink()) and not parent.is_dir()
+        ),
+        None,
+    )
+    if invalid_parent is not None:
+        raise ValueError(
+            f'Agent runtime state parent paths must be directories: {invalid_parent}'
+        )
+    try:
+        has_multiple_links = resolved_path.is_file() and resolved_path.stat().st_nlink > 1
+    except OSError:
+        has_multiple_links = False
+    if has_multiple_links:
+        raise ValueError(
+            'Agent runtime state must not target a file with multiple hard links'
+        )
+    resolved_path.parent.mkdir(parents=True, exist_ok=True)
+    resolved_path.write_text(agent_state_to_json(state) + '\n', encoding='utf-8')

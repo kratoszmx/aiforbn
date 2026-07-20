@@ -46,6 +46,156 @@ def test_public_artifact_and_plot_writers_reject_human_docs_output(tmp_path, mon
     assert not (tmp_path / 'human_docs').exists()
 
 
+@pytest.mark.parametrize('writer_name', ['artifacts', 'plot'])
+@pytest.mark.parametrize('alias_kind', ['broken_symlink', 'hardlink'])
+def test_public_artifact_writers_reject_leaf_aliases_into_human_docs(
+    tmp_path,
+    monkeypatch,
+    writer_name,
+    alias_kind,
+):
+    monkeypatch.setattr(io_utils, 'PROJECT_ROOT', tmp_path)
+    artifact_dir = tmp_path / 'artifacts'
+    artifact_dir.mkdir()
+    output_name = 'predictions.csv' if writer_name == 'artifacts' else 'parity_plot.png'
+    human_docs_file = tmp_path / 'human_docs' / output_name
+    human_docs_file.parent.mkdir()
+    output_alias = artifact_dir / output_name
+    if alias_kind == 'broken_symlink':
+        output_alias.symlink_to(human_docs_file)
+    else:
+        human_docs_file.write_text('user-owned', encoding='utf-8')
+        output_alias.hardlink_to(human_docs_file)
+    cfg = {
+        'project': {'artifact_dir': str(artifact_dir)},
+        'data': {'formula_column': 'formula'},
+    }
+    empty_df = pd.DataFrame()
+
+    with pytest.raises(ValueError, match='human_docs|multiple hard links'):
+        if writer_name == 'plot':
+            save_basic_plots(empty_df, cfg)
+        else:
+            save_metrics_and_predictions(
+                {},
+                empty_df,
+                empty_df,
+                empty_df,
+                empty_df,
+                empty_df,
+                empty_df,
+                empty_df,
+                empty_df,
+                empty_df,
+                {},
+                {},
+                cfg,
+            )
+
+    if alias_kind == 'broken_symlink':
+        assert not human_docs_file.exists()
+    else:
+        assert human_docs_file.read_text(encoding='utf-8') == 'user-owned'
+
+
+@pytest.mark.parametrize('writer_name', ['artifacts', 'plot'])
+@pytest.mark.parametrize(
+    'invalid_leaf_kind',
+    ['external_symlink', 'in_root_symlink', 'directory'],
+)
+def test_public_artifact_writers_reject_invalid_file_leaves_before_effects(
+    tmp_path,
+    monkeypatch,
+    writer_name,
+    invalid_leaf_kind,
+):
+    monkeypatch.setattr(io_utils, 'PROJECT_ROOT', tmp_path)
+    artifact_dir = tmp_path / 'artifacts'
+    artifact_dir.mkdir()
+    output_name = 'predictions.csv' if writer_name == 'artifacts' else 'parity_plot.png'
+    output_path = artifact_dir / output_name
+    external_target = tmp_path / 'outside' / output_name
+    if invalid_leaf_kind == 'external_symlink':
+        output_path.symlink_to(external_target)
+    elif invalid_leaf_kind == 'in_root_symlink':
+        output_path.symlink_to(artifact_dir / 'metrics.json')
+    else:
+        output_path.mkdir()
+    cfg = {
+        'project': {'artifact_dir': str(artifact_dir)},
+        'data': {'formula_column': 'formula'},
+    }
+    empty_df = pd.DataFrame()
+
+    with pytest.raises(ValueError, match='configured output root|symbolic-link|regular-file'):
+        if writer_name == 'plot':
+            save_basic_plots(empty_df, cfg)
+        else:
+            save_metrics_and_predictions(
+                {},
+                empty_df,
+                empty_df,
+                empty_df,
+                empty_df,
+                empty_df,
+                empty_df,
+                empty_df,
+                empty_df,
+                empty_df,
+                {},
+                {},
+                cfg,
+            )
+
+    assert not external_target.exists()
+    assert not (artifact_dir / 'metrics.json').exists()
+
+
+def test_reporting_rejects_non_directory_structure_parent_before_fixed_outputs(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(io_utils, 'PROJECT_ROOT', tmp_path)
+    artifact_dir = tmp_path / 'artifacts'
+    artifact_dir.mkdir()
+    nested_parent = artifact_dir / 'nested'
+    nested_parent.write_text('keep', encoding='utf-8')
+    cfg = {
+        'project': {'artifact_dir': str(artifact_dir)},
+        'data': {'formula_column': 'formula'},
+        'screening': {
+            'structure_first_pass_execution': {
+                'artifact': 'nested/execution.json',
+                'summary_artifact': 'nested/summary.csv',
+                'variants_artifact': 'nested/variants.csv',
+                'structure_dir': 'nested/structures',
+            },
+        },
+    }
+    empty_df = pd.DataFrame()
+
+    with pytest.raises(ValueError, match='parent paths'):
+        save_metrics_and_predictions(
+            {},
+            empty_df,
+            empty_df,
+            empty_df,
+            empty_df,
+            empty_df,
+            empty_df,
+            empty_df,
+            empty_df,
+            empty_df,
+            {},
+            {},
+            cfg,
+        )
+
+    assert nested_parent.read_text(encoding='utf-8') == 'keep'
+    assert not (artifact_dir / 'metrics.json').exists()
+    assert not (artifact_dir / 'predictions.csv').exists()
+
+
 def test_reserved_artifact_collision_contract_covers_writer_literals():
     source_path = Path(artifacts_module.__file__)
     tree = ast.parse(source_path.read_text(encoding='utf-8'), filename=str(source_path))
@@ -368,6 +518,8 @@ def test_reporting_rejects_structure_execution_output_extension_mismatch(
             cfg=cfg,
         )
 
+    assert not artifact_dir.exists()
+
 
 def test_reporting_rejects_hardlink_alias_to_reserved_artifact(tmp_path):
     artifact_dir = tmp_path / 'artifacts'
@@ -407,6 +559,48 @@ def test_reporting_rejects_hardlink_alias_to_reserved_artifact(tmp_path):
 
     assert metrics_path.read_text(encoding='utf-8') == '{"sentinel": true}\n'
     assert execution_alias_path.read_text(encoding='utf-8') == '{"sentinel": true}\n'
+
+
+def test_reporting_rejects_configured_output_symlink_before_cleanup(tmp_path):
+    artifact_dir = tmp_path / 'artifacts'
+    nested_dir = artifact_dir / 'nested'
+    nested_dir.mkdir(parents=True)
+    sentinel_path = artifact_dir / 'unrelated_execution.json'
+    sentinel_path.write_text('{"sentinel": true}\n', encoding='utf-8')
+    execution_alias_path = nested_dir / 'execution.json'
+    execution_alias_path.symlink_to(sentinel_path)
+    cfg = {
+        'project': {'artifact_dir': str(artifact_dir)},
+        'data': {'formula_column': 'formula'},
+        'screening': {
+            'structure_first_pass_execution': {
+                'artifact': 'nested/execution.json',
+            },
+        },
+    }
+    empty_df = pd.DataFrame()
+
+    with pytest.raises(ValueError, match='symbolic-link'):
+        save_metrics_and_predictions(
+            metrics={},
+            prediction_df=empty_df,
+            bn_df=empty_df,
+            screened_df=pd.DataFrame(columns=['formula', 'ranking_rank']),
+            benchmark_df=empty_df,
+            robustness_df=empty_df,
+            bn_slice_benchmark_df=empty_df,
+            bn_slice_prediction_df=empty_df,
+            bn_centered_screened_df=empty_df,
+            structure_generation_seed_df=empty_df,
+            experiment_summary={},
+            manifest={},
+            cfg=cfg,
+            structure_first_pass_execution_payload={},
+        )
+
+    assert sentinel_path.read_text(encoding='utf-8') == '{"sentinel": true}\n'
+    assert execution_alias_path.is_symlink()
+    assert not (artifact_dir / 'metrics.json').exists()
 
 
 @pytest.mark.parametrize(
@@ -478,6 +672,119 @@ def test_reporting_rejects_duplicate_cif_output_aliases(
             structure_first_pass_execution_payload=structure_payload,
         )
 
+    assert not (artifact_dir / 'metrics.json').exists()
+
+
+def test_reporting_rejects_non_file_cif_leaf_before_fixed_outputs(tmp_path):
+    artifact_dir = tmp_path / 'artifacts'
+    cfg = {
+        'project': {'artifact_dir': str(artifact_dir)},
+        'data': {'formula_column': 'formula'},
+    }
+    execution_cfg = _structure_first_pass_execution_config(cfg)
+    cif_relative_path = f"{execution_cfg['structure_dir']}/variant.cif"
+    (artifact_dir / cif_relative_path).mkdir(parents=True)
+    structure_payload = {
+        **{
+            field: execution_cfg[field]
+            for field in ('artifact', 'summary_artifact', 'variants_artifact', 'structure_dir')
+        },
+        'candidates': [
+            {
+                'formula': 'XBN',
+                'variants': [
+                    {
+                        'generated_structure_cif_path': cif_relative_path,
+                        '_cif_text': 'data_XBN\n',
+                    },
+                ],
+            },
+        ],
+    }
+    empty_df = pd.DataFrame()
+
+    with pytest.raises(ValueError, match='regular-file'):
+        save_metrics_and_predictions(
+            metrics={},
+            prediction_df=empty_df,
+            bn_df=empty_df,
+            screened_df=pd.DataFrame(columns=['formula', 'ranking_rank']),
+            benchmark_df=empty_df,
+            robustness_df=empty_df,
+            bn_slice_benchmark_df=empty_df,
+            bn_slice_prediction_df=empty_df,
+            bn_centered_screened_df=empty_df,
+            structure_generation_seed_df=empty_df,
+            experiment_summary={},
+            manifest={},
+            cfg=cfg,
+            structure_first_pass_execution_variant_df=pd.DataFrame([
+                {'formula': 'XBN', 'variant': 1},
+            ]),
+            structure_first_pass_execution_summary_df=pd.DataFrame([
+                {'formula': 'XBN'},
+            ]),
+            structure_first_pass_execution_payload=structure_payload,
+        )
+
+    assert (artifact_dir / cif_relative_path).is_dir()
+    assert not (artifact_dir / 'metrics.json').exists()
+
+
+@pytest.mark.parametrize('invalid_leaf_kind', ['symlink', 'hardlink', 'directory'])
+def test_reporting_rejects_invalid_stale_cif_leaf_before_fixed_outputs(
+    tmp_path,
+    monkeypatch,
+    invalid_leaf_kind,
+):
+    monkeypatch.setattr(io_utils, 'PROJECT_ROOT', tmp_path)
+    artifact_dir = tmp_path / 'artifacts'
+    cfg = {
+        'project': {'artifact_dir': str(artifact_dir)},
+        'data': {'formula_column': 'formula'},
+    }
+    execution_cfg = _structure_first_pass_execution_config(cfg)
+    structure_dir = artifact_dir / execution_cfg['structure_dir']
+    structure_dir.mkdir(parents=True)
+    stale_cif_path = structure_dir / 'stale.cif'
+    human_docs_cif = tmp_path / 'human_docs' / 'stale.cif'
+    if invalid_leaf_kind == 'directory':
+        stale_cif_path.mkdir()
+    else:
+        human_docs_cif.parent.mkdir()
+        human_docs_cif.write_text('user-owned', encoding='utf-8')
+        if invalid_leaf_kind == 'symlink':
+            stale_cif_path.symlink_to(human_docs_cif)
+        else:
+            stale_cif_path.hardlink_to(human_docs_cif)
+    empty_df = pd.DataFrame()
+
+    with pytest.raises(
+        ValueError,
+        match='user-owned human_docs|multiple hard links|regular-file',
+    ):
+        save_metrics_and_predictions(
+            metrics={},
+            prediction_df=empty_df,
+            bn_df=empty_df,
+            screened_df=pd.DataFrame(columns=['formula', 'ranking_rank']),
+            benchmark_df=empty_df,
+            robustness_df=empty_df,
+            bn_slice_benchmark_df=empty_df,
+            bn_slice_prediction_df=empty_df,
+            bn_centered_screened_df=empty_df,
+            structure_generation_seed_df=empty_df,
+            experiment_summary={},
+            manifest={},
+            cfg=cfg,
+            structure_first_pass_execution_payload={},
+        )
+
+    if invalid_leaf_kind == 'directory':
+        assert stale_cif_path.is_dir()
+    else:
+        assert stale_cif_path.exists()
+        assert human_docs_cif.read_text(encoding='utf-8') == 'user-owned'
     assert not (artifact_dir / 'metrics.json').exists()
 
 
@@ -569,7 +876,7 @@ def test_reporting_rejects_structure_artifact_write_or_cleanup_escape(tmp_path):
     structure_payload['candidates'][0]['variants'][0][
         'generated_structure_cif_path'
     ] = 'metrics.json'
-    with pytest.raises(ValueError, match='directly under'):
+    with pytest.raises(ValueError, match='configured output root|directly under'):
         save_structure_payload(
             structure_payload,
             summary_df=pd.DataFrame([{'formula': 'XBN'}]),

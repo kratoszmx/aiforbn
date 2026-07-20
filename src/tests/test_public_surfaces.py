@@ -9,6 +9,7 @@ import re
 ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = ROOT / 'src'
 MODULE_DIRS = {'runtime', 'materials', 'torch_models', 'ui', 'tests', 'template'}
+PRODUCTION_MODULE_DIRS = {'runtime', 'materials', 'torch_models', 'ui'}
 PUBLIC_NAME_PATTERN = re.compile(r'`([A-Za-z_][A-Za-z0-9_]*)\s*(?:\(|`)')
 FILE_HEADING_PATTERN = re.compile(
     r'^##\s+(?:`(?P<quoted>[^`]+\.py)`|(?P<plain>\S+\.py))\s*$'
@@ -173,10 +174,13 @@ def test_production_cross_module_imports_follow_manifest_boundaries():
 def test_every_documented_public_symbol_exists_in_its_declared_file():
     missing: list[tuple[str, str]] = []
     checked_symbol_count = 0
+    checked_symbol_counts_by_module: dict[str, int] = {}
     for module_name in MODULE_DIRS:
         summary_path = SRC_ROOT / module_name / 'PY_FILES_SUMMARY.md'
+        module_symbol_count = 0
         for file_name, documented_names in _documented_names_by_file(summary_path).items():
             checked_symbol_count += len(documented_names)
+            module_symbol_count += len(documented_names)
             source_path = SRC_ROOT / module_name / file_name
             if not source_path.is_file():
                 missing.extend((str(source_path.relative_to(ROOT)), name) for name in documented_names)
@@ -186,6 +190,22 @@ def test_every_documented_public_symbol_exists_in_its_declared_file():
                 (str(source_path.relative_to(ROOT)), name)
                 for name in sorted(documented_names - defined_names)
             )
+        checked_symbol_counts_by_module[module_name] = module_symbol_count
 
     assert checked_symbol_count > 0, 'No documented public symbols were parsed from module summaries'
+    empty_production_modules = sorted(
+        module_name
+        for module_name in PRODUCTION_MODULE_DIRS
+        if checked_symbol_counts_by_module.get(module_name, 0) == 0
+    )
+    assert empty_production_modules == [], (
+        'No documented public symbols were parsed for production modules: '
+        f'{empty_production_modules}'
+    )
     assert missing == []
+
+
+def test_imported_runtime_json_helpers_count_as_live_public_reexports():
+    defined_names = _defined_top_level_names(SRC_ROOT / 'runtime' / 'io_utils.py')
+
+    assert {'make_json_safe', 'read_json_file'}.issubset(defined_names)

@@ -76,39 +76,92 @@ def load_config(path: str | Path) -> dict:
 def validate_runtime_output_path(
     path: str | Path,
     project_root_path: str | Path | None = None,
+    *,
+    required_parent_path: str | Path | None = None,
+    reject_leaf_symlink: bool = False,
+    expected_output_kind: str | None = None,
 ) -> Path:
-    project_root = (
-        PROJECT_ROOT
-        if project_root_path is None
-        else Path(project_root_path).expanduser().resolve()
-    )
-    human_docs_root = (project_root / HUMAN_DOCS_DIR).resolve(strict=False)
-    resolved_path = Path(path).expanduser().resolve(strict=False)
+    expanded_path = Path(path).expanduser()
+    resolved_path = expanded_path.resolve(strict=False)
+    project_roots = [PROJECT_ROOT.resolve()]
+    if project_root_path is not None:
+        declared_project_root = Path(project_root_path).expanduser().resolve()
+        if declared_project_root not in project_roots:
+            project_roots.append(declared_project_root)
+
+    for project_root in project_roots:
+        human_docs_root = (project_root / HUMAN_DOCS_DIR).resolve(strict=False)
+        try:
+            resolved_path.relative_to(human_docs_root)
+        except ValueError:
+            continue
+        raise ValueError('Runtime output paths must not be placed under user-owned human_docs/')
+    if required_parent_path is not None:
+        resolved_parent = Path(required_parent_path).expanduser().resolve(strict=False)
+        try:
+            resolved_path.relative_to(resolved_parent)
+        except ValueError as exc:
+            raise ValueError(
+                'Runtime output paths must remain under their configured output root'
+            ) from exc
+        reject_leaf_symlink = True
+    if reject_leaf_symlink and expanded_path.is_symlink():
+        raise ValueError('Runtime output paths must not target symbolic-link leaves')
+    if expected_output_kind not in (None, 'file', 'directory'):
+        raise ValueError(f'Unsupported runtime output kind: {expected_output_kind}')
+    if (
+        expected_output_kind == 'file'
+        and expanded_path.exists()
+        and not expanded_path.is_file()
+    ):
+        raise ValueError('Runtime file outputs must target regular-file leaves')
+    if (
+        expected_output_kind == 'directory'
+        and expanded_path.exists()
+        and not expanded_path.is_dir()
+    ):
+        raise ValueError('Runtime directory outputs must target directory leaves')
+    if expected_output_kind is not None:
+        invalid_parent = next(
+            (
+                parent
+                for parent in expanded_path.parents
+                if (parent.exists() or parent.is_symlink()) and not parent.is_dir()
+            ),
+            None,
+        )
+        if invalid_parent is not None:
+            raise ValueError(
+                f'Runtime output parent paths must be directories: {invalid_parent}'
+            )
     try:
-        resolved_path.relative_to(human_docs_root)
-    except ValueError:
-        return resolved_path
-    raise ValueError('Runtime output paths must not be placed under user-owned human_docs/')
+        has_multiple_links = resolved_path.is_file() and resolved_path.stat().st_nlink > 1
+    except OSError:
+        has_multiple_links = False
+    if has_multiple_links:
+        raise ValueError('Runtime output paths must not target files with multiple hard links')
+    return resolved_path
 
 
 def ensure_runtime_dirs(cfg: dict, project_root_path: str | Path = '.') -> None:
-    runtime_dirs = [cfg[section][key] for section, key in RUNTIME_DIR_KEYS]
-    for runtime_dir in runtime_dirs:
-        try:
-            validate_runtime_output_path(
-                runtime_dir,
-                project_root_path=project_root_path,
-            )
-        except ValueError as exc:
-            raise ValueError(
-                'Configured runtime directories must not be placed under user-owned human_docs/'
-            ) from exc
+    runtime_dirs = [
+        validate_runtime_output_path(
+            runtime_dir,
+            project_root_path=project_root_path,
+            expected_output_kind='directory',
+        )
+        for runtime_dir in (cfg[section][key] for section, key in RUNTIME_DIR_KEYS)
+    ]
     ensure_dirs(runtime_dirs)
 
 
 def write_json_file(payload, path: str | Path, *args, **kwargs):
-    validate_runtime_output_path(path)
-    return _shared_write_json_file(payload, path, *args, **kwargs)
+    output_path = validate_runtime_output_path(
+        path,
+        reject_leaf_symlink=True,
+        expected_output_kind='file',
+    )
+    return _shared_write_json_file(payload, output_path, *args, **kwargs)
 
 
 def _missing_path_from_file_not_found(exc: FileNotFoundError) -> Path | None:
@@ -128,11 +181,18 @@ def _is_cache_path(path: Path) -> bool:
 
 
 def clear_project_cache(project_root_path: str | Path = '.'):
-    root_path = Path(project_root_path)
+    root_path = Path(project_root_path).expanduser()
     if not root_path.exists():
         raise FileNotFoundError(f'Project root does not exist: {root_path}')
+    if not root_path.is_dir():
+        raise NotADirectoryError(f'Project root is not a directory: {root_path}')
 
-    human_docs_root = (root_path.resolve() / HUMAN_DOCS_DIR).resolve(strict=False)
+    resolved_root = root_path.resolve()
+    validate_runtime_output_path(resolved_root)
+    protected_human_docs_roots = {
+        (PROJECT_ROOT.resolve() / HUMAN_DOCS_DIR).resolve(strict=False),
+        (resolved_root / HUMAN_DOCS_DIR).resolve(strict=False),
+    }
     try:
         cache_dirs = find_cache_dirs(root_path)
     except FileNotFoundError as exc:
@@ -144,12 +204,14 @@ def clear_project_cache(project_root_path: str | Path = '.'):
 
     deleted: list[Path] = []
     for cache_dir in cache_dirs:
+        if cache_dir.is_symlink():
+            continue
         resolved_cache_dir = cache_dir.resolve(strict=False)
-        try:
-            resolved_cache_dir.relative_to(human_docs_root)
-        except ValueError:
-            pass
-        else:
+        if any(
+            resolved_cache_dir == protected_root
+            or protected_root in resolved_cache_dir.parents
+            for protected_root in protected_human_docs_roots
+        ):
             continue
         try:
             shutil.rmtree(cache_dir)

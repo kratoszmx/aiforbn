@@ -107,6 +107,32 @@ def test_ensure_runtime_dirs_rejects_human_docs_output(tmp_path: Path, monkeypat
     assert not (tmp_path / 'human_docs').exists()
 
 
+def test_ensure_runtime_dirs_rejects_non_directory_targets_before_any_creation(
+    tmp_path: Path,
+    monkeypatch,
+):
+    monkeypatch.setattr(io_utils, 'PROJECT_ROOT', tmp_path)
+    monkeypatch.chdir(tmp_path)
+    processed_file = tmp_path / 'processed-file'
+    processed_file.write_text('keep', encoding='utf-8')
+    cfg = {
+        'data': {
+            'raw_dir': 'new-raw',
+            'processed_dir': str(processed_file),
+        },
+        'project': {
+            'artifact_dir': 'new-artifacts',
+        },
+    }
+
+    with pytest.raises(ValueError, match='directory'):
+        ensure_runtime_dirs(cfg)
+
+    assert not (tmp_path / 'new-raw').exists()
+    assert not (tmp_path / 'new-artifacts').exists()
+    assert processed_file.read_text(encoding='utf-8') == 'keep'
+
+
 def test_json_helpers_delegate_to_myutils_json_io(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(io_utils, 'PROJECT_ROOT', tmp_path)
     path = tmp_path / 'payload.json'
@@ -134,6 +160,176 @@ def test_json_helpers_delegate_to_myutils_json_io(tmp_path: Path, monkeypatch):
     assert validate_runtime_output_path(path) == path.resolve()
 
 
+def test_write_json_file_uses_the_guarded_canonical_path(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(io_utils, 'PROJECT_ROOT', tmp_path)
+    captured_paths = []
+
+    def capture_write(payload, path, *args, **kwargs):
+        captured_paths.append(Path(path))
+
+    monkeypatch.setattr(io_utils, '_shared_write_json_file', capture_write)
+    declared_path = Path('~/../guarded-output.json')
+
+    write_json_file({'safe': True}, declared_path)
+
+    assert captured_paths == [declared_path.expanduser().resolve(strict=False)]
+
+
+def test_write_json_file_rejects_a_hardlinked_output_alias(
+    tmp_path: Path,
+    monkeypatch,
+):
+    monkeypatch.setattr(io_utils, 'PROJECT_ROOT', tmp_path)
+    human_docs_file = tmp_path / 'human_docs' / 'payload.json'
+    human_docs_file.parent.mkdir()
+    human_docs_file.write_text('{"user_owned": true}\n', encoding='utf-8')
+    output_alias = tmp_path / 'artifacts' / 'payload.json'
+    output_alias.parent.mkdir()
+    output_alias.hardlink_to(human_docs_file)
+
+    with pytest.raises(ValueError, match='multiple hard links'):
+        write_json_file({'overwritten': True}, output_alias)
+
+    assert human_docs_file.read_text(encoding='utf-8') == '{"user_owned": true}\n'
+
+
+def test_write_json_file_rejects_symbolic_link_and_directory_leaves(
+    tmp_path: Path,
+    monkeypatch,
+):
+    monkeypatch.setattr(io_utils, 'PROJECT_ROOT', tmp_path)
+    target = tmp_path / 'allowed-target.json'
+    target.write_text('{"keep": true}\n', encoding='utf-8')
+    symlink_output = tmp_path / 'artifacts' / 'symlink.json'
+    symlink_output.parent.mkdir()
+    symlink_output.symlink_to(target)
+
+    with pytest.raises(ValueError, match='symbolic-link'):
+        write_json_file({'overwrite': True}, symlink_output)
+
+    directory_output = tmp_path / 'artifacts' / 'directory.json'
+    directory_output.mkdir()
+    with pytest.raises(ValueError, match='regular-file'):
+        write_json_file({'overwrite': True}, directory_output)
+
+    assert target.read_text(encoding='utf-8') == '{"keep": true}\n'
+
+
+def test_runtime_output_guard_enforces_configured_root_and_concrete_file_leaf(
+    tmp_path: Path,
+    monkeypatch,
+):
+    monkeypatch.setattr(io_utils, 'PROJECT_ROOT', tmp_path)
+    output_root = tmp_path / 'artifacts'
+    output_root.mkdir()
+    normal_output = output_root / 'normal.json'
+
+    assert validate_runtime_output_path(
+        normal_output,
+        required_parent_path=output_root,
+        expected_output_kind='file',
+    ) == normal_output.resolve()
+
+    external_target = tmp_path / 'outside' / 'external.json'
+    external_alias = output_root / 'external.json'
+    external_alias.symlink_to(external_target)
+    with pytest.raises(ValueError, match='configured output root'):
+        validate_runtime_output_path(
+            external_alias,
+            required_parent_path=output_root,
+            expected_output_kind='file',
+        )
+
+    internal_target = output_root / 'other.json'
+    internal_alias = output_root / 'internal.json'
+    internal_alias.symlink_to(internal_target)
+    with pytest.raises(ValueError, match='symbolic-link'):
+        validate_runtime_output_path(
+            internal_alias,
+            required_parent_path=output_root,
+            expected_output_kind='file',
+        )
+
+    directory_leaf = output_root / 'directory.json'
+    directory_leaf.mkdir()
+    with pytest.raises(ValueError, match='regular-file'):
+        validate_runtime_output_path(
+            directory_leaf,
+            required_parent_path=output_root,
+            expected_output_kind='file',
+        )
+
+    file_parent = output_root / 'file-parent'
+    file_parent.write_text('keep', encoding='utf-8')
+    with pytest.raises(ValueError, match='parent paths'):
+        validate_runtime_output_path(
+            file_parent / 'child.json',
+            required_parent_path=output_root,
+            expected_output_kind='file',
+        )
+
+
+def test_runtime_output_guard_rejects_normalized_and_symlinked_human_docs_paths(
+    tmp_path: Path,
+    monkeypatch,
+):
+    monkeypatch.setattr(io_utils, 'PROJECT_ROOT', tmp_path)
+    monkeypatch.chdir(tmp_path)
+    human_docs_dir = tmp_path / 'human_docs'
+    human_docs_dir.mkdir()
+    symlinked_parent = tmp_path / 'symlinked-parent'
+    symlinked_parent.symlink_to(human_docs_dir, target_is_directory=True)
+    human_docs_leaf = human_docs_dir / 'existing.json'
+    human_docs_leaf.write_text('user-owned', encoding='utf-8')
+    symlinked_leaf = tmp_path / 'symlinked-leaf.json'
+    symlinked_leaf.symlink_to(human_docs_leaf)
+
+    forbidden_paths = [
+        Path('human_docs'),
+        Path('human_docs/nested/output.json'),
+        human_docs_dir / 'absolute.json',
+        Path('./human_docs/./normalized.json'),
+        Path('data/../human_docs/traversal.json'),
+        Path('symlinked-parent/existing-child.json'),
+        Path('symlinked-parent/not-yet/child.json'),
+        Path('symlinked-leaf.json'),
+    ]
+    for forbidden_path in forbidden_paths:
+        with pytest.raises(ValueError, match='user-owned human_docs'):
+            validate_runtime_output_path(forbidden_path)
+
+    assert validate_runtime_output_path('artifacts/output.json') == (
+        tmp_path / 'artifacts/output.json'
+    )
+    assert validate_runtime_output_path('human_docs_backup/output.json') == (
+        tmp_path / 'human_docs_backup/output.json'
+    )
+
+
+def test_ensure_runtime_dirs_does_not_trust_a_deceptive_project_root(
+    tmp_path: Path,
+    monkeypatch,
+):
+    monkeypatch.setattr(io_utils, 'PROJECT_ROOT', tmp_path)
+    monkeypatch.chdir(tmp_path)
+    cfg = {
+        'data': {
+            'raw_dir': 'data/raw',
+            'processed_dir': str(tmp_path / 'human_docs' / 'processed'),
+        },
+        'project': {
+            'artifact_dir': 'artifacts',
+        },
+    }
+
+    with pytest.raises(ValueError, match='user-owned human_docs'):
+        ensure_runtime_dirs(cfg, project_root_path=tmp_path / 'different-project')
+
+    assert not (tmp_path / 'data').exists()
+    assert not (tmp_path / 'artifacts').exists()
+    assert not (tmp_path / 'human_docs').exists()
+
+
 def test_clear_project_cache_uses_myutils_discovery_and_preserves_human_docs(tmp_path: Path):
     pycache_dir = tmp_path / 'pkg' / '__pycache__'
     pycache_dir.mkdir(parents=True)
@@ -141,12 +337,57 @@ def test_clear_project_cache_uses_myutils_discovery_and_preserves_human_docs(tmp
     human_docs_cache_dir = tmp_path / 'human_docs' / 'notes' / '__pycache__'
     human_docs_cache_dir.mkdir(parents=True)
     (human_docs_cache_dir / 'user.pyc').write_text('user-owned', encoding='utf-8')
+    cache_alias_parent = tmp_path / 'cache-alias'
+    cache_alias_parent.mkdir()
+    cache_alias = cache_alias_parent / '__pycache__'
+    cache_alias.symlink_to(human_docs_cache_dir, target_is_directory=True)
+    allowed_alias_target = tmp_path / 'allowed-cache-alias-target'
+    allowed_alias_target.mkdir()
+    allowed_alias_sentinel = allowed_alias_target / 'keep.pyc'
+    allowed_alias_sentinel.write_text('keep', encoding='utf-8')
+    allowed_cache_alias = tmp_path / 'allowed-alias' / '__pycache__'
+    allowed_cache_alias.parent.mkdir()
+    allowed_cache_alias.symlink_to(allowed_alias_target, target_is_directory=True)
 
     deleted = clear_project_cache(tmp_path)
 
     assert deleted == [pycache_dir]
     assert not pycache_dir.exists()
     assert human_docs_cache_dir.exists()
+    assert cache_alias.exists()
+    assert allowed_cache_alias.exists()
+    assert allowed_alias_sentinel.exists()
+
+
+@pytest.mark.parametrize('use_symlink', [False, True])
+def test_clear_project_cache_rejects_a_root_inside_human_docs_before_discovery(
+    tmp_path: Path,
+    monkeypatch,
+    use_symlink,
+):
+    monkeypatch.setattr(io_utils, 'PROJECT_ROOT', tmp_path)
+    human_docs_dir = tmp_path / 'human_docs'
+    cache_dir = human_docs_dir / 'notes' / '__pycache__'
+    cache_dir.mkdir(parents=True)
+    sentinel = cache_dir / 'keep.pyc'
+    sentinel.write_text('user-owned', encoding='utf-8')
+    selected_root = human_docs_dir
+    if use_symlink:
+        selected_root = tmp_path / 'human-docs-link'
+        selected_root.symlink_to(human_docs_dir, target_is_directory=True)
+    discovery_calls = []
+
+    def fail_if_called(path):
+        discovery_calls.append(Path(path))
+        raise AssertionError('cache discovery must not run inside human_docs')
+
+    monkeypatch.setattr(io_utils, 'find_cache_dirs', fail_if_called)
+
+    with pytest.raises(ValueError, match='user-owned human_docs'):
+        clear_project_cache(selected_root)
+
+    assert discovery_calls == []
+    assert sentinel.read_text(encoding='utf-8') == 'user-owned'
 
 
 def test_clear_project_cache_tolerates_concurrent_cache_deletion(tmp_path: Path, monkeypatch):
@@ -171,6 +412,16 @@ def test_clear_project_cache_raises_for_missing_project_root(tmp_path: Path):
         assert str(missing_root) in str(exc)
     else:
         raise AssertionError('missing project root should raise FileNotFoundError')
+
+
+def test_clear_project_cache_rejects_a_non_directory_project_root(tmp_path: Path):
+    root_file = tmp_path / 'not-a-project-root'
+    root_file.write_text('keep', encoding='utf-8')
+
+    with pytest.raises(NotADirectoryError, match='not a directory'):
+        clear_project_cache(root_file)
+
+    assert root_file.read_text(encoding='utf-8') == 'keep'
 
 
 def test_clear_project_cache_reraises_non_cache_file_not_found(tmp_path: Path, monkeypatch):
