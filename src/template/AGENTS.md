@@ -1,5 +1,7 @@
 # Module Instructions for Codex
 
+- `HUMAN_DOCS_POLICY=user_owned_read_only_unless_explicit_human_document_task`; copied modules inherit the user-owned, read-only-by-default `human_docs/` boundary.
+
 ## Essential check before working
 
 Common module-level utilities are stored in `utils.py`. Before starting work each time, you must check:

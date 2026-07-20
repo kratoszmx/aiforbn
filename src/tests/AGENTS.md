@@ -1,5 +1,7 @@
 # Module Instructions for Codex
 
+- `HUMAN_DOCS_POLICY=user_owned_read_only_unless_explicit_human_document_task`; `human_docs/` is user-owned contextual evidence, never test-owned state.
+
 ## Essential check before working
 
 Common module-level utilities are stored in `utils.py`. Before starting work each time, you must check:

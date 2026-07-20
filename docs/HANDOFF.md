@@ -1,6 +1,7 @@
 # HANDOFF.md
 
 ## 项目
+- `HUMAN_DOCS_POLICY=user_owned_read_only_unless_explicit_human_document_task`
 - 名称：AI for BN PoC
 - 路径：`/Users/zmx/Projects/projects/aiforbn`
 - 默认执行环境：agent shell 下的 `quant`
@@ -237,6 +238,11 @@
 ## 当前验证状态
 2026-07-19 接管轮已修复 relocated checkout 暴露的固定父目录导入故障，并完成测试完备性补强。当前验证证据：
 
+2026-07-20 监督维护轮进一步完成：
+- 把 `human_docs/` 的用户所有、默认只读边界提升为 manifest 字段和所有已声明 agent instruction surfaces 的稳定 marker，并加入削弱/缺失负向测试；没有修改任何 `human_docs/` 文件
+- 移除零仓内调用、仅作 backward compatibility 的 `select_model_type(...)` façade
+- 把 Streamlit 已过期的 `use_container_width` 参数迁移为 `width='stretch'`，新增真实 Streamlit `AppTest` render regression，并完成有时限的 headless server health check
+
 1. AI-native contract 与命令索引：
 - `conda run -n quant python3 main.py --emit-agent-commands`
 - `conda run -n quant python3 main.py --verify-agent-contract`
@@ -248,10 +254,15 @@
 
 3. 完整 src 测试：
 - `conda run -n quant python3 -m pytest -q src`
-- 结果：`136 passed, 6 warnings`
+- 结果：`142 passed, 6 warnings`
 - warnings 来自 PyTorch nested-tensor prototype 提示和 sklearn feature-name 提示，不是测试失败
 
-4. 语法与 diff 卫生：
+4. UI 文字化验证：
+- `conda run -n quant python3 -m pytest -q src/ui/tests/test_streamlit_app.py`
+- 结果：`2 passed`，包含真实 Streamlit renderer
+- 有时限的 `streamlit run ... --server.headless=true` 启动后，`/_stcore/health` 与根页面均成功响应；验证后进程已终止
+
+5. 语法与 diff 卫生：
 - `conda run -n quant python3 -m compileall -q main.py src`
 - `git diff --check`
 - 结果：通过
@@ -275,7 +286,10 @@
 ### 应继续保留并视为主状态文件
 - `HANDOFF.md`：中文交接与当前状态摘要
 - `PY_FILES_SUMMARY.md`：AI-facing Python surface 摘要
-- `human_docs/task_notes/literature_mining/MODEL_UPGRADE_RESEARCH_2026-04-20.md`：AI-facing 建模方向技术备忘
+
+### 只读的人类上下文
+- `human_docs/` 全部由用户管理，默认只读，不属于 agent-owned 状态或 AI-facing contract。
+- `human_docs/task_notes/literature_mining/MODEL_UPGRADE_RESEARCH_2026-04-20.md` 只能作为历史建模方向证据；采用其中建议前必须用当前代码、测试与研究边界重新验证。
 
 ### 当前实验 / 汇报 artifacts
 - `artifacts/pilot/fractional_attention_pilot_*`

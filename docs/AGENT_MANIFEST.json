@@ -29,6 +29,14 @@
       "reproducible_text_first_validation"
     ]
   },
+  "human_docs_policy": {
+    "policy_id": "user_owned_read_only_unless_explicit_human_document_task",
+    "path": "human_docs/",
+    "owner": "user",
+    "default_access": "read_only",
+    "write_condition": "explicit_human_document_task",
+    "agent_contract_authority": false
+  },
   "source_of_truth_files": [
     "AGENTS.md",
     ".agents/skills/aiforbn-workflow/SKILL.md",
@@ -211,6 +219,11 @@
       "name": "full_src_tests",
       "command": "python3 -m pytest -q src",
       "scope": "complete_src_test_suite_with_declared_dependencies"
+    },
+    {
+      "name": "ui_render_smoke",
+      "command": "python3 -m pytest -q src/ui/tests/test_streamlit_app.py",
+      "scope": "real_streamlit_render_and_artifact_viewer_contract"
     }
   ],
   "validation_profiles": [
@@ -241,6 +254,14 @@
         "full_src_tests"
       ],
       "use_when": "default pipeline behavior or generated scientific artifacts changed; run full_pipeline only when the task needs regenerated artifacts"
+    },
+    {
+      "name": "ui_edit",
+      "commands": [
+        "verify_agent_contract",
+        "ui_render_smoke"
+      ],
+      "use_when": "Streamlit imports, rendering, artifact display, or UI dependency wiring changed"
     }
   ],
   "dependency_imports": [
@@ -295,6 +316,9 @@
     ],
     "sensitive_but_currently_tracked": [
       "human_docs/research_plan/"
+    ],
+    "human_owned_read_only_by_default": [
+      "human_docs/"
     ],
     "default_generated_output_dirs": [
       "artifacts/",

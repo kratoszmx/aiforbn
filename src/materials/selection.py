@@ -310,8 +310,3 @@ def select_feature_model_combo(feature_tables: dict[str, pd.DataFrame], split_ma
         screening_model_type=summary['screening_selected_model_type'],
     )
     return summary
-
-
-def select_model_type(feature_tables: dict[str, pd.DataFrame], split_masks, cfg: dict) -> dict:
-    return select_feature_model_combo(feature_tables, split_masks, cfg)
-

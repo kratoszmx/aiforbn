@@ -107,7 +107,7 @@ def render_streamlit_app() -> None:
         df = pd.read_csv(path)
         if key in HEAD_LIMITED_KEYS:
             df = df.head(30)
-        st.dataframe(df, use_container_width=True)
+        st.dataframe(df, width='stretch')
 
     for title, key in JSON_SECTIONS:
         path = ARTIFACT_PATHS[key]

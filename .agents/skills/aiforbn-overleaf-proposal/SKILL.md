@@ -7,6 +7,9 @@ description: 用于 aiforbn 仓库的 research-plan 和 Overleaf 交付工作，
 
 仅在 `aiforbn` 的 research-plan 或 Overleaf 交付任务中使用本 skill。
 
+- `HUMAN_DOCS_POLICY=user_owned_read_only_unless_explicit_human_document_task`
+- `human_docs/` 始终由用户管理；只有明确的 research-plan/Overleaf 人类文档任务才授权修改准确的目标文件，不扩展到目录中的其他内容。
+
 ## 范围
 
 本 skill 覆盖：

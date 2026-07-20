@@ -23,11 +23,11 @@ Anything underscore-prefixed or omitted here should be treated as internal.
 - `load_agent_manifest(project_root_path='.', manifest_path='docs/AGENT_MANIFEST.json')`
   - Load the checked-in machine-readable AI-native manifest.
 - `validate_agent_layout(project_root_path='.', manifest=None)`
-  - Validate required agent-facing files, exact command mappings, source-of-truth surfaces, module contract surfaces, local instruction paths, exact v18 source-file and ordered deliverable-chain alignment, validation profiles, dependency imports, and known layout warnings.
+  - Validate required agent-facing files, exact command mappings, the human-document ownership policy and its declared instruction-surface markers, source-of-truth surfaces, module contract surfaces, local instruction paths, exact v18 source-file and ordered deliverable-chain alignment, validation profiles, dependency imports, and known layout warnings.
 - `build_agent_state(project_root_path='.', manifest_path='docs/AGENT_MANIFEST.json')`
   - Build the live JSON-serializable agent-state payload used by `main.py --emit-agent-state` and `main.py --verify-agent-contract`.
 - `build_agent_command_index(project_root_path='.', manifest_path='docs/AGENT_MANIFEST.json')`
-  - Build the live JSON-serializable command index, including v18 research-plan alignment, used by `main.py --emit-agent-commands`.
+  - Build the live JSON-serializable command index, including the human-document policy and v18 research-plan alignment, used by `main.py --emit-agent-commands`.
 - `agent_state_to_json(state)`
   - Serialize an agent-state payload for stdout or logs.
 - `write_agent_state(state, path)`

@@ -103,9 +103,6 @@ No callable public surface. The following non-callable contracts are imported ac
 
 - `select_feature_model_combo(feature_tables, split_masks, cfg)`
   - Choose the overall-evaluation combo and formula-only screening combo.
-- `select_model_type(feature_tables, split_masks, cfg)`
-  - Compatibility wrapper for callers that need model-type-only selection output.
-
 ## benchmarking.py
 
 - `benchmark_regressors(feature_tables, split_masks, cfg, ...)`

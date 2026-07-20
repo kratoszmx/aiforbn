@@ -6,7 +6,12 @@ This repository is maintained for autonomous AI agents. Do not treat it as an ap
 
 `aiforbn` is a research-grade AI-for-BN demo project.
 
-The project combines literature/research planning, materials data pipelines, structure generation, model experiments, reporting, and demo artifacts. Treat `.agents/skills/aiforbn-workflow/SKILL.md` and `.agents/skills/aiforbn-overleaf-proposal/SKILL.md` as the repo-scoped Codex skills. Treat `skills/ai_native_workflow.txt` as the compact project runtime guidance. Treat `human_docs/research_context/deep-research-report.md` as research context and `human_docs/research_context/poc_workflow_brief.txt` as an editable coding plan rather than a fixed contract.
+The project combines literature/research planning, materials data pipelines, structure generation, model experiments, reporting, and demo artifacts. Treat `.agents/skills/aiforbn-workflow/SKILL.md` and `.agents/skills/aiforbn-overleaf-proposal/SKILL.md` as the repo-scoped Codex skills. Treat `skills/ai_native_workflow.txt` as the compact project runtime guidance. Treat `human_docs/research_context/deep-research-report.md` and `human_docs/research_context/poc_workflow_brief.txt` as read-only research/planning context rather than fixed or agent-owned contracts.
+
+## Human Document Boundary
+
+- `HUMAN_DOCS_POLICY=user_owned_read_only_unless_explicit_human_document_task`
+- Everything under `human_docs/` is user-owned and read-only unless the current task explicitly requests human-document work. It may provide evidence or context, but it is never agent-owned state or an AI-facing source of truth.
 
 ## AI-Native Working Mode
 
@@ -27,7 +32,7 @@ The project combines literature/research planning, materials data pipelines, str
 - `src/tests/`: cross-module tests.
 - `tasks/`: task-specific implementation areas.
 - `docs/`: agent handoff notes, machine-readable state, and Python surface summaries.
-- `human_docs/`: human-readable research context, project reports, proposal/research-plan files, task notes, and images.
+- `human_docs/`: user-owned, read-only-by-default research context, reports, proposal sources, task notes, and images.
 - `data/`: raw and processed project data.
 - `artifacts/`: generated research/demo artifacts; check sensitivity and reproducibility before committing new files.
 - `.agents/skills/`: repo-scoped Codex `SKILL.md` files that trigger only for this project scope.
@@ -36,7 +41,7 @@ The project combines literature/research planning, materials data pipelines, str
 ## Current State
 
 - Several subtrees already have local `AGENTS.md` and `PY_FILES_SUMMARY.md`; keep them aligned when changing public modules or task boundaries.
-- `human_docs/research_plan/` is a sensitive research-plan bundle already present in the current tracked history. Do not edit, expand, or re-stage similar generated proposal files unless the task explicitly asks for research-plan work.
+- `human_docs/` is human-managed and already contains tracked research context and proposal material. Do not edit, move, delete, regenerate, stage, or reclassify anything there unless the task explicitly asks for the exact human-document work.
 - `docs/AGENT_MANIFEST.json` records the AI-native contract for entrypoints, module boundaries, validation commands, and safety boundaries.
 - Legacy `skills/*_skill.txt`, `skills/template.txt`, and `skills/workflow.txt` are retired; their still-current instructions are consolidated into `skills/ai_native_workflow.txt`, `.agents/skills/`, this file, or module-local `AGENTS.md`.
 - `.DS_Store`, caches, local environment files, and generated scratch outputs should remain untracked.
@@ -44,7 +49,7 @@ The project combines literature/research planning, materials data pipelines, str
 ## Safety Boundary
 
 - Do not commit private datasets, credentials, unpublished external documents, local caches, or large generated artifacts without checking task intent.
-- Be careful with research-plan documents and professor/user feedback files; summarize rather than exposing unnecessary personal or institutional detail.
+- Treat all human documents, including task notes and professor/user feedback, as contextual evidence only; summarize rather than exposing unnecessary personal or institutional detail.
 - Prefer text, code, structured data, and reproducible scripts over notebook-only or visual-only workflows.
 
 ## Validation

@@ -11,6 +11,7 @@ class FakeStreamlit(types.ModuleType):
     def __init__(self):
         super().__init__('streamlit')
         self.calls: list[tuple[str, object]] = []
+        self.dataframe_kwargs: list[dict[str, object]] = []
 
     def set_page_config(self, **kwargs):
         self.calls.append(('set_page_config', kwargs))
@@ -32,6 +33,7 @@ class FakeStreamlit(types.ModuleType):
 
     def dataframe(self, value, **kwargs):
         self.calls.append(('dataframe', getattr(value, 'shape', None)))
+        self.dataframe_kwargs.append(kwargs)
 
 
 def test_streamlit_app_reads_generated_artifacts(tmp_path, monkeypatch):
@@ -108,3 +110,18 @@ def test_streamlit_app_reads_generated_artifacts(tmp_path, monkeypatch):
     assert ('subheader', 'Structure first-pass execution JSON') in fake_streamlit.calls
     assert ('subheader', 'Proposal shortlist') in fake_streamlit.calls
     assert ('subheader', 'Formula-level extrapolation shortlist') in fake_streamlit.calls
+    assert fake_streamlit.dataframe_kwargs
+    assert all(kwargs == {'width': 'stretch'} for kwargs in fake_streamlit.dataframe_kwargs)
+
+
+def test_streamlit_app_runs_through_real_streamlit_renderer(tmp_path, monkeypatch):
+    from streamlit.testing.v1 import AppTest
+
+    monkeypatch.chdir(tmp_path)
+    root = Path(__file__).resolve().parents[3]
+    app = AppTest.from_file(str(root / 'src' / 'ui' / 'streamlit_app.py')).run(timeout=10)
+
+    assert len(app.exception) == 0
+    assert [node.value for node in app.info] == [
+        'Run `python main.py` first to generate artifacts.'
+    ]

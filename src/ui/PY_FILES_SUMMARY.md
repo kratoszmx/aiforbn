@@ -11,3 +11,9 @@ Anything underscore-prefixed or omitted here should be treated as internal.
 ## utils.py
 
 - No public functions are currently exposed.
+
+## tests/
+
+- `test_streamlit_app.py`
+  - Covers every declared artifact section through a fake renderer and verifies the supported `width='stretch'` dataframe contract.
+  - Runs the app through Streamlit's real `AppTest` renderer so import and render failures remain text-verifiable.

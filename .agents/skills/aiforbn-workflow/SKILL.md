@@ -23,14 +23,16 @@ description: 用于 aiforbn 仓库的常规维护工作，包括 AI-native 架�
 
 - 架构、文档、skill 或 manifest 修改：保持改动机器可读，并运行 architecture validation profile。
 - materials 或模型逻辑修改：更新最近的 `PY_FILES_SUMMARY.md`，运行聚焦测试；依赖可用时再运行 `python3 -m pytest -q src`。
+- UI 修改：运行 manifest 中的 `ui_render_smoke`；若改动启动或依赖接线，再做有时限的真实 headless server health check。
 - research-plan 或 Overleaf 交付工作：切换使用 `$aiforbn-overleaf-proposal`。
 - 生成 artifact 刷新：只有任务需要重新生成 artifacts，或科学行为发生变化时，才运行完整 `python3 main.py`。
 
 ## 边界
 
+- `HUMAN_DOCS_POLICY=user_owned_read_only_unless_explicit_human_document_task`
 - 只优化 agent 的检索、执行、验证、回滚和交接。
 - 不为手动使用、notebook、onboarding 或 UI 舒适度做优化。
-- 除非任务明确涉及 proposal/research-plan，否则不要编辑 `human_docs/research_plan/`。
+- `human_docs/` 全部由用户管理，除非当前任务明确要求准确的人类文档工作，否则只读；其内容只能作为证据或上下文，不能作为 agent-owned 状态或 AI-facing contract。
 - 没有明确任务意图时，不要提交缓存、凭据、私有数据集或大型生成 artifacts。
 - 保持科学诚实：ranking 输出是优先级排序证据，不是 discovery。
 - 不要恢复 `skills/` 下已经退役的 guidance shards；当前 active plain-text guidance 是 `skills/ai_native_workflow.txt`。

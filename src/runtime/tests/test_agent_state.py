@@ -36,6 +36,14 @@ def test_agent_manifest_loads_machine_readable_contract():
     assert 'skills/codex_skill.txt' in manifest['retired_guidance_files']
     assert any(entry['name'] == 'verify_agent_contract' for entry in manifest['entrypoints'])
     assert any(entry['name'] == 'emit_agent_commands' for entry in manifest['entrypoints'])
+    assert manifest['human_docs_policy'] == {
+        'policy_id': 'user_owned_read_only_unless_explicit_human_document_task',
+        'path': 'human_docs/',
+        'owner': 'user',
+        'default_access': 'read_only',
+        'write_condition': 'explicit_human_document_task',
+        'agent_contract_authority': False,
+    }
     research_alignment = manifest['research_plan_alignment']
     assert research_alignment['source_files'] == [
         'human_docs/research_plan/ai_for_bn_research_plan_v18.tex',
@@ -86,6 +94,35 @@ def test_validate_agent_layout_accepts_current_repo_contract():
         if check['kind'] == 'retired_guidance_path' and check['exists']
     }
     assert retired_checks == set()
+    human_docs_root_checks = [
+        check for check in validation['checks'] if check['kind'] == 'human_docs_root'
+    ]
+    assert human_docs_root_checks == [{
+        'path': 'human_docs/',
+        'exists': True,
+        'is_file': False,
+        'is_dir': True,
+        'kind': 'human_docs_root',
+    }]
+    policy_surfaces = {
+        check['path']
+        for check in validation['checks']
+        if check['kind'] == 'human_docs_policy_surface'
+    }
+    assert {
+        'AGENTS.md',
+        '.agents/skills/aiforbn-workflow/SKILL.md',
+        '.agents/skills/aiforbn-overleaf-proposal/SKILL.md',
+        'docs/HANDOFF.md',
+        'docs/PY_FILES_SUMMARY.md',
+        'skills/ai_native_workflow.txt',
+        'src/runtime/AGENTS.md',
+        'src/materials/AGENTS.md',
+        'src/torch_models/AGENTS.md',
+        'src/ui/AGENTS.md',
+        'src/tests/AGENTS.md',
+        'src/template/AGENTS.md',
+    }.issubset(policy_surfaces)
     dependency_modules = {
         check['module']
         for check in validation['checks']
@@ -113,8 +150,17 @@ def test_build_agent_command_index_returns_validation_profiles():
         'verify_agent_contract',
     }
     validation_names = {entry['name'] for entry in command_index['validation_commands']}
-    assert {'verify_agent_contract', 'fast_smoke', 'full_src_tests'}.issubset(validation_names)
+    assert {
+        'verify_agent_contract',
+        'fast_smoke',
+        'full_src_tests',
+        'ui_render_smoke',
+    }.issubset(validation_names)
     assert any(profile['name'] == 'architecture_doc_skill_edit' for profile in command_index['validation_profiles'])
+    assert any(profile['name'] == 'ui_edit' for profile in command_index['validation_profiles'])
+    assert command_index['human_docs_policy']['policy_id'] == (
+        'user_owned_read_only_unless_explicit_human_document_task'
+    )
     research_alignment = command_index['research_plan_alignment']
     assert set(research_alignment) >= {
         'status',
@@ -170,6 +216,65 @@ def test_validate_agent_layout_rejects_incomplete_v18_alignment_contract():
     assert validation['status'] == 'error'
     assert any(
         error['code'] == 'missing_research_plan_alignment_anchors'
+        for error in validation['errors']
+    )
+
+
+@pytest.mark.parametrize(
+    ('mutate_manifest', 'expected_error_code'),
+    [
+        (
+            lambda manifest: manifest.pop('human_docs_policy'),
+            'invalid_human_docs_policy',
+        ),
+        (
+            lambda manifest: manifest.update({'human_docs_policy': []}),
+            'invalid_human_docs_policy',
+        ),
+        (
+            lambda manifest: manifest['human_docs_policy'].update({
+                'default_access': 'read_write',
+            }),
+            'unexpected_human_docs_policy',
+        ),
+        (
+            lambda manifest: manifest['human_docs_policy'].update({
+                'agent_contract_authority': True,
+            }),
+            'unexpected_human_docs_policy',
+        ),
+    ],
+)
+def test_validate_agent_layout_rejects_weakened_human_docs_policy(
+    mutate_manifest,
+    expected_error_code,
+):
+    manifest = json.loads(json.dumps(load_agent_manifest(ROOT)))
+    mutate_manifest(manifest)
+
+    validation = validate_agent_layout(ROOT, manifest)
+
+    assert validation['status'] == 'error'
+    assert any(error['code'] == expected_error_code for error in validation['errors'])
+
+
+def test_validate_agent_layout_rejects_missing_human_docs_marker(monkeypatch):
+    original_read = agent_state._read_text_if_present
+
+    def read_without_root_marker(path: Path) -> str:
+        text = original_read(path)
+        if path == ROOT / 'AGENTS.md':
+            return text.replace(agent_state.HUMAN_DOCS_POLICY_MARKER, '')
+        return text
+
+    monkeypatch.setattr(agent_state, '_read_text_if_present', read_without_root_marker)
+
+    validation = validate_agent_layout(ROOT)
+
+    assert validation['status'] == 'error'
+    assert any(
+        error['code'] == 'missing_human_docs_policy_marker'
+        and error['path'] == 'AGENTS.md'
         for error in validation['errors']
     )
 

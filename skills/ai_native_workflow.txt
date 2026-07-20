@@ -7,6 +7,8 @@ Purpose:
 - Preserve scientific honesty: candidate ranking is low-confidence formula-level follow-up prioritization, not discovery.
 
 Canonical agent state:
+- `HUMAN_DOCS_POLICY=user_owned_read_only_unless_explicit_human_document_task`.
+- `human_docs/` is user-owned, read-only unless the task explicitly requests human-document work, and never an agent contract or state surface.
 - First inspection: `python3 main.py --verify-agent-contract`.
 - Command index: `python3 main.py --emit-agent-commands`.
 - Machine-readable contract: `docs/AGENT_MANIFEST.json`.
@@ -30,6 +32,7 @@ Architecture contract:
 
 Validation profiles:
 - Architecture/docs/skills/contract edit: `verify_agent_contract`, `fast_smoke`, `focused_regression`.
+- UI edit: `verify_agent_contract`, `ui_render_smoke`; use a bounded real headless server health check when startup/dependency wiring changes.
 - Public Python/module logic edit: add `full_src_tests`.
 - Scientific pipeline behavior or artifact logic edit: run full `python3 main.py` only when regenerated artifacts are required or the task explicitly asks for full recomputation.
 - Always prefer the smallest validation profile that proves the touched behavior.

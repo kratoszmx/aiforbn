@@ -3,6 +3,7 @@
 AI-facing quick summary for the current Python surface of `ai_for_bn`.
 This project is **not** maintained as a Python package. Default usage is from the repo root in the `quant` environment.
 Top-level code is organized as flat `src/*` module directories, without relying on `__init__.py` package wiring or package-relative imports.
+`HUMAN_DOCS_POLICY=user_owned_read_only_unless_explicit_human_document_task`; `human_docs/` is contextual evidence, never an agent-owned Python or contract surface.
 
 ---
 
@@ -61,7 +62,7 @@ Machine-readable AI-native project inspection entrypoint used by agent control c
 
 What it does:
 - loads `docs/AGENT_MANIFEST.json`
-- validates source-of-truth files, module-local `AGENTS.md` / `PY_FILES_SUMMARY.md` / `utils.py` contracts, and known layout warnings
+- validates source-of-truth files, the human-document ownership policy on every declared agent instruction surface, module-local `AGENTS.md` / `PY_FILES_SUMMARY.md` / `utils.py` contracts, and known layout warnings
 - validates the strict machine-readable v18 research-plan alignment contract and source files
 - checks whether manifest-declared runtime imports such as `pyarrow` are available
 - reports Git branch / HEAD / remote-main state and tracked `human_docs/research_plan/` file count
@@ -76,7 +77,7 @@ Machine-readable command-index entrypoint used by:
 
 What it does:
 - loads `docs/AGENT_MANIFEST.json`
-- prints entrypoints, validation commands, validation profiles, project skills, source-of-truth files, retired guidance files, and v18 research-plan alignment as JSON
+- prints entrypoints, validation commands, validation profiles, project skills, the human-document policy, source-of-truth files, retired guidance files, and v18 research-plan alignment as JSON
 
 Use it to choose the smallest sufficient validation profile for a change without rereading long prose docs.
 
@@ -451,9 +452,6 @@ Searches the configured `{feature_set} x {model_type}` space and returns a struc
 Important:
 - overall evaluation can select the structure-aware route
 - formula-only screening is restricted to candidate-compatible feature sets
-
-### `select_model_type(feature_tables, split_masks, cfg)`
-Backward-compatible alias that forwards to `select_feature_model_combo(...)`.
 
 ### `benchmark_regressors(feature_tables, split_masks, cfg, selected_feature_set, selected_model_type)`
 Evaluates the candidate feature/model combos plus dummy baseline on the test split and returns the benchmark dataframe.

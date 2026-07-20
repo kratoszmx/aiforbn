@@ -63,6 +63,7 @@ REQUIRED_VALIDATION_COMMANDS = {
         'src/runtime/tests/test_agent_state.py src/runtime/tests/test_io_utils.py'
     ),
     'full_src_tests': 'python3 -m pytest -q src',
+    'ui_render_smoke': 'python3 -m pytest -q src/ui/tests/test_streamlit_app.py',
 }
 
 REQUIRED_VALIDATION_COMMAND_NAMES = set(REQUIRED_VALIDATION_COMMANDS)
@@ -84,6 +85,19 @@ REQUIRED_MODULE_NAMES = {
     'ui',
     'tests',
     'template',
+}
+
+HUMAN_DOCS_POLICY_MARKER = (
+    'HUMAN_DOCS_POLICY=user_owned_read_only_unless_explicit_human_document_task'
+)
+
+REQUIRED_HUMAN_DOCS_POLICY = {
+    'policy_id': 'user_owned_read_only_unless_explicit_human_document_task',
+    'path': 'human_docs/',
+    'owner': 'user',
+    'default_access': 'read_only',
+    'write_condition': 'explicit_human_document_task',
+    'agent_contract_authority': False,
 }
 
 BACKTICKED_LOCAL_PATH_PATTERN = re.compile(r'`((?:/[^`\n]+)|(?:~/[^`\n]+))`')
@@ -231,6 +245,79 @@ def _validate_local_instruction_paths(
                     f'Agent instruction references a missing local path: {raw_path}'
                 ),
             })
+
+
+def _validate_human_docs_policy(
+    root: Path,
+    manifest_payload: dict[str, Any],
+    errors: list[dict[str, str]],
+    checks: list[dict[str, object]],
+) -> None:
+    policy = manifest_payload.get('human_docs_policy')
+    if not isinstance(policy, dict):
+        errors.append({
+            'code': 'invalid_human_docs_policy',
+            'path': 'docs/AGENT_MANIFEST.json:human_docs_policy',
+            'message': 'Manifest field `human_docs_policy` must be a JSON object.',
+        })
+    else:
+        mismatches = {
+            key: {'expected': expected, 'actual': policy.get(key)}
+            for key, expected in REQUIRED_HUMAN_DOCS_POLICY.items()
+            if policy.get(key) != expected
+        }
+        if mismatches:
+            errors.append({
+                'code': 'unexpected_human_docs_policy',
+                'path': 'docs/AGENT_MANIFEST.json:human_docs_policy',
+                'message': (
+                    'Human-document ownership policy must match the required '
+                    f'user-owned read-only contract; mismatches: {mismatches}'
+                ),
+            })
+
+    human_docs_check = _path_check(root, REQUIRED_HUMAN_DOCS_POLICY['path'])
+    checks.append({**human_docs_check, 'kind': 'human_docs_root'})
+    if not human_docs_check['is_dir']:
+        errors.append({
+            'code': 'missing_human_docs_root',
+            'path': REQUIRED_HUMAN_DOCS_POLICY['path'],
+            'message': 'The declared user-owned human_docs/ root is missing or not a directory.',
+        })
+
+    policy_surfaces: list[str] = []
+    source_of_truth_files = manifest_payload.get('source_of_truth_files', [])
+    if isinstance(source_of_truth_files, list):
+        policy_surfaces.extend(
+            path.strip()
+            for path in source_of_truth_files
+            if isinstance(path, str)
+            and path.strip()
+            and path.strip() != str(DEFAULT_AGENT_MANIFEST_PATH)
+        )
+    modules = manifest_payload.get('modules', [])
+    if isinstance(modules, list):
+        policy_surfaces.extend(
+            str(module.get('agent_rules', '')).strip()
+            for module in modules
+            if isinstance(module, dict) and str(module.get('agent_rules', '')).strip()
+        )
+
+    for relative_path in dict.fromkeys(policy_surfaces):
+        check = _path_check(root, relative_path)
+        checks.append({**check, 'kind': 'human_docs_policy_surface'})
+        if not check['is_file']:
+            continue
+        if HUMAN_DOCS_POLICY_MARKER in _read_text_if_present(root / relative_path):
+            continue
+        errors.append({
+            'code': 'missing_human_docs_policy_marker',
+            'path': relative_path,
+            'message': (
+                'Declared agent instruction surface is missing the stable '
+                f'human-document policy marker: {HUMAN_DOCS_POLICY_MARKER}'
+            ),
+        })
 
 
 def _validate_research_plan_alignment(
@@ -625,6 +712,8 @@ def validate_agent_layout(
                 'message': f'Active project skill `{skill.get("name", "<unnamed>")}` is missing.',
             })
 
+    _validate_human_docs_policy(root, manifest_payload, errors, checks)
+
     retired_paths = ['skill.txt']
     retired_guidance_files = manifest_payload.get('retired_guidance_files', [])
     if not isinstance(retired_guidance_files, list):
@@ -729,6 +818,7 @@ def build_agent_command_index(
         'validation_profiles': manifest.get('validation_profiles', []),
         'source_of_truth_files': manifest.get('source_of_truth_files', []),
         'project_skills': manifest.get('project_skills', []),
+        'human_docs_policy': manifest.get('human_docs_policy', {}),
         'retired_guidance_files': manifest.get('retired_guidance_files', []),
         'research_plan_alignment': manifest.get('research_plan_alignment', {}),
     }
