@@ -4,9 +4,6 @@ import os
 from pathlib import Path
 import re
 
-os.environ.setdefault('MPLBACKEND', 'Agg')
-os.environ.setdefault('MPLCONFIGDIR', '/tmp/ai_for_bn_mplconfig')
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 

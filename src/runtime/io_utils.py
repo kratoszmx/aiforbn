@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import importlib.util
+import json
 import os
 from pathlib import Path
 import shutil
 import sys
+from types import ModuleType
 
 _REQUIRED_MYUTILS_PATHS = (
     Path('file_utils/filesystem.py'),
@@ -45,6 +46,7 @@ if str(_MYUTILS_FILE_UTILS_DIR) not in sys.path:
 
 from filesystem import ensure_dirs, find_cache_dirs
 from json_io import make_json_safe, read_json_file, write_json_file as _shared_write_json_file
+from runtime.utils import _path_has_symlink_component, _path_is_same_or_descendant
 
 
 RUNTIME_DIR_KEYS = (
@@ -59,13 +61,15 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 def load_config(path: str | Path) -> dict:
-    path = Path(path)
-    spec = importlib.util.spec_from_file_location(path.stem, path)
-    if spec is None or spec.loader is None:
-        raise ImportError(f'Unable to load config module from: {path}')
+    path = Path(path).expanduser().resolve(strict=False)
+    human_docs_root = (PROJECT_ROOT.resolve() / HUMAN_DOCS_DIR).resolve(strict=False)
+    if _path_is_same_or_descendant(path, human_docs_root):
+        raise ValueError('Config files must not be loaded from user-owned human_docs/')
 
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    module = ModuleType(path.stem)
+    module.__file__ = str(path)
+    source = path.read_bytes()
+    exec(compile(source, str(path), 'exec'), module.__dict__)
 
     cfg = getattr(module, 'CONFIG', None)
     if not isinstance(cfg, dict):
@@ -91,11 +95,10 @@ def validate_runtime_output_path(
 
     for project_root in project_roots:
         human_docs_root = (project_root / HUMAN_DOCS_DIR).resolve(strict=False)
-        try:
-            resolved_path.relative_to(human_docs_root)
-        except ValueError:
-            continue
-        raise ValueError('Runtime output paths must not be placed under user-owned human_docs/')
+        if _path_is_same_or_descendant(resolved_path, human_docs_root):
+            raise ValueError(
+                'Runtime output paths must not be placed under user-owned human_docs/'
+            )
     if required_parent_path is not None:
         resolved_parent = Path(required_parent_path).expanduser().resolve(strict=False)
         try:
@@ -143,6 +146,16 @@ def validate_runtime_output_path(
     return resolved_path
 
 
+def configure_matplotlib_cache() -> Path:
+    os.environ.setdefault('MPLBACKEND', 'Agg')
+    config_dir = validate_runtime_output_path(
+        os.environ.get('MPLCONFIGDIR', '/tmp/ai_for_bn_mplconfig'),
+        expected_output_kind='directory',
+    )
+    os.environ['MPLCONFIGDIR'] = str(config_dir)
+    return config_dir
+
+
 def ensure_runtime_dirs(cfg: dict, project_root_path: str | Path = '.') -> None:
     runtime_dirs = [
         validate_runtime_output_path(
@@ -155,13 +168,42 @@ def ensure_runtime_dirs(cfg: dict, project_root_path: str | Path = '.') -> None:
     ensure_dirs(runtime_dirs)
 
 
-def write_json_file(payload, path: str | Path, *args, **kwargs):
+def write_json_file(
+    payload,
+    path: str | Path,
+    *,
+    encoding: str = 'utf-8',
+    ensure_ascii: bool = False,
+    sort_keys: bool = False,
+    indent: int | None = 2,
+):
     output_path = validate_runtime_output_path(
         path,
         reject_leaf_symlink=True,
         expected_output_kind='file',
     )
-    return _shared_write_json_file(payload, output_path, *args, **kwargs)
+    safe_payload = make_json_safe(payload)
+    try:
+        serialized = json.dumps(
+            safe_payload,
+            ensure_ascii=ensure_ascii,
+            sort_keys=sort_keys,
+            indent=indent,
+        )
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            f'Payload is not JSON-serializable for {output_path}: {exc}'
+        ) from exc
+    if encoding is not None:
+        serialized.encode(encoding)
+    return _shared_write_json_file(
+        safe_payload,
+        output_path,
+        encoding=encoding,
+        ensure_ascii=ensure_ascii,
+        sort_keys=sort_keys,
+        indent=indent,
+    )
 
 
 def _missing_path_from_file_not_found(exc: FileNotFoundError) -> Path | None:
@@ -187,14 +229,17 @@ def clear_project_cache(project_root_path: str | Path = '.'):
     if not root_path.is_dir():
         raise NotADirectoryError(f'Project root is not a directory: {root_path}')
 
-    resolved_root = root_path.resolve()
-    validate_runtime_output_path(resolved_root)
+    resolved_root = validate_runtime_output_path(root_path)
+    if _path_has_symlink_component(root_path):
+        raise ValueError(
+            'Cache project root must not contain a symbolic link path component'
+        )
     protected_human_docs_roots = {
         (PROJECT_ROOT.resolve() / HUMAN_DOCS_DIR).resolve(strict=False),
         (resolved_root / HUMAN_DOCS_DIR).resolve(strict=False),
     }
     try:
-        cache_dirs = find_cache_dirs(root_path)
+        cache_dirs = find_cache_dirs(resolved_root)
     except FileNotFoundError as exc:
         # Parallel agent validations can race while deleting the same cache tree.
         missing_path = _missing_path_from_file_not_found(exc)
@@ -207,9 +252,10 @@ def clear_project_cache(project_root_path: str | Path = '.'):
         if cache_dir.is_symlink():
             continue
         resolved_cache_dir = cache_dir.resolve(strict=False)
+        if not _path_is_same_or_descendant(resolved_cache_dir, resolved_root):
+            continue
         if any(
-            resolved_cache_dir == protected_root
-            or protected_root in resolved_cache_dir.parents
+            _path_is_same_or_descendant(resolved_cache_dir, protected_root)
             for protected_root in protected_human_docs_roots
         ):
             continue

@@ -247,6 +247,8 @@
 - 退役仍可执行的非 BN toy candidate grid，保留且测试唯一的 bounded BN-centered candidate space；移除零引用的旧 rank-stability table builder
 - grouped robustness 预测保留 DataFrame feature names，消除 sklearn feature-name warnings
 - Round 3 进一步封死伪造 project root、直接/软链接 human-doc cache root、输出叶子软链接和硬链接别名；runtime/dataset/report/plot 会在任何目录创建、写入或删除前预检全部目录及具体输出叶子的根目录归属、类型和父链，结构配置、动态 CIF 及 stale-CIF 清理均保留/检查原始叶子身份，cache 清理安全跳过目录软链接
+- Round 4 补齐大小写等价的 human-doc 路径识别、cache root 任意软链接组件与 discovery 逃逸阻断、JSON/agent-state 序列化先于目录创建，并把 Python config bytecode、Matplotlib/JARVIS 的间接 cache/archive 写入纳入同一 canonical guard；没有修改或重算 `human_docs/` 与 scientific artifacts
+- contract verifier 现精确锁定 validation-profile 命令序列、三个 active project-skill 记录与七个 retired-guidance 路径；public-surface 测试同时核对模块摘要及根摘要的 callable 参数顺序和 keyword-only 边界
 - `--verify-agent-contract` 现会精确锁定六个 module 的 path/role/public-surface/agent-rules/local-utils/allowed-dependencies；公开 surface 测试逐个要求四个生产模块非空，并显式覆盖 import re-export
 
 1. AI-native contract 与命令索引：
@@ -260,7 +262,7 @@
 
 3. 完整 src 测试：
 - `conda run -n quant python3 -m pytest -q src`
-- 结果：`203 passed, 1 warning`
+- 结果：`224 passed, 1 warning`
 - 剩余 warning 是 PyTorch nested-tensor prototype 提示，不是测试失败；原 sklearn feature-name warnings 已消除
 
 4. UI 文字化验证：
@@ -281,6 +283,8 @@
 - formula-only screening 强边界、候选公式 featurization 原子失败、自定义 formula column
 - BN diagnostic disabled / insufficient-data 状态与 BN-centered selection 复核
 - processed-cache provenance 与 target-column identity、raw-record lookup、Pydantic schema、Torch regressor 快速契约
+- JARVIS store/archive 与 Matplotlib import-time cache 的 canonical output guard，以及无效 JSON payload 的 pre-effect 原子失败
+- validation profiles、project skills、retired guidance 与两层 Python surface callable signatures 的非空/精确契约
 - BN stratified diagnostics 强制 formula grouping 并按唯一公式聚合，避免重复公式跨 fold 泄漏
 - decision policy disabled 语义、结构工件路径 containment、core/pairwise/case/Unicode/hardlink alias 防护，以及空结果第二轮清除旧 JSON/CSV/CIF
 

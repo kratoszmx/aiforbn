@@ -8,6 +8,8 @@ import re
 import subprocess
 from typing import Any
 
+from runtime.utils import _path_is_same_or_descendant
+
 
 DEFAULT_AGENT_MANIFEST_PATH = Path('docs/AGENT_MANIFEST.json')
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -69,6 +71,29 @@ REQUIRED_VALIDATION_COMMANDS = {
 
 REQUIRED_VALIDATION_COMMAND_NAMES = set(REQUIRED_VALIDATION_COMMANDS)
 
+REQUIRED_VALIDATION_PROFILE_COMMANDS = {
+    'architecture_doc_skill_edit': [
+        'verify_agent_contract',
+        'fast_smoke',
+        'focused_regression',
+    ],
+    'module_logic_edit': [
+        'verify_agent_contract',
+        'fast_smoke',
+        'focused_regression',
+        'full_src_tests',
+    ],
+    'scientific_pipeline_edit': [
+        'verify_agent_contract',
+        'fast_smoke',
+        'full_src_tests',
+    ],
+    'ui_edit': [
+        'verify_agent_contract',
+        'ui_render_smoke',
+    ],
+}
+
 REQUIRED_SOURCE_OF_TRUTH_FILES = {
     'AGENTS.md',
     '.agents/skills/aiforbn-workflow/SKILL.md',
@@ -78,6 +103,38 @@ REQUIRED_SOURCE_OF_TRUTH_FILES = {
     'docs/PY_FILES_SUMMARY.md',
     'skills/ai_native_workflow.txt',
 }
+
+REQUIRED_PROJECT_SKILLS = [
+    {
+        'name': 'aiforbn-workflow',
+        'path': '.agents/skills/aiforbn-workflow/SKILL.md',
+        'scope': 'repo_scoped_codex_skill',
+        'status': 'active',
+    },
+    {
+        'name': 'aiforbn-overleaf-proposal',
+        'path': '.agents/skills/aiforbn-overleaf-proposal/SKILL.md',
+        'scope': 'repo_scoped_codex_skill',
+        'status': 'active',
+    },
+    {
+        'name': 'ai_native_workflow',
+        'path': 'skills/ai_native_workflow.txt',
+        'scope': 'plain_text_agent_runtime_guidance',
+        'status': 'active',
+    },
+]
+
+REQUIRED_RETIRED_GUIDANCE_FILES = [
+    'skills/codex_skill.txt',
+    'skills/coding_skill.txt',
+    'skills/docs_skill.txt',
+    'skills/model_skill.txt',
+    'skills/python_skill.txt',
+    'skills/template.txt',
+    'skills/workflow.txt',
+]
+
 
 REQUIRED_MODULE_CONTRACTS = {
     'runtime': {
@@ -619,7 +676,7 @@ def validate_agent_layout(
                     'message': 'Every validation profile needs a non-empty `use_when` selector.',
                 })
             commands = profile.get('commands', [])
-            if not isinstance(commands, list) or not all(
+            if not isinstance(commands, list) or not commands or not all(
                 isinstance(command, str) and command.strip() for command in commands
             ):
                 errors.append({
@@ -636,6 +693,45 @@ def validate_agent_layout(
                     'message': (
                         f'Validation profile `{profile_name}` references unknown '
                         f'validation command names: {missing_commands}'
+                    ),
+                })
+
+        profiles_by_name = {
+            str(profile.get('name', '')).strip(): profile
+            for profile in validation_profiles
+            if isinstance(profile, dict) and str(profile.get('name', '')).strip()
+        }
+        missing_required_profiles = sorted(
+            set(REQUIRED_VALIDATION_PROFILE_COMMANDS) - set(profiles_by_name)
+        )
+        if missing_required_profiles:
+            errors.append({
+                'code': 'missing_required_validation_profiles',
+                'path': 'docs/AGENT_MANIFEST.json:validation_profiles',
+                'message': (
+                    'Missing required validation profile names: '
+                    f'{missing_required_profiles}'
+                ),
+            })
+        for profile_name, required_commands in (
+            REQUIRED_VALIDATION_PROFILE_COMMANDS.items()
+        ):
+            profile = profiles_by_name.get(profile_name)
+            if profile is None:
+                continue
+            actual_commands = profile.get('commands')
+            if not isinstance(actual_commands, list):
+                continue
+            if actual_commands != required_commands:
+                errors.append({
+                    'code': 'unexpected_validation_profile_commands',
+                    'path': (
+                        'docs/AGENT_MANIFEST.json:'
+                        f'validation_profiles.{profile_name}'
+                    ),
+                    'message': (
+                        f'Validation profile `{profile_name}` must use commands '
+                        f'{required_commands}, not {actual_commands}.'
                     ),
                 })
 
@@ -759,6 +855,15 @@ def validate_agent_layout(
             'message': 'Manifest field `project_skills` must be a list when present.',
         })
         project_skills = []
+    if project_skills != REQUIRED_PROJECT_SKILLS:
+        errors.append({
+            'code': 'unexpected_project_skills',
+            'path': 'docs/AGENT_MANIFEST.json:project_skills',
+            'message': (
+                'Project skill names, paths, scopes, and active statuses must match '
+                'the required agent-routing contract.'
+            ),
+        })
     for index, skill in enumerate(project_skills):
         if not isinstance(skill, dict):
             errors.append({
@@ -790,7 +895,7 @@ def validate_agent_layout(
 
     _validate_human_docs_policy(root, manifest_payload, errors, checks)
 
-    retired_paths = ['skill.txt']
+    retired_paths = ['skill.txt', *REQUIRED_RETIRED_GUIDANCE_FILES]
     retired_guidance_files = manifest_payload.get('retired_guidance_files', [])
     if not isinstance(retired_guidance_files, list):
         errors.append({
@@ -799,6 +904,15 @@ def validate_agent_layout(
             'message': 'Manifest field `retired_guidance_files` must be a list when present.',
         })
         retired_guidance_files = []
+    if retired_guidance_files != REQUIRED_RETIRED_GUIDANCE_FILES:
+        errors.append({
+            'code': 'unexpected_retired_guidance_files',
+            'path': 'docs/AGENT_MANIFEST.json:retired_guidance_files',
+            'message': (
+                'Retired guidance paths must match the required stale-shard '
+                'detection contract.'
+            ),
+        })
     retired_paths.extend(str(path) for path in retired_guidance_files)
     for relative_path in dict.fromkeys(retired_paths):
         check = _path_check(root, relative_path)
@@ -949,7 +1063,7 @@ def agent_state_to_json(state: dict[str, Any]) -> str:
 
 def write_agent_state(state: dict[str, Any], path: str | Path) -> None:
     path = Path(path).expanduser()
-    resolved_path = path.expanduser().resolve(strict=False)
+    resolved_path = path.resolve(strict=False)
     project_roots = [PROJECT_ROOT.resolve()]
     declared_project_root = _project_root(state.get('project_root', '.'))
     if declared_project_root not in project_roots:
@@ -958,13 +1072,10 @@ def write_agent_state(state: dict[str, Any], path: str | Path) -> None:
         human_docs_root = (
             project_root / REQUIRED_HUMAN_DOCS_POLICY['path']
         ).resolve(strict=False)
-        try:
-            resolved_path.relative_to(human_docs_root)
-        except ValueError:
-            continue
-        raise ValueError(
-            'Agent runtime state must not be written under user-owned human_docs/'
-        )
+        if _path_is_same_or_descendant(resolved_path, human_docs_root):
+            raise ValueError(
+                'Agent runtime state must not be written under user-owned human_docs/'
+            )
     if path.is_symlink():
         raise ValueError('Agent runtime state must not target a symbolic-link leaf')
     if path.exists() and not path.is_file():
@@ -989,5 +1100,6 @@ def write_agent_state(state: dict[str, Any], path: str | Path) -> None:
         raise ValueError(
             'Agent runtime state must not target a file with multiple hard links'
         )
+    serialized_state = agent_state_to_json(state) + '\n'
     resolved_path.parent.mkdir(parents=True, exist_ok=True)
-    resolved_path.write_text(agent_state_to_json(state) + '\n', encoding='utf-8')
+    resolved_path.write_text(serialized_state, encoding='utf-8')

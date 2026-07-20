@@ -6,7 +6,12 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from runtime.io_utils import read_json_file, validate_runtime_output_path, write_json_file
+from runtime.io_utils import (
+    configure_matplotlib_cache,
+    read_json_file,
+    validate_runtime_output_path,
+    write_json_file,
+)
 from runtime.schema import DatasetManifest
 
 
@@ -318,9 +323,20 @@ def load_or_build_dataset(cfg: dict) -> tuple[pd.DataFrame, dict]:
             version_hint='loaded from cached raw json',
         )
 
-    from jarvis.db.figshare import data as jarvis_data
+    configure_matplotlib_cache()
+    from jarvis.db.figshare import data as jarvis_data, get_db_info
 
-    raw = jarvis_data(dataset_name)
+    jarvis_dataset_info = get_db_info()
+    if dataset_name not in jarvis_dataset_info:
+        raise ValueError('Check DB name options.')
+    jarvis_json_tag = str(jarvis_dataset_info[dataset_name][1])
+    validate_runtime_output_path(
+        raw_dir / f'{jarvis_json_tag}.zip',
+        required_parent_path=raw_dir,
+        expected_output_kind='file',
+    )
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    raw = jarvis_data(dataset_name, store_dir=str(raw_dir))
     if cfg['data'].get('cache_raw_json', True):
         write_json_file(raw, raw_path, indent=None)
 

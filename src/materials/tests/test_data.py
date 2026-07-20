@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import builtins
 import json
 import sys
 import types
@@ -154,6 +155,129 @@ def _raw_entry(jid: str, formula: str | None, target: float, *, composition: str
     return entry
 
 
+def _install_fake_jarvis(monkeypatch, data_func):
+    fake_figshare = types.ModuleType('jarvis.db.figshare')
+    fake_figshare.data = data_func
+    fake_figshare.get_db_info = lambda: {
+        'twod_matpd': ('unused-url', 'twodmatpd.json', 'message', 'reference'),
+    }
+    fake_db = types.ModuleType('jarvis.db')
+    fake_db.figshare = fake_figshare
+    fake_jarvis = types.ModuleType('jarvis')
+    fake_jarvis.db = fake_db
+    monkeypatch.setitem(sys.modules, 'jarvis', fake_jarvis)
+    monkeypatch.setitem(sys.modules, 'jarvis.db', fake_db)
+    monkeypatch.setitem(sys.modules, 'jarvis.db.figshare', fake_figshare)
+    return fake_figshare
+
+
+def test_load_or_build_dataset_binds_jarvis_cache_to_guarded_raw_dir(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(io_utils, 'PROJECT_ROOT', tmp_path)
+    human_docs_cache = tmp_path / 'human_docs'
+    monkeypatch.setenv('ATOMGPTLAB_CACHE', str(human_docs_cache))
+    raw_dir = tmp_path / 'raw'
+    processed_dir = tmp_path / 'processed'
+    processed_dir.mkdir()
+    captured_store_dirs = []
+    payload = [_raw_entry('1', 'BN', 5.5)]
+
+    def fake_data(dataset, store_dir=None):
+        captured_store_dirs.append(store_dir)
+        if store_dir is None:
+            escaped_cache = human_docs_cache / 'jarvis_data'
+            escaped_cache.mkdir(parents=True)
+            (escaped_cache / 'twodmatpd.json.zip').write_bytes(b'escaped')
+        return payload
+
+    _install_fake_jarvis(monkeypatch, fake_data)
+    cfg = {
+        'data': {
+            'dataset': 'twod_matpd',
+            'raw_dir': str(raw_dir),
+            'processed_dir': str(processed_dir),
+            'target_column': 'band_gap',
+            'cache_raw_json': False,
+        }
+    }
+
+    load_or_build_dataset(cfg)
+
+    assert captured_store_dirs == [str(raw_dir.resolve())]
+    assert not human_docs_cache.exists()
+
+
+def test_load_or_build_dataset_rejects_mpl_cache_before_jarvis_import(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(io_utils, 'PROJECT_ROOT', tmp_path)
+    human_docs_cache = tmp_path / 'human_docs' / 'mpl'
+    monkeypatch.setenv('MPLCONFIGDIR', str(human_docs_cache))
+    real_import = builtins.__import__
+
+    def reject_jarvis_import(name, *args, **kwargs):
+        if name == 'jarvis.db.figshare':
+            raise AssertionError('JARVIS import must happen after MPL cache preflight')
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, '__import__', reject_jarvis_import)
+    cfg = {
+        'data': {
+            'dataset': 'twod_matpd',
+            'raw_dir': str(tmp_path / 'raw'),
+            'processed_dir': str(tmp_path / 'processed'),
+            'target_column': 'band_gap',
+            'cache_raw_json': False,
+        }
+    }
+
+    with pytest.raises(ValueError, match='user-owned human_docs'):
+        load_or_build_dataset(cfg)
+
+    assert not (tmp_path / 'human_docs').exists()
+    assert not (tmp_path / 'raw').exists()
+    assert not (tmp_path / 'processed').exists()
+
+
+def test_load_or_build_dataset_preflights_jarvis_archive_leaf(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(io_utils, 'PROJECT_ROOT', tmp_path)
+    raw_dir = tmp_path / 'raw'
+    processed_dir = tmp_path / 'processed'
+    raw_dir.mkdir()
+    archive_target = tmp_path / 'human_docs' / 'twodmatpd.json.zip'
+    archive_path = raw_dir / archive_target.name
+    archive_path.symlink_to(archive_target)
+
+    _install_fake_jarvis(
+        monkeypatch,
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError('JARVIS download must not run before archive preflight')
+        ),
+    )
+    cfg = {
+        'data': {
+            'dataset': 'twod_matpd',
+            'raw_dir': str(raw_dir),
+            'processed_dir': str(processed_dir),
+            'target_column': 'band_gap',
+            'cache_raw_json': False,
+        }
+    }
+
+    with pytest.raises(ValueError, match='user-owned human_docs'):
+        load_or_build_dataset(cfg)
+
+    assert archive_path.is_symlink()
+    assert not archive_target.exists()
+    assert not processed_dir.exists()
+
+
 def test_load_or_build_dataset_builds_normalized_cache_and_reuses_it(tmp_path, monkeypatch):
     raw_dir = tmp_path / 'raw'
     processed_dir = tmp_path / 'processed'
@@ -165,16 +289,10 @@ def test_load_or_build_dataset_builds_normalized_cache_and_reuses_it(tmp_path, m
         _raw_entry('2', None, 2.0, composition='AlN'),
     ]
 
-    fake_figshare = types.ModuleType('jarvis.db.figshare')
-    fake_figshare.data = lambda dataset: payload
-    fake_db = types.ModuleType('jarvis.db')
-    fake_db.figshare = fake_figshare
-    fake_jarvis = types.ModuleType('jarvis')
-    fake_jarvis.db = fake_db
-
-    monkeypatch.setitem(sys.modules, 'jarvis', fake_jarvis)
-    monkeypatch.setitem(sys.modules, 'jarvis.db', fake_db)
-    monkeypatch.setitem(sys.modules, 'jarvis.db.figshare', fake_figshare)
+    fake_figshare = _install_fake_jarvis(
+        monkeypatch,
+        lambda dataset, store_dir=None: payload,
+    )
 
     cfg = {
         'data': {
@@ -229,18 +347,14 @@ def test_load_or_build_dataset_rebuilds_stale_processed_cache_from_cached_raw_js
     ]).to_parquet(processed_dir / 'twod_matpd.parquet', index=False)
     (processed_dir / 'manifest.json').write_text(json.dumps({'name': 'twod_matpd'}))
 
-    fake_figshare = types.ModuleType('jarvis.db.figshare')
-    fake_figshare.data = lambda dataset: (_ for _ in ()).throw(
-        AssertionError('jarvis download should not run when cached raw JSON is available')
+    _install_fake_jarvis(
+        monkeypatch,
+        lambda dataset: (_ for _ in ()).throw(
+            AssertionError(
+                'jarvis download should not run when cached raw JSON is available'
+            )
+        ),
     )
-    fake_db = types.ModuleType('jarvis.db')
-    fake_db.figshare = fake_figshare
-    fake_jarvis = types.ModuleType('jarvis')
-    fake_jarvis.db = fake_db
-
-    monkeypatch.setitem(sys.modules, 'jarvis', fake_jarvis)
-    monkeypatch.setitem(sys.modules, 'jarvis.db', fake_db)
-    monkeypatch.setitem(sys.modules, 'jarvis.db.figshare', fake_figshare)
 
     cfg = {
         'data': {

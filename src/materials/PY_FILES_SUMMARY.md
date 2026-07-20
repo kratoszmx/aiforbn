@@ -16,7 +16,7 @@ Anything underscore-prefixed or omitted here should be treated as internal imple
 - `load_or_build_dataset(cfg)`
   - Build or reload the normalized dataset and its manifest.
   - Reuse a processed cache only when dataset name, source, required columns, and target column all match the request.
-  - Preflight the concrete raw JSON, processed Parquet, and manifest leaves so symlink or hardlink aliases cannot redirect cache writes into user-owned `human_docs/`.
+  - Preflight the concrete raw JSON, processed Parquet, manifest, JARVIS archive, and dependency-cache root before imports or writes; JARVIS receives the canonical guarded raw directory instead of its environment-selected default cache.
 
 ## constants.py
 
@@ -51,7 +51,7 @@ No callable public surface. The following non-callable contracts are imported ac
   - Parse element symbols from a chemical formula string.
 - `filter_bn(df, formula_col='formula')`
   - Keep only BN-containing rows from a dataframe.
-- `annotate_bn_families(df, formula_col='formula', grouping_method=...)`
+- `annotate_bn_families(df, *, formula_col='formula', grouping_method=...)`
   - Add BN-family labels for BN-local grouping logic.
 - `generate_bn_candidates(cfg)`
   - Build the configured BN candidate space.
@@ -59,7 +59,7 @@ No callable public surface. The following non-callable contracts are imported ac
   - Add the family-aware proposal-shortlist annotations.
 - `annotate_candidate_extrapolation_shortlist(ranked_candidate_df, cfg=None)`
   - Add the formula-level extrapolation-shortlist annotations.
-- `get_screening_ranking_metadata(cfg)`
+- `get_screening_ranking_metadata(cfg=None, ...)`
   - Return ranking-metadata settings used by candidate screening.
 - `annotate_candidate_chemical_plausibility(candidate_df, cfg=None, formula_col='formula')`
   - Add formula-level plausibility annotations.
@@ -84,7 +84,7 @@ No callable public surface. The following non-callable contracts are imported ac
   - Report whether a feature set is candidate-compatible.
 - `get_feature_note(feature_set)`
   - Return the descriptive note for a feature set.
-- `build_feature_table(df, feature_set, formula_col='formula')`
+- `build_feature_table(df, formula_col='formula', feature_set=...)`
   - Build one feature table for a given feature set.
 - `build_feature_tables(df, cfg, formula_col='formula')`
   - Build all configured feature tables.
@@ -123,7 +123,7 @@ No callable public surface. The following non-callable contracts are imported ac
 
 ## screening.py
 
-- `build_candidate_structure_generation_seeds(ranked_candidate_df, dataset_df, split_masks, cfg, ...)`
+- `build_candidate_structure_generation_seeds(candidate_df, dataset_df, split_masks, cfg, ...)`
   - Build prototype-seed records for structure follow-up.
 - `build_candidate_prediction_ensemble(candidate_df, feature_tables, split_masks, cfg, ...)`
   - Build ensemble candidate predictions.
@@ -162,7 +162,7 @@ No callable public surface. The following non-callable contracts are imported ac
 ## plots.py
 
 - `save_basic_plots(prediction_df, cfg)`
-  - Preflight and write the standard parity-plot artifact without following a leaf alias into user-owned `human_docs/`.
+  - Guard and canonicalize the Matplotlib cache before importing pyplot, then preflight and write the standard parity-plot artifact without following a leaf alias into user-owned `human_docs/`.
 
 ## structure_execution.py
 

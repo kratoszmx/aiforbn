@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import ast
 import json
+import os
 from pathlib import Path
+import subprocess
+import sys
 
 import pandas as pd
 import pytest
@@ -16,6 +19,41 @@ from materials.ranking_tables import _candidate_ranking_uncertainty_table
 from materials.summary import build_experiment_summary
 from materials.structure_execution import build_structure_first_pass_execution_artifacts
 from materials.structure_helpers import _structure_first_pass_execution_config
+
+
+def test_plot_module_rejects_human_docs_mpl_cache_before_import(tmp_path):
+    project_root = tmp_path / 'synthetic-project'
+    human_docs_cache = project_root / 'human_docs' / 'mpl'
+    env = dict(os.environ)
+    env.update({
+        'AIFORBN_SYNTHETIC_PROJECT_ROOT': str(project_root),
+        'MPLCONFIGDIR': str(human_docs_cache),
+        'PYTHONDONTWRITEBYTECODE': '1',
+        'PYTHONPATH': str(Path(__file__).resolve().parents[2]),
+    })
+    script = (
+        'import os\n'
+        'from pathlib import Path\n'
+        'from runtime import io_utils\n'
+        "io_utils.PROJECT_ROOT = Path(os.environ['AIFORBN_SYNTHETIC_PROJECT_ROOT'])\n"
+        'try:\n'
+        '    import materials.plots\n'
+        'except ValueError as exc:\n'
+        "    assert 'user-owned human_docs' in str(exc)\n"
+        'else:\n'
+        "    raise AssertionError('materials.plots import must reject protected MPLCONFIGDIR')\n"
+    )
+
+    result = subprocess.run(
+        [sys.executable, '-c', script],
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert not (project_root / 'human_docs').exists()
 
 
 def test_public_artifact_and_plot_writers_reject_human_docs_output(tmp_path, monkeypatch):

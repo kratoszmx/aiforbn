@@ -1,16 +1,21 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 import re
 
-os.environ.setdefault('MPLBACKEND', 'Agg')
-os.environ.setdefault('MPLCONFIGDIR', '/tmp/ai_for_bn_mplconfig')
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from runtime.io_utils import make_json_safe, validate_runtime_output_path, write_json_file
+from runtime.io_utils import (
+    configure_matplotlib_cache,
+    make_json_safe,
+    validate_runtime_output_path,
+    write_json_file,
+)
+
+configure_matplotlib_cache()
+import matplotlib.pyplot as plt
+
 from materials.data import load_cached_raw_record_lookup
 from materials.constants import *
 from materials.candidate_space import *

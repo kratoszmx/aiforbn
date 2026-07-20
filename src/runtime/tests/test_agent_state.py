@@ -227,6 +227,46 @@ def test_write_agent_state_rejects_human_docs_output(tmp_path):
     assert not output_path.exists()
 
 
+def test_write_agent_state_rejects_case_alias_of_human_docs(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(agent_state, 'PROJECT_ROOT', tmp_path)
+    human_docs_dir = tmp_path / 'human_docs'
+    human_docs_dir.mkdir()
+    case_alias_dir = tmp_path / 'HUMAN_DOCS'
+    if not case_alias_dir.exists() or not case_alias_dir.samefile(human_docs_dir):
+        pytest.skip('filesystem is case-sensitive')
+    output_path = case_alias_dir / 'agent-state.json'
+    state = {
+        'project_root': str(tmp_path),
+        'schema_version': 'aiforbn.agent_state.v1',
+    }
+
+    with pytest.raises(ValueError, match='user-owned human_docs'):
+        agent_state.write_agent_state(state, output_path)
+
+    assert not (human_docs_dir / output_path.name).exists()
+
+
+def test_write_agent_state_serializes_before_parent_creation(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(agent_state, 'PROJECT_ROOT', tmp_path)
+    output_path = tmp_path / 'new-parent' / 'agent-state.json'
+    state = {
+        'project_root': str(tmp_path),
+        'schema_version': 'aiforbn.agent_state.v1',
+        'invalid': object(),
+    }
+
+    with pytest.raises(TypeError, match='JSON serializable'):
+        agent_state.write_agent_state(state, output_path)
+
+    assert not output_path.parent.exists()
+
+
 def test_write_agent_state_does_not_trust_a_deceptive_state_project_root(
     tmp_path,
     monkeypatch,
@@ -424,6 +464,32 @@ def test_validate_agent_layout_rejects_missing_human_docs_marker(monkeypatch, re
             lambda manifest: manifest['validation_profiles'][0].pop('use_when'),
             'missing_validation_profile_use_when',
         ),
+        (
+            lambda manifest: manifest['validation_profiles'][0].update(
+                {'commands': []}
+            ),
+            'invalid_validation_profile_commands',
+        ),
+        (
+            lambda manifest: manifest['validation_profiles'][0].update({
+                'commands': [
+                    command
+                    for command in manifest['validation_profiles'][0]['commands']
+                    if command != 'focused_regression'
+                ],
+            }),
+            'unexpected_validation_profile_commands',
+        ),
+        (
+            lambda manifest: manifest.update({
+                'validation_profiles': [
+                    profile
+                    for profile in manifest['validation_profiles']
+                    if profile['name'] != 'ui_edit'
+                ],
+            }),
+            'missing_required_validation_profiles',
+        ),
     ],
 )
 def test_validate_agent_layout_rejects_incomplete_validation_profiles(
@@ -493,6 +559,43 @@ def test_validate_agent_layout_rejects_incomplete_validation_profiles(
     ],
 )
 def test_validate_agent_layout_rejects_incomplete_command_surface(
+    mutate_manifest,
+    expected_error_code,
+):
+    manifest = json.loads(json.dumps(load_agent_manifest(ROOT)))
+    mutate_manifest(manifest)
+
+    validation = validate_agent_layout(ROOT, manifest)
+
+    assert validation['status'] == 'error'
+    assert any(error['code'] == expected_error_code for error in validation['errors'])
+
+
+@pytest.mark.parametrize(
+    ('mutate_manifest', 'expected_error_code'),
+    [
+        (
+            lambda manifest: manifest.update({'project_skills': []}),
+            'unexpected_project_skills',
+        ),
+        (
+            lambda manifest: [
+                skill.update({'name': f'renamed-{index}'})
+                for index, skill in enumerate(manifest['project_skills'])
+            ],
+            'unexpected_project_skills',
+        ),
+        (
+            lambda manifest: manifest.update({'retired_guidance_files': []}),
+            'unexpected_retired_guidance_files',
+        ),
+        (
+            lambda manifest: manifest.pop('retired_guidance_files'),
+            'unexpected_retired_guidance_files',
+        ),
+    ],
+)
+def test_validate_agent_layout_pins_skills_and_retired_guidance(
     mutate_manifest,
     expected_error_code,
 ):

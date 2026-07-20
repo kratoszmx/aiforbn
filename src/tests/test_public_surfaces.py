@@ -15,6 +15,13 @@ FILE_HEADING_PATTERN = re.compile(
     r'^##\s+(?:`(?P<quoted>[^`]+\.py)`|(?P<plain>\S+\.py))\s*$'
 )
 PUBLIC_ENTRY_PATTERN = re.compile(r'^- `([A-Za-z_][A-Za-z0-9_]*)\s*(?:\([^`]*\))?`')
+PUBLIC_CALLABLE_ENTRY_PATTERN = re.compile(
+    r'^- `(?P<name>[A-Za-z_][A-Za-z0-9_]*)\((?P<parameters>[^`]*)\)`'
+)
+ROOT_MODULE_HEADING_PATTERN = re.compile(r'^## src/(?P<module>[A-Za-z_][A-Za-z0-9_]*)/$')
+ROOT_CALLABLE_HEADING_PATTERN = re.compile(
+    r'^### `(?P<name>[A-Za-z_][A-Za-z0-9_]*)\((?P<parameters>[^`]*)\)`$'
+)
 
 
 def _documented_public_names(module_name: str) -> set[str]:
@@ -89,6 +96,105 @@ def _defined_top_level_names(source_path: Path) -> set[str]:
                 for alias in node.names
             )
     return names
+
+
+def _documented_callable_parameters_by_file(
+    summary_path: Path,
+) -> dict[str, dict[str, tuple[list[str], bool]]]:
+    documented: dict[str, dict[str, tuple[list[str], bool]]] = {}
+    current_file: str | None = None
+    for line in summary_path.read_text(encoding='utf-8').splitlines():
+        heading_match = FILE_HEADING_PATTERN.match(line)
+        if heading_match:
+            current_file = heading_match.group('quoted') or heading_match.group('plain')
+            documented.setdefault(current_file, {})
+            continue
+        if line.startswith('## '):
+            current_file = None
+            continue
+        entry_match = PUBLIC_CALLABLE_ENTRY_PATTERN.match(line)
+        if current_file is None or entry_match is None:
+            continue
+        documented[current_file][entry_match.group('name')] = (
+            _parse_documented_parameters(entry_match.group('parameters'))
+        )
+    return documented
+
+
+def _parse_documented_parameters(parameters_text: str) -> tuple[list[str], bool]:
+    raw_parameters = [
+        parameter.strip() for parameter in parameters_text.split(',')
+    ]
+    has_ellipsis = '...' in raw_parameters
+    parameter_names = [
+        (
+            parameter
+            if parameter in {'*', '/'}
+            else parameter.split('=', 1)[0].strip()
+        )
+        for parameter in raw_parameters
+        if parameter not in {'', '...'}
+    ]
+    return parameter_names, has_ellipsis
+
+
+def _root_documented_callable_parameters() -> dict[str, dict[str, tuple[list[str], bool]]]:
+    documented: dict[str, dict[str, tuple[list[str], bool]]] = {}
+    current_module: str | None = None
+    for line in (ROOT / 'docs' / 'PY_FILES_SUMMARY.md').read_text(
+        encoding='utf-8'
+    ).splitlines():
+        module_match = ROOT_MODULE_HEADING_PATTERN.match(line)
+        if module_match:
+            current_module = module_match.group('module')
+            documented.setdefault(current_module, {})
+            continue
+        if line.startswith('## '):
+            current_module = None
+            continue
+        callable_match = ROOT_CALLABLE_HEADING_PATTERN.match(line)
+        if current_module is None or callable_match is None:
+            continue
+        documented[current_module][callable_match.group('name')] = (
+            _parse_documented_parameters(callable_match.group('parameters'))
+        )
+    return documented
+
+
+def _defined_top_level_function_parameters(source_path: Path) -> dict[str, list[str]]:
+    tree = ast.parse(source_path.read_text(encoding='utf-8'), filename=str(source_path))
+    signatures: dict[str, list[str]] = {}
+    for node in tree.body:
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        parameters = [
+            argument.arg
+            for argument in node.args.posonlyargs
+        ]
+        if node.args.posonlyargs:
+            parameters.append('/')
+        parameters.extend(argument.arg for argument in node.args.args)
+        if node.args.vararg is not None:
+            parameters.append(f'*{node.args.vararg.arg}')
+        elif node.args.kwonlyargs:
+            parameters.append('*')
+        parameters.extend(argument.arg for argument in node.args.kwonlyargs)
+        if node.args.kwarg is not None:
+            parameters.append(f'**{node.args.kwarg.arg}')
+        signatures[node.name] = parameters
+    return signatures
+
+
+def _documented_parameters_match(
+    documented_parameters: list[str],
+    has_ellipsis: bool,
+    live_parameters: list[str],
+) -> bool:
+    return (
+        live_parameters[:len(documented_parameters)] == documented_parameters
+        if has_ellipsis
+        else live_parameters == documented_parameters
+    )
 
 
 def test_explicit_cross_module_imports_are_documented_public_surfaces():
@@ -203,6 +309,83 @@ def test_every_documented_public_symbol_exists_in_its_declared_file():
         f'{empty_production_modules}'
     )
     assert missing == []
+
+
+def test_documented_public_callable_parameter_order_matches_live_source():
+    mismatches: list[tuple[str, str, list[str], list[str]]] = []
+    checked_callable_count = 0
+    for module_name in MODULE_DIRS:
+        summary_path = SRC_ROOT / module_name / 'PY_FILES_SUMMARY.md'
+        for file_name, documented_callables in (
+            _documented_callable_parameters_by_file(summary_path).items()
+        ):
+            source_path = SRC_ROOT / module_name / file_name
+            if not source_path.is_file():
+                continue
+            live_signatures = _defined_top_level_function_parameters(source_path)
+            for callable_name, (documented_parameters, has_ellipsis) in (
+                documented_callables.items()
+            ):
+                live_parameters = live_signatures.get(callable_name)
+                if live_parameters is None:
+                    continue
+                checked_callable_count += 1
+                matches = _documented_parameters_match(
+                    documented_parameters,
+                    has_ellipsis,
+                    live_parameters,
+                )
+                if not matches:
+                    mismatches.append((
+                        str(source_path.relative_to(ROOT)),
+                        callable_name,
+                        documented_parameters,
+                        live_parameters,
+                    ))
+
+    assert checked_callable_count > 0, 'No documented callable signatures were checked'
+    assert mismatches == []
+
+
+def test_root_public_summary_callable_parameter_order_matches_live_source():
+    mismatches: list[tuple[str, str, list[str], list[str]]] = []
+    checked_callable_count = 0
+    for module_name, documented_callables in (
+        _root_documented_callable_parameters().items()
+    ):
+        module_dir = SRC_ROOT / module_name
+        if not module_dir.is_dir():
+            continue
+        live_candidates: dict[str, list[tuple[Path, list[str]]]] = {}
+        for source_path in module_dir.glob('*.py'):
+            for callable_name, live_parameters in (
+                _defined_top_level_function_parameters(source_path).items()
+            ):
+                live_candidates.setdefault(callable_name, []).append(
+                    (source_path, live_parameters)
+                )
+        for callable_name, (documented_parameters, has_ellipsis) in (
+            documented_callables.items()
+        ):
+            candidates = live_candidates.get(callable_name, [])
+            if len(candidates) != 1:
+                continue
+            source_path, live_parameters = candidates[0]
+            checked_callable_count += 1
+            if not _documented_parameters_match(
+                documented_parameters,
+                has_ellipsis,
+                live_parameters,
+            ):
+                mismatches.append((
+                    str(source_path.relative_to(ROOT)),
+                    callable_name,
+                    documented_parameters,
+                    live_parameters,
+                ))
+
+    assert checked_callable_count > 0, 'No root-summary callable signatures were checked'
+    assert mismatches == []
 
 
 def test_imported_runtime_json_helpers_count_as_live_public_reexports():

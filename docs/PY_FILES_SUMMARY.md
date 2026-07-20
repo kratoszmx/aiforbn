@@ -127,21 +127,24 @@ Purpose:
 - reuses shared JSON helpers from `myutils/file_utils/json_io.py`
 
 ### `load_config(path)`
-Loads the Python config module and returns its `CONFIG` dict.
+Compiles a trusted Python config without emitting `__pycache__`, returns its `CONFIG` dict, and rejects user-owned `human_docs/` as executable configuration state.
 
 ### `validate_runtime_output_path(path, project_root_path=None, *, required_parent_path=None, reject_leaf_symlink=False, expected_output_kind=None)`
 Returns the canonical path used by writers after enforcing canonical/declared human-doc exclusion, optional configured-root containment, leaf kind and symlink rules, directory-only parent chains, and hardlink rejection. An alternate declared root cannot weaken the canonical guard. Public dataset, artifact, plot, and JSON writers call this before mutation.
+
+### `configure_matplotlib_cache()`
+Validates and canonicalizes `MPLCONFIGDIR` before Matplotlib or JARVIS import-time cache creation, exports the exact guarded path back to the environment, and leaves directory creation to the dependency.
 
 ### `ensure_runtime_dirs(cfg, project_root_path='.')`
 Preflights all configured runtime directories before creating any of them, so invalid file leaves or parent chains fail without partial directory creation.
 Currently this means the config-driven data/cache/artifact directories, rather than legacy source-tree folders like `apps/` or `notebooks/`.
 
 ### `clear_project_cache(project_root_path='.')`
-Rejects roots that resolve inside the canonical user-owned `human_docs/` before discovery, then uses the current `myutils/file_utils/filesystem.py` discovery API and removes real cache directories outside protected human-doc paths while safely skipping cache-directory symlinks.
+Rejects roots inside user-owned `human_docs/` and caller roots containing any symlink component before discovery, then uses the current `myutils/file_utils/filesystem.py` discovery API and removes only real cache directories that resolve beneath the canonical root and outside protected human-doc paths.
 Use before tests or batch runs, per project skill requirements.
 
 ### `read_json_file(path)` / `write_json_file(payload, path, ...)` / `make_json_safe(value)`
-Shared JSON helpers from `myutils`; the write wrapper first enforces the runtime output and filesystem-alias boundary.
+Shared JSON helpers from `myutils`; the write wrapper enforces the runtime output and filesystem-alias boundary, then serializes and encode-checks before any parent creation.
 Use these instead of ad hoc `json.loads(path.read_text())` or `path.write_text(json.dumps(...))` patterns when reading/writing repo artifacts.
 
 ---
@@ -156,7 +159,7 @@ Purpose:
 Loads the checked-in agent manifest.
 
 ### `validate_agent_layout(project_root_path='.', manifest=None)`
-Checks required agent-facing files, exact control/validation commands, local instruction paths, the exact six-module path/role/public-surface/local-utils/dependency contracts, strict v18 research-plan alignment, and manifest-declared dependency imports.
+Checks required agent-facing files, exact control/validation commands and validation-profile command sequences, exact active project-skill and retired-guidance records, local instruction paths, the exact six-module contracts, strict v18 research-plan alignment, and manifest-declared dependency imports.
 Returns:
 - `status`
 - `errors`
@@ -173,7 +176,7 @@ Builds the JSON-serializable command index used by `main.py --emit-agent-command
 Serializes the live state for stdout or log capture.
 
 ### `write_agent_state(state, path)`
-Writes the live state to a JSON file while refusing runtime-state output under the canonical or state-declared user-owned `human_docs/` and existing file leaves with multiple hard links; the payload cannot redirect the canonical guard.
+Serializes before parent creation, then writes the live state while refusing canonical, state-declared, or filesystem-equivalent user-owned `human_docs/` targets and multi-hardlink leaves; the payload cannot redirect the canonical guard.
 
 ---
 
@@ -190,6 +193,7 @@ Current behavior:
 - prefers cached processed parquet only when its manifest matches the requested dataset, source, and target column and the dataframe has all required normalized columns
 - rebuilds stale processed cache from cached raw JSON when needed
 - downloads from JARVIS only when cached raw JSON is absent
+- guards `MPLCONFIGDIR` before the JARVIS import, preflights the concrete JARVIS archive leaf, and binds JARVIS `store_dir` to the canonical raw directory instead of trusting `ATOMGPTLAB_CACHE`
 - writes lightweight structure-summary columns derived from cached `atoms` / lattice data
 
 Important normalized columns include:
@@ -609,7 +613,7 @@ Implementation is split across:
 - `src/materials/structure_helpers.py`
 - `src/materials/structure_execution.py`
 
-### `build_structure_first_pass_execution_artifacts(structure_generation_seed_df, cfg=None, formula_col='formula', structure_model=None, structure_feature_columns=None, structure_feature_set=None, structure_model_type=None)`
+### `build_structure_first_pass_execution_artifacts(structure_generation_seed_df, *, cfg, formula_col='formula', structure_model=None, structure_feature_columns=None, structure_feature_set=None, structure_model_type=None)`
 Builds the current **first-pass structure execution layer** from the prototype-grounded shortlist / queue view.
 Current behavior:
 - takes the top follow-up candidates implied by the structure-generation bridge
@@ -835,7 +839,7 @@ Implementation is split across:
 - `src/materials/artifacts.py`
 - `src/materials/plots.py`
 
-### `build_experiment_summary(dataset_df, bn_df, candidate_df, split_masks, selection_summary, cfg, robustness_df=None, bn_slice_benchmark_df=None, bn_centered_candidate_df=None, bn_centered_screening_selection=None, structure_generation_seed_df=None)`
+### `build_experiment_summary(dataset_df, bn_df, candidate_df, split_masks, selection_summary, cfg, robustness_df=None, bn_slice_benchmark_df=None, bn_family_benchmark_df=None, bn_stratified_error_df=None, bn_centered_candidate_df=None, bn_centered_screening_selection=None, structure_generation_seed_df=None, ...)`
 Builds the structured experiment summary dict written to `artifacts/experiment_summary.json`.
 Includes:
 - dataset stats
@@ -868,7 +872,7 @@ Important:
 - now also summarizes grouped candidate-robustness penalty settings, fold count, average spread, and penalized-row count
 - now also summarizes the family-aware proposal shortlist and the formula-level extrapolation shortlist as separate advisor-facing outputs
 
-### `save_metrics_and_predictions(metrics, prediction_df, bn_df, screened_df, benchmark_df, robustness_df, bn_slice_benchmark_df, bn_slice_prediction_df, bn_centered_screened_df, structure_generation_seed_df, experiment_summary, manifest, cfg)`
+### `save_metrics_and_predictions(metrics, prediction_df, bn_df, screened_df, benchmark_df, robustness_df, bn_slice_benchmark_df, bn_slice_prediction_df, bn_centered_screened_df, structure_generation_seed_df, experiment_summary, manifest, cfg, ...)`
 Writes the main artifact files under `artifacts/`.
 Every fixed, configurable, dynamic, and stale-cleanup CIF leaf is preflighted in its originally declared form before directory creation. Configurable structure-execution outputs must remain under that directory, use the expected JSON/CSV types, avoid core/pairwise/alias collisions, and place CIF files directly under the configured structure directory. Empty execution results remove only preflighted stale execution outputs from a previous run.
 This now includes both shortlist CSVs, BN-slice benchmark artifacts, BN-family / stratified BN evaluation artifacts, the BN-centered alternative ranking artifact, the ranking-stability / abstention artifact, the BN candidate-compatible evaluation artifact, and the structure-generation bridge artifacts in addition to the full ranking artifact:
@@ -895,7 +899,7 @@ This now includes both shortlist CSVs, BN-slice benchmark artifacts, BN-family /
 - `demo_candidate_extrapolation_shortlist.csv`
 
 ### `save_basic_plots(prediction_df, cfg)`
-Preflights and writes the parity plot without following a leaf alias into user-owned `human_docs/`.
+Guards and canonicalizes the Matplotlib cache before pyplot import, then preflights and writes the parity plot without following a leaf alias into user-owned `human_docs/`.
 
 ---
 

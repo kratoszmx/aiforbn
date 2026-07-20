@@ -1,4 +1,5 @@
 from pathlib import Path
+import sys
 
 import numpy as np
 import pandas as pd
@@ -63,6 +64,31 @@ def test_load_config_from_python_module(tmp_path: Path):
 
     assert cfg['project']['name'] == 'demo'
     assert cfg['value'] == 7
+    assert not (tmp_path / '__pycache__').exists()
+
+
+def test_load_config_rejects_human_docs_before_execution(
+    tmp_path: Path,
+    monkeypatch,
+):
+    monkeypatch.setattr(io_utils, 'PROJECT_ROOT', tmp_path)
+    human_docs_dir = tmp_path / 'human_docs'
+    human_docs_dir.mkdir()
+    sentinel_path = tmp_path / 'executed.txt'
+    cfg_path = human_docs_dir / 'user_config.py'
+    cfg_path.write_text(
+        'from pathlib import Path\n'
+        f'Path({str(sentinel_path)!r}).write_text("executed", encoding="utf-8")\n'
+        'CONFIG = {"value": 1}\n',
+        encoding='utf-8',
+    )
+    monkeypatch.setattr(sys, 'dont_write_bytecode', False)
+
+    with pytest.raises(ValueError, match='user-owned human_docs'):
+        load_config(cfg_path)
+
+    assert not sentinel_path.exists()
+    assert not (human_docs_dir / '__pycache__').exists()
 
 
 def test_ensure_runtime_dirs_only_creates_configured_runtime_dirs(tmp_path: Path, monkeypatch):
@@ -175,6 +201,19 @@ def test_write_json_file_uses_the_guarded_canonical_path(tmp_path: Path, monkeyp
     assert captured_paths == [declared_path.expanduser().resolve(strict=False)]
 
 
+def test_write_json_file_rejects_unserializable_payload_before_parent_creation(
+    tmp_path: Path,
+    monkeypatch,
+):
+    monkeypatch.setattr(io_utils, 'PROJECT_ROOT', tmp_path)
+    output_path = tmp_path / 'new-parent' / 'payload.json'
+
+    with pytest.raises(ValueError, match='not JSON-serializable'):
+        write_json_file({'invalid': object()}, output_path)
+
+    assert not output_path.parent.exists()
+
+
 def test_write_json_file_rejects_a_hardlinked_output_alias(
     tmp_path: Path,
     monkeypatch,
@@ -206,6 +245,11 @@ def test_write_json_file_rejects_symbolic_link_and_directory_leaves(
 
     with pytest.raises(ValueError, match='symbolic-link'):
         write_json_file({'overwrite': True}, symlink_output)
+
+    dangling_output = tmp_path / 'artifacts' / 'dangling.json'
+    dangling_output.symlink_to(tmp_path / 'artifacts' / 'missing.json')
+    with pytest.raises(ValueError, match='symbolic-link'):
+        write_json_file({'overwrite': True}, dangling_output)
 
     directory_output = tmp_path / 'artifacts' / 'directory.json'
     directory_output.mkdir()
@@ -275,6 +319,7 @@ def test_runtime_output_guard_rejects_normalized_and_symlinked_human_docs_paths(
 ):
     monkeypatch.setattr(io_utils, 'PROJECT_ROOT', tmp_path)
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv('HOME', str(tmp_path))
     human_docs_dir = tmp_path / 'human_docs'
     human_docs_dir.mkdir()
     symlinked_parent = tmp_path / 'symlinked-parent'
@@ -290,6 +335,7 @@ def test_runtime_output_guard_rejects_normalized_and_symlinked_human_docs_paths(
         human_docs_dir / 'absolute.json',
         Path('./human_docs/./normalized.json'),
         Path('data/../human_docs/traversal.json'),
+        Path('~/human_docs/home-expanded.json'),
         Path('symlinked-parent/existing-child.json'),
         Path('symlinked-parent/not-yet/child.json'),
         Path('symlinked-leaf.json'),
@@ -304,6 +350,24 @@ def test_runtime_output_guard_rejects_normalized_and_symlinked_human_docs_paths(
     assert validate_runtime_output_path('human_docs_backup/output.json') == (
         tmp_path / 'human_docs_backup/output.json'
     )
+
+
+def test_runtime_output_guard_rejects_case_alias_of_human_docs(
+    tmp_path: Path,
+    monkeypatch,
+):
+    monkeypatch.setattr(io_utils, 'PROJECT_ROOT', tmp_path)
+    human_docs_dir = tmp_path / 'human_docs'
+    human_docs_dir.mkdir()
+    case_alias_dir = tmp_path / 'HUMAN_DOCS'
+    if not case_alias_dir.exists() or not case_alias_dir.samefile(human_docs_dir):
+        pytest.skip('filesystem is case-sensitive')
+    output_path = case_alias_dir / 'case-alias.json'
+
+    with pytest.raises(ValueError, match='user-owned human_docs'):
+        write_json_file({'forbidden': True}, output_path)
+
+    assert not (human_docs_dir / output_path.name).exists()
 
 
 def test_ensure_runtime_dirs_does_not_trust_a_deceptive_project_root(
@@ -357,6 +421,66 @@ def test_clear_project_cache_uses_myutils_discovery_and_preserves_human_docs(tmp
     assert cache_alias.exists()
     assert allowed_cache_alias.exists()
     assert allowed_alias_sentinel.exists()
+
+
+@pytest.mark.parametrize('alias_position', ['leaf', 'parent'])
+def test_clear_project_cache_rejects_symlinked_project_root_components(
+    tmp_path: Path,
+    monkeypatch,
+    alias_position,
+):
+    canonical_project_root = tmp_path / 'canonical-project'
+    canonical_project_root.mkdir()
+    monkeypatch.setattr(io_utils, 'PROJECT_ROOT', canonical_project_root)
+    outside_parent = tmp_path / 'outside'
+    outside_project = (
+        outside_parent if alias_position == 'leaf' else outside_parent / 'project'
+    )
+    outside_cache = outside_project / 'pkg' / '__pycache__'
+    outside_cache.mkdir(parents=True)
+    outside_sentinel = outside_cache / 'keep.pyc'
+    outside_sentinel.write_text('keep', encoding='utf-8')
+    root_alias = tmp_path / 'project-link'
+    root_alias.symlink_to(
+        outside_project if alias_position == 'leaf' else outside_parent,
+        target_is_directory=True,
+    )
+    aliased_project_root = (
+        root_alias if alias_position == 'leaf' else root_alias / outside_project.name
+    )
+
+    with pytest.raises(ValueError, match='project root.*symbolic link'):
+        clear_project_cache(aliased_project_root)
+
+    assert outside_sentinel.read_text(encoding='utf-8') == 'keep'
+
+
+def test_clear_project_cache_skips_cache_reached_through_parent_symlink(
+    tmp_path: Path,
+    tmp_path_factory,
+    monkeypatch,
+):
+    real_cache = tmp_path / 'pkg' / '__pycache__'
+    real_cache.mkdir(parents=True)
+    outside_root = tmp_path_factory.mktemp('outside-cache')
+    outside_cache = outside_root / 'pkg' / '__pycache__'
+    outside_cache.mkdir(parents=True)
+    outside_sentinel = outside_cache / 'keep.pyc'
+    outside_sentinel.write_text('keep', encoding='utf-8')
+    escape_parent = tmp_path / 'escape'
+    escape_parent.symlink_to(outside_root, target_is_directory=True)
+    escaped_cache_path = escape_parent / 'pkg' / '__pycache__'
+    monkeypatch.setattr(
+        io_utils,
+        'find_cache_dirs',
+        lambda _root: [real_cache, escaped_cache_path],
+    )
+
+    deleted = clear_project_cache(tmp_path)
+
+    assert deleted == [real_cache]
+    assert not real_cache.exists()
+    assert outside_sentinel.read_text(encoding='utf-8') == 'keep'
 
 
 @pytest.mark.parametrize('use_symlink', [False, True])
