@@ -11,7 +11,7 @@ Anything underscore-prefixed or omitted here should be treated as internal.
   - Render the Streamlit artifact viewer for the generated project outputs.
   - Includes BN model-role evidence, default-vs-BN-centered rank-stability evidence,
     and the unrelaxed structure follow-up handoff report; absent optional artifacts are skipped.
-  - Resolves the configured artifact root and configured execution paths, then applies valid summary-declared overrides. Present summary declarations that are invalid, missing, aliased, or absent from the v2 commitment fail closed; disabled/empty execution keeps its configured baseline without reviving stale default paths.
+  - Resolves the configured artifact root and execution paths, then accepts a summary declaration only when it identifies that same guarded file. Wrong-shaped nested summary objects, cross-role relabeling, missing/invalid paths, and paths absent from the v2 commitment fail closed; absent/null/empty containers retain the configured baseline without reviving stale outputs.
   - Verifies v2 committed output bytes and renders report content only after the viewer's final assessment is current with a concrete committed-path set. Missing, changed, malformed, legacy, incomplete, or uncommitted-known bundles stay non-green and render no report tables; JSON/CSV read failures produce text warnings instead of renderer failures.
 
 ## utils.py
@@ -21,5 +21,5 @@ Anything underscore-prefixed or omitted here should be treated as internal.
 ## tests/
 
 - `test_streamlit_app.py`
-  - Covers the source-derived fixed/dynamic render inventory, completion/provenance/content-mutation states, configured/nested path transitions, invalid or aliased summary declarations, unrelated-extra tolerance, and malformed JSON/CSV handling while verifying the supported `width='stretch'` dataframe contract.
+  - Covers the source-derived fixed/dynamic render inventory, completion/provenance/content-mutation states, configured/nested path transitions, nested object-shape matrices, guarded file-identity and role matching, unrelated-extra tolerance, and malformed JSON/CSV handling while verifying the supported `width='stretch'` dataframe contract.
   - Runs the app through Streamlit's real `AppTest` renderer, including asymmetric BN slice/family prediction states and malformed/legacy/non-current provenance suppression, so import and render failures remain text-verifiable.

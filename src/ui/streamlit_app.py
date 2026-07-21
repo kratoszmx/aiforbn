@@ -103,23 +103,33 @@ def _build_artifact_paths(
         )
         for key, default_path in ARTIFACT_PATHS.items()
     }
-    bridge = (
-        ((experiment_summary or {}).get('screening') or {}).get(
-            'structure_generation_bridge'
-        )
-        or {}
-    )
+    declared_summary_keys: set[str] = set()
+    invalid_summary_keys: set[str] = set()
+    summary_payload = experiment_summary or {}
+    screening = summary_payload.get('screening')
+    if screening is None:
+        screening = {}
+    elif not isinstance(screening, dict):
+        screening = {}
+        declared_summary_keys.update(_SUMMARY_EXECUTION_PATH_FIELDS)
+        invalid_summary_keys.update(_SUMMARY_EXECUTION_PATH_FIELDS)
+    bridge = screening.get('structure_generation_bridge')
+    if bridge is None:
+        bridge = {}
+    elif not isinstance(bridge, dict):
+        bridge = {}
+        declared_summary_keys.update(_SUMMARY_EXECUTION_PATH_FIELDS)
+        invalid_summary_keys.update(_SUMMARY_EXECUTION_PATH_FIELDS)
     execution_cfg = (
         ((cfg.get('screening') or {}).get('structure_first_pass_execution'))
         or {}
     )
-    declared_summary_keys: set[str] = set()
-    invalid_summary_keys: set[str] = set()
     for key, summary_field_name in _SUMMARY_EXECUTION_PATH_FIELDS.items():
         config_field_name = summary_field_name.removeprefix('first_pass_execution_')
         configured_value = execution_cfg.get(config_field_name)
         if configured_value:
             paths[key] = _artifact_file_path(artifact_root, configured_value)
+        configured_path = paths[key]
         if summary_field_name not in bridge:
             continue
         declared_summary_keys.add(key)
@@ -127,15 +137,30 @@ def _build_artifact_paths(
             artifact_root,
             bridge[summary_field_name],
         )
+        matches_configured_path = (
+            summary_path is not None
+            and configured_path is not None
+            and summary_path == configured_path
+        )
+        if (
+            not matches_configured_path
+            and summary_path is not None
+            and configured_path is not None
+        ):
+            try:
+                matches_configured_path = summary_path.samefile(configured_path)
+            except OSError:
+                pass
         if (
             summary_path is None
+            or not matches_configured_path
             or summary_path.suffix.casefold()
             != ARTIFACT_PATHS[key].suffix.casefold()
         ):
             paths[key] = None
             invalid_summary_keys.add(key)
         else:
-            paths[key] = summary_path
+            paths[key] = configured_path
     for key in declared_summary_keys - invalid_summary_keys:
         if any(
             other_key != key and other_path == paths[key]

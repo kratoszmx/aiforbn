@@ -142,6 +142,7 @@ def _save_structure_execution_bundle(
     execution_paths: dict[str, str] | None,
     execution_active: bool,
     summary_execution_overrides: dict[str, object] | None = None,
+    summary_mutator=None,
 ):
     from runtime import io_utils
     from materials.summary import build_experiment_summary
@@ -226,6 +227,8 @@ def _save_structure_execution_bundle(
         summary['screening']['structure_generation_bridge'].update(
             summary_execution_overrides
         )
+    if summary_mutator is not None:
+        summary_mutator(summary)
     manifest = {
         'name': 'twod_matpd',
         'source': 'jarvis-tools/figshare',
@@ -292,6 +295,38 @@ def _run_real_streamlit_app(tmp_path: Path, cfg: dict, module_name: str):
         encoding='utf-8',
     )
     return AppTest.from_file(str(wrapper_path)).run(timeout=10)
+
+
+def _stub_current_source(monkeypatch):
+    from runtime import io_utils
+
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    return io_utils
+
+
+def _assert_saved_bundle_current(io_utils, artifact_dir, cfg, project_root):
+    provenance = io_utils.read_json_file(
+        artifact_dir / 'artifact_provenance.json'
+    )
+    manifest = io_utils.read_json_file(artifact_dir / 'manifest.json')
+    assert io_utils.assess_artifact_provenance(
+        provenance,
+        cfg,
+        manifest,
+        project_root_path=project_root,
+    )['status'] == 'current'
+
+
+def _assert_only_provenance_rendered(app):
+    assert len(app.exception) == 0
+    assert len(app.success) == 0
+    assert {node.value for node in app.subheader} == {
+        'Artifact bundle provenance'
+    }
 
 
 def test_streamlit_app_reads_generated_artifacts(tmp_path, monkeypatch):
@@ -494,7 +529,13 @@ def test_streamlit_app_uses_configured_artifact_root_and_summary_paths(
 
     cfg = {
         'project': {'artifact_dir': str(configured_artifact_dir)},
-        'screening': {},
+        'screening': {
+            'structure_first_pass_execution': {
+                'artifact': 'nested/execution.json',
+                'summary_artifact': 'nested/summary.csv',
+                'variants_artifact': 'nested/variants.csv',
+            },
+        },
     }
     manifest = {
         'name': 'twod_matpd',
@@ -679,6 +720,311 @@ def test_streamlit_rejects_invalid_dynamic_summary_path_contract(
     assert {node.value for node in app.subheader} == {
         'Artifact bundle provenance'
     }
+
+
+@pytest.mark.parametrize(
+    'summary_execution_overrides',
+    [
+        pytest.param(
+            {'first_pass_execution_summary_artifact': 'bn_slice.csv'},
+            id='summary-relabels-unviewed-csv',
+        ),
+        pytest.param(
+            {'first_pass_execution_variants_artifact': 'bn_slice.csv'},
+            id='variants-relabels-unviewed-csv',
+        ),
+        pytest.param(
+            {
+                'first_pass_execution_summary_artifact': (
+                    'demo_candidate_structure_generation_first_pass_execution_variants.csv'
+                ),
+                'first_pass_execution_variants_artifact': (
+                    'demo_candidate_structure_generation_first_pass_execution_summary.csv'
+                ),
+            },
+            id='summary-and-variants-swap-identities',
+        ),
+    ],
+)
+def test_streamlit_rejects_relabelled_committed_dynamic_output_identity(
+    tmp_path,
+    monkeypatch,
+    summary_execution_overrides,
+):
+    io_utils = _stub_current_source(monkeypatch)
+    artifact_dir = tmp_path / 'artifacts'
+    cfg, _summary, _execution_cfg = _save_structure_execution_bundle(
+        artifact_dir,
+        execution_paths=None,
+        execution_active=True,
+        summary_execution_overrides=summary_execution_overrides,
+    )
+    _assert_saved_bundle_current(io_utils, artifact_dir, cfg, tmp_path)
+
+    app = _run_real_streamlit_app(
+        tmp_path,
+        cfg,
+        'relabelled_dynamic_output_identity',
+    )
+
+    _assert_only_provenance_rendered(app)
+
+
+def test_streamlit_accepts_normalized_equivalent_dynamic_output_identity(
+    tmp_path,
+    monkeypatch,
+):
+    _stub_current_source(monkeypatch)
+    cfg, _summary, _execution_cfg = _save_structure_execution_bundle(
+        tmp_path / 'artifacts',
+        execution_paths={
+            'artifact': 'nested/a/../execution.json',
+            'summary_artifact': 'nested/a/../execution-summary.csv',
+            'variants_artifact': 'nested/a/../execution-variants.csv',
+            'structure_dir': 'nested/a/../cifs',
+        },
+        execution_active=True,
+    )
+
+    app = _run_real_streamlit_app(
+        tmp_path,
+        cfg,
+        'normalized_equivalent_dynamic_output_identity',
+    )
+
+    assert len(app.exception) == 0
+    assert len(app.success) == 1
+    rendered_subheaders = {node.value for node in app.subheader}
+    assert 'Structure first-pass execution JSON' in rendered_subheaders
+    assert 'Structure first-pass execution summary' in rendered_subheaders
+    assert 'Structure first-pass execution variants' in rendered_subheaders
+
+
+def test_streamlit_accepts_case_only_dynamic_identity_when_samefile(
+    tmp_path,
+    monkeypatch,
+):
+    _stub_current_source(monkeypatch)
+    artifact_dir = tmp_path / 'artifacts'
+    configured_name = (
+        'demo_candidate_structure_generation_first_pass_execution.json'
+    )
+    summary_name = configured_name.upper()
+    cfg, _summary, _execution_cfg = _save_structure_execution_bundle(
+        artifact_dir,
+        execution_paths=None,
+        execution_active=True,
+        summary_execution_overrides={
+            'first_pass_execution_artifact': summary_name,
+        },
+    )
+    configured_path = artifact_dir / configured_name
+    summary_path = artifact_dir / summary_name
+    if not summary_path.exists():
+        pytest.skip('local filesystem treats case-only names as distinct files')
+    assert configured_path.samefile(summary_path)
+
+    app = _run_real_streamlit_app(
+        tmp_path,
+        cfg,
+        'case_only_samefile_dynamic_output_identity',
+    )
+
+    assert len(app.exception) == 0
+    assert len(app.success) == 1
+    assert 'Structure first-pass execution JSON' in {
+        node.value for node in app.subheader
+    }
+
+
+@pytest.mark.parametrize(
+    'shape_value',
+    [
+        pytest.param('', id='empty-string'),
+        pytest.param('wrong-shape', id='nonempty-string'),
+        pytest.param([], id='empty-list'),
+        pytest.param([1], id='nonempty-list'),
+        pytest.param(0, id='zero'),
+        pytest.param(1, id='nonzero-number'),
+        pytest.param(False, id='false'),
+        pytest.param(True, id='true'),
+    ],
+)
+@pytest.mark.parametrize('container_name', ['screening', 'structure-generation-bridge'])
+def test_streamlit_rejects_wrong_shaped_nested_summary_containers(
+    tmp_path,
+    monkeypatch,
+    container_name,
+    shape_value,
+):
+    io_utils = _stub_current_source(monkeypatch)
+
+    def mutate_summary(summary):
+        if container_name == 'screening':
+            summary['screening'] = shape_value
+        else:
+            summary['screening']['structure_generation_bridge'] = shape_value
+
+    artifact_dir = tmp_path / 'artifacts'
+    cfg, _summary, _execution_cfg = _save_structure_execution_bundle(
+        artifact_dir,
+        execution_paths=None,
+        execution_active=False,
+        summary_mutator=mutate_summary,
+    )
+    _assert_saved_bundle_current(io_utils, artifact_dir, cfg, tmp_path)
+
+    app = _run_real_streamlit_app(
+        tmp_path,
+        cfg,
+        f'wrong_shape_{container_name}_{type(shape_value).__name__}',
+    )
+
+    _assert_only_provenance_rendered(app)
+
+
+@pytest.mark.parametrize('empty_state', ['absent', 'null', 'empty-mapping'])
+@pytest.mark.parametrize('container_name', ['screening', 'structure-generation-bridge'])
+def test_streamlit_accepts_semantically_empty_nested_summary_containers(
+    tmp_path,
+    monkeypatch,
+    container_name,
+    empty_state,
+):
+    io_utils = _stub_current_source(monkeypatch)
+
+    def mutate_summary(summary):
+        parent = summary
+        key = 'screening'
+        if container_name == 'structure-generation-bridge':
+            parent = summary['screening']
+            key = 'structure_generation_bridge'
+        if empty_state == 'absent':
+            parent.pop(key, None)
+        elif empty_state == 'null':
+            parent[key] = None
+        else:
+            parent[key] = {}
+
+    artifact_dir = tmp_path / 'artifacts'
+    cfg, _summary, _execution_cfg = _save_structure_execution_bundle(
+        artifact_dir,
+        execution_paths=None,
+        execution_active=False,
+        summary_mutator=mutate_summary,
+    )
+    _assert_saved_bundle_current(io_utils, artifact_dir, cfg, tmp_path)
+
+    app = _run_real_streamlit_app(
+        tmp_path,
+        cfg,
+        f'empty_shape_{container_name}_{empty_state}',
+    )
+
+    assert len(app.exception) == 0
+    assert len(app.success) == 1
+    rendered_subheaders = {node.value for node in app.subheader}
+    assert 'Metrics' in rendered_subheaders
+    assert 'Structure first-pass execution JSON' not in rendered_subheaders
+    assert 'Structure first-pass execution summary' not in rendered_subheaders
+    assert 'Structure first-pass execution variants' not in rendered_subheaders
+
+
+@pytest.mark.parametrize('container_name', ['screening', 'structure-generation-bridge'])
+def test_streamlit_same_root_wrong_shape_transition_recovers_cleanly(
+    tmp_path,
+    monkeypatch,
+    container_name,
+):
+    _stub_current_source(monkeypatch)
+    artifact_dir = tmp_path / 'artifacts'
+    cfg, _summary, _execution_cfg = _save_structure_execution_bundle(
+        artifact_dir,
+        execution_paths=None,
+        execution_active=True,
+    )
+    initial_marker = (artifact_dir / 'artifact_provenance.json').read_bytes()
+    initial_app = _run_real_streamlit_app(tmp_path, cfg, 'shape_transition_initial')
+    assert len(initial_app.success) == 1
+
+    def corrupt_summary(summary):
+        if container_name == 'screening':
+            summary['screening'] = []
+        else:
+            summary['screening']['structure_generation_bridge'] = []
+
+    cfg, _summary, _execution_cfg = _save_structure_execution_bundle(
+        artifact_dir,
+        execution_paths=None,
+        execution_active=True,
+        summary_mutator=corrupt_summary,
+    )
+    invalid_marker = (artifact_dir / 'artifact_provenance.json').read_bytes()
+    assert invalid_marker != initial_marker
+    invalid_app = _run_real_streamlit_app(tmp_path, cfg, 'shape_transition_invalid')
+    _assert_only_provenance_rendered(invalid_app)
+
+    cfg, _summary, _execution_cfg = _save_structure_execution_bundle(
+        artifact_dir,
+        execution_paths=None,
+        execution_active=True,
+    )
+    assert (artifact_dir / 'artifact_provenance.json').read_bytes() == initial_marker
+    recovered_app = _run_real_streamlit_app(tmp_path, cfg, 'shape_transition_recovered')
+    assert len(recovered_app.exception) == 0
+    assert len(recovered_app.success) == 1
+    recovered_subheaders = {node.value for node in recovered_app.subheader}
+    assert 'Structure first-pass execution JSON' in recovered_subheaders
+    assert 'Structure first-pass execution summary' in recovered_subheaders
+    assert 'Structure first-pass execution variants' in recovered_subheaders
+
+
+@pytest.mark.parametrize('empty_state', ['absent', 'null', 'empty-mapping'])
+def test_streamlit_active_to_empty_bridge_transition_removes_dynamic_outputs(
+    tmp_path,
+    monkeypatch,
+    empty_state,
+):
+    io_utils = _stub_current_source(monkeypatch)
+    artifact_dir = tmp_path / 'artifacts'
+    _cfg, _summary, execution_cfg = _save_structure_execution_bundle(
+        artifact_dir,
+        execution_paths=None,
+        execution_active=True,
+    )
+
+    def empty_bridge(summary):
+        bridge_parent = summary['screening']
+        if empty_state == 'absent':
+            bridge_parent.pop('structure_generation_bridge', None)
+        elif empty_state == 'null':
+            bridge_parent['structure_generation_bridge'] = None
+        else:
+            bridge_parent['structure_generation_bridge'] = {}
+
+    cfg, _summary, _execution_cfg = _save_structure_execution_bundle(
+        artifact_dir,
+        execution_paths=None,
+        execution_active=False,
+        summary_mutator=empty_bridge,
+    )
+    assert all(
+        not (artifact_dir / execution_cfg[field]).exists()
+        for field in ('artifact', 'summary_artifact', 'variants_artifact')
+    )
+    _assert_saved_bundle_current(io_utils, artifact_dir, cfg, tmp_path)
+    app = _run_real_streamlit_app(
+        tmp_path,
+        cfg,
+        f'active_to_empty_bridge_{empty_state}',
+    )
+    assert len(app.exception) == 0
+    assert len(app.success) == 1
+    rendered_subheaders = {node.value for node in app.subheader}
+    assert 'Metrics' in rendered_subheaders
+    assert 'Structure first-pass execution JSON' not in rendered_subheaders
+    assert 'Structure first-pass execution summary' not in rendered_subheaders
+    assert 'Structure first-pass execution variants' not in rendered_subheaders
 
 
 @pytest.mark.parametrize(
@@ -1012,6 +1358,7 @@ def test_streamlit_provenance_never_marks_incomplete_or_malformed_bundle_current
         ('different-json', False, False),
         ('different-csv', False, False),
         ('changed-summary', False, False),
+        ('malformed-summary', False, False),
         ('changed-manifest', False, False),
         ('changed-optional', False, False),
         ('relocated-root', False, False),
@@ -1085,6 +1432,9 @@ def test_streamlit_real_renderer_never_marks_content_mixed_bundle_current(
         'changed-summary': lambda: (artifact_dir / 'experiment_summary.json').write_text(
             '{"dataset":{"rows":999}}\n', encoding='utf-8'
         ),
+        'malformed-summary': lambda: (
+            artifact_dir / 'experiment_summary.json'
+        ).write_text('{', encoding='utf-8'),
         'changed-manifest': lambda: (artifact_dir / 'manifest.json').write_text(
             json.dumps({**manifest, 'name': 'older_dataset'}), encoding='utf-8'
         ),
