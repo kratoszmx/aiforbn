@@ -802,7 +802,10 @@ def build_experiment_summary(
         artifact_name='demo_candidate_structure_generation_seeds.csv',
         handoff_artifact_name='demo_candidate_structure_generation_handoff.json',
     )
-    if structure_generation_seed_summary.get('enabled'):
+    if (
+        structure_generation_seed_summary.get('enabled')
+        and not structure_generation_seed_df.empty
+    ):
         structure_generation_seed_summary['reference_record_payload_artifact'] = (
             'demo_candidate_structure_generation_reference_records.json'
         )
@@ -848,13 +851,13 @@ def build_experiment_summary(
             formula_col=formula_col,
             cfg_defaults=structure_followup_shortlist_cfg,
         )
-        if bool(structure_followup_shortlist_cfg['enabled']):
-            structure_generation_seed_summary['followup_shortlist_artifact'] = (
-                'demo_candidate_structure_generation_followup_shortlist.csv'
-            )
         selected_followup_df = structure_followup_shortlist_df.loc[
             structure_followup_shortlist_df['structure_followup_shortlist_selected'].fillna(False).astype(bool)
         ].copy() if not structure_followup_shortlist_df.empty else pd.DataFrame()
+        if not selected_followup_df.empty:
+            structure_generation_seed_summary['followup_shortlist_artifact'] = (
+                'demo_candidate_structure_generation_followup_shortlist.csv'
+            )
         structure_generation_seed_summary['followup_shortlist_size'] = int(len(selected_followup_df))
         structure_generation_seed_summary['followup_shortlist_formulas'] = (
             selected_followup_df.sort_values('structure_followup_shortlist_rank', ascending=True)[
@@ -880,7 +883,7 @@ def build_experiment_summary(
                 'structure_followup_extrapolation_shortlist_selected'
             ].fillna(False).astype(bool)
         ].copy() if not structure_followup_extrapolation_shortlist_df.empty else pd.DataFrame()
-        if bool(structure_followup_extrapolation_shortlist_cfg['enabled']):
+        if not selected_followup_extrapolation_df.empty:
             structure_generation_seed_summary['followup_extrapolation_shortlist_artifact'] = (
                 'demo_candidate_structure_generation_followup_extrapolation_shortlist.csv'
             )
@@ -894,7 +897,10 @@ def build_experiment_summary(
             if not selected_followup_extrapolation_df.empty
             else []
         )
-        if structure_first_pass_execution_payload:
+        if (
+            structure_first_pass_execution_payload
+            and not structure_first_pass_execution_summary_df.empty
+        ):
             structure_generation_seed_summary['first_pass_execution_artifact'] = (
                 structure_first_pass_execution_payload.get('artifact')
             )

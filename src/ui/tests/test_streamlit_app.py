@@ -31,6 +31,12 @@ class FakeStreamlit(types.ModuleType):
     def info(self, value):
         self.calls.append(('info', value))
 
+    def warning(self, value):
+        self.calls.append(('warning', value))
+
+    def success(self, value):
+        self.calls.append(('success', value))
+
     def dataframe(self, value, **kwargs):
         self.calls.append(('dataframe', getattr(value, 'shape', None)))
         self.dataframe_kwargs.append(kwargs)
@@ -125,8 +131,87 @@ def test_streamlit_app_reads_generated_artifacts(tmp_path, monkeypatch):
     assert ('subheader', 'Structure follow-up handoff (unrelaxed evidence)') in fake_streamlit.calls
     assert ('subheader', 'Proposal shortlist') in fake_streamlit.calls
     assert ('subheader', 'Formula-level extrapolation shortlist') in fake_streamlit.calls
+    assert any(
+        call_name == 'warning' and 'provenance' in str(value).lower()
+        for call_name, value in fake_streamlit.calls
+    )
     assert fake_streamlit.dataframe_kwargs
     assert all(kwargs == {'width': 'stretch'} for kwargs in fake_streamlit.dataframe_kwargs)
+
+
+def test_streamlit_app_uses_configured_artifact_root_and_summary_paths(
+    tmp_path,
+    monkeypatch,
+):
+    configured_artifact_dir = tmp_path / 'current-output'
+    configured_artifact_dir.mkdir()
+    stale_artifact_dir = tmp_path / 'artifacts'
+    stale_artifact_dir.mkdir()
+    (stale_artifact_dir / 'metrics.json').write_text(
+        json.dumps({'mae': 99.0}),
+        encoding='utf-8',
+    )
+    (configured_artifact_dir / 'metrics.json').write_text(
+        json.dumps({'mae': 1.0}),
+        encoding='utf-8',
+    )
+    summary_payload = {
+        'screening': {
+            'structure_generation_bridge': {
+                'first_pass_execution_artifact': 'nested/execution.json',
+                'first_pass_execution_summary_artifact': 'nested/summary.csv',
+                'first_pass_execution_variants_artifact': 'nested/variants.csv',
+            },
+        },
+    }
+    (configured_artifact_dir / 'experiment_summary.json').write_text(
+        json.dumps(summary_payload),
+        encoding='utf-8',
+    )
+    nested_dir = configured_artifact_dir / 'nested'
+    nested_dir.mkdir()
+    (nested_dir / 'execution.json').write_text(
+        json.dumps({'candidate_count': 2}),
+        encoding='utf-8',
+    )
+    (nested_dir / 'summary.csv').write_text(
+        'formula,first_pass_execution_status\nXBN,executed\n',
+        encoding='utf-8',
+    )
+    (nested_dir / 'variants.csv').write_text('', encoding='utf-8')
+
+    fake_streamlit = FakeStreamlit()
+    monkeypatch.setitem(sys.modules, 'streamlit', fake_streamlit)
+    monkeypatch.chdir(tmp_path)
+    from runtime import io_utils
+
+    monkeypatch.setattr(
+        io_utils,
+        'load_config',
+        lambda _path: {
+            'project': {'artifact_dir': str(configured_artifact_dir)},
+            'screening': {},
+        },
+    )
+
+    root = Path(__file__).resolve().parents[3]
+    app_path = root / 'src' / 'ui' / 'streamlit_app.py'
+    spec = spec_from_file_location('streamlit_app_configured_paths_test', app_path)
+    module = module_from_spec(spec)
+    assert spec is not None and spec.loader is not None
+    spec.loader.exec_module(module)
+    module.render_streamlit_app()
+
+    json_values = [value for call_name, value in fake_streamlit.calls if call_name == 'json']
+    assert {'mae': 1.0} in json_values
+    assert {'mae': 99.0} not in json_values
+    assert ('subheader', 'Structure first-pass execution summary') in fake_streamlit.calls
+    assert ('subheader', 'Structure first-pass execution variants') in fake_streamlit.calls
+    assert ('subheader', 'Structure first-pass execution JSON') in fake_streamlit.calls
+    assert any(
+        call_name == 'warning' and 'no readable CSV schema' in str(value)
+        for call_name, value in fake_streamlit.calls
+    )
 
 
 def test_streamlit_app_runs_through_real_streamlit_renderer(tmp_path, monkeypatch):

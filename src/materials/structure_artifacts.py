@@ -23,10 +23,15 @@ def _collect_structure_generation_seed_summary(
     artifact_name: str,
     handoff_artifact_name: str,
 ) -> dict[str, object]:
+    has_seed_rows = (
+        bool(cfg_defaults['enabled'])
+        and structure_generation_seed_df is not None
+        and not structure_generation_seed_df.empty
+    )
     summary = {
         'enabled': bool(cfg_defaults['enabled']),
-        'artifact': artifact_name if bool(cfg_defaults['enabled']) else None,
-        'handoff_artifact': handoff_artifact_name if bool(cfg_defaults['enabled']) else None,
+        'artifact': artifact_name if has_seed_rows else None,
+        'handoff_artifact': handoff_artifact_name if has_seed_rows else None,
         'label': str(cfg_defaults['label']),
         'method': str(cfg_defaults['method']),
         'candidate_scope': str(cfg_defaults['candidate_scope']),
@@ -930,4 +935,3 @@ def _build_structure_generation_reference_record_payload(
     payload['missing_record_ids'] = missing_record_ids
     payload['reference_records'] = records
     return payload
-

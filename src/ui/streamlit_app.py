@@ -10,10 +10,20 @@ SRC_DIR = Path(__file__).resolve().parents[1]
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from runtime.io_utils import read_json_file
+from runtime.io_utils import (
+    assess_artifact_provenance,
+    load_config,
+    read_json_file,
+    validate_runtime_output_path,
+)
 
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+CONFIG = load_config(PROJECT_ROOT / 'src' / 'config.py')
+DEFAULT_ARTIFACT_ROOT = Path('artifacts')
 ARTIFACT_PATHS = {
+    'provenance': Path('artifacts/artifact_provenance.json'),
+    'manifest': Path('artifacts/manifest.json'),
     'metrics': Path('artifacts/metrics.json'),
     'summary': Path('artifacts/experiment_summary.json'),
     'benchmark': Path('artifacts/benchmark_results.csv'),
@@ -49,6 +59,53 @@ ARTIFACT_PATHS = {
     'proposal_shortlist': Path('artifacts/demo_candidate_proposal_shortlist.csv'),
     'extrapolation_shortlist': Path('artifacts/demo_candidate_extrapolation_shortlist.csv'),
 }
+_SUMMARY_EXECUTION_PATH_FIELDS = {
+    'structure_generation_first_pass_execution': 'first_pass_execution_artifact',
+    'structure_generation_first_pass_execution_summary': (
+        'first_pass_execution_summary_artifact'
+    ),
+    'structure_generation_first_pass_execution_variants': (
+        'first_pass_execution_variants_artifact'
+    ),
+}
+
+
+def _artifact_file_path(artifact_root: Path, value: object) -> Path | None:
+    if not isinstance(value, (str, Path)) or not str(value).strip():
+        return None
+    try:
+        return validate_runtime_output_path(
+            artifact_root / Path(str(value).strip()),
+            required_parent_path=artifact_root,
+            expected_output_kind='file',
+        )
+    except ValueError:
+        return None
+
+
+def _build_artifact_paths(
+    cfg: dict,
+    experiment_summary: dict | None = None,
+) -> dict[str, Path | None]:
+    artifact_root = Path(cfg['project']['artifact_dir'])
+    paths = {
+        key: _artifact_file_path(
+            artifact_root,
+            default_path.relative_to(DEFAULT_ARTIFACT_ROOT),
+        )
+        for key, default_path in ARTIFACT_PATHS.items()
+    }
+    bridge = (
+        ((experiment_summary or {}).get('screening') or {}).get(
+            'structure_generation_bridge'
+        )
+        or {}
+    )
+    for key, field_name in _SUMMARY_EXECUTION_PATH_FIELDS.items():
+        configured_value = bridge.get(field_name)
+        if configured_value:
+            paths[key] = _artifact_file_path(artifact_root, configured_value)
+    return paths
 
 CSV_SECTIONS = [
     ('Benchmark results', 'benchmark'),
@@ -99,29 +156,79 @@ def render_streamlit_app() -> None:
         'pipeline with transparent candidate prioritization and structure follow-up outputs.'
     )
 
-    if ARTIFACT_PATHS['metrics'].exists():
+    base_paths = _build_artifact_paths(CONFIG)
+    summary_payload = None
+    summary_path = base_paths['summary']
+    if summary_path is not None and summary_path.exists():
+        summary_payload = read_json_file(summary_path)
+    artifact_paths = _build_artifact_paths(CONFIG, summary_payload)
+    has_artifacts = any(
+        path is not None and path.exists()
+        for key, path in artifact_paths.items()
+        if key != 'provenance'
+    )
+    provenance_path = artifact_paths['provenance']
+    manifest_path = artifact_paths['manifest']
+    if has_artifacts:
+        if provenance_path is None or not provenance_path.exists():
+            st.warning(
+                'Artifact provenance is unavailable; this bundle cannot be attributed to '
+                'the current source and configuration.'
+            )
+        else:
+            provenance_payload = read_json_file(provenance_path)
+            manifest_payload = (
+                read_json_file(manifest_path)
+                if manifest_path is not None and manifest_path.exists()
+                else {}
+            )
+            provenance_assessment = assess_artifact_provenance(
+                provenance_payload,
+                CONFIG,
+                manifest_payload,
+            )
+            st.subheader('Artifact bundle provenance')
+            st.json({
+                **provenance_payload,
+                'assessment': provenance_assessment,
+            })
+            if provenance_assessment['status'] == 'current':
+                st.success('Artifact provenance matches the current source and configuration.')
+            else:
+                st.warning(
+                    'Artifact provenance is '
+                    f"{provenance_assessment['status']}: "
+                    f"{provenance_assessment['reason']}."
+                )
+
+    metrics_path = artifact_paths['metrics']
+    if metrics_path is not None and metrics_path.exists():
         st.subheader('Metrics')
-        st.json(read_json_file(ARTIFACT_PATHS['metrics']))
+        st.json(read_json_file(metrics_path))
     else:
         st.info('Run `python main.py` first to generate artifacts.')
 
-    if ARTIFACT_PATHS['summary'].exists():
+    if summary_payload is not None:
         st.subheader('Experiment summary')
-        st.json(read_json_file(ARTIFACT_PATHS['summary']))
+        st.json(summary_payload)
 
     for title, key in CSV_SECTIONS:
-        path = ARTIFACT_PATHS[key]
-        if not path.exists():
+        path = artifact_paths.get(key)
+        if path is None or not path.exists():
             continue
         st.subheader(title)
-        df = pd.read_csv(path)
+        try:
+            df = pd.read_csv(path)
+        except pd.errors.EmptyDataError:
+            st.warning(f'{title} exists but has no readable CSV schema.')
+            continue
         if key in HEAD_LIMITED_KEYS:
             df = df.head(30)
         st.dataframe(df, width='stretch')
 
     for title, key in JSON_SECTIONS:
-        path = ARTIFACT_PATHS[key]
-        if not path.exists():
+        path = artifact_paths.get(key)
+        if path is None or not path.exists():
             continue
         st.subheader(title)
         st.json(read_json_file(path))

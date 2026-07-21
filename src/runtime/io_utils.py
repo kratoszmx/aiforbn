@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 from pathlib import Path
 import shutil
+import subprocess
 import sys
 from types import ModuleType
 
@@ -58,6 +60,7 @@ RUNTIME_DIR_KEYS = (
 CACHE_DIR_NAMES = frozenset({'__pycache__', '.pytest_cache'})
 HUMAN_DOCS_DIR = Path('human_docs')
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+ARTIFACT_PROVENANCE_SCHEMA = 'aiforbn.artifact_provenance.v1'
 
 
 def load_config(path: str | Path) -> dict:
@@ -75,6 +78,100 @@ def load_config(path: str | Path) -> dict:
     if not isinstance(cfg, dict):
         raise TypeError(f'{path} must define CONFIG as a dict')
     return cfg
+
+
+def _canonical_json_sha256(payload) -> str:
+    serialized = json.dumps(
+        make_json_safe(payload),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(',', ':'),
+    )
+    return hashlib.sha256(serialized.encode('utf-8')).hexdigest()
+
+
+def _local_git_output(project_root: Path, *args: str) -> str | None:
+    try:
+        result = subprocess.run(
+            ['git', *args],
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+def _read_local_source_state(project_root_path: str | Path) -> dict[str, object]:
+    project_root = Path(project_root_path).expanduser().resolve(strict=False)
+    revision = _local_git_output(project_root, 'rev-parse', 'HEAD')
+    status = _local_git_output(
+        project_root,
+        'status',
+        '--porcelain=v1',
+        '--untracked-files=all',
+        '--',
+        'main.py',
+        'src',
+        'requirements.txt',
+    )
+    if revision is None or status is None:
+        return {'revision': None, 'dirty': None}
+    return {'revision': revision or None, 'dirty': bool(status)}
+
+
+def build_artifact_provenance(
+    cfg: dict,
+    dataset_manifest: dict | None = None,
+    *,
+    project_root_path: str | Path | None = None,
+) -> dict[str, object]:
+    source_state = _read_local_source_state(project_root_path or PROJECT_ROOT)
+    return {
+        'schema': ARTIFACT_PROVENANCE_SCHEMA,
+        'source_revision': source_state['revision'],
+        'source_worktree_dirty': source_state['dirty'],
+        'config_sha256': _canonical_json_sha256(cfg),
+        'dataset_manifest_sha256': _canonical_json_sha256(dataset_manifest or {}),
+    }
+
+
+def assess_artifact_provenance(
+    provenance: dict | None,
+    cfg: dict,
+    dataset_manifest: dict | None = None,
+    *,
+    project_root_path: str | Path | None = None,
+) -> dict[str, object]:
+    if not isinstance(provenance, dict):
+        return {'status': 'unverified', 'reason': 'artifact_provenance_missing'}
+    if provenance.get('schema') != ARTIFACT_PROVENANCE_SCHEMA:
+        return {'status': 'unverified', 'reason': 'artifact_provenance_schema_unknown'}
+
+    current_source_state = _read_local_source_state(project_root_path or PROJECT_ROOT)
+    stored_revision = provenance.get('source_revision')
+    current_revision = current_source_state.get('revision')
+    if stored_revision and current_revision and stored_revision != current_revision:
+        return {'status': 'stale', 'reason': 'source_revision_mismatch'}
+    if provenance.get('config_sha256') != _canonical_json_sha256(cfg):
+        return {'status': 'stale', 'reason': 'effective_config_mismatch'}
+    if provenance.get('dataset_manifest_sha256') != _canonical_json_sha256(
+        dataset_manifest or {}
+    ):
+        return {'status': 'stale', 'reason': 'dataset_manifest_mismatch'}
+    if provenance.get('source_worktree_dirty') is True:
+        return {
+            'status': 'unverified',
+            'reason': 'artifact_source_worktree_was_dirty',
+        }
+    if current_source_state.get('dirty') is True:
+        return {'status': 'unverified', 'reason': 'current_source_worktree_is_dirty'}
+    if stored_revision is None or current_revision is None:
+        return {'status': 'unverified', 'reason': 'source_revision_unavailable'}
+    return {'status': 'current', 'reason': 'source_config_and_dataset_match'}
 
 
 def validate_runtime_output_path(
@@ -171,6 +268,44 @@ def ensure_runtime_dirs(cfg: dict, project_root_path: str | Path = '.') -> None:
     ensure_dirs(runtime_dirs)
 
 
+def _serialize_json_payload(
+    payload,
+    *,
+    ensure_ascii: bool,
+    sort_keys: bool,
+    indent: int | None,
+    error_context: object,
+) -> str:
+    safe_payload = make_json_safe(payload)
+    try:
+        return json.dumps(
+            safe_payload,
+            ensure_ascii=ensure_ascii,
+            sort_keys=sort_keys,
+            indent=indent,
+        )
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            f'Payload is not JSON-serializable for {error_context}: {exc}'
+        ) from exc
+
+
+def validate_json_payload(
+    payload,
+    *,
+    ensure_ascii: bool = False,
+    sort_keys: bool = False,
+    indent: int | None = 2,
+) -> None:
+    _serialize_json_payload(
+        payload,
+        ensure_ascii=ensure_ascii,
+        sort_keys=sort_keys,
+        indent=indent,
+        error_context='preflight validation',
+    )
+
+
 def write_json_file(
     payload,
     path: str | Path,
@@ -186,17 +321,13 @@ def write_json_file(
         expected_output_kind='file',
     )
     safe_payload = make_json_safe(payload)
-    try:
-        serialized = json.dumps(
-            safe_payload,
-            ensure_ascii=ensure_ascii,
-            sort_keys=sort_keys,
-            indent=indent,
-        )
-    except (TypeError, ValueError) as exc:
-        raise ValueError(
-            f'Payload is not JSON-serializable for {output_path}: {exc}'
-        ) from exc
+    serialized = _serialize_json_payload(
+        safe_payload,
+        ensure_ascii=ensure_ascii,
+        sort_keys=sort_keys,
+        indent=indent,
+        error_context=output_path,
+    )
     if encoding is not None:
         serialized.encode(encoding)
     return _shared_write_json_file(

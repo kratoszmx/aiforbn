@@ -139,6 +139,12 @@ Treats unset or blank `MPLCONFIGDIR` as the safe temporary default, validates an
 Preflights all configured runtime directories before creating any of them, so invalid file leaves or parent chains fail without partial directory creation.
 Currently this means the config-driven data/cache/artifact directories, rather than legacy source-tree folders like `apps/` or `notebooks/`.
 
+### `build_artifact_provenance(cfg, dataset_manifest=None, *, project_root_path=None)` / `assess_artifact_provenance(...)`
+Builds and assesses local-only artifact provenance using stable source revision, source dirty/unknown state, effective-config hash, and dataset-manifest hash. Assessment is `current`, `stale`, or `unverified`; missing Git identity is non-fatal.
+
+### `validate_json_payload(payload, ...)`
+Runs the same JSON-safe serialization contract as `write_json_file` without touching the filesystem, so multi-output writers can reject late invalid payloads before their first mutation.
+
 ### `clear_project_cache(project_root_path='.')`
 Rejects roots inside user-owned `human_docs/` and caller roots containing any symlink component before discovery, then uses the current `myutils/file_utils/filesystem.py` discovery API and removes only real cache directories that resolve beneath the canonical root and outside protected human-doc paths.
 Use before tests or batch runs, per project skill requirements.
@@ -879,7 +885,7 @@ Important:
 ### `save_metrics_and_predictions(metrics, prediction_df, bn_df, screened_df, benchmark_df, robustness_df, bn_slice_benchmark_df, bn_slice_prediction_df, bn_centered_screened_df, structure_generation_seed_df, experiment_summary, manifest, cfg, ...)`
 Writes the main artifact files under `artifacts/`.
 Every fixed, configurable, dynamic, and stale-cleanup CIF leaf is preflighted in its originally declared form before directory creation. Configurable structure-execution outputs must remain under that directory, use the expected JSON/CSV types, avoid core/pairwise/alias collisions, and place CIF files directly under the configured structure directory. Empty execution results remove only preflighted stale execution outputs from a previous run.
-The rank-stability comparison CSV is emitted only while `screening.ranking_stability.enabled` is true; disabling that layer removes a stale comparison file.
+Ranking-stability, decision-policy, shortlist, and structure-seed gates control their declared outputs; disabling a layer removes stale files from prior runs, including case-equivalent CIF suffixes. Caller JSON is preflighted before mutation, CSV replacement is atomic, and `artifact_provenance.json` is published last as the completed-bundle marker.
 Each compact BN model-role row uses one canonical feature/model identity across diagnostic scopes; unavailable identity-matched metrics stay empty rather than borrowing a different model's best value.
 This now includes both shortlist CSVs, BN-slice benchmark artifacts, BN-family / stratified BN evaluation artifacts, the BN-centered alternative ranking artifact, the ranking-stability / abstention artifact, the BN candidate-compatible evaluation artifact, and the structure-generation bridge artifacts in addition to the full ranking artifact:
 - `bn_slice_benchmark_results.csv`
@@ -906,6 +912,7 @@ This now includes both shortlist CSVs, BN-slice benchmark artifacts, BN-family /
 - `demo_candidate_structure_followup_report.csv`
 - `demo_candidate_proposal_shortlist.csv`
 - `demo_candidate_extrapolation_shortlist.csv`
+- `artifact_provenance.json`
 
 ### `save_basic_plots(prediction_df, cfg)`
 Guards and canonicalizes the Matplotlib cache before pyplot import, then preflights and writes the parity plot without following a leaf alias into user-owned `human_docs/`.
@@ -915,7 +922,7 @@ Guards and canonicalizes the Matplotlib cache before pyplot import, then preflig
 ## src/ui/streamlit_app.py
 
 ### `render_streamlit_app()`
-Renders the artifact viewer and reads JSON through the documented `runtime.io_utils.read_json_file` public helper, keeping local `myutils` discovery centralized in `runtime`.
+Renders the artifact viewer from the configured artifact root and summary-declared execution paths, reads JSON through the documented runtime helper, and labels provenance as current/stale/unverified from stable local identity. Empty-schema CSVs produce a text warning instead of a renderer failure.
 It displays:
 - `metrics.json`
 - `experiment_summary.json`

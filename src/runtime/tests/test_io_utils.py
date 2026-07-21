@@ -9,6 +9,8 @@ import pytest
 
 from runtime import io_utils
 from runtime.io_utils import (
+    assess_artifact_provenance,
+    build_artifact_provenance,
     clear_project_cache,
     configure_matplotlib_cache,
     ensure_runtime_dirs,
@@ -16,6 +18,7 @@ from runtime.io_utils import (
     make_json_safe,
     read_json_file,
     validate_runtime_output_path,
+    validate_json_payload,
     write_json_file,
 )
 
@@ -273,6 +276,107 @@ def test_json_helpers_delegate_to_myutils_json_io(tmp_path: Path, monkeypatch):
         write_json_file({'forbidden': True}, human_docs_path)
     assert not human_docs_path.exists()
     assert validate_runtime_output_path(path) == path.resolve()
+
+
+def test_artifact_provenance_tracks_source_config_and_dataset_identity(
+    tmp_path: Path,
+    monkeypatch,
+):
+    assert io_utils._read_local_source_state(tmp_path) == {
+        'revision': None,
+        'dirty': None,
+    }
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    cfg = {'project': {'artifact_dir': 'artifacts'}, 'value': 7}
+    manifest = {'name': 'twod_matpd', 'target_column': 'band_gap'}
+
+    provenance = build_artifact_provenance(
+        cfg,
+        manifest,
+        project_root_path=tmp_path,
+    )
+
+    assert provenance['schema'] == 'aiforbn.artifact_provenance.v1'
+    assert provenance['source_revision'] == 'abc123'
+    assert provenance['source_worktree_dirty'] is False
+    assert len(provenance['config_sha256']) == 64
+    assert len(provenance['dataset_manifest_sha256']) == 64
+    assert assess_artifact_provenance(
+        provenance,
+        cfg,
+        manifest,
+        project_root_path=tmp_path,
+    )['status'] == 'current'
+
+    mismatch_cases = (
+        ({**provenance, 'source_revision': 'older'}, cfg, manifest, 'source_revision_mismatch'),
+        (provenance, {**cfg, 'value': 8}, manifest, 'effective_config_mismatch'),
+        (provenance, cfg, {**manifest, 'name': 'other'}, 'dataset_manifest_mismatch'),
+    )
+    for stored, current_cfg, current_manifest, reason in mismatch_cases:
+        assessment = assess_artifact_provenance(
+            stored,
+            current_cfg,
+            current_manifest,
+            project_root_path=tmp_path,
+        )
+        assert assessment == {'status': 'stale', 'reason': reason}
+
+    provenance['source_worktree_dirty'] = True
+    unverified = assess_artifact_provenance(
+        provenance,
+        cfg,
+        manifest,
+        project_root_path=tmp_path,
+    )
+    assert unverified['status'] == 'unverified'
+    assert unverified['reason'] == 'artifact_source_worktree_was_dirty'
+
+    provenance['source_worktree_dirty'] = False
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': True},
+    )
+    assert assess_artifact_provenance(
+        provenance,
+        cfg,
+        manifest,
+        project_root_path=tmp_path,
+    )['reason'] == 'current_source_worktree_is_dirty'
+
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': None, 'dirty': None},
+    )
+    outside_git = build_artifact_provenance(
+        cfg,
+        manifest,
+        project_root_path=tmp_path,
+    )
+    assert outside_git['source_revision'] is None
+    assert outside_git['source_worktree_dirty'] is None
+    assert assess_artifact_provenance(
+        outside_git,
+        cfg,
+        manifest,
+        project_root_path=tmp_path,
+    ) == {
+        'status': 'unverified',
+        'reason': 'source_revision_unavailable',
+    }
+
+
+def test_validate_json_payload_matches_write_serialization_contract():
+    assert validate_json_payload({'value': np.int64(2)}) is None
+
+    with pytest.raises(ValueError, match='not JSON-serializable'):
+        validate_json_payload({'invalid': object()})
 
 
 def test_write_json_file_uses_the_guarded_canonical_path(tmp_path: Path, monkeypatch):

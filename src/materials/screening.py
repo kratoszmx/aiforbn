@@ -190,10 +190,7 @@ def build_candidate_structure_generation_seeds(
     candidate_ranking_df['structure_generation_seed_limit'] = int(seed_cfg['per_candidate_seed_limit'])
 
     if not bool(seed_cfg['enabled']):
-        return candidate_ranking_df.loc[
-            candidate_ranking_df['structure_generation_candidate_selected'].fillna(False).astype(bool),
-            [column for column in out_columns if column in candidate_ranking_df.columns],
-        ].copy()
+        return pd.DataFrame(columns=out_columns)
 
     target_col = ((cfg or {}).get('data') or {}).get('target_column', 'target')
     train_mask = pd.Series(split_masks.get('train', []), index=dataset_df.index).fillna(False).astype(bool)

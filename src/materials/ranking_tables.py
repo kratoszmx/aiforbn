@@ -799,6 +799,16 @@ def _build_candidate_ranking_source_predictions(
             ]
         )
     prediction_df = pd.concat(frames, ignore_index=True)
+    prediction_df = prediction_df.drop_duplicates(
+        subset=[
+            formula_col,
+            'prediction_source',
+            'feature_set',
+            'model_type',
+            'prediction',
+        ],
+        keep='first',
+    )
     prediction_df = prediction_df.sort_values(
         ['prediction_source', 'prediction', formula_col],
         ascending=[True, False, True],

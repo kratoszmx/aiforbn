@@ -125,7 +125,7 @@ No callable public surface. The following non-callable contracts are imported ac
 ## screening.py
 
 - `build_candidate_structure_generation_seeds(candidate_df, dataset_df, split_masks, cfg, ...)`
-  - Build prototype-seed records for structure follow-up.
+  - Build prototype-seed records for structure follow-up; a disabled seed stage returns an empty schema and cannot enter downstream structure execution.
 - `build_candidate_prediction_ensemble(candidate_df, feature_tables, split_masks, cfg, ...)`
   - Build ensemble candidate predictions.
 - `build_candidate_prediction_members(candidate_df, feature_tables, split_masks, cfg, ...)`
@@ -152,13 +152,14 @@ No callable public surface. The following non-callable contracts are imported ac
 ## summary.py
 
 - `build_experiment_summary(...)`
-  - Build the structured experiment summary payload.
+  - Build the structured experiment summary payload and advertise optional structure outputs only when their rows will be emitted.
 
 ## artifacts.py
 
 - `save_metrics_and_predictions(...)`
   - Write the main artifact bundle under the configured artifact directory.
-  - Honor `screening.ranking_stability.enabled` for the rank-stability comparison output and remove a stale copy when the feature is disabled.
+  - Honor ranking-stability, decision-policy, shortlist, and structure-seed gates; remove stale optional outputs on a disabled second run, including case-equivalent CIF suffixes.
+  - Preflight caller JSON, replace CSV files atomically, and publish `artifact_provenance.json` last so an incomplete bundle is never marked current.
   - Keep each compact BN model-role comparison row bound to one feature/model identity across slice, family, and stratified diagnostics instead of splicing per-scope winners.
   - Preflight every fixed, configurable, dynamic, and stale-cleanup CIF leaf in its originally declared form before directory creation; contain structure-execution paths beneath their configured roots, reject kind/parent-chain/reserved/pairwise/filesystem-alias collisions before mutation, and remove valid stale execution artifacts when the current run produces no execution payload.
 

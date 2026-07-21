@@ -19,9 +19,49 @@ from materials.ranking_tables import (
     _build_bn_model_role_comparison_table,
     _candidate_ranking_uncertainty_table,
 )
+from materials.screening import build_candidate_structure_generation_seeds
 from materials.summary import build_experiment_summary
 from materials.structure_execution import build_structure_first_pass_execution_artifacts
 from materials.structure_helpers import _structure_first_pass_execution_config
+
+
+def _save_minimal_report_bundle(
+    cfg,
+    *,
+    screened_df=None,
+    structure_generation_seed_df=None,
+    experiment_summary=None,
+    structure_payload=None,
+    structure_summary_df=None,
+    structure_variant_df=None,
+):
+    empty_df = pd.DataFrame()
+    return save_metrics_and_predictions(
+        {},
+        empty_df,
+        empty_df,
+        (
+            pd.DataFrame(columns=['formula', 'ranking_rank'])
+            if screened_df is None
+            else screened_df
+        ),
+        empty_df,
+        empty_df,
+        empty_df,
+        empty_df,
+        empty_df,
+        (
+            empty_df
+            if structure_generation_seed_df is None
+            else structure_generation_seed_df
+        ),
+        {} if experiment_summary is None else experiment_summary,
+        {},
+        cfg,
+        structure_first_pass_execution_variant_df=structure_variant_df,
+        structure_first_pass_execution_summary_df=structure_summary_df,
+        structure_first_pass_execution_payload=structure_payload,
+    )
 
 
 def test_plot_module_rejects_human_docs_mpl_cache_before_import(tmp_path):
@@ -397,6 +437,53 @@ def test_disabled_decision_policy_leaves_ranking_uncertainty_policy_neutral():
     assert summary['rank_std_abstain_threshold'] is None
     assert summary['abstained_candidate_count'] == 0
     assert summary['final_action_counts'] == {}
+
+
+def test_ranking_uncertainty_deduplicates_one_canonical_prediction_source():
+    cfg = {
+        'screening': {
+            'top_k': 1,
+            'ranking_stability': {'enabled': True, 'top_k_values': [1]},
+            'decision_policy': {'enabled': False},
+        },
+    }
+    candidate_df = pd.DataFrame({
+        'formula': ['XBN', 'YBN'],
+        'ranking_rank': [1, 2],
+        'ranking_score': [2.0, 1.0],
+        'predicted_band_gap': [6.0, 5.0],
+    })
+    grouped_member_df = pd.DataFrame({
+        'formula': ['XBN', 'YBN'],
+        'prediction_source': [
+            'group_kfold__basic_formula_composition__linear_regression__fold_1',
+        ] * 2,
+        'prediction_source_family': ['group_kfold_candidate_model'] * 2,
+        'feature_set': ['basic_formula_composition'] * 2,
+        'model_type': ['linear_regression'] * 2,
+        'prediction': [6.0, 5.0],
+    })
+
+    baseline_df, baseline_summary = _candidate_ranking_uncertainty_table(
+        candidate_df,
+        formula_col='formula',
+        cfg=cfg,
+        candidate_grouped_robustness_member_df=grouped_member_df,
+    )
+    duplicated_df, duplicated_summary = _candidate_ranking_uncertainty_table(
+        candidate_df,
+        formula_col='formula',
+        cfg=cfg,
+        candidate_grouped_robustness_member_df=grouped_member_df,
+        bn_centered_grouped_robustness_member_df=grouped_member_df.copy(),
+    )
+
+    columns = ['formula', 'ranking_source_count', 'rank_mean', 'top_1_selection_frequency']
+    pd.testing.assert_frame_equal(
+        duplicated_df[columns].reset_index(drop=True),
+        baseline_df[columns].reset_index(drop=True),
+    )
+    assert duplicated_summary['source_count'] == baseline_summary['source_count'] == 1
 
 
 def test_bn_model_role_comparison_preserves_one_model_identity_across_scopes():
@@ -977,12 +1064,25 @@ def test_reporting_clears_stale_optional_artifacts_on_disabled_second_run(tmp_pa
     cfg = {
         'project': {'artifact_dir': str(artifact_dir)},
         'data': {'formula_column': 'formula'},
-        'screening': {'ranking_stability': {'enabled': True}},
+        'screening': {
+            'ranking_stability': {'enabled': True},
+            'decision_policy': {'enabled': True},
+            'proposal_shortlist': {'enabled': True},
+            'extrapolation_shortlist': {'enabled': True},
+        },
     }
-    empty_df = pd.DataFrame()
-    screened_df = pd.DataFrame(columns=['formula', 'ranking_rank'])
+    screened_df = pd.DataFrame({
+        'formula': ['XBN'],
+        'ranking_rank': [1],
+        'ranking_score': [1.0],
+        'predicted_band_gap': [5.0],
+        'proposal_shortlist_selected': [True],
+        'proposal_shortlist_rank': [1],
+        'extrapolation_shortlist_selected': [True],
+        'extrapolation_shortlist_rank': [1],
+    })
     execution_cfg = _structure_first_pass_execution_config(cfg)
-    cif_relative_path = f"{execution_cfg['structure_dir']}/xbn__variant_1.cif"
+    cif_relative_path = f"{execution_cfg['structure_dir']}/xbn__variant_1.CIF"
     structure_payload = {
         **{
             field: execution_cfg[field]
@@ -1001,30 +1101,12 @@ def test_reporting_clears_stale_optional_artifacts_on_disabled_second_run(tmp_pa
         ],
     }
 
-    def save_structure_outputs(*, payload, summary_df=None, variant_df=None):
-        save_metrics_and_predictions(
-            metrics={},
-            prediction_df=empty_df,
-            bn_df=empty_df,
-            screened_df=screened_df,
-            benchmark_df=empty_df,
-            robustness_df=empty_df,
-            bn_slice_benchmark_df=empty_df,
-            bn_slice_prediction_df=empty_df,
-            bn_centered_screened_df=empty_df,
-            structure_generation_seed_df=empty_df,
-            experiment_summary={},
-            manifest={},
-            cfg=cfg,
-            structure_first_pass_execution_variant_df=variant_df,
-            structure_first_pass_execution_summary_df=summary_df,
-            structure_first_pass_execution_payload=payload,
-        )
-
-    save_structure_outputs(
-        payload=structure_payload,
-        summary_df=pd.DataFrame([{'formula': 'XBN'}]),
-        variant_df=pd.DataFrame([{'formula': 'XBN'}]),
+    _save_minimal_report_bundle(
+        cfg,
+        screened_df=screened_df,
+        structure_payload=structure_payload,
+        structure_summary_df=pd.DataFrame([{'formula': 'XBN'}]),
+        structure_variant_df=pd.DataFrame([{'formula': 'XBN'}]),
     )
     stale_paths = [
         artifact_dir / execution_cfg['artifact'],
@@ -1033,13 +1115,158 @@ def test_reporting_clears_stale_optional_artifacts_on_disabled_second_run(tmp_pa
         artifact_dir / cif_relative_path,
         artifact_dir / 'demo_candidate_structure_followup_report.csv',
         artifact_dir / 'demo_candidate_rank_stability_summary.csv',
+        artifact_dir / 'demo_candidate_proposal_shortlist.csv',
+        artifact_dir / 'demo_candidate_extrapolation_shortlist.csv',
+        artifact_dir / 'demo_candidate_ranking_uncertainty.csv',
     ]
     assert all(path.exists() for path in stale_paths)
 
     cfg['screening']['ranking_stability']['enabled'] = False
-    save_structure_outputs(payload={})
+    cfg['screening']['decision_policy']['enabled'] = False
+    cfg['screening']['proposal_shortlist']['enabled'] = False
+    cfg['screening']['extrapolation_shortlist']['enabled'] = False
+    _save_minimal_report_bundle(cfg, screened_df=screened_df, structure_payload={})
 
     assert all(not path.exists() for path in stale_paths)
+
+
+def test_disabled_structure_generation_seed_stage_emits_no_bundle(tmp_path):
+    artifact_dir = tmp_path / 'artifacts'
+    cfg = {
+        'project': {'artifact_dir': str(artifact_dir)},
+        'data': {'formula_column': 'formula', 'target_column': 'target'},
+        'screening': {
+            'structure_generation_seeds': {'enabled': False},
+            'ranking_stability': {'enabled': False},
+            'decision_policy': {'enabled': False},
+        },
+    }
+    candidate_df = pd.DataFrame([{
+        'formula': 'XBN',
+        'ranking_rank': 1,
+        'proposal_shortlist_selected': True,
+        'proposal_shortlist_rank': 1,
+        'extrapolation_shortlist_selected': False,
+    }])
+    seed_df = build_candidate_structure_generation_seeds(
+        candidate_df,
+        pd.DataFrame(columns=['formula', 'target']),
+        {
+            'train': pd.Series(dtype=bool),
+            'val': pd.Series(dtype=bool),
+        },
+        cfg,
+    )
+
+    assert seed_df.empty
+    _save_minimal_report_bundle(
+        cfg,
+        screened_df=candidate_df,
+        structure_generation_seed_df=seed_df,
+    )
+
+    for artifact_name in (
+        'demo_candidate_structure_generation_seeds.csv',
+        'demo_candidate_structure_generation_handoff.json',
+        'demo_candidate_structure_generation_reference_records.json',
+        'demo_candidate_structure_generation_job_plan.json',
+        'demo_candidate_structure_generation_first_pass_queue.json',
+        'demo_candidate_structure_generation_followup_shortlist.csv',
+        'demo_candidate_structure_generation_first_pass_execution.json',
+        'demo_candidate_structure_generation_first_pass_execution_summary.csv',
+        'demo_candidate_structure_generation_first_pass_execution_variants.csv',
+        'demo_candidate_structure_followup_report.csv',
+    ):
+        assert not (artifact_dir / artifact_name).exists()
+
+
+def test_empty_structure_generation_bridge_does_not_advertise_absent_artifacts():
+    cfg = io_utils.load_config(Path(__file__).resolve().parents[2] / 'config.py')
+    candidate_df = pd.DataFrame({
+        'formula': ['XBN'],
+        'ranking_rank': [1],
+        'ranking_score': [1.0],
+        'predicted_band_gap': [5.0],
+    })
+    dataset_df = pd.DataFrame({'formula': ['BN'], 'target': [5.0]})
+    selection_summary = {
+        'selected_feature_set': cfg['features']['feature_set'],
+        'selected_model_type': cfg['model']['type'],
+        'selected_feature_family': 'composition_only',
+        'screening_selected_feature_set': cfg['features']['feature_set'],
+        'screening_selected_model_type': cfg['model']['type'],
+        'screening_selected_feature_family': 'composition_only',
+    }
+
+    summary = build_experiment_summary(
+        dataset_df,
+        dataset_df,
+        candidate_df,
+        {'train': [True], 'val': [False], 'test': [False], 'metadata': {}},
+        selection_summary,
+        cfg,
+        structure_generation_seed_df=pd.DataFrame(),
+    )
+    bridge = summary['screening']['structure_generation_bridge']
+
+    assert bridge['enabled'] is True
+    for artifact_field in (
+        'artifact',
+        'handoff_artifact',
+        'reference_record_payload_artifact',
+        'job_plan_artifact',
+        'first_pass_queue_artifact',
+        'followup_shortlist_artifact',
+        'followup_extrapolation_shortlist_artifact',
+        'first_pass_execution_artifact',
+        'first_pass_execution_summary_artifact',
+        'first_pass_execution_variants_artifact',
+    ):
+        assert bridge.get(artifact_field) is None
+
+
+def test_reporting_preflights_summary_before_mutating_existing_bundle(tmp_path):
+    artifact_dir = tmp_path / 'artifacts'
+    artifact_dir.mkdir()
+    predictions_path = artifact_dir / 'predictions.csv'
+    bn_centered_path = artifact_dir / 'demo_candidate_bn_centered_ranking.csv'
+    predictions_path.write_text('old,prediction\n1,2\n', encoding='utf-8')
+    bn_centered_path.write_text('formula,ranking_rank\nOLD,1\n', encoding='utf-8')
+    cfg = {
+        'project': {'artifact_dir': str(artifact_dir)},
+        'data': {'formula_column': 'formula'},
+        'screening': {
+            'ranking_stability': {'enabled': False},
+            'decision_policy': {'enabled': False},
+        },
+    }
+    with pytest.raises(ValueError, match='not JSON-serializable'):
+        _save_minimal_report_bundle(
+            cfg,
+            experiment_summary={'invalid': object()},
+        )
+
+    assert predictions_path.read_text(encoding='utf-8') == 'old,prediction\n1,2\n'
+    assert bn_centered_path.read_text(encoding='utf-8') == 'formula,ranking_rank\nOLD,1\n'
+    assert not (artifact_dir / 'metrics.json').exists()
+
+
+def test_csv_report_replace_preserves_previous_file_on_serialization_failure(tmp_path):
+    output_path = tmp_path / 'report.csv'
+    output_path.write_text('old,value\n1,keep\n', encoding='utf-8')
+
+    class BrokenCsvValue:
+        def __str__(self):
+            raise RuntimeError('cannot serialize CSV value')
+
+    with pytest.raises(RuntimeError, match='cannot serialize CSV value'):
+        artifacts_module._write_csv_file(
+            pd.DataFrame({'value': [BrokenCsvValue()]}),
+            output_path,
+        )
+
+    assert output_path.read_text(encoding='utf-8') == 'old,value\n1,keep\n'
+    assert list(tmp_path.glob(f'.{output_path.name}.*.tmp')) == []
 
 
 def test_reporting_writes_expected_artifacts(tmp_path):
@@ -1659,6 +1886,12 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     assert json.loads((artifact_dir / 'metrics.json').read_text()) == metrics
     assert json.loads((artifact_dir / 'manifest.json').read_text()) == manifest
     assert json.loads((artifact_dir / 'experiment_summary.json').read_text()) == experiment_summary
+    artifact_provenance = json.loads(
+        (artifact_dir / 'artifact_provenance.json').read_text(encoding='utf-8')
+    )
+    assert artifact_provenance['schema'] == 'aiforbn.artifact_provenance.v1'
+    assert len(artifact_provenance['config_sha256']) == 64
+    assert len(artifact_provenance['dataset_manifest_sha256']) == 64
     assert experiment_summary['features']['selected_feature_set'] == 'matminer_composition'
     assert experiment_summary['features']['selected_feature_family'] == 'composition_only'
     assert experiment_summary['feature_model_selection']['selected_model_type'] == 'linear_regression'
