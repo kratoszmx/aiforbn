@@ -22,8 +22,8 @@ description: 用于 aiforbn 仓库的常规维护工作，包括 AI-native 架�
 ## 分派
 
 - 架构、文档、skill 或 manifest 修改：保持改动机器可读，并运行 architecture validation profile。
-- materials 或模型逻辑修改：更新最近的 `PY_FILES_SUMMARY.md`，运行聚焦测试；依赖可用时再运行 `python3 -m pytest -q src`。
-- UI 修改：运行 manifest 中的 `ui_render_smoke`；若改动启动或依赖接线，再做有时限的真实 headless server health check。
+- materials 或模型逻辑修改：更新最近的 `PY_FILES_SUMMARY.md`，运行 manifest 中的 `module_logic_edit` profile。
+- UI 修改：运行 manifest 中的 `ui_edit` profile；若改动启动接线，再做有时限的真实 headless server health check。
 - research-plan 或 Overleaf 交付工作：切换使用 `$aiforbn-overleaf-proposal`。
 - 生成 artifact 刷新：只有任务需要重新生成 artifacts，或科学行为发生变化时，才运行完整 `python3 main.py`。
 

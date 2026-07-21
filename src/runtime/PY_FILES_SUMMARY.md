@@ -35,7 +35,7 @@ Anything underscore-prefixed or omitted here should be treated as internal.
 - `load_agent_manifest(project_root_path='.', manifest_path='docs/AGENT_MANIFEST.json')`
   - Load the checked-in machine-readable AI-native manifest.
 - `validate_agent_layout(project_root_path='.', manifest=None)`
-  - Validate required agent-facing files, exact command and validation-profile mappings, exact active project-skill and retired-guidance records, the human-document ownership policy and its declared instruction-surface markers, source-of-truth surfaces, the exact six-module contracts, local instruction paths, the stable v18 alignment status and boundaries, dependency imports, and known layout warnings.
+  - Validate required agent-facing files; exact validation command/scope/capability records; profile use-case and required-capability reachability; repo-skill trigger frontmatter; manifest-to-requirements dependency declarations and imports; exact retired-guidance and six-module records; the human-document policy; local instruction paths; stable v18 boundaries; and known layout warnings.
 - `build_agent_state(project_root_path='.', manifest_path='docs/AGENT_MANIFEST.json')`
   - Build the live JSON-serializable agent-state payload used by `main.py --emit-agent-state` and `main.py --verify-agent-contract`.
 - `build_agent_command_index(project_root_path='.', manifest_path='docs/AGENT_MANIFEST.json')`

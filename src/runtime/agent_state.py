@@ -50,54 +50,128 @@ REQUIRED_RESEARCH_PLAN_NON_CLAIMS = {
     'direct_gap_claim_before_structure_review',
 }
 
-REQUIRED_ENTRYPOINT_COMMANDS = {
-    'full_pipeline': 'python3 main.py',
-    'fast_smoke': 'python3 main.py --dry-run',
-    'emit_agent_state': 'python3 main.py --emit-agent-state',
-    'write_agent_state': (
-        'python3 main.py --write-agent-state /tmp/aiforbn-agent-state.json'
-    ),
-    'emit_agent_commands': 'python3 main.py --emit-agent-commands',
-    'verify_agent_contract': 'python3 main.py --verify-agent-contract',
+REQUIRED_ENTRYPOINTS = {
+    'full_pipeline': {
+        'command': 'python3 main.py',
+        'writes_artifacts': True,
+        'expected_output': 'stdout status summary plus files under artifacts/',
+    },
+    'fast_smoke': {
+        'command': 'python3 main.py --dry-run',
+        'writes_artifacts': False,
+        'expected_output': 'stdout compatibility report',
+    },
+    'emit_agent_state': {
+        'command': 'python3 main.py --emit-agent-state',
+        'writes_artifacts': False,
+        'expected_output': 'JSON project state on stdout',
+    },
+    'write_agent_state': {
+        'command': 'python3 main.py --write-agent-state /tmp/aiforbn-agent-state.json',
+        'writes_artifacts': True,
+        'expected_output': 'JSON project state on stdout and at the requested output path',
+    },
+    'emit_agent_commands': {
+        'command': 'python3 main.py --emit-agent-commands',
+        'writes_artifacts': False,
+        'expected_output': 'JSON entrypoint and validation-command index on stdout',
+    },
+    'verify_agent_contract': {
+        'command': 'python3 main.py --verify-agent-contract',
+        'writes_artifacts': False,
+        'expected_output': (
+            'JSON project state on stdout; nonzero only for blocking layout errors'
+        ),
+    },
 }
 
-REQUIRED_ENTRYPOINT_NAMES = set(REQUIRED_ENTRYPOINT_COMMANDS)
+REQUIRED_ENTRYPOINT_NAMES = set(REQUIRED_ENTRYPOINTS)
 
 REQUIRED_VALIDATION_COMMANDS = {
-    'verify_agent_contract': 'python3 main.py --verify-agent-contract',
-    'fast_smoke': 'python3 main.py --dry-run',
-    'focused_regression': (
-        'python3 -m pytest -q src/tests/test_main.py src/tests/test_public_surfaces.py '
-        'src/runtime/tests/test_agent_state.py src/runtime/tests/test_io_utils.py'
-    ),
-    'full_src_tests': 'python3 -m pytest -q src',
-    'ui_render_smoke': 'python3 -m pytest -q src/ui/tests/test_streamlit_app.py',
+    'verify_agent_contract': {
+        'command': 'python3 main.py --verify-agent-contract',
+        'scope': 'layout_manifest_skill_dependency_checks_and_git_state_reporting',
+        'provides': [
+            'agent_contract',
+            'dependency_declarations',
+            'project_skill_metadata',
+        ],
+    },
+    'fast_smoke': {
+        'command': 'python3 main.py --dry-run',
+        'scope': 'config_candidate_features_model_imports',
+        'provides': ['pipeline_wiring_smoke'],
+    },
+    'focused_regression': {
+        'command': (
+            'python3 -m pytest -q src/tests/test_main.py '
+            'src/tests/test_public_surfaces.py '
+            'src/runtime/tests/test_agent_state.py '
+            'src/runtime/tests/test_io_utils.py'
+        ),
+        'scope': 'entrypoints_runtime_agent_state_public_surfaces',
+        'provides': ['entrypoint_runtime_public_surface_regressions'],
+    },
+    'full_src_tests': {
+        'command': 'python3 -m pytest -q src',
+        'scope': 'complete_src_test_suite_with_declared_dependencies',
+        'provides': ['complete_src_test_suite'],
+    },
+    'ui_render_smoke': {
+        'command': 'python3 -m pytest -q src/ui/tests/test_streamlit_app.py',
+        'scope': 'real_streamlit_render_and_artifact_viewer_contract',
+        'provides': ['streamlit_renderer_contract'],
+    },
 }
 
 REQUIRED_VALIDATION_COMMAND_NAMES = set(REQUIRED_VALIDATION_COMMANDS)
 
-REQUIRED_VALIDATION_PROFILE_COMMANDS = {
-    'architecture_doc_skill_edit': [
-        'verify_agent_contract',
-        'fast_smoke',
-        'focused_regression',
-    ],
-    'module_logic_edit': [
-        'verify_agent_contract',
-        'fast_smoke',
-        'focused_regression',
-        'full_src_tests',
-    ],
-    'scientific_pipeline_edit': [
-        'verify_agent_contract',
-        'fast_smoke',
-        'full_src_tests',
-    ],
-    'ui_edit': [
-        'verify_agent_contract',
-        'focused_regression',
-        'ui_render_smoke',
-    ],
+REQUIRED_VALIDATION_PROFILES = {
+    'architecture_doc_skill_edit': {
+        'use_when': (
+            'agent contract, project skills, handoff, docs, or entrypoint metadata changed'
+        ),
+        'requires': [
+            'agent_contract',
+            'entrypoint_runtime_public_surface_regressions',
+            'pipeline_wiring_smoke',
+            'project_skill_metadata',
+        ],
+    },
+    'module_logic_edit': {
+        'use_when': (
+            'public Python functions, module boundaries, feature/model logic, '
+            'or artifact writers changed'
+        ),
+        'requires': [
+            'agent_contract',
+            'complete_src_test_suite',
+            'entrypoint_runtime_public_surface_regressions',
+            'pipeline_wiring_smoke',
+        ],
+    },
+    'scientific_pipeline_edit': {
+        'use_when': (
+            'default pipeline behavior or generated scientific artifacts changed; '
+            'run full_pipeline only when the task needs regenerated artifacts'
+        ),
+        'requires': [
+            'agent_contract',
+            'complete_src_test_suite',
+            'pipeline_wiring_smoke',
+        ],
+    },
+    'ui_edit': {
+        'use_when': (
+            'Streamlit imports, rendering, artifact display, or UI dependency wiring changed'
+        ),
+        'requires': [
+            'agent_contract',
+            'dependency_declarations',
+            'entrypoint_runtime_public_surface_regressions',
+            'streamlit_renderer_contract',
+        ],
+    },
 }
 
 REQUIRED_SOURCE_OF_TRUTH_FILES = {
@@ -214,6 +288,11 @@ REQUIRED_HUMAN_DOCS_POLICY = {
 }
 
 BACKTICKED_LOCAL_PATH_PATTERN = re.compile(r'`((?:/[^`\n]+)|(?:~/[^`\n]+))`')
+SKILL_FRONTMATTER_PATTERN = re.compile(
+    r'\A---\r?\n(?P<body>.*?)\r?\n---(?:\r?\n|\Z)',
+    re.DOTALL,
+)
+REQUIREMENT_NAME_PATTERN = re.compile(r'^([A-Za-z0-9][A-Za-z0-9_.-]*)')
 
 
 def _project_root(path: str | Path = '.') -> Path:
@@ -224,6 +303,38 @@ def _read_text_if_present(path: Path) -> str:
     if not path.exists() or not path.is_file():
         return ''
     return path.read_text(encoding='utf-8')
+
+
+def _skill_frontmatter_fields(text: str) -> dict[str, str]:
+    match = SKILL_FRONTMATTER_PATTERN.match(text)
+    if match is None:
+        return {}
+    fields: dict[str, str] = {}
+    for line in match.group('body').splitlines():
+        field_match = re.match(r'^([A-Za-z][A-Za-z0-9_-]*):\s*(.*?)\s*$', line)
+        if field_match is None:
+            continue
+        key, value = field_match.groups()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+            value = value[1:-1]
+        fields[key] = value.strip()
+    return fields
+
+
+def _normalized_requirement_name(value: str) -> str:
+    return re.sub(r'[-_.]+', '-', value).casefold()
+
+
+def _declared_requirement_names(text: str) -> set[str]:
+    names: set[str] = set()
+    for raw_line in text.splitlines():
+        line = raw_line.split('#', 1)[0].strip()
+        if not line or line.startswith('-'):
+            continue
+        match = REQUIREMENT_NAME_PATTERN.match(line)
+        if match is not None:
+            names.add(_normalized_requirement_name(match.group(1)))
+    return names
 
 
 def _path_check(root: Path, relative_path: str) -> dict[str, object]:
@@ -300,32 +411,76 @@ def _validate_command_entries(
     return command_names
 
 
-def _validate_required_command_mappings(
+def _validate_required_entrypoint_contracts(
     manifest_payload: dict[str, Any],
-    field_name: str,
-    required_commands: dict[str, str],
     errors: list[dict[str, str]],
 ) -> None:
-    entries = manifest_payload.get(field_name, [])
+    entries = manifest_payload.get('entrypoints', [])
     if not isinstance(entries, list):
         return
-    actual_commands = {
-        str(entry.get('name', '')).strip(): str(entry.get('command', '')).strip()
+    entries_by_name = {
+        str(entry.get('name', '')).strip(): entry
         for entry in entries
         if isinstance(entry, dict) and str(entry.get('name', '')).strip()
     }
-    for name, required_command in required_commands.items():
-        actual_command = actual_commands.get(name)
-        if actual_command is None or actual_command == required_command:
+    for name, required_contract in REQUIRED_ENTRYPOINTS.items():
+        entry = entries_by_name.get(name)
+        if entry is None:
             continue
-        errors.append({
-            'code': f'unexpected_{field_name}_command',
-            'path': f'docs/AGENT_MANIFEST.json:{field_name}.{name}',
-            'message': (
-                f'Command `{name}` must be `{required_command}`, '
-                f'not `{actual_command}`.'
-            ),
-        })
+        actual_contract = {
+            field: entry.get(field)
+            for field in ('command', 'writes_artifacts', 'expected_output')
+        }
+        if actual_contract != required_contract:
+            errors.append({
+                'code': 'unexpected_entrypoint_contract',
+                'path': f'docs/AGENT_MANIFEST.json:entrypoints.{name}',
+                'message': (
+                    f'Entrypoint `{name}` must retain its exact command, write '
+                    'behavior, and expected-output contract.'
+                ),
+            })
+
+
+def _validate_required_validation_command_contracts(
+    manifest_payload: dict[str, Any],
+    errors: list[dict[str, str]],
+) -> dict[str, set[str]]:
+    entries = manifest_payload.get('validation_commands', [])
+    if not isinstance(entries, list):
+        return {}
+    entries_by_name = {
+        str(entry.get('name', '')).strip(): entry
+        for entry in entries
+        if isinstance(entry, dict) and str(entry.get('name', '')).strip()
+    }
+    capabilities_by_name: dict[str, set[str]] = {}
+    for name, required_contract in REQUIRED_VALIDATION_COMMANDS.items():
+        entry = entries_by_name.get(name)
+        if entry is None:
+            continue
+        actual_contract = {
+            field: entry.get(field)
+            for field in ('command', 'scope', 'provides')
+        }
+        if actual_contract != required_contract:
+            errors.append({
+                'code': 'unexpected_validation_command_contract',
+                'path': f'docs/AGENT_MANIFEST.json:validation_commands.{name}',
+                'message': (
+                    f'Validation command `{name}` must retain its exact command, '
+                    'scope, and provided-capability contract.'
+                ),
+            })
+        provides = entry.get('provides', [])
+        if isinstance(provides, list) and all(
+            isinstance(capability, str) and capability.strip()
+            for capability in provides
+        ):
+            capabilities_by_name[name] = {
+                capability.strip() for capability in provides
+            }
+    return capabilities_by_name
 
 
 def _validate_local_instruction_paths(
@@ -617,12 +772,7 @@ def validate_agent_layout(
     _validate_research_plan_alignment(root, manifest_payload, errors, checks)
 
     entrypoint_names = _validate_command_entries(manifest_payload, 'entrypoints', errors)
-    _validate_required_command_mappings(
-        manifest_payload,
-        'entrypoints',
-        REQUIRED_ENTRYPOINT_COMMANDS,
-        errors,
-    )
+    _validate_required_entrypoint_contracts(manifest_payload, errors)
     missing_entrypoints = sorted(REQUIRED_ENTRYPOINT_NAMES - entrypoint_names)
     if missing_entrypoints:
         errors.append({
@@ -635,11 +785,11 @@ def validate_agent_layout(
         'validation_commands',
         errors,
     )
-    _validate_required_command_mappings(
-        manifest_payload,
-        'validation_commands',
-        REQUIRED_VALIDATION_COMMANDS,
-        errors,
+    validation_command_capabilities = (
+        _validate_required_validation_command_contracts(
+            manifest_payload,
+            errors,
+        )
     )
     missing_validation_commands = sorted(
         REQUIRED_VALIDATION_COMMAND_NAMES - validation_command_names
@@ -701,6 +851,14 @@ def validate_agent_layout(
                     'message': 'Validation profile `commands` must be a non-empty string list.',
                 })
                 continue
+            if len(commands) != len(set(commands)):
+                errors.append({
+                    'code': 'duplicate_validation_profile_commands',
+                    'path': f'docs/AGENT_MANIFEST.json:validation_profiles[{index}]',
+                    'message': (
+                        f'Validation profile `{profile_name}` repeats a command name.'
+                    ),
+                })
             missing_commands = sorted(set(commands) - validation_command_names)
             if missing_commands:
                 errors.append({
@@ -711,6 +869,44 @@ def validate_agent_layout(
                         f'validation command names: {missing_commands}'
                     ),
                 })
+            requires = profile.get('requires', [])
+            if not isinstance(requires, list) or not requires or not all(
+                isinstance(capability, str) and capability.strip()
+                for capability in requires
+            ):
+                errors.append({
+                    'code': 'invalid_validation_profile_requirements',
+                    'path': f'docs/AGENT_MANIFEST.json:validation_profiles[{index}]',
+                    'message': (
+                        'Validation profile `requires` must be a non-empty string list.'
+                    ),
+                })
+                continue
+            if len(requires) != len(set(requires)):
+                errors.append({
+                    'code': 'duplicate_validation_profile_requirements',
+                    'path': f'docs/AGENT_MANIFEST.json:validation_profiles[{index}]',
+                    'message': (
+                        f'Validation profile `{profile_name}` repeats a required capability.'
+                    ),
+                })
+            provided_capabilities: set[str] = set()
+            for command in commands:
+                provided_capabilities.update(
+                    validation_command_capabilities.get(command, set())
+                )
+            missing_capabilities = sorted(
+                set(requires) - provided_capabilities
+            )
+            if missing_capabilities:
+                errors.append({
+                    'code': 'validation_profile_missing_capabilities',
+                    'path': f'docs/AGENT_MANIFEST.json:validation_profiles[{index}]',
+                    'message': (
+                        f'Validation profile `{profile_name}` does not reach required '
+                        f'capabilities: {missing_capabilities}'
+                    ),
+                })
 
         profiles_by_name = {
             str(profile.get('name', '')).strip(): profile
@@ -718,7 +914,7 @@ def validate_agent_layout(
             if isinstance(profile, dict) and str(profile.get('name', '')).strip()
         }
         missing_required_profiles = sorted(
-            set(REQUIRED_VALIDATION_PROFILE_COMMANDS) - set(profiles_by_name)
+            set(REQUIRED_VALIDATION_PROFILES) - set(profiles_by_name)
         )
         if missing_required_profiles:
             errors.append({
@@ -729,27 +925,48 @@ def validate_agent_layout(
                     f'{missing_required_profiles}'
                 ),
             })
-        for profile_name, required_commands in (
-            REQUIRED_VALIDATION_PROFILE_COMMANDS.items()
-        ):
+        for profile_name, required_contract in REQUIRED_VALIDATION_PROFILES.items():
             profile = profiles_by_name.get(profile_name)
             if profile is None:
                 continue
-            actual_commands = profile.get('commands')
-            if not isinstance(actual_commands, list):
-                continue
-            if actual_commands != required_commands:
+            actual_contract = {
+                field: profile.get(field)
+                for field in ('use_when', 'requires')
+            }
+            if actual_contract != required_contract:
                 errors.append({
-                    'code': 'unexpected_validation_profile_commands',
+                    'code': 'unexpected_validation_profile_contract',
                     'path': (
                         'docs/AGENT_MANIFEST.json:'
                         f'validation_profiles.{profile_name}'
                     ),
                     'message': (
-                        f'Validation profile `{profile_name}` must use commands '
-                        f'{required_commands}, not {actual_commands}.'
+                        f'Validation profile `{profile_name}` must retain its exact '
+                        '`use_when` selector and required-capability contract.'
                     ),
                 })
+
+        workflow_guidance_path = root / 'skills/ai_native_workflow.txt'
+        workflow_guidance = _read_text_if_present(workflow_guidance_path)
+        missing_guidance_profiles = sorted(
+            profile_name
+            for profile_name in REQUIRED_VALIDATION_PROFILES
+            if f'`{profile_name}`' not in workflow_guidance
+        )
+        checks.append({
+            'kind': 'validation_profile_guidance',
+            'path': 'skills/ai_native_workflow.txt',
+            'missing_profiles': missing_guidance_profiles,
+        })
+        if missing_guidance_profiles:
+            errors.append({
+                'code': 'missing_validation_profile_guidance',
+                'path': 'skills/ai_native_workflow.txt',
+                'message': (
+                    'Active compact guidance must route through every emitted '
+                    f'validation profile name; missing: {missing_guidance_profiles}'
+                ),
+            })
 
     source_of_truth_files = manifest_payload.get('source_of_truth_files', [])
     if not isinstance(source_of_truth_files, list) or not all(
@@ -908,6 +1125,30 @@ def validate_agent_layout(
                 'path': relative_path,
                 'message': f'Active project skill `{skill.get("name", "<unnamed>")}` is missing.',
             })
+        if skill.get('scope') == 'repo_scoped_codex_skill' and check['exists']:
+            frontmatter = _skill_frontmatter_fields(
+                _read_text_if_present(root / relative_path)
+            )
+            expected_name = str(skill.get('name', '')).strip()
+            frontmatter_valid = (
+                frontmatter.get('name') == expected_name
+                and bool(frontmatter.get('description'))
+            )
+            checks.append({
+                'kind': 'project_skill_frontmatter',
+                'path': relative_path,
+                'name': expected_name,
+                'valid': frontmatter_valid,
+            })
+            if not frontmatter_valid:
+                errors.append({
+                    'code': 'unexpected_project_skill_frontmatter',
+                    'path': relative_path,
+                    'message': (
+                        f'Repo-scoped skill frontmatter must declare exact name '
+                        f'`{expected_name}` and a non-empty description.'
+                    ),
+                })
 
     _validate_human_docs_policy(root, manifest_payload, errors, checks)
 
@@ -972,17 +1213,37 @@ def validate_agent_layout(
         })
 
     dependency_checks = manifest_payload.get('dependency_imports', [])
+    requirement_names = _declared_requirement_names(
+        _read_text_if_present(root / 'requirements.txt')
+    )
     if isinstance(dependency_checks, list):
         for dependency in dependency_checks:
             if not isinstance(dependency, dict):
                 continue
+            package_name = str(dependency.get('package', '')).strip()
             module_name = str(dependency.get('module', '')).strip()
-            if not module_name:
+            if not package_name or not module_name:
                 continue
+            requirement_name = _normalized_requirement_name(package_name)
+            requirement_declared = requirement_name in requirement_names
+            checks.append({
+                'kind': 'dependency_requirement',
+                'package': package_name,
+                'declared': requirement_declared,
+            })
+            if not requirement_declared:
+                errors.append({
+                    'code': 'missing_dependency_requirement',
+                    'path': 'requirements.txt',
+                    'message': (
+                        f'Manifest dependency `{package_name}` is not declared in '
+                        '`requirements.txt`.'
+                    ),
+                })
             available = importlib.util.find_spec(module_name) is not None
             checks.append({
                 'kind': 'dependency_import',
-                'package': dependency.get('package', module_name),
+                'package': package_name,
                 'module': module_name,
                 'required_for': dependency.get('required_for', ''),
                 'available': available,

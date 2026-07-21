@@ -209,27 +209,44 @@
     {
       "name": "verify_agent_contract",
       "command": "python3 main.py --verify-agent-contract",
-      "scope": "layout_manifest_git_state"
+      "scope": "layout_manifest_skill_dependency_checks_and_git_state_reporting",
+      "provides": [
+        "agent_contract",
+        "dependency_declarations",
+        "project_skill_metadata"
+      ]
     },
     {
       "name": "fast_smoke",
       "command": "python3 main.py --dry-run",
-      "scope": "config_candidate_features_model_imports"
+      "scope": "config_candidate_features_model_imports",
+      "provides": [
+        "pipeline_wiring_smoke"
+      ]
     },
     {
       "name": "focused_regression",
       "command": "python3 -m pytest -q src/tests/test_main.py src/tests/test_public_surfaces.py src/runtime/tests/test_agent_state.py src/runtime/tests/test_io_utils.py",
-      "scope": "entrypoints_runtime_agent_state_public_surfaces"
+      "scope": "entrypoints_runtime_agent_state_public_surfaces",
+      "provides": [
+        "entrypoint_runtime_public_surface_regressions"
+      ]
     },
     {
       "name": "full_src_tests",
       "command": "python3 -m pytest -q src",
-      "scope": "complete_src_test_suite_with_declared_dependencies"
+      "scope": "complete_src_test_suite_with_declared_dependencies",
+      "provides": [
+        "complete_src_test_suite"
+      ]
     },
     {
       "name": "ui_render_smoke",
       "command": "python3 -m pytest -q src/ui/tests/test_streamlit_app.py",
-      "scope": "real_streamlit_render_and_artifact_viewer_contract"
+      "scope": "real_streamlit_render_and_artifact_viewer_contract",
+      "provides": [
+        "streamlit_renderer_contract"
+      ]
     }
   ],
   "validation_profiles": [
@@ -240,7 +257,13 @@
         "fast_smoke",
         "focused_regression"
       ],
-      "use_when": "agent contract, project skills, handoff, docs, or entrypoint metadata changed"
+      "use_when": "agent contract, project skills, handoff, docs, or entrypoint metadata changed",
+      "requires": [
+        "agent_contract",
+        "entrypoint_runtime_public_surface_regressions",
+        "pipeline_wiring_smoke",
+        "project_skill_metadata"
+      ]
     },
     {
       "name": "module_logic_edit",
@@ -250,7 +273,13 @@
         "focused_regression",
         "full_src_tests"
       ],
-      "use_when": "public Python functions, module boundaries, feature/model logic, or artifact writers changed"
+      "use_when": "public Python functions, module boundaries, feature/model logic, or artifact writers changed",
+      "requires": [
+        "agent_contract",
+        "complete_src_test_suite",
+        "entrypoint_runtime_public_surface_regressions",
+        "pipeline_wiring_smoke"
+      ]
     },
     {
       "name": "scientific_pipeline_edit",
@@ -259,7 +288,12 @@
         "fast_smoke",
         "full_src_tests"
       ],
-      "use_when": "default pipeline behavior or generated scientific artifacts changed; run full_pipeline only when the task needs regenerated artifacts"
+      "use_when": "default pipeline behavior or generated scientific artifacts changed; run full_pipeline only when the task needs regenerated artifacts",
+      "requires": [
+        "agent_contract",
+        "complete_src_test_suite",
+        "pipeline_wiring_smoke"
+      ]
     },
     {
       "name": "ui_edit",
@@ -268,7 +302,13 @@
         "focused_regression",
         "ui_render_smoke"
       ],
-      "use_when": "Streamlit imports, rendering, artifact display, or UI dependency wiring changed"
+      "use_when": "Streamlit imports, rendering, artifact display, or UI dependency wiring changed",
+      "requires": [
+        "agent_contract",
+        "dependency_declarations",
+        "entrypoint_runtime_public_surface_regressions",
+        "streamlit_renderer_contract"
+      ]
     }
   ],
   "dependency_imports": [

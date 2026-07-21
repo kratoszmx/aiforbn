@@ -166,7 +166,7 @@ Purpose:
 Loads the checked-in agent manifest.
 
 ### `validate_agent_layout(project_root_path='.', manifest=None)`
-Checks required agent-facing files, exact control/validation commands and validation-profile command sequences, exact active project-skill and retired-guidance records, local instruction paths, the exact six-module contracts, the stable v18 alignment status and scientific boundaries, and manifest-declared dependency imports.
+Checks required agent-facing files; exact control and validation command/scope/capability records; profile use-case and required-capability reachability; repo-skill trigger frontmatter; manifest-to-requirements dependency declarations and imports; exact retired-guidance and six-module records; local instruction paths; and the stable v18 alignment/scientific boundaries.
 Returns:
 - `status`
 - `errors`

@@ -514,7 +514,10 @@ def test_streamlit_app_reads_generated_artifacts(tmp_path, monkeypatch):
         encoding='utf-8',
     )
     (artifact_dir / 'predictions.csv').write_text('formula,target,prediction\nBN,5.0,4.8\n', encoding='utf-8')
-    (artifact_dir / 'demo_candidate_ranking.csv').write_text('formula,predicted_band_gap\nBN,4.8\n', encoding='utf-8')
+    pd.DataFrame({
+        'formula': [f'candidate_{index:02d}' for index in range(35)],
+        'predicted_band_gap': [float(index) for index in range(35)],
+    }).to_csv(artifact_dir / 'demo_candidate_ranking.csv', index=False)
     (artifact_dir / 'demo_candidate_ranking_uncertainty.csv').write_text('formula,rank_mean\nBN,1\n', encoding='utf-8')
     (artifact_dir / 'demo_candidate_bn_centered_ranking.csv').write_text('formula,predicted_band_gap\nAlBN,4.2\n', encoding='utf-8')
     (artifact_dir / 'demo_candidate_rank_stability_summary.csv').write_text(
@@ -636,6 +639,15 @@ def test_streamlit_app_reads_generated_artifacts(tmp_path, monkeypatch):
     )
     assert fake_streamlit.dataframe_kwargs
     assert all(kwargs == {'width': 'stretch'} for kwargs in fake_streamlit.dataframe_kwargs)
+    candidate_ranking_frame = next(
+        frame
+        for frame in fake_streamlit.dataframes
+        if 'formula' in frame
+        and frame['formula'].astype(str).str.startswith('candidate_').all()
+    )
+    assert candidate_ranking_frame['formula'].tolist() == [
+        f'candidate_{index:02d}' for index in range(30)
+    ]
 
 
 def test_streamlit_app_uses_configured_artifact_root_and_summary_paths(

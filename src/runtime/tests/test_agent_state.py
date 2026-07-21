@@ -138,6 +138,22 @@ def test_validate_agent_layout_accepts_current_repo_contract():
         'streamlit',
         'jarvis',
     }.issubset(dependency_modules)
+    requirement_packages = {
+        check['package']
+        for check in validation['checks']
+        if check['kind'] == 'dependency_requirement' and check['declared']
+    }
+    assert {'pandas', 'streamlit', 'jarvis-tools'}.issubset(requirement_packages)
+    skill_frontmatter_checks = [
+        check
+        for check in validation['checks']
+        if check['kind'] == 'project_skill_frontmatter'
+    ]
+    assert {check['name'] for check in skill_frontmatter_checks} == {
+        'aiforbn-workflow',
+        'aiforbn-overleaf-proposal',
+    }
+    assert all(check['valid'] for check in skill_frontmatter_checks)
 
 
 def test_build_agent_command_index_returns_validation_profiles():
@@ -169,6 +185,20 @@ def test_build_agent_command_index_returns_validation_profiles():
         'verify_agent_contract',
         'focused_regression',
         'ui_render_smoke',
+    ]
+    assert ui_profile['requires'] == [
+        'agent_contract',
+        'dependency_declarations',
+        'entrypoint_runtime_public_surface_regressions',
+        'streamlit_renderer_contract',
+    ]
+    focused_command = next(
+        command
+        for command in command_index['validation_commands']
+        if command['name'] == 'focused_regression'
+    )
+    assert focused_command['provides'] == [
+        'entrypoint_runtime_public_surface_regressions'
     ]
     assert command_index['modules'] == manifest['modules']
     assert command_index['human_docs_policy']['policy_id'] == (
@@ -489,7 +519,7 @@ def test_validate_agent_layout_rejects_missing_human_docs_marker(monkeypatch, re
                     if command != 'focused_regression'
                 ],
             }),
-            'unexpected_validation_profile_commands',
+            'validation_profile_missing_capabilities',
         ),
         (
             lambda manifest: manifest.update({
@@ -504,6 +534,62 @@ def test_validate_agent_layout_rejects_missing_human_docs_marker(monkeypatch, re
     ],
 )
 def test_validate_agent_layout_rejects_incomplete_validation_profiles(
+    mutate_manifest,
+    expected_error_code,
+):
+    manifest = json.loads(json.dumps(load_agent_manifest(ROOT)))
+    mutate_manifest(manifest)
+
+    validation = validate_agent_layout(ROOT, manifest)
+
+    assert validation['status'] == 'error'
+    assert any(error['code'] == expected_error_code for error in validation['errors'])
+
+
+@pytest.mark.parametrize(
+    ('mutate_manifest', 'expected_error_code'),
+    [
+        (
+            lambda manifest: next(
+                entry
+                for entry in manifest['validation_commands']
+                if entry['name'] == 'focused_regression'
+            ).update({'scope': 'does_not_cover_public_surfaces'}),
+            'unexpected_validation_command_contract',
+        ),
+        (
+            lambda manifest: next(
+                profile
+                for profile in manifest['validation_profiles']
+                if profile['name'] == 'ui_edit'
+            ).update({'use_when': 'docs only'}),
+            'unexpected_validation_profile_contract',
+        ),
+        (
+            lambda manifest: next(
+                entry
+                for entry in manifest['validation_commands']
+                if entry['name'] == 'focused_regression'
+            ).update({'provides': []}),
+            'unexpected_validation_command_contract',
+        ),
+        (
+            lambda manifest: next(
+                profile
+                for profile in manifest['validation_profiles']
+                if profile['name'] == 'ui_edit'
+            ).update({
+                'requires': [
+                    'agent_contract',
+                    'dependency_declarations',
+                    'streamlit_renderer_contract',
+                ],
+            }),
+            'unexpected_validation_profile_contract',
+        ),
+    ],
+)
+def test_validate_agent_layout_rejects_validation_scope_claim_drift(
     mutate_manifest,
     expected_error_code,
 ):
@@ -557,7 +643,15 @@ def test_validate_agent_layout_rejects_incomplete_validation_profiles(
                 for entry in manifest['entrypoints']
                 if entry['name'] == 'fast_smoke'
             ).update({'command': 'python3 broken.py'}),
-            'unexpected_entrypoints_command',
+            'unexpected_entrypoint_contract',
+        ),
+        (
+            lambda manifest: next(
+                entry
+                for entry in manifest['entrypoints']
+                if entry['name'] == 'fast_smoke'
+            ).update({'writes_artifacts': True}),
+            'unexpected_entrypoint_contract',
         ),
         (
             lambda manifest: next(
@@ -565,7 +659,7 @@ def test_validate_agent_layout_rejects_incomplete_validation_profiles(
                 for entry in manifest['validation_commands']
                 if entry['name'] == 'full_src_tests'
             ).update({'command': 'python3 -m pytest -q tests'}),
-            'unexpected_validation_commands_command',
+            'unexpected_validation_command_contract',
         ),
     ],
 )
@@ -617,6 +711,58 @@ def test_validate_agent_layout_pins_skills_and_retired_guidance(
 
     assert validation['status'] == 'error'
     assert any(error['code'] == expected_error_code for error in validation['errors'])
+
+
+@pytest.mark.parametrize(
+    ('relative_path', 'mutate_text', 'expected_error_code'),
+    [
+        (
+            '.agents/skills/aiforbn-workflow/SKILL.md',
+            lambda text: text.replace(
+                'name: aiforbn-workflow',
+                'name: renamed-workflow',
+                1,
+            ),
+            'unexpected_project_skill_frontmatter',
+        ),
+        (
+            'requirements.txt',
+            lambda text: '\n'.join(
+                line
+                for line in text.splitlines()
+                if not line.startswith('streamlit')
+            ) + '\n',
+            'missing_dependency_requirement',
+        ),
+        (
+            'skills/ai_native_workflow.txt',
+            lambda text: text.replace('`ui_edit`', '`renamed_ui_profile`'),
+            'missing_validation_profile_guidance',
+        ),
+    ],
+)
+def test_validate_agent_layout_rejects_source_of_truth_reachability_drift(
+    monkeypatch,
+    relative_path,
+    mutate_text,
+    expected_error_code,
+):
+    original_read = agent_state._read_text_if_present
+    target_path = (ROOT / relative_path).resolve()
+
+    def read_with_mutation(path):
+        text = original_read(path)
+        return mutate_text(text) if Path(path).resolve() == target_path else text
+
+    monkeypatch.setattr(agent_state, '_read_text_if_present', read_with_mutation)
+
+    validation = validate_agent_layout(ROOT)
+
+    assert validation['status'] == 'error'
+    assert any(
+        error['code'] == expected_error_code
+        for error in validation['errors']
+    )
 
 
 def test_local_instruction_path_validation_rejects_missing_absolute_path(tmp_path: Path):

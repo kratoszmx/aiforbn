@@ -16,6 +16,9 @@ def test_default_config_has_expected_poc_defaults():
     assert cfg['data']['dataset'] == 'twod_matpd'
     assert cfg['data']['target_column'] == 'band_gap'
     assert cfg['split']['method'] == 'group_by_formula'
+    assert cfg['split']['train_ratio'] == 0.8
+    assert cfg['split']['val_ratio'] == 0.1
+    assert cfg['split']['test_ratio'] == 0.1
     assert cfg['features']['feature_set'] == 'basic_formula_composition'
     assert cfg['features']['candidate_sets'] == [
         'basic_formula_composition',

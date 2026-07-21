@@ -1394,6 +1394,30 @@ def test_feature_pipeline_can_train_evaluate_benchmark_and_rank_demo_candidates(
     )
 
 
+def test_evaluate_predictions_reports_root_mean_squared_error_not_mse():
+    class ZeroModel:
+        @staticmethod
+        def predict(features):
+            return np.zeros(len(features), dtype=float)
+
+    eval_df = pd.DataFrame({
+        'formula': ['BN', 'AlN'],
+        'target': [0.0, 2.0],
+        'feature': [1.0, 2.0],
+    })
+
+    metrics, prediction_df = evaluate_predictions(
+        eval_df,
+        {'test': pd.Series([True, True], index=eval_df.index)},
+        ZeroModel(),
+        ['feature'],
+    )
+
+    assert metrics['mae'] == pytest.approx(1.0)
+    assert metrics['rmse'] == pytest.approx(2.0 ** 0.5)
+    assert prediction_df['abs_error'].tolist() == [0.0, 2.0]
+
+
 def test_screen_candidates_can_apply_bn_local_band_gap_alignment_penalty():
     alignment_cfg = copy.deepcopy(CFG)
     alignment_cfg['screening']['top_k'] = 3

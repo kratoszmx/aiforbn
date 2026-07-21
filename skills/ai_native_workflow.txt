@@ -31,10 +31,11 @@ Architecture contract:
 - Do not add wrapper compatibility layers for old module names; directly update imports and tests.
 
 Validation profiles:
-- Architecture/docs/skills/contract edit: `verify_agent_contract`, `fast_smoke`, `focused_regression`.
-- UI edit: `verify_agent_contract`, `ui_render_smoke`; use a bounded real headless server health check when startup/dependency wiring changes.
-- Public Python/module logic edit: add `full_src_tests`.
-- Scientific pipeline behavior or artifact logic edit: run full `python3 main.py` only when regenerated artifacts are required or the task explicitly asks for full recomputation.
+- Architecture/docs/skills/contract edit: run emitted profile `architecture_doc_skill_edit`.
+- UI edit: run emitted profile `ui_edit`; use a bounded real headless server health check when startup wiring changes.
+- Public Python/module logic edit: run emitted profile `module_logic_edit`.
+- Scientific pipeline or artifact-logic edit: run emitted profile `scientific_pipeline_edit`; run full `python3 main.py` only when regenerated artifacts are required or the task explicitly asks for full recomputation.
+- Treat each profile's machine-readable `requires` and each command's `provides` as the reachability contract; do not copy command sequences into guidance prose.
 - Always prefer the smallest validation profile that proves the touched behavior.
 - Avoid unbounded long-running commands. If a full pipeline run is necessary, make the expected runtime and artifact writes explicit first.
 

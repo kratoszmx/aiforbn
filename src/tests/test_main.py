@@ -423,6 +423,27 @@ def test_run_dry_run_validates_fast_smoke_path(monkeypatch, capsys):
     assert "configured model types: ['hist_gradient_boosting', 'linear_regression']" in out
 
 
+def test_pipeline_dependency_bindings_resolve_real_public_symbols():
+    spec = spec_from_file_location('main_pipeline_bindings_under_test', ROOT / 'main.py')
+    main_module = module_from_spec(spec)
+    assert spec is not None and spec.loader is not None
+    spec.loader.exec_module(main_module)
+    binding_names = {
+        name
+        for name, value in vars(main_module).items()
+        if not name.startswith('_') and value is None
+    }
+
+    assert len(binding_names) >= 30, 'Pipeline binding test no longer covers its live surface'
+
+    main_module._ensure_pipeline_dependencies_loaded()
+
+    unresolved_names = sorted(
+        name for name in binding_names if getattr(main_module, name) is None
+    )
+    assert unresolved_names == []
+
+
 def test_emit_agent_state_emits_machine_readable_project_state(monkeypatch, capsys, tmp_path):
     spec = spec_from_file_location('main_module_under_test', ROOT / 'main.py')
     main_module = module_from_spec(spec)
