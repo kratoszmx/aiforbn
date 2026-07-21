@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = ROOT / 'src'
 MODULE_DIRS = {'runtime', 'materials', 'torch_models', 'ui', 'tests', 'template'}
 PRODUCTION_MODULE_DIRS = {'runtime', 'materials', 'torch_models', 'ui'}
-ROOT_FUNCTION_MODULES = {'runtime', 'materials', 'ui'}
+ROOT_FUNCTION_MODULES = {'main', 'runtime', 'materials', 'ui'}
 PUBLIC_NAME_PATTERN = re.compile(r'`([A-Za-z_][A-Za-z0-9_]*)\s*(?:\(|`)')
 FILE_HEADING_PATTERN = re.compile(
     r'^##\s+(?:`(?P<quoted>[^`]+\.py)`|(?P<plain>\S+\.py))\s*$'
@@ -20,7 +20,8 @@ PUBLIC_CALLABLE_ENTRY_PATTERN = re.compile(
     r'^- `(?P<name>[A-Za-z_][A-Za-z0-9_]*)\((?P<parameters>[^`]*)\)`'
 )
 ROOT_MODULE_HEADING_PATTERN = re.compile(
-    r'^## src/(?P<module>[A-Za-z_][A-Za-z0-9_]*)/(?:[^/\s]+\.py)?$'
+    r'^## (?:(?P<main>main)\.py|src/(?P<module>[A-Za-z_][A-Za-z0-9_]*)/'
+    r'(?:[^/\s]+\.py)?)$'
 )
 ROOT_CALLABLE_HEADING_PATTERN = re.compile(
     r'^### `(?P<name>[A-Za-z_][A-Za-z0-9_]*)\((?P<parameters>[^`]*)\)`$'
@@ -149,7 +150,7 @@ def _root_documented_callable_parameters() -> dict[str, dict[str, tuple[list[str
     ).splitlines():
         module_match = ROOT_MODULE_HEADING_PATTERN.match(line)
         if module_match:
-            current_module = module_match.group('module')
+            current_module = module_match.group('main') or module_match.group('module')
             documented.setdefault(current_module, {})
             continue
         if line.startswith('## '):
@@ -365,11 +366,13 @@ def test_root_public_summary_callable_parameter_order_matches_live_source():
         f'{empty_root_modules}'
     )
     for module_name, documented_callables in root_documented_callables.items():
-        module_dir = SRC_ROOT / module_name
-        if not module_dir.is_dir():
-            continue
+        source_paths = (
+            [ROOT / 'main.py']
+            if module_name == 'main'
+            else list((SRC_ROOT / module_name).glob('*.py'))
+        )
         live_candidates: dict[str, list[tuple[Path, list[str]]]] = {}
-        for source_path in module_dir.glob('*.py'):
+        for source_path in source_paths:
             for callable_name, live_parameters in (
                 _defined_top_level_function_parameters(source_path).items()
             ):

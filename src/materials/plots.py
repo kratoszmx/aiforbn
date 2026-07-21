@@ -35,13 +35,22 @@ def save_basic_plots(prediction_df, cfg):
         required_parent_path=artifact_dir,
         expected_output_kind='file',
     )
+    provenance_path = validate_runtime_output_path(
+        artifact_dir / 'artifact_provenance.json',
+        required_parent_path=artifact_dir,
+        expected_output_kind='file',
+    )
+    provenance_path.unlink(missing_ok=True)
     artifact_dir.mkdir(parents=True, exist_ok=True)
 
     fig, ax = plt.subplots(figsize=(5, 5))
-    ax.scatter(prediction_df['target'], prediction_df['prediction'], alpha=0.7)
-    ax.set_xlabel('True target')
-    ax.set_ylabel('Predicted target')
-    ax.set_title('Parity plot')
-    fig.tight_layout()
-    fig.savefig(parity_plot_path, dpi=160)
-    plt.close(fig)
+    try:
+        ax.scatter(prediction_df['target'], prediction_df['prediction'], alpha=0.7)
+        ax.set_xlabel('True target')
+        ax.set_ylabel('Predicted target')
+        ax.set_title('Parity plot')
+        fig.tight_layout()
+        fig.savefig(parity_plot_path, dpi=160)
+    finally:
+        plt.close(fig)
+    return parity_plot_path

@@ -139,8 +139,8 @@ Treats unset or blank `MPLCONFIGDIR` as the safe temporary default, validates an
 Preflights all configured runtime directories before creating any of them, so invalid file leaves or parent chains fail without partial directory creation.
 Currently this means the config-driven data/cache/artifact directories, rather than legacy source-tree folders like `apps/` or `notebooks/`.
 
-### `build_artifact_provenance(cfg, dataset_manifest=None, *, project_root_path=None)` / `assess_artifact_provenance(...)`
-Builds and assesses local-only artifact provenance using stable source revision, source dirty/unknown state, effective-config hash, and dataset-manifest hash. Assessment is `current`, `stale`, or `unverified`; missing Git identity is non-fatal, while malformed marker fields and missing or schema-invalid dataset manifests fail closed as `unverified`.
+### `build_artifact_provenance(cfg, dataset_manifest=None, *, published_output_paths, project_root_path=None)` / `assess_artifact_provenance(...)`
+Builds and assesses local-only v2 artifact provenance using stable source revision, source dirty/unknown state, effective-config hash, dataset-manifest hash, and artifact-relative SHA-256 commitments derived from actual successful writer returns. Root Python shadow modules participate in dirty identity. Assessment is `current`, `stale`, or `unverified`; legacy/malformed markers, invalid manifests, and missing/unreadable/changed committed outputs fail closed.
 
 ### `validate_json_payload(payload, ...)`
 Runs the same JSON-safe serialization contract as `write_json_file` without touching the filesystem, so multi-output writers can reject late invalid payloads before their first mutation.
@@ -885,7 +885,7 @@ Important:
 ### `save_metrics_and_predictions(metrics, prediction_df, bn_df, screened_df, benchmark_df, robustness_df, bn_slice_benchmark_df, bn_slice_prediction_df, bn_centered_screened_df, structure_generation_seed_df, experiment_summary, manifest, cfg, ...)`
 Writes the main artifact files under `artifacts/`.
 Every fixed, configurable, dynamic, and stale-cleanup CIF leaf is preflighted in its originally declared form before directory creation. Configurable structure-execution outputs must remain under that directory, use the expected JSON/CSV types, avoid core/pairwise/alias collisions, and place CIF files directly under the configured structure directory. Empty execution results remove only preflighted stale execution outputs from a previous run.
-Ranking-stability, decision-policy, shortlist, and structure-seed gates control their declared outputs; disabling a layer removes stale files from prior runs, including case-equivalent CIF suffixes. Caller JSON is preflighted before mutation, CSV replacement is atomic, any prior completion marker is invalidated before the first bundle mutation, and `artifact_provenance.json` is published last; interrupted marker publication removes its partial leaf.
+Ranking-stability, decision-policy, shortlist, and structure-seed gates control their declared outputs; disabling a layer removes stale files from prior runs, including case-equivalent CIF suffixes. Caller JSON and parity inputs are preflighted before mutation, CSV replacement is atomic, and successful fixed/optional/configured/CIF/plot writes feed one source-derived commitment. Any prior marker is invalidated before mutation; failed plotting/publication leaves no marker, while `artifact_provenance.json` is always the final action and excludes absent optional outputs.
 Each compact BN model-role row uses one canonical feature/model identity across diagnostic scopes; unavailable identity-matched metrics stay empty rather than borrowing a different model's best value.
 This now includes both shortlist CSVs, BN-slice benchmark artifacts, BN-family / stratified BN evaluation artifacts, the BN-centered alternative ranking artifact, the ranking-stability / abstention artifact, the BN candidate-compatible evaluation artifact, and the structure-generation bridge artifacts in addition to the full ranking artifact:
 - `bn_slice_benchmark_results.csv`
@@ -922,7 +922,7 @@ Guards and canonicalizes the Matplotlib cache before pyplot import, then preflig
 ## src/ui/streamlit_app.py
 
 ### `render_streamlit_app()`
-Renders the artifact viewer from the configured artifact root and summary-declared execution paths, reads JSON through the documented runtime helper, and labels provenance as current/stale/unverified from stable local identity. A missing core bundle or unreadable provenance/summary/manifest cannot be current; those identity JSON failures and empty-schema CSVs produce text warnings instead of renderer failures.
+Renders the artifact viewer from the configured artifact root and summary-declared execution paths, reads JSON through the documented runtime helper, and verifies every v2 committed output digest before labeling provenance current. Missing/changed/malformed committed files and known viewer outputs absent from the successful-run inventory are non-green and skipped; unrelated extras remain ignored, and JSON/CSV parse failures warn instead of crashing.
 It displays:
 - `metrics.json`
 - `experiment_summary.json`

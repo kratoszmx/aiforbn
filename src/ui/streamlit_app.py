@@ -181,6 +181,12 @@ def render_streamlit_app() -> None:
                 'Experiment summary is unreadable; artifact provenance cannot be current.'
             )
     artifact_paths = _build_artifact_paths(CONFIG, summary_payload)
+    artifact_root = validate_runtime_output_path(
+        CONFIG['project']['artifact_dir'],
+        expected_output_kind='directory',
+    )
+    committed_output_paths: set[Path] | None = None
+    uncommitted_artifact_keys: list[str] = []
     has_artifacts = any(
         path is not None and path.exists()
         for key, path in artifact_paths.items()
@@ -209,6 +215,37 @@ def render_streamlit_app() -> None:
                     'reason': 'artifact_provenance_unreadable',
                 }
             else:
+                published_outputs = (
+                    provenance_payload.get('published_outputs')
+                    if isinstance(provenance_payload, dict)
+                    else None
+                )
+                if isinstance(published_outputs, dict) and published_outputs:
+                    resolved_commitments = {
+                        _artifact_file_path(artifact_root, relative_path)
+                        for relative_path in published_outputs
+                    }
+                    if None not in resolved_commitments:
+                        committed_output_paths = resolved_commitments
+                        uncommitted_artifact_keys = [
+                            key
+                            for key, path in artifact_paths.items()
+                            if (
+                                key != 'provenance'
+                                and path is not None
+                                and path.exists()
+                                and path not in committed_output_paths
+                            )
+                        ]
+                        missing_bundle_keys = [
+                            key
+                            for key in _REQUIRED_COMPLETE_BUNDLE_KEYS
+                            if (
+                                artifact_paths.get(key) is None
+                                or not artifact_paths[key].exists()
+                                or artifact_paths[key] not in committed_output_paths
+                            )
+                        ]
                 manifest_payload = None
                 if manifest_path is not None and manifest_path.exists():
                     try:
@@ -221,11 +258,13 @@ def render_streamlit_app() -> None:
                     manifest_payload,
                 )
                 if provenance_assessment['status'] == 'current' and (
-                    missing_bundle_keys or summary_unreadable
+                    missing_bundle_keys
+                    or summary_unreadable
+                    or uncommitted_artifact_keys
                 ):
                     provenance_assessment = {
                         'status': 'unverified',
-                        'reason': 'artifact_bundle_incomplete_or_unreadable',
+                        'reason': 'artifact_bundle_incomplete_unreadable_or_uncommitted',
                     }
             st.subheader('Artifact bundle provenance')
             provenance_display = (
@@ -238,10 +277,14 @@ def render_streamlit_app() -> None:
                     **provenance_display,
                     'assessment': provenance_assessment,
                     'missing_required_artifacts': missing_bundle_keys,
+                    'uncommitted_known_artifacts': uncommitted_artifact_keys,
                 }
             )
             if provenance_assessment['status'] == 'current':
-                st.success('Artifact provenance matches the current source and configuration.')
+                st.success(
+                    'Artifact provenance matches the current source, configuration, '
+                    'dataset, and published output contents.'
+                )
             else:
                 st.warning(
                     'Artifact provenance is '
@@ -249,20 +292,33 @@ def render_streamlit_app() -> None:
                     f"{provenance_assessment['reason']}."
                 )
 
+    def _is_renderable(path: Path | None) -> bool:
+        return (
+            path is not None
+            and path.exists()
+            and (
+                committed_output_paths is None
+                or path in committed_output_paths
+            )
+        )
+
     metrics_path = artifact_paths['metrics']
-    if metrics_path is not None and metrics_path.exists():
+    if _is_renderable(metrics_path):
         st.subheader('Metrics')
-        st.json(read_json_file(metrics_path))
+        try:
+            st.json(read_json_file(metrics_path))
+        except (OSError, TypeError, ValueError):
+            st.warning('Metrics artifact exists but is unreadable.')
     else:
         st.info('Run `python main.py` first to generate artifacts.')
 
-    if summary_payload is not None:
+    if summary_payload is not None and _is_renderable(summary_path):
         st.subheader('Experiment summary')
         st.json(summary_payload)
 
     for title, key in CSV_SECTIONS:
         path = artifact_paths.get(key)
-        if path is None or not path.exists():
+        if not _is_renderable(path):
             continue
         st.subheader(title)
         try:
@@ -270,16 +326,22 @@ def render_streamlit_app() -> None:
         except pd.errors.EmptyDataError:
             st.warning(f'{title} exists but has no readable CSV schema.')
             continue
+        except (OSError, ValueError):
+            st.warning(f'{title} exists but has no readable CSV content.')
+            continue
         if key in HEAD_LIMITED_KEYS:
             df = df.head(30)
         st.dataframe(df, width='stretch')
 
     for title, key in JSON_SECTIONS:
         path = artifact_paths.get(key)
-        if path is None or not path.exists():
+        if not _is_renderable(path):
             continue
         st.subheader(title)
-        st.json(read_json_file(path))
+        try:
+            st.json(read_json_file(path))
+        except (OSError, TypeError, ValueError):
+            st.warning(f'{title} exists but is unreadable.')
 
 
 if __name__ == '__main__':

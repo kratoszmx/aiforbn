@@ -291,8 +291,15 @@ def test_artifact_provenance_tracks_source_config_and_dataset_identity(
         '_read_local_source_state',
         lambda _root: {'revision': 'abc123', 'dirty': False},
     )
-    cfg = {'project': {'artifact_dir': 'artifacts'}, 'value': 7}
-    reordered_cfg = {'value': 7, 'project': {'artifact_dir': 'artifacts'}}
+    artifact_dir = tmp_path / 'artifacts'
+    artifact_dir.mkdir()
+    published_path = artifact_dir / 'metrics.json'
+    published_path.write_text('{"mae": 1.0}\n', encoding='utf-8')
+    cfg = {'project': {'artifact_dir': str(artifact_dir)}, 'value': 7}
+    reordered_cfg = {
+        'value': 7,
+        'project': {'artifact_dir': str(artifact_dir)},
+    }
     manifest = {
         'name': 'twod_matpd',
         'source': 'jarvis-tools/figshare',
@@ -303,10 +310,11 @@ def test_artifact_provenance_tracks_source_config_and_dataset_identity(
     provenance = build_artifact_provenance(
         cfg,
         manifest,
+        published_output_paths=(published_path,),
         project_root_path=tmp_path,
     )
 
-    assert provenance['schema'] == 'aiforbn.artifact_provenance.v1'
+    assert provenance['schema'] == 'aiforbn.artifact_provenance.v2'
     assert provenance['source_revision'] == 'abc123'
     assert provenance['source_worktree_dirty'] is False
     assert len(provenance['config_sha256']) == 64
@@ -314,6 +322,7 @@ def test_artifact_provenance_tracks_source_config_and_dataset_identity(
     assert build_artifact_provenance(
         reordered_cfg,
         manifest,
+        published_output_paths=(published_path,),
         project_root_path=tmp_path,
     )['config_sha256'] == provenance['config_sha256']
     assert assess_artifact_provenance(
@@ -368,6 +377,7 @@ def test_artifact_provenance_tracks_source_config_and_dataset_identity(
     outside_git = build_artifact_provenance(
         cfg,
         manifest,
+        published_output_paths=(published_path,),
         project_root_path=tmp_path,
     )
     assert outside_git['source_revision'] is None
@@ -380,6 +390,95 @@ def test_artifact_provenance_tracks_source_config_and_dataset_identity(
     ) == {
         'status': 'unverified',
         'reason': 'source_revision_unavailable',
+    }
+
+
+def test_artifact_provenance_commits_to_published_output_bytes(
+    tmp_path: Path,
+    monkeypatch,
+):
+    artifact_dir = tmp_path / 'custom-output' / 'nested-artifacts'
+    artifact_dir.mkdir(parents=True)
+    metrics_path = artifact_dir / 'metrics.json'
+    optional_path = artifact_dir / 'nested' / 'optional.csv'
+    optional_path.parent.mkdir()
+    metrics_path.write_text('{"mae": 1.0}\n', encoding='utf-8')
+    optional_path.write_text('formula,score\nBN,1\n', encoding='utf-8')
+    cfg = {'project': {'artifact_dir': str(artifact_dir)}, 'value': 7}
+    manifest = {
+        'name': 'twod_matpd',
+        'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-21T00:00:00+00:00',
+        'target_column': 'band_gap',
+    }
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+
+    provenance = build_artifact_provenance(
+        cfg,
+        manifest,
+        published_output_paths=(metrics_path, optional_path),
+        project_root_path=tmp_path,
+    )
+
+    assert provenance['schema'] == 'aiforbn.artifact_provenance.v2'
+    assert set(provenance['published_outputs']) == {
+        'metrics.json',
+        'nested/optional.csv',
+    }
+    assert assess_artifact_provenance(
+        provenance,
+        cfg,
+        manifest,
+        project_root_path=tmp_path,
+    ) == {
+        'status': 'current',
+        'reason': 'source_config_dataset_and_outputs_match',
+    }
+
+    metrics_path.write_text('{"mae": 99.0}\n', encoding='utf-8')
+    assert assess_artifact_provenance(
+        provenance,
+        cfg,
+        manifest,
+        project_root_path=tmp_path,
+    ) == {'status': 'stale', 'reason': 'artifact_output_content_mismatch'}
+
+    metrics_path.write_text('{"mae": 1.0}\n', encoding='utf-8')
+    optional_path.unlink()
+    assert assess_artifact_provenance(
+        provenance,
+        cfg,
+        manifest,
+        project_root_path=tmp_path,
+    ) == {'status': 'unverified', 'reason': 'artifact_output_missing'}
+
+    malformed = {
+        **provenance,
+        'published_outputs': {
+            '../outside.csv': next(iter(provenance['published_outputs'].values())),
+        },
+    }
+    assert assess_artifact_provenance(
+        malformed,
+        cfg,
+        manifest,
+        project_root_path=tmp_path,
+    ) == {'status': 'unverified', 'reason': 'artifact_provenance_invalid'}
+
+    legacy = {key: value for key, value in provenance.items() if key != 'published_outputs'}
+    legacy['schema'] = 'aiforbn.artifact_provenance.v1'
+    assert assess_artifact_provenance(
+        legacy,
+        cfg,
+        manifest,
+        project_root_path=tmp_path,
+    ) == {
+        'status': 'unverified',
+        'reason': 'artifact_provenance_schema_unknown',
     }
 
 
@@ -404,7 +503,11 @@ def test_artifact_provenance_never_accepts_missing_or_malformed_dataset_identity
         '_read_local_source_state',
         lambda _root: {'revision': 'abc123', 'dirty': False},
     )
-    cfg = {'project': {'artifact_dir': 'artifacts'}}
+    artifact_dir = tmp_path / 'artifacts'
+    artifact_dir.mkdir()
+    published_path = artifact_dir / 'metrics.json'
+    published_path.write_text('{"mae": 1.0}\n', encoding='utf-8')
+    cfg = {'project': {'artifact_dir': str(artifact_dir)}}
     valid_manifest = {
         'name': 'twod_matpd',
         'source': 'jarvis-tools/figshare',
@@ -414,12 +517,14 @@ def test_artifact_provenance_never_accepts_missing_or_malformed_dataset_identity
     provenance = build_artifact_provenance(
         cfg,
         manifest,
+        published_output_paths=(published_path,),
         project_root_path=tmp_path,
     )
     if manifest is None:
         provenance = build_artifact_provenance(
             cfg,
             valid_manifest,
+            published_output_paths=(published_path,),
             project_root_path=tmp_path,
         )
 
@@ -439,6 +544,13 @@ def test_artifact_provenance_never_accepts_missing_or_malformed_dataset_identity
         ('source_worktree_dirty', 'clean', False),
         ('config_sha256', 'not-a-sha256', False),
         ('dataset_manifest_sha256', None, False),
+        ('published_outputs', None, True),
+        ('published_outputs', {}, False),
+        (
+            'published_outputs',
+            {'artifact_provenance.json': '0' * 64},
+            False,
+        ),
     ],
 )
 def test_artifact_provenance_rejects_malformed_marker_fields(
@@ -453,14 +565,23 @@ def test_artifact_provenance_rejects_malformed_marker_fields(
         '_read_local_source_state',
         lambda _root: {'revision': 'abc123', 'dirty': False},
     )
-    cfg = {'project': {'artifact_dir': 'artifacts'}}
+    artifact_dir = tmp_path / 'artifacts'
+    artifact_dir.mkdir()
+    published_path = artifact_dir / 'metrics.json'
+    published_path.write_text('{"mae": 1.0}\n', encoding='utf-8')
+    cfg = {'project': {'artifact_dir': str(artifact_dir)}}
     manifest = {
         'name': 'twod_matpd',
         'source': 'jarvis-tools/figshare',
         'retrieved_at': '2026-07-21T00:00:00+00:00',
         'target_column': 'band_gap',
     }
-    provenance = build_artifact_provenance(cfg, manifest, project_root_path=tmp_path)
+    provenance = build_artifact_provenance(
+        cfg,
+        manifest,
+        published_output_paths=(published_path,),
+        project_root_path=tmp_path,
+    )
     if remove_field:
         provenance.pop(field)
     else:
@@ -514,6 +635,14 @@ def test_artifact_provenance_source_identity_handles_detached_dirty_and_ignored_
     assert io_utils._read_local_source_state(project_root) == clean_state
 
     (project_root / 'untracked-scratch.tmp').write_text('irrelevant', encoding='utf-8')
+    assert io_utils._read_local_source_state(project_root) == clean_state
+
+    root_shadow_path = project_root / 'pandas.py'
+    root_shadow_path.write_text('VALUE = "root-shadow"\n', encoding='utf-8')
+    root_shadow_state = io_utils._read_local_source_state(project_root)
+    assert root_shadow_state['revision'] == clean_state['revision']
+    assert root_shadow_state['dirty'] is True
+    root_shadow_path.unlink()
     assert io_utils._read_local_source_state(project_root) == clean_state
 
     subprocess.run(['git', 'checkout', '--detach', '-q'], cwd=project_root, check=True)

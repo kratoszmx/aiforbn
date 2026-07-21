@@ -51,7 +51,6 @@ build_candidate_structure_generation_seeds = None
 screen_candidates = None
 select_feature_model_combo = None
 save_metrics_and_predictions = None
-save_basic_plots = None
 build_experiment_summary = None
 build_structure_first_pass_execution_artifacts = None
 
@@ -124,7 +123,6 @@ def _ensure_pipeline_dependencies_loaded() -> None:
     _bind_missing('screen_candidates', 'materials.screening', 'screen_candidates')
     _bind_missing('select_feature_model_combo', 'materials.selection', 'select_feature_model_combo')
     _bind_missing('save_metrics_and_predictions', 'materials.artifacts', 'save_metrics_and_predictions')
-    _bind_missing('save_basic_plots', 'materials.plots', 'save_basic_plots')
     _bind_missing('build_experiment_summary', 'materials.summary', 'build_experiment_summary')
     _bind_missing(
         'build_structure_first_pass_execution_artifacts',
@@ -553,9 +551,9 @@ def main() -> None:
         'structure_first_pass_execution_variant_df': structure_first_pass_variant_df,
         'structure_first_pass_execution_summary_df': structure_first_pass_summary_df,
         'structure_first_pass_execution_payload': structure_first_pass_payload,
+        'include_parity_plot': True,
     }
     save_metrics_and_predictions(**save_kwargs)
-    save_basic_plots(prediction_df, cfg)
 
     print('=== BN AI PoC pipeline completed ===')
     print(f"dataset rows: {len(dataset_df)}")

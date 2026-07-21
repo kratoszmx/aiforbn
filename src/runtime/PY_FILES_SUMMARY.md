@@ -15,10 +15,10 @@ Anything underscore-prefixed or omitted here should be treated as internal.
   - Treat unset or blank `MPLCONFIGDIR` as the safe temporary default, then canonicalize, guard, return, and export the exact path used by Matplotlib and JARVIS.
 - `ensure_runtime_dirs(cfg, project_root_path='.')`
   - Preflight every configured runtime directory, then create them together; invalid file leaves or parent chains fail without partial directory creation.
-- `build_artifact_provenance(cfg, dataset_manifest=None, *, project_root_path=None)`
-  - Build local-only artifact provenance from the current source revision/dirty state plus canonical effective-config and dataset-manifest hashes; missing Git identity degrades to explicit unknown values.
+- `build_artifact_provenance(cfg, dataset_manifest=None, *, published_output_paths, project_root_path=None)`
+  - Build local-only artifact provenance from the current source revision/dirty state, canonical effective-config and dataset-manifest hashes, and stable artifact-relative SHA-256 commitments for the supplied successfully published files; missing Git identity degrades to explicit unknown values.
 - `assess_artifact_provenance(provenance, cfg, dataset_manifest=None, *, project_root_path=None)`
-  - Classify a stored bundle as `current`, `stale`, or `unverified` using stable local source/config/dataset identity; malformed marker fields and missing or schema-invalid dataset manifests fail closed as `unverified`.
+  - Classify a stored bundle as `current`, `stale`, or `unverified` using stable local source/config/dataset/output identity; legacy or malformed markers, missing/schema-invalid dataset manifests, and missing/unreadable/changed committed outputs never assess current.
 - `validate_json_payload(payload, ...)`
   - Apply the same JSON-safety and serialization contract as `write_json_file` without creating or replacing a path, for multi-output preflight.
 - `clear_project_cache(project_root_path='.')`

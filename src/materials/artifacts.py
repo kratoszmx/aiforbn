@@ -264,6 +264,7 @@ def save_metrics_and_predictions(
     bn_family_benchmark_df=None,
     bn_family_prediction_df=None,
     bn_stratified_error_df=None,
+    include_parity_plot=False,
 ):
     artifact_dir = Path(cfg['project']['artifact_dir'])
     artifact_dir = validate_runtime_output_path(
@@ -273,7 +274,25 @@ def save_metrics_and_predictions(
     formula_col = ((cfg.get('data') or {}).get('formula_column') or 'formula')
     structure_generation_seed_cfg = _structure_generation_seed_config(cfg)
     artifact_provenance_path = artifact_dir / 'artifact_provenance.json'
-    artifact_provenance = build_artifact_provenance(cfg, manifest)
+    published_output_paths: set[Path] = set()
+
+    def _publish_csv(frame: pd.DataFrame, path: str | Path) -> None:
+        output_path = validate_runtime_output_path(
+            path,
+            reject_leaf_symlink=True,
+            expected_output_kind='file',
+        )
+        _write_csv_file(frame, output_path)
+        published_output_paths.add(output_path)
+
+    def _publish_json(payload, path: str | Path, **kwargs) -> None:
+        output_path = validate_runtime_output_path(
+            path,
+            reject_leaf_symlink=True,
+            expected_output_kind='file',
+        )
+        write_json_file(payload, output_path, **kwargs)
+        published_output_paths.add(output_path)
     bn_family_benchmark_df = (
         pd.DataFrame() if bn_family_benchmark_df is None else bn_family_benchmark_df.copy()
     )
@@ -431,7 +450,10 @@ def save_metrics_and_predictions(
                 expected_output_kind='file',
             )
 
-    for artifact_name in _RESERVED_REPORT_ARTIFACT_NAMES - {'parity_plot.png'}:
+    preflight_artifact_names = _RESERVED_REPORT_ARTIFACT_NAMES
+    if not include_parity_plot:
+        preflight_artifact_names = preflight_artifact_names - {'parity_plot.png'}
+    for artifact_name in preflight_artifact_names:
         validate_runtime_output_path(
             artifact_dir / artifact_name,
             required_parent_path=artifact_dir,
@@ -448,31 +470,37 @@ def save_metrics_and_predictions(
     validate_json_payload(metrics, indent=2)
     validate_json_payload(experiment_summary, ensure_ascii=False, indent=2)
     validate_json_payload(manifest, indent=2)
+    if include_parity_plot:
+        missing_plot_columns = {'target', 'prediction'} - set(prediction_df.columns)
+        if missing_plot_columns:
+            raise ValueError(
+                'Parity plot publication requires target and prediction columns'
+            )
     artifact_dir.mkdir(parents=True, exist_ok=True)
     if artifact_provenance_path.exists():
         artifact_provenance_path.unlink()
 
     if bn_centered_screened_df is not None and not bn_centered_screened_df.empty:
-        _write_csv_file(bn_centered_screened_df, bn_centered_ranking_path)
+        _publish_csv(bn_centered_screened_df, bn_centered_ranking_path)
     elif bn_centered_ranking_path.exists():
         bn_centered_ranking_path.unlink()
-    write_json_file(metrics, artifact_dir / 'metrics.json', indent=2)
-    _write_csv_file(prediction_df, artifact_dir / 'predictions.csv')
-    _write_csv_file(bn_df, artifact_dir / 'bn_slice.csv')
-    _write_csv_file(screened_df, artifact_dir / 'demo_candidate_ranking.csv')
+    _publish_json(metrics, artifact_dir / 'metrics.json', indent=2)
+    _publish_csv(prediction_df, artifact_dir / 'predictions.csv')
+    _publish_csv(bn_df, artifact_dir / 'bn_slice.csv')
+    _publish_csv(screened_df, artifact_dir / 'demo_candidate_ranking.csv')
     selected_followup_df = pd.DataFrame()
     if (
         bool(structure_generation_seed_cfg['enabled'])
         and structure_generation_seed_df is not None
         and not structure_generation_seed_df.empty
     ):
-        _write_csv_file(structure_generation_seed_df, structure_generation_seed_path)
+        _publish_csv(structure_generation_seed_df, structure_generation_seed_path)
         structure_generation_handoff = _build_structure_generation_handoff_payload(
             structure_generation_seed_df,
             formula_col=formula_col,
             cfg_defaults=structure_generation_seed_cfg,
         )
-        write_json_file(
+        _publish_json(
             structure_generation_handoff,
             structure_generation_handoff_path,
             indent=2,
@@ -482,7 +510,7 @@ def save_metrics_and_predictions(
             structure_generation_seed_df,
             cfg=cfg,
         )
-        write_json_file(
+        _publish_json(
             structure_generation_reference_records,
             structure_generation_reference_records_path,
             indent=2,
@@ -493,7 +521,7 @@ def save_metrics_and_predictions(
             formula_col=formula_col,
             cfg_defaults=structure_generation_seed_cfg,
         )
-        write_json_file(
+        _publish_json(
             structure_generation_job_plan,
             structure_generation_job_plan_path,
             indent=2,
@@ -504,7 +532,7 @@ def save_metrics_and_predictions(
             formula_col=formula_col,
             cfg_defaults=structure_generation_seed_cfg,
         )
-        write_json_file(
+        _publish_json(
             structure_generation_first_pass_queue,
             structure_generation_first_pass_queue_path,
             indent=2,
@@ -530,7 +558,7 @@ def save_metrics_and_predictions(
                 selected_followup_df = selected_followup_df.sort_values(
                     'structure_followup_shortlist_rank', ascending=True
                 )
-            _write_csv_file(
+            _publish_csv(
                 selected_followup_df,
                 structure_generation_followup_shortlist_path,
             )
@@ -560,7 +588,7 @@ def save_metrics_and_predictions(
                 selected_followup_extrapolation_df = selected_followup_extrapolation_df.sort_values(
                     'structure_followup_extrapolation_shortlist_rank', ascending=True
                 )
-            _write_csv_file(
+            _publish_csv(
                 selected_followup_extrapolation_df,
                 structure_generation_followup_extrapolation_shortlist_path,
             )
@@ -594,7 +622,7 @@ def save_metrics_and_predictions(
             structure_first_pass_execution_variants_path,
         ):
             structure_output_path.parent.mkdir(parents=True, exist_ok=True)
-        _write_csv_file(
+        _publish_csv(
             structure_first_pass_execution_summary_df,
             structure_first_pass_execution_summary_path,
         )
@@ -621,11 +649,11 @@ def save_metrics_and_predictions(
         ):
             if column not in structure_followup_report_df.columns:
                 structure_followup_report_df[column] = pd.NA
-        _write_csv_file(
+        _publish_csv(
             structure_followup_report_df,
             demo_candidate_structure_followup_report_path,
         )
-        _write_csv_file(
+        _publish_csv(
             structure_first_pass_execution_variant_df,
             structure_first_pass_execution_variants_path,
         )
@@ -656,6 +684,7 @@ def save_metrics_and_predictions(
                     )
                     cif_output_path.parent.mkdir(parents=True, exist_ok=True)
                     cif_output_path.write_text(str(cif_text), encoding='utf-8')
+                    published_output_paths.add(cif_output_path)
                 sanitized_variants.append(
                     {
                         key: value
@@ -669,7 +698,7 @@ def save_metrics_and_predictions(
             **structure_first_pass_execution_payload,
             'candidates': sanitized_candidates,
         }
-        write_json_file(
+        _publish_json(
             sanitized_payload,
             structure_first_pass_execution_path,
             indent=2,
@@ -709,7 +738,7 @@ def save_metrics_and_predictions(
             ].copy()
             if rank_column in shortlist_df.columns:
                 shortlist_df = shortlist_df.sort_values(rank_column, ascending=True)
-            _write_csv_file(shortlist_df, shortlist_path)
+            _publish_csv(shortlist_df, shortlist_path)
         elif shortlist_path.exists():
             shortlist_path.unlink()
     bn_candidate_compatible_evaluation_df = _build_bn_candidate_compatible_evaluation_table(
@@ -718,7 +747,7 @@ def save_metrics_and_predictions(
         bn_stratified_error_df=bn_stratified_error_df,
     )
     if not bn_candidate_compatible_evaluation_df.empty:
-        _write_csv_file(
+        _publish_csv(
             bn_candidate_compatible_evaluation_df,
             bn_candidate_compatible_evaluation_path,
         )
@@ -726,15 +755,15 @@ def save_metrics_and_predictions(
         bn_candidate_compatible_evaluation_path.unlink()
 
     if bn_family_benchmark_df is not None and not bn_family_benchmark_df.empty:
-        _write_csv_file(bn_family_benchmark_df, bn_family_benchmark_path)
+        _publish_csv(bn_family_benchmark_df, bn_family_benchmark_path)
     elif bn_family_benchmark_path.exists():
         bn_family_benchmark_path.unlink()
     if bn_family_prediction_df is not None and not bn_family_prediction_df.empty:
-        _write_csv_file(bn_family_prediction_df, bn_family_prediction_path)
+        _publish_csv(bn_family_prediction_df, bn_family_prediction_path)
     elif bn_family_prediction_path.exists():
         bn_family_prediction_path.unlink()
     if bn_stratified_error_df is not None and not bn_stratified_error_df.empty:
-        _write_csv_file(bn_stratified_error_df, bn_stratified_error_path)
+        _publish_csv(bn_stratified_error_df, bn_stratified_error_path)
     elif bn_stratified_error_path.exists():
         bn_stratified_error_path.unlink()
 
@@ -744,7 +773,7 @@ def save_metrics_and_predictions(
         bn_stratified_error_df,
     )
     if not bn_evaluation_matrix_df.empty:
-        _write_csv_file(bn_evaluation_matrix_df, bn_evaluation_matrix_path)
+        _publish_csv(bn_evaluation_matrix_df, bn_evaluation_matrix_path)
     elif bn_evaluation_matrix_path.exists():
         bn_evaluation_matrix_path.unlink()
 
@@ -764,7 +793,7 @@ def save_metrics_and_predictions(
             structure_followup_shortlist_df=selected_followup_df,
         )
     if not candidate_ranking_uncertainty_df.empty:
-        _write_csv_file(candidate_ranking_uncertainty_df, candidate_uncertainty_path)
+        _publish_csv(candidate_ranking_uncertainty_df, candidate_uncertainty_path)
     elif candidate_uncertainty_path.exists():
         candidate_uncertainty_path.unlink()
 
@@ -777,7 +806,7 @@ def save_metrics_and_predictions(
         bn_stratified_error_df=bn_stratified_error_df,
     )
     if not bn_model_role_comparison_df.empty:
-        _write_csv_file(
+        _publish_csv(
             bn_model_role_comparison_df,
             bn_model_role_comparison_path,
         )
@@ -798,40 +827,51 @@ def save_metrics_and_predictions(
             ]
         )
     if not candidate_rank_stability_summary_df.empty:
-        _write_csv_file(
+        _publish_csv(
             candidate_rank_stability_summary_df,
             candidate_rank_stability_summary_path,
         )
     elif candidate_rank_stability_summary_path.exists():
         candidate_rank_stability_summary_path.unlink()
 
-    _write_csv_file(benchmark_df, artifact_dir / 'benchmark_results.csv')
+    _publish_csv(benchmark_df, artifact_dir / 'benchmark_results.csv')
     robustness_path = artifact_dir / 'robustness_results.csv'
     if robustness_df is not None and not robustness_df.empty:
-        _write_csv_file(robustness_df, robustness_path)
+        _publish_csv(robustness_df, robustness_path)
     elif robustness_path.exists():
         robustness_path.unlink()
     bn_slice_benchmark_path = artifact_dir / 'bn_slice_benchmark_results.csv'
     if bn_slice_benchmark_df is not None and not bn_slice_benchmark_df.empty:
-        _write_csv_file(bn_slice_benchmark_df, bn_slice_benchmark_path)
+        _publish_csv(bn_slice_benchmark_df, bn_slice_benchmark_path)
     elif bn_slice_benchmark_path.exists():
         bn_slice_benchmark_path.unlink()
     bn_slice_prediction_path = artifact_dir / 'bn_slice_predictions.csv'
     if bn_slice_prediction_df is not None and not bn_slice_prediction_df.empty:
-        _write_csv_file(bn_slice_prediction_df, bn_slice_prediction_path)
+        _publish_csv(bn_slice_prediction_df, bn_slice_prediction_path)
     elif bn_slice_prediction_path.exists():
         bn_slice_prediction_path.unlink()
-    write_json_file(
+    _publish_json(
         experiment_summary,
         artifact_dir / 'experiment_summary.json',
         indent=2,
         ensure_ascii=False,
     )
-    write_json_file(manifest, artifact_dir / 'manifest.json', indent=2)
+    _publish_json(manifest, artifact_dir / 'manifest.json', indent=2)
     legacy_screen_path = artifact_dir / 'screened_candidates.csv'
     if legacy_screen_path.exists():
         legacy_screen_path.unlink()
+    if include_parity_plot:
+        from materials.plots import save_basic_plots
+
+        published_output_paths.add(save_basic_plots(prediction_df, cfg))
     try:
+        artifact_provenance = build_artifact_provenance(
+            cfg,
+            manifest,
+            published_output_paths=tuple(
+                sorted(published_output_paths, key=lambda path: path.as_posix())
+            ),
+        )
         write_json_file(
             artifact_provenance,
             artifact_provenance_path,

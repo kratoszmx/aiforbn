@@ -6,7 +6,10 @@ import json
 import sys
 import types
 
+import pandas as pd
 import pytest
+
+from materials.artifacts import save_metrics_and_predictions
 
 
 class FakeStreamlit(types.ModuleType):
@@ -273,14 +276,6 @@ def test_streamlit_provenance_never_marks_incomplete_or_malformed_bundle_current
         '_read_local_source_state',
         lambda _root: {'revision': 'abc123', 'dirty': False},
     )
-    marker_manifest = None if case == 'missing-manifest' else valid_manifest
-    provenance = io_utils.build_artifact_provenance(cfg, marker_manifest)
-    provenance_path = artifact_dir / 'artifact_provenance.json'
-    if case == 'malformed-provenance':
-        provenance_path.write_text('{', encoding='utf-8')
-    else:
-        provenance_path.write_text(json.dumps(provenance), encoding='utf-8')
-
     manifest_path = artifact_dir / 'manifest.json'
     if case == 'malformed-manifest':
         manifest_path.write_text('{', encoding='utf-8')
@@ -291,6 +286,29 @@ def test_streamlit_provenance_never_marks_incomplete_or_malformed_bundle_current
         )
     elif case != 'missing-manifest':
         manifest_path.write_text(json.dumps(valid_manifest), encoding='utf-8')
+
+    marker_manifest = None if case == 'missing-manifest' else valid_manifest
+    published_output_paths = tuple(
+        path for path in artifact_dir.rglob('*') if path.is_file()
+    )
+    if not published_output_paths:
+        marker_anchor = artifact_dir / 'marker-anchor.json'
+        marker_anchor.write_text('{}', encoding='utf-8')
+        published_output_paths = (marker_anchor,)
+    else:
+        marker_anchor = None
+    provenance = io_utils.build_artifact_provenance(
+        cfg,
+        marker_manifest,
+        published_output_paths=published_output_paths,
+    )
+    if marker_anchor is not None:
+        marker_anchor.unlink()
+    provenance_path = artifact_dir / 'artifact_provenance.json'
+    if case == 'malformed-provenance':
+        provenance_path.write_text('{', encoding='utf-8')
+    else:
+        provenance_path.write_text(json.dumps(provenance), encoding='utf-8')
 
     root = Path(__file__).resolve().parents[3]
     app_path = root / 'src' / 'ui' / 'streamlit_app.py'
@@ -303,11 +321,155 @@ def test_streamlit_provenance_never_marks_incomplete_or_malformed_bundle_current
     success_calls = [value for name, value in fake_streamlit.calls if name == 'success']
     if expect_current:
         assert success_calls == [
-            'Artifact provenance matches the current source and configuration.'
+            'Artifact provenance matches the current source, configuration, '
+            'dataset, and published output contents.'
         ]
     else:
         assert success_calls == []
         assert any(name == 'warning' for name, _value in fake_streamlit.calls)
+
+
+@pytest.mark.parametrize(
+    ('case', 'expected_assessor_current', 'expected_viewer_current'),
+    [
+        ('baseline', True, True),
+        ('missing-json', False, False),
+        ('missing-csv', False, False),
+        ('malformed-json', False, False),
+        ('malformed-csv', False, False),
+        ('different-json', False, False),
+        ('different-csv', False, False),
+        ('changed-summary', False, False),
+        ('changed-manifest', False, False),
+        ('changed-optional', False, False),
+        ('uncommitted-known-optional', True, False),
+        ('unrelated-extra', True, True),
+    ],
+)
+def test_streamlit_real_renderer_never_marks_content_mixed_bundle_current(
+    tmp_path,
+    monkeypatch,
+    case,
+    expected_assessor_current,
+    expected_viewer_current,
+):
+    from runtime import io_utils
+    from streamlit.testing.v1 import AppTest
+
+    artifact_dir = tmp_path / 'custom-root' / 'nested-artifacts'
+    cfg = {
+        'project': {'artifact_dir': str(artifact_dir)},
+        'data': {'formula_column': 'formula'},
+        'screening': {
+            'ranking_stability': {'enabled': False},
+            'decision_policy': {'enabled': False},
+            'structure_generation_seeds': {'enabled': False},
+        },
+    }
+    manifest = {
+        'name': 'twod_matpd',
+        'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-21T00:00:00+00:00',
+        'target_column': 'band_gap',
+    }
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    empty_df = pd.DataFrame()
+    save_metrics_and_predictions(
+        {'mae': 1.0},
+        pd.DataFrame([{'formula': 'BN', 'prediction': 5.0}]),
+        empty_df,
+        pd.DataFrame([{'formula': 'BN', 'ranking_rank': 1}]),
+        pd.DataFrame([{'model_type': 'linear', 'mae': 1.0}]),
+        pd.DataFrame([{'model_type': 'linear', 'mae_mean': 1.1}]),
+        empty_df,
+        empty_df,
+        empty_df,
+        empty_df,
+        {'dataset': {'rows': 1}},
+        manifest,
+        cfg,
+    )
+
+    mutation = {
+        'baseline': lambda: None,
+        'missing-json': lambda: (artifact_dir / 'metrics.json').unlink(),
+        'missing-csv': lambda: (artifact_dir / 'demo_candidate_ranking.csv').unlink(),
+        'malformed-json': lambda: (artifact_dir / 'metrics.json').write_text(
+            '{', encoding='utf-8'
+        ),
+        'malformed-csv': lambda: (artifact_dir / 'benchmark_results.csv').write_bytes(
+            b'\xff\xfe'
+        ),
+        'different-json': lambda: (artifact_dir / 'metrics.json').write_text(
+            '{"mae": 99.0}\n', encoding='utf-8'
+        ),
+        'different-csv': lambda: (artifact_dir / 'benchmark_results.csv').write_text(
+            'model_type,mae\nolder,99.0\n', encoding='utf-8'
+        ),
+        'changed-summary': lambda: (artifact_dir / 'experiment_summary.json').write_text(
+            '{"dataset":{"rows":999}}\n', encoding='utf-8'
+        ),
+        'changed-manifest': lambda: (artifact_dir / 'manifest.json').write_text(
+            json.dumps({**manifest, 'name': 'older_dataset'}), encoding='utf-8'
+        ),
+        'changed-optional': lambda: (artifact_dir / 'robustness_results.csv').write_text(
+            'model_type,mae_mean\nolder,99.0\n', encoding='utf-8'
+        ),
+        'uncommitted-known-optional': lambda: (
+            artifact_dir / 'bn_family_predictions.csv'
+        ).write_text(
+            'formula,target,prediction\nBN,5.0,4.0\n',
+            encoding='utf-8',
+        ),
+        'unrelated-extra': lambda: (
+            (artifact_dir / 'cache').mkdir(),
+            (artifact_dir / 'cache' / 'scratch.bin').write_bytes(b'unrelated'),
+        ),
+    }[case]
+    mutation()
+
+    provenance = io_utils.read_json_file(artifact_dir / 'artifact_provenance.json')
+    current_manifest = io_utils.read_json_file(artifact_dir / 'manifest.json')
+    assessment = io_utils.assess_artifact_provenance(
+        provenance,
+        cfg,
+        current_manifest,
+        project_root_path=tmp_path,
+    )
+    assert (
+        assessment['status'] == 'current'
+    ) is expected_assessor_current
+
+    wrapper_path = tmp_path / f'streamlit_{case}.py'
+    wrapper_path.write_text(
+        'from runtime import io_utils\n'
+        '_original_source_reader = io_utils._read_local_source_state\n'
+        "io_utils._read_local_source_state = lambda _root: "
+        "{'revision': 'abc123', 'dirty': False}\n"
+        'from ui import streamlit_app\n'
+        '_original_config = streamlit_app.CONFIG\n'
+        f'streamlit_app.CONFIG = {cfg!r}\n'
+        'try:\n'
+        '    streamlit_app.render_streamlit_app()\n'
+        'finally:\n'
+        '    streamlit_app.CONFIG = _original_config\n'
+        '    io_utils._read_local_source_state = _original_source_reader\n',
+        encoding='utf-8',
+    )
+    app = AppTest.from_file(str(wrapper_path)).run(timeout=10)
+
+    assert len(app.exception) == 0
+    assert (len(app.success) == 1) is expected_viewer_current
+    if not expected_viewer_current:
+        assert len(app.warning) >= 1
+    if case == 'uncommitted-known-optional':
+        assert 'BN family holdout predictions' not in [
+            subheader.value for subheader in app.subheader
+        ]
 
 
 def test_streamlit_app_runs_through_real_streamlit_renderer(tmp_path, monkeypatch):

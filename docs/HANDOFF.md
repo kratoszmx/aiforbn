@@ -251,6 +251,7 @@
 - Round 5 固定单次校验后的 JARVIS metadata snapshot，拒绝绝对路径、遍历、分隔符、空值和畸形 archive tag 后再把同一 URL/tag 与 canonical `store_dir` 交给依赖；空白 `MPLCONFIGDIR` 不再退化为当前目录，v18 alignment status 也纳入 contract verifier；没有联网下载、修改 `human_docs/` 或重算 scientific artifacts
 - Round 9 为未来完整运行增加本地 source/config/dataset artifact provenance 完成标记，viewer 会显式把现有未重算快照标为 unverified，并跟随配置的 artifact root 与 summary 中的 execution 路径；同时修复重复 prediction source、disabled optional outputs、空 structure bridge 元数据、大小写 CIF stale cleanup 与 CSV failure-before-replace，仍未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - Round 10 修复 completion marker 在“写完后抛错”时仍可能把部分 bundle 标为 current 的故障；provenance 现在要求完整 marker 字段与 schema-valid dataset manifest，viewer 对缺失 core bundle 或畸形 provenance/summary/manifest fail closed；同时移除无消费者的 `screening.enabled` 假开关并补齐根 Python summary 对 runtime/UI callable 的非空验证，仍未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
+- Round 11 把 provenance 升级为实际成功发布文件的 v2 内容承诺：固定、可选、配置化、动态 CIF 与 parity plot 输出均在成功写入后登记并以相对路径及 SHA-256 固化，marker 严格最后发布；viewer 对缺失、篡改、畸形或未纳入本轮发布的已知输出 fail closed，同时继续忽略无关 extra/cache 文件；仍未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - contract verifier 现精确锁定 validation-profile 命令序列、三个 active project-skill 记录与七个 retired-guidance 路径；public-surface 测试同时核对模块摘要及根摘要的 callable 参数顺序和 keyword-only 边界
 - `--verify-agent-contract` 现会精确锁定六个 module 的 path/role/public-surface/agent-rules/local-utils/allowed-dependencies；公开 surface 测试逐个要求四个生产模块非空，并显式覆盖 import re-export
 
@@ -265,12 +266,12 @@
 
 3. 完整 src 测试：
 - `conda run -n quant python3 -m pytest -q src`
-- 结果：`309 passed, 1 warning`
+- 结果：`327 passed, 1 warning`
 - 剩余 warning 是 PyTorch nested-tensor prototype 提示，不是测试失败；原 sklearn feature-name warnings 已消除
 
 4. UI 文字化验证：
 - `conda run -n quant python3 -m pytest -q src/ui/tests/test_streamlit_app.py`
-- 结果：`11 passed`，包含真实 Streamlit renderer 以及 completion/provenance fail-closed matrix
+- 结果：`23 passed`，包含真实 Streamlit renderer、completion/provenance fail-closed matrix 与 content-mixed bundle mutation matrix
 - 有时限的 `streamlit run ... --server.headless=true` 启动后，`/_stcore/health` 与根页面均成功响应；验证后进程已终止
 
 5. 语法与 diff 卫生：

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -12,6 +13,7 @@ import pytest
 
 from runtime import io_utils
 from materials import artifacts as artifacts_module
+from materials import plots as plots_module
 from materials.artifacts import save_metrics_and_predictions
 from materials.constants import NOVELTY_BUCKET_FORMULA_LEVEL_EXTRAPOLATION
 from materials.plots import save_basic_plots
@@ -34,11 +36,13 @@ def _save_minimal_report_bundle(
     structure_payload=None,
     structure_summary_df=None,
     structure_variant_df=None,
+    prediction_df=None,
+    include_parity_plot=False,
 ):
     empty_df = pd.DataFrame()
     return save_metrics_and_predictions(
         {},
-        empty_df,
+        empty_df if prediction_df is None else prediction_df,
         empty_df,
         (
             pd.DataFrame(columns=['formula', 'ranking_rank'])
@@ -61,6 +65,7 @@ def _save_minimal_report_bundle(
         structure_first_pass_execution_variant_df=structure_variant_df,
         structure_first_pass_execution_summary_df=structure_summary_df,
         structure_first_pass_execution_payload=structure_payload,
+        include_parity_plot=include_parity_plot,
     )
 
 
@@ -1338,6 +1343,180 @@ def test_reporting_failure_after_publication_begins_leaves_no_completion_marker(
     assert not completion_marker.exists()
 
 
+def test_completion_marker_commits_exact_successful_bundle_outputs(
+    tmp_path,
+    monkeypatch,
+):
+    artifact_dir = tmp_path / 'custom-output' / 'artifacts'
+    execution_cfg = {
+        'artifact': 'nested/execution.json',
+        'summary_artifact': 'nested/execution-summary.csv',
+        'variants_artifact': 'nested/execution-variants.csv',
+        'structure_dir': 'nested/cifs',
+    }
+    cfg = {
+        'project': {'artifact_dir': str(artifact_dir)},
+        'data': {'formula_column': 'formula'},
+        'screening': {
+            'ranking_stability': {'enabled': False},
+            'decision_policy': {'enabled': False},
+            'structure_generation_seeds': {'enabled': False},
+            'structure_first_pass_execution': execution_cfg,
+        },
+    }
+    structure_payload = {
+        **execution_cfg,
+        'candidates': [{
+            'formula': 'XBN',
+            'variants': [{
+                'generated_structure_cif_path': 'nested/cifs/xbn__variant_01.cif',
+                '_cif_text': 'data_XBN\n',
+            }],
+        }],
+    }
+    manifest = {
+        'name': 'twod_matpd',
+        'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-21T00:00:00+00:00',
+        'target_column': 'band_gap',
+    }
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    empty_df = pd.DataFrame()
+
+    save_metrics_and_predictions(
+        {'mae': 1.0},
+        pd.DataFrame([{'formula': 'BN', 'target': 5.0, 'prediction': 5.0}]),
+        empty_df,
+        pd.DataFrame([{'formula': 'BN', 'ranking_rank': 1}]),
+        pd.DataFrame([{'model_type': 'linear', 'mae': 1.0}]),
+        pd.DataFrame([{'model_type': 'linear', 'mae_mean': 1.1}]),
+        empty_df,
+        empty_df,
+        empty_df,
+        empty_df,
+        {'dataset': {'rows': 1}},
+        manifest,
+        cfg,
+        structure_first_pass_execution_variant_df=pd.DataFrame([
+            {'formula': 'XBN', 'execution_variant_id': 'xbn__variant_01'},
+        ]),
+        structure_first_pass_execution_summary_df=pd.DataFrame([
+            {'formula': 'XBN', 'first_pass_execution_status': 'executed'},
+        ]),
+        structure_first_pass_execution_payload=structure_payload,
+        include_parity_plot=True,
+    )
+
+    provenance_path = artifact_dir / 'artifact_provenance.json'
+    provenance = json.loads(provenance_path.read_text(encoding='utf-8'))
+    actual_bundle_files = {
+        path.relative_to(artifact_dir).as_posix()
+        for path in artifact_dir.rglob('*')
+        if path.is_file() and path != provenance_path
+    }
+
+    assert provenance['schema'] == 'aiforbn.artifact_provenance.v2'
+    assert set(provenance['published_outputs']) == actual_bundle_files
+    assert 'bn_slice.csv' in provenance['published_outputs']
+    assert 'robustness_results.csv' in provenance['published_outputs']
+    assert 'nested/execution.json' in provenance['published_outputs']
+    assert 'nested/cifs/xbn__variant_01.cif' in provenance['published_outputs']
+    assert 'parity_plot.png' in provenance['published_outputs']
+
+
+def test_parity_plot_precedes_and_is_committed_by_final_completion_marker(
+    tmp_path,
+    monkeypatch,
+):
+    artifact_dir = tmp_path / 'artifacts'
+    cfg = {
+        'project': {'artifact_dir': str(artifact_dir)},
+        'data': {'formula_column': 'formula'},
+        'screening': {
+            'ranking_stability': {'enabled': False},
+            'decision_policy': {'enabled': False},
+            'structure_generation_seeds': {'enabled': False},
+        },
+    }
+    prediction_df = pd.DataFrame([{
+        'formula': 'BN',
+        'target': 5.0,
+        'prediction': 4.8,
+    }])
+    _save_minimal_report_bundle(cfg)
+    completion_marker = artifact_dir / 'artifact_provenance.json'
+    assert completion_marker.exists()
+    original_marker = completion_marker.read_bytes()
+
+    with pytest.raises(ValueError, match='target and prediction columns'):
+        _save_minimal_report_bundle(
+            cfg,
+            prediction_df=pd.DataFrame([{'target': 5.0}]),
+            include_parity_plot=True,
+        )
+
+    assert completion_marker.read_bytes() == original_marker
+
+    def fail_plot_after_write(_figure, path, *args, **kwargs):
+        Path(path).write_bytes(b'partial-plot')
+        raise RuntimeError('synthetic parity plotting failure')
+
+    with monkeypatch.context() as plot_patch:
+        plot_patch.setattr(plots_module.plt.Figure, 'savefig', fail_plot_after_write)
+        with pytest.raises(RuntimeError, match='synthetic parity plotting failure'):
+            _save_minimal_report_bundle(
+                cfg,
+                prediction_df=prediction_df,
+                include_parity_plot=True,
+            )
+
+    assert not completion_marker.exists()
+    publication_events: list[str] = []
+    original_savefig = plots_module.plt.Figure.savefig
+    original_json_writer = artifacts_module.write_json_file
+
+    def record_plot(_figure, path, *args, **kwargs):
+        result = original_savefig(_figure, path, *args, **kwargs)
+        publication_events.append('parity_plot.png')
+        return result
+
+    def record_marker(payload, path, **kwargs):
+        result = original_json_writer(payload, path, **kwargs)
+        if Path(path).name == 'artifact_provenance.json':
+            publication_events.append('artifact_provenance.json')
+        return result
+
+    with monkeypatch.context() as order_patch:
+        order_patch.setattr(plots_module.plt.Figure, 'savefig', record_plot)
+        order_patch.setattr(artifacts_module, 'write_json_file', record_marker)
+        _save_minimal_report_bundle(
+            cfg,
+            prediction_df=prediction_df,
+            include_parity_plot=True,
+        )
+
+    assert publication_events == ['parity_plot.png', 'artifact_provenance.json']
+
+    parity_plot_path = artifact_dir / 'parity_plot.png'
+    provenance = json.loads(completion_marker.read_text(encoding='utf-8'))
+    assert 'parity_plot.png' in provenance['published_outputs']
+    assert provenance['published_outputs']['parity_plot.png'] == hashlib.sha256(
+        parity_plot_path.read_bytes()
+    ).hexdigest()
+
+    no_plot_dir = tmp_path / 'no-plot-artifacts'
+    cfg['project']['artifact_dir'] = str(no_plot_dir)
+    _save_minimal_report_bundle(cfg)
+    no_plot_provenance = json.loads(
+        (no_plot_dir / 'artifact_provenance.json').read_text(encoding='utf-8')
+    )
+    assert 'parity_plot.png' not in no_plot_provenance['published_outputs']
+
+
 def test_csv_report_replace_preserves_previous_file_on_serialization_failure(tmp_path):
     output_path = tmp_path / 'report.csv'
     output_path.write_text('old,value\n1,keep\n', encoding='utf-8')
@@ -1967,8 +2146,8 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         structure_first_pass_execution_variant_df=structure_first_pass_variant_df,
         structure_first_pass_execution_summary_df=structure_first_pass_summary_df,
         structure_first_pass_execution_payload=structure_first_pass_payload,
+        include_parity_plot=True,
     )
-    save_basic_plots(prediction_df, cfg)
 
     assert json.loads((artifact_dir / 'metrics.json').read_text()) == metrics
     assert json.loads((artifact_dir / 'manifest.json').read_text()) == manifest
@@ -1976,7 +2155,7 @@ def test_reporting_writes_expected_artifacts(tmp_path):
     artifact_provenance = json.loads(
         (artifact_dir / 'artifact_provenance.json').read_text(encoding='utf-8')
     )
-    assert artifact_provenance['schema'] == 'aiforbn.artifact_provenance.v1'
+    assert artifact_provenance['schema'] == 'aiforbn.artifact_provenance.v2'
     assert len(artifact_provenance['config_sha256']) == 64
     assert len(artifact_provenance['dataset_manifest_sha256']) == 64
     assert experiment_summary['features']['selected_feature_set'] == 'matminer_composition'

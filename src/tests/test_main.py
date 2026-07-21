@@ -270,7 +270,6 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
 
     monkeypatch.setattr(main_module, 'build_experiment_summary', fake_build_experiment_summary)
     monkeypatch.setattr(main_module, 'save_metrics_and_predictions', fake_save_metrics_and_predictions)
-    monkeypatch.setattr(main_module, 'save_basic_plots', lambda prediction_df, cfg: calls.append('save_basic_plots'))
 
     main_module.main()
 
@@ -304,7 +303,6 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
         'build_structure_first_pass_execution_artifacts',
         'build_experiment_summary',
         'save_metrics_and_predictions',
-        'save_basic_plots',
     ]
     assert screening_disagreement_flags == [None, False]
     assert captured_summary_kwargs[0]['bn_family_benchmark_df'] is bn_family_benchmark_df
@@ -324,6 +322,7 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
         captured_save_kwargs[0]['structure_first_pass_execution_variant_df']
         is structure_first_pass_variant_df
     )
+    assert captured_save_kwargs[0]['include_parity_plot'] is True
 
     out = capsys.readouterr().out
     assert 'BN AI PoC pipeline completed' in out

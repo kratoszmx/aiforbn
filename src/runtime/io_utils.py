@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 import json
 import hashlib
 import os
@@ -61,7 +62,7 @@ RUNTIME_DIR_KEYS = (
 CACHE_DIR_NAMES = frozenset({'__pycache__', '.pytest_cache'})
 HUMAN_DOCS_DIR = Path('human_docs')
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-ARTIFACT_PROVENANCE_SCHEMA = 'aiforbn.artifact_provenance.v1'
+ARTIFACT_PROVENANCE_SCHEMA = 'aiforbn.artifact_provenance.v2'
 
 
 def load_config(path: str | Path) -> dict:
@@ -91,6 +92,51 @@ def _canonical_json_sha256(payload) -> str:
     return hashlib.sha256(serialized.encode('utf-8')).hexdigest()
 
 
+def _file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open('rb') as file_handle:
+        for chunk in iter(lambda: file_handle.read(1024 * 1024), b''):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _artifact_root_from_config(cfg: dict) -> Path:
+    try:
+        configured_root = cfg['project']['artifact_dir']
+    except (KeyError, TypeError) as exc:
+        raise ValueError('Config must declare project.artifact_dir') from exc
+    return validate_runtime_output_path(
+        configured_root,
+        expected_output_kind='directory',
+    )
+
+
+def _build_published_output_digests(
+    cfg: dict,
+    published_output_paths: Iterable[str | Path],
+) -> dict[str, str]:
+    artifact_root = _artifact_root_from_config(cfg)
+    published_outputs: dict[str, str] = {}
+    for raw_path in published_output_paths:
+        declared_path = Path(raw_path)
+        output_path = validate_runtime_output_path(
+            declared_path if declared_path.is_absolute() else artifact_root / declared_path,
+            required_parent_path=artifact_root,
+            expected_output_kind='file',
+        )
+        if not output_path.is_file():
+            raise ValueError(f'Published artifact output is missing: {output_path}')
+        relative_path = output_path.relative_to(artifact_root).as_posix()
+        if relative_path == 'artifact_provenance.json':
+            raise ValueError('Artifact provenance must not commit to its own marker')
+        if relative_path in published_outputs:
+            raise ValueError(f'Duplicate published artifact output: {relative_path}')
+        published_outputs[relative_path] = _file_sha256(output_path)
+    if not published_outputs:
+        raise ValueError('Artifact provenance requires at least one published output')
+    return dict(sorted(published_outputs.items()))
+
+
 def _local_git_output(project_root: Path, *args: str) -> str | None:
     try:
         result = subprocess.run(
@@ -116,6 +162,7 @@ def _read_local_source_state(project_root_path: str | Path) -> dict[str, object]
         '--untracked-files=all',
         '--',
         'main.py',
+        ':(top,glob)*.py',
         'src',
         'requirements.txt',
     )
@@ -128,6 +175,7 @@ def build_artifact_provenance(
     cfg: dict,
     dataset_manifest: dict | None = None,
     *,
+    published_output_paths: Iterable[str | Path],
     project_root_path: str | Path | None = None,
 ) -> dict[str, object]:
     source_state = _read_local_source_state(project_root_path or PROJECT_ROOT)
@@ -137,6 +185,10 @@ def build_artifact_provenance(
         'source_worktree_dirty': source_state['dirty'],
         'config_sha256': _canonical_json_sha256(cfg),
         'dataset_manifest_sha256': _canonical_json_sha256(dataset_manifest or {}),
+        'published_outputs': _build_published_output_digests(
+            cfg,
+            published_output_paths,
+        ),
     }
 
 
@@ -167,6 +219,7 @@ def _artifact_provenance_is_well_formed(provenance: dict) -> bool:
         'source_worktree_dirty',
         'config_sha256',
         'dataset_manifest_sha256',
+        'published_outputs',
     }
     if not required_fields.issubset(provenance):
         return False
@@ -178,9 +231,52 @@ def _artifact_provenance_is_well_formed(provenance: dict) -> bool:
         return False
     if (revision is None) != (dirty is None):
         return False
+    published_outputs = provenance['published_outputs']
+    if not isinstance(published_outputs, dict) or not published_outputs:
+        return False
+    for relative_path, digest in published_outputs.items():
+        if not isinstance(relative_path, str) or not relative_path:
+            return False
+        path = Path(relative_path)
+        if (
+            path.is_absolute()
+            or path.as_posix() != relative_path
+            or any(part in ('', '.', '..') for part in path.parts)
+            or relative_path == 'artifact_provenance.json'
+            or not _is_sha256_digest(digest)
+        ):
+            return False
     return _is_sha256_digest(provenance['config_sha256']) and _is_sha256_digest(
         provenance['dataset_manifest_sha256']
     )
+
+
+def _assess_published_outputs(
+    provenance: dict,
+    cfg: dict,
+) -> dict[str, str] | None:
+    try:
+        artifact_root = _artifact_root_from_config(cfg)
+    except (TypeError, ValueError):
+        return {'status': 'unverified', 'reason': 'artifact_output_inventory_invalid'}
+    for relative_path, expected_digest in provenance['published_outputs'].items():
+        try:
+            output_path = validate_runtime_output_path(
+                artifact_root / relative_path,
+                required_parent_path=artifact_root,
+                expected_output_kind='file',
+            )
+        except ValueError:
+            return {'status': 'unverified', 'reason': 'artifact_output_inventory_invalid'}
+        if not output_path.is_file():
+            return {'status': 'unverified', 'reason': 'artifact_output_missing'}
+        try:
+            actual_digest = _file_sha256(output_path)
+        except OSError:
+            return {'status': 'unverified', 'reason': 'artifact_output_unreadable'}
+        if actual_digest != expected_digest:
+            return {'status': 'stale', 'reason': 'artifact_output_content_mismatch'}
+    return None
 
 
 def assess_artifact_provenance(
@@ -211,6 +307,9 @@ def assess_artifact_provenance(
         dataset_manifest or {}
     ):
         return {'status': 'stale', 'reason': 'dataset_manifest_mismatch'}
+    output_assessment = _assess_published_outputs(provenance, cfg)
+    if output_assessment is not None:
+        return output_assessment
     if provenance.get('source_worktree_dirty') is True:
         return {
             'status': 'unverified',
@@ -220,7 +319,10 @@ def assess_artifact_provenance(
         return {'status': 'unverified', 'reason': 'current_source_worktree_is_dirty'}
     if stored_revision is None or current_revision is None:
         return {'status': 'unverified', 'reason': 'source_revision_unavailable'}
-    return {'status': 'current', 'reason': 'source_config_and_dataset_match'}
+    return {
+        'status': 'current',
+        'reason': 'source_config_dataset_and_outputs_match',
+    }
 
 
 def validate_runtime_output_path(

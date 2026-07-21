@@ -11,7 +11,7 @@ Anything underscore-prefixed or omitted here should be treated as internal.
   - Render the Streamlit artifact viewer for the generated project outputs.
   - Includes BN model-role evidence, default-vs-BN-centered rank-stability evidence,
     and the unrelaxed structure follow-up handoff report; absent optional artifacts are skipped.
-  - Resolves the configured artifact root and summary-declared execution paths, classifies local provenance as current/stale/unverified, and never marks a missing core bundle or unreadable provenance/summary/manifest current; those identity JSON failures and empty-schema CSVs produce text warnings instead of renderer failures.
+  - Resolves the configured artifact root and summary-declared execution paths, verifies v2 committed output bytes before showing current, skips known viewer files absent from that successful-run inventory, and never marks missing/changed/malformed committed content current; JSON/CSV read failures produce text warnings instead of renderer failures.
 
 ## utils.py
 
@@ -20,5 +20,5 @@ Anything underscore-prefixed or omitted here should be treated as internal.
 ## tests/
 
 - `test_streamlit_app.py`
-  - Covers every declared artifact section, completion/provenance failure states, configured/nested paths, and empty-schema CSV handling through a fake renderer while verifying the supported `width='stretch'` dataframe contract.
-  - Runs the app through Streamlit's real `AppTest` renderer so import and render failures remain text-verifiable.
+  - Covers every declared artifact section, completion/provenance/content-mutation states, configured/nested paths, unrelated-extra tolerance, and malformed JSON/CSV handling while verifying the supported `width='stretch'` dataframe contract.
+  - Runs the app through Streamlit's real `AppTest` renderer, including the mixed-bundle matrix, so import and render failures remain text-verifiable.
