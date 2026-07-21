@@ -30,6 +30,7 @@ from materials.structure_execution import build_structure_first_pass_execution_a
 from materials.structure_helpers import (
     _STRUCTURE_EXECUTION_CANDIDATE_STATUS_BY_BRANCH,
     _STRUCTURE_EXECUTION_SELECTED_PROJECTION_FIELDS,
+    _STRUCTURE_EXECUTION_VARIANT_STATUS_BY_BRANCH,
     _STRUCTURE_EXECUTION_ZERO_VARIANT_STATUSES,
     _select_structure_execution_variant,
     _structure_first_pass_execution_config,
@@ -1626,24 +1627,27 @@ def _report_bundle_snapshot(artifact_dir: Path):
 def _structure_execution_writer_kwargs(cfg):
     execution_cfg = _structure_first_pass_execution_config(cfg)
     variant_row = {
-        'formula': 'XBN',
+        'formula': 'BN',
         'execution_variant_id': 'xbn__variant_01',
         'execution_variant_rank': 1,
         'execution_status': 'ok',
+        'execution_message': None,
+        'relabeled_site_count': 0,
+        'removed_site_count': 0,
         'formula_matches_candidate': True,
         'geometry_sanity_pass': True,
         'execution_variant_selection_score': 1.0,
         'generated_structure_cif_path': (
-            'demo_candidate_structure_generation_first_pass_structures/'
-            'xbn__variant_01.cif'
+            f"{execution_cfg['structure_dir']}/xbn__variant_01.cif"
         ),
-        'generated_formula': 'XBN',
+        'generated_formula': 'BN',
         'generated_structure_n_sites': 2,
         'geometry_min_distance': 1.5,
         'geometry_min_distance_ratio': 0.8,
+        'geometry_overlap_pair_count': 0,
         'structure_band_gap_proxy': None,
         'relaxation_status': 'not_run_reference_geometry_reused',
-        'final_status': 'ready_for_external_relaxation',
+        'final_status': 'reference_control_ready',
     }
     return {
         'structure_payload': {
@@ -1652,17 +1656,17 @@ def _structure_execution_writer_kwargs(cfg):
             'variant_count': 1,
             'successful_variant_count': 1,
             'status_counts': {'executed': 1},
-            'executed_formulas': ['XBN'],
+            'executed_formulas': ['BN'],
             'candidates': [{
-                'formula': 'XBN',
+                'formula': 'BN',
                 'candidate_status': 'executed',
                 'selected_variant_id': 'xbn__variant_01',
-                'variants': [variant_row.copy()],
+                'variants': [{**variant_row, '_cif_text': 'data_BN\n'}],
             }],
         },
         'structure_summary_df': pd.DataFrame([
             {
-                'formula': 'XBN',
+                'formula': 'BN',
                 'first_pass_execution_variant_count': 1,
                 'first_pass_execution_successful_variant_count': 1,
                 'first_pass_execution_geometry_pass_variant_count': 1,
@@ -1670,10 +1674,9 @@ def _structure_execution_writer_kwargs(cfg):
                 'first_pass_execution_selected_variant_id': 'xbn__variant_01',
                 'first_pass_execution_selected_variant_rank': 1,
                 'first_pass_execution_selected_cif_path': (
-                    'demo_candidate_structure_generation_first_pass_structures/'
-                    'xbn__variant_01.cif'
+                    f"{execution_cfg['structure_dir']}/xbn__variant_01.cif"
                 ),
-                'first_pass_execution_selected_generated_formula': 'XBN',
+                'first_pass_execution_selected_generated_formula': 'BN',
                 'first_pass_execution_selected_structure_n_sites': 2,
                 'first_pass_execution_selected_min_distance': 1.5,
                 'first_pass_execution_selected_min_distance_ratio': 0.8,
@@ -1682,7 +1685,7 @@ def _structure_execution_writer_kwargs(cfg):
                     'not_run_reference_geometry_reused'
                 ),
                 'first_pass_execution_selected_final_status': (
-                    'ready_for_external_relaxation'
+                    'reference_control_ready'
                 ),
             },
         ]),
@@ -2097,6 +2100,167 @@ def _coordinated_zero_variant_status_story(
     return mutated
 
 
+def _coordinated_variant_state_story(
+    writer_kwargs,
+    *,
+    row_updates=None,
+    clear_selection=False,
+    remove_cif_text=False,
+):
+    mutated = copy.deepcopy(writer_kwargs)
+    payload = mutated['structure_payload']
+    summary = mutated['structure_summary_df']
+    variant_df = mutated['structure_variant_df']
+    payload_candidate = payload['candidates'][0]
+    payload_variant = payload_candidate['variants'][0]
+    row_updates = {} if row_updates is None else row_updates
+    for field_name, value in row_updates.items():
+        variant_df.loc[0, field_name] = value
+        payload_variant[field_name] = value
+    projection_fields = dict(
+        (variant_field, summary_field)
+        for summary_field, variant_field
+        in _STRUCTURE_EXECUTION_SELECTED_PROJECTION_FIELDS
+    )
+    for field_name, value in row_updates.items():
+        if field_name in projection_fields and not clear_selection:
+            summary.loc[0, projection_fields[field_name]] = value
+    if 'geometry_sanity_pass' in row_updates and not clear_selection:
+        summary.loc[
+            0, 'first_pass_execution_geometry_pass_variant_count'
+        ] = int(row_updates['geometry_sanity_pass'] is True)
+    if remove_cif_text:
+        payload_variant['_cif_text'] = None
+    if clear_selection:
+        payload['successful_variant_count'] = 0
+        payload['status_counts'] = {'no_successful_variant': 1}
+        payload['executed_formulas'] = []
+        payload_candidate['candidate_status'] = 'no_successful_variant'
+        payload_candidate['selected_variant_id'] = None
+        summary.loc[0, 'first_pass_execution_successful_variant_count'] = 0
+        summary.loc[0, 'first_pass_execution_geometry_pass_variant_count'] = 0
+        summary.loc[0, 'first_pass_execution_status'] = 'no_successful_variant'
+        for column in summary.columns:
+            if column.startswith('first_pass_execution_selected_'):
+                summary.loc[0, column] = (
+                    'not_executed' if column.endswith('final_status') else None
+                )
+    return mutated
+
+
+_INVALID_VARIANT_STATE_STORIES = (
+    (
+        'unknown-execution-and-final-status',
+        {'execution_status': 'validated', 'final_status': 'stable'},
+        True,
+        False,
+    ),
+    (
+        'claim-like-final-status',
+        {'final_status': 'experimentally_confirmed'},
+        False,
+        False,
+    ),
+    (
+        'reference-relaxation-with-edit-final-status',
+        {'final_status': 'ready_for_external_relaxation'},
+        False,
+        False,
+    ),
+    (
+        'matching-formula-labelled-as-mismatch',
+        {
+            'formula_matches_candidate': False,
+            'final_status': 'formula_mismatch_after_edit',
+        },
+        False,
+        False,
+    ),
+    (
+        'unsupported-relaxation-status',
+        {'relaxation_status': 'stable'},
+        False,
+        False,
+    ),
+    (
+        'geometry-ratio-below-pass-threshold',
+        {'geometry_min_distance_ratio': 0.1},
+        False,
+        False,
+    ),
+    (
+        'geometry-overlap-with-pass-status',
+        {'geometry_overlap_pair_count': 1},
+        False,
+        False,
+    ),
+    (
+        'execution-error-with-success-evidence',
+        {
+            'execution_status': 'error',
+            'execution_message': 'RuntimeError: synthetic detail',
+            'relaxation_status': 'not_run_due_to_execution_error',
+            'final_status': 'execution_error',
+        },
+        True,
+        False,
+    ),
+    ('successful-execution-without-cif-bytes', {}, False, True),
+)
+
+
+@pytest.mark.parametrize(
+    ('baseline_case', 'formula_col'),
+    [('full', 'formula'), ('custom-paths', 'composition')],
+)
+@pytest.mark.parametrize(
+    ('case_name', 'row_updates', 'clear_selection', 'remove_cif_text'),
+    _INVALID_VARIANT_STATE_STORIES,
+    ids=[entry[0] for entry in _INVALID_VARIANT_STATE_STORIES],
+)
+def test_reporting_rejects_noncanonical_variant_states_atomically(
+    tmp_path,
+    monkeypatch,
+    baseline_case,
+    formula_col,
+    case_name,
+    row_updates,
+    clear_selection,
+    remove_cif_text,
+):
+    del case_name
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    cfg, canonical_kwargs = _canonical_structure_execution_writer_inputs(
+        tmp_path,
+        baseline_case=baseline_case,
+        formula_col=formula_col,
+    )
+    invalid_kwargs = _coordinated_variant_state_story(
+        canonical_kwargs,
+        row_updates=row_updates,
+        clear_selection=clear_selection,
+        remove_cif_text=remove_cif_text,
+    )
+    manifest = {
+        'name': 'twod_matpd',
+        'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-21T00:00:00+00:00',
+        'target_column': 'band_gap',
+    }
+
+    _assert_structure_execution_rejection_is_atomic(
+        tmp_path,
+        cfg,
+        canonical_kwargs,
+        invalid_kwargs,
+        manifest,
+    )
+
+
 @pytest.mark.parametrize(('baseline_case', 'formula_col'), _ZERO_VARIANT_BRANCH_CASES)
 @pytest.mark.parametrize(
     'mutation_kind',
@@ -2206,6 +2370,26 @@ def test_structure_execution_candidate_status_authority_is_finite_and_complete()
     )
 
 
+def test_structure_execution_variant_status_authority_is_finite_and_complete():
+    assert _STRUCTURE_EXECUTION_VARIANT_STATUS_BY_BRANCH == {
+        'execution_ok': 'ok',
+        'execution_error': 'error',
+        'relaxation_reference_geometry_reused': (
+            'not_run_reference_geometry_reused'
+        ),
+        'relaxation_unrelaxed_species_edit': (
+            'not_run_unrelaxed_species_edit'
+        ),
+        'relaxation_execution_error': 'not_run_due_to_execution_error',
+        'final_formula_mismatch': 'formula_mismatch_after_edit',
+        'final_geometry_failure': 'geometry_sanity_failed',
+        'final_reference_control': 'reference_control_ready',
+        'final_external_relaxation': 'ready_for_external_relaxation',
+        'final_execution_error': 'execution_error',
+    }
+    assert len(set(_STRUCTURE_EXECUTION_VARIANT_STATUS_BY_BRANCH.values())) == 10
+
+
 @pytest.mark.parametrize(('baseline_case', 'formula_col'), _ZERO_VARIANT_BRANCH_CASES)
 def test_reporting_rejects_noncanonical_zero_variant_status_vocabulary(
     tmp_path,
@@ -2296,6 +2480,24 @@ def test_reporting_accepts_canonical_failed_variant_no_success_control(
     )
     assert len(writer_kwargs['structure_variant_df']) == 1
     assert writer_kwargs['structure_variant_df']['execution_status'].tolist() == ['error']
+    assert writer_kwargs['structure_variant_df'][
+        [
+            'execution_message',
+            'formula_matches_candidate',
+            'geometry_sanity_pass',
+            'relaxation_status',
+            'final_status',
+        ]
+    ].to_dict(orient='records') == [{
+        'execution_message': 'RuntimeError: synthetic failure',
+        'formula_matches_candidate': False,
+        'geometry_sanity_pass': False,
+        'relaxation_status': 'not_run_due_to_execution_error',
+        'final_status': 'execution_error',
+    }]
+    assert writer_kwargs['structure_payload']['candidates'][0]['variants'][0][
+        '_cif_text'
+    ] is None
     assert writer_kwargs['structure_summary_df'][
         'first_pass_execution_status'
     ].tolist() == ['no_successful_variant']
@@ -2310,6 +2512,122 @@ def test_reporting_accepts_canonical_failed_variant_no_success_control(
     artifact_dir = Path(cfg['project']['artifact_dir'])
     assessment = io_utils.assess_artifact_provenance(
         io_utils.read_json_file(artifact_dir / 'artifact_provenance.json'),
+        cfg,
+        manifest,
+        project_root_path=tmp_path,
+    )
+    assert assessment['status'] == 'current'
+
+
+@pytest.mark.parametrize('formula_col', ['formula', 'composition'])
+def test_reporting_accepts_builder_formula_mismatch_variant_state(
+    tmp_path,
+    monkeypatch,
+    formula_col,
+):
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    monkeypatch.setattr(
+        structure_execution_module,
+        '_apply_variant_plan',
+        lambda structure, **_kwargs: structure.copy(),
+    )
+    cfg, writer_kwargs = _canonical_structure_execution_writer_inputs(
+        tmp_path,
+        baseline_case='multiple-success',
+        formula_col=formula_col,
+    )
+    variant_df = writer_kwargs['structure_variant_df']
+    assert variant_df['execution_status'].eq('ok').all()
+    assert not variant_df['formula_matches_candidate'].any()
+    assert variant_df['relaxation_status'].eq(
+        'not_run_unrelaxed_species_edit'
+    ).all()
+    assert variant_df['final_status'].eq('formula_mismatch_after_edit').all()
+    assert all(
+        variant['_cif_text']
+        for variant
+        in writer_kwargs['structure_payload']['candidates'][0]['variants']
+    )
+    manifest = {
+        'name': 'twod_matpd',
+        'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-21T00:00:00+00:00',
+        'target_column': 'band_gap',
+    }
+
+    _save_minimal_report_bundle(cfg, manifest=manifest, **writer_kwargs)
+    assessment = io_utils.assess_artifact_provenance(
+        io_utils.read_json_file(
+            Path(cfg['project']['artifact_dir']) / 'artifact_provenance.json'
+        ),
+        cfg,
+        manifest,
+        project_root_path=tmp_path,
+    )
+    assert assessment['status'] == 'current'
+
+
+def test_reporting_accepts_builder_mixed_variant_outcomes_and_diagnostics(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    original_apply_variant_plan = structure_execution_module._apply_variant_plan
+    call_count = 0
+
+    def mixed_variant_outcome(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 2:
+            raise RuntimeError('variant-specific diagnostic detail')
+        return original_apply_variant_plan(*args, **kwargs)
+
+    monkeypatch.setattr(
+        structure_execution_module,
+        '_apply_variant_plan',
+        mixed_variant_outcome,
+    )
+    cfg, writer_kwargs = _canonical_structure_execution_writer_inputs(
+        tmp_path,
+        baseline_case='multiple-success',
+    )
+    variant_df = writer_kwargs['structure_variant_df']
+    assert variant_df[
+        ['execution_status', 'execution_message', 'final_status']
+    ].to_dict(orient='records') == [
+        {
+            'execution_status': 'ok',
+            'execution_message': None,
+            'final_status': 'geometry_sanity_failed',
+        },
+        {
+            'execution_status': 'error',
+            'execution_message': (
+                'RuntimeError: variant-specific diagnostic detail'
+            ),
+            'final_status': 'execution_error',
+        },
+    ]
+    manifest = {
+        'name': 'twod_matpd',
+        'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-21T00:00:00+00:00',
+        'target_column': 'band_gap',
+    }
+
+    _save_minimal_report_bundle(cfg, manifest=manifest, **writer_kwargs)
+    assessment = io_utils.assess_artifact_provenance(
+        io_utils.read_json_file(
+            Path(cfg['project']['artifact_dir']) / 'artifact_provenance.json'
+        ),
         cfg,
         manifest,
         project_root_path=tmp_path,
@@ -2411,6 +2729,20 @@ def test_reporting_rejects_noncanonical_successful_variant_selection_atomically(
     variant_df = canonical_kwargs['structure_variant_df']
     summary_df = canonical_kwargs['structure_summary_df']
     assert variant_df['execution_status'].tolist() == ['ok', 'ok']
+    assert variant_df[
+        ['geometry_sanity_pass', 'relaxation_status', 'final_status']
+    ].to_dict(orient='records') == [
+        {
+            'geometry_sanity_pass': False,
+            'relaxation_status': 'not_run_unrelaxed_species_edit',
+            'final_status': 'geometry_sanity_failed',
+        },
+        {
+            'geometry_sanity_pass': True,
+            'relaxation_status': 'not_run_unrelaxed_species_edit',
+            'final_status': 'ready_for_external_relaxation',
+        },
+    ]
     assert summary_df['first_pass_execution_selected_variant_rank'].tolist() == [2]
     invalid_kwargs = copy.deepcopy(canonical_kwargs)
     noncanonical_variant = variant_df.iloc[0]

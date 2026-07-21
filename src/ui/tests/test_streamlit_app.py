@@ -189,6 +189,9 @@ def _save_structure_execution_bundle(
         'execution_variant_id': 'albn__variant_01',
         'execution_variant_rank': 1,
         'execution_status': 'ok',
+        'execution_message': None,
+        'relabeled_site_count': 1,
+        'removed_site_count': 0,
         'formula_matches_candidate': True,
         'geometry_sanity_pass': True,
         'execution_variant_selection_score': 1.0,
@@ -199,8 +202,9 @@ def _save_structure_execution_bundle(
         'generated_structure_n_sites': 2,
         'geometry_min_distance': 1.5,
         'geometry_min_distance_ratio': 0.8,
+        'geometry_overlap_pair_count': 0,
         'structure_band_gap_proxy': None,
-        'relaxation_status': 'not_run_reference_geometry_reused',
+        'relaxation_status': 'not_run_unrelaxed_species_edit',
         'final_status': 'ready_for_external_relaxation',
     }
     structure_payload = {
@@ -219,7 +223,7 @@ def _save_structure_execution_bundle(
             'formula': 'AlBN',
             'candidate_status': 'executed',
             'selected_variant_id': 'albn__variant_01',
-            'variants': [variant_row.copy()],
+            'variants': [{**variant_row, '_cif_text': 'data_AlBN\n'}],
         }] if execution_active else []),
     })
     structure_summary_df = (

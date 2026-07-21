@@ -62,6 +62,7 @@ from materials.structure_helpers import (
     _STRUCTURE_EXECUTION_ZERO_VARIANT_STATUSES,
     _select_structure_execution_variant,
     _structure_first_pass_execution_config,
+    _structure_execution_variant_expected_state,
 )
 from materials.summary import *
 
@@ -306,6 +307,7 @@ def _validate_structure_execution_frame_roles(
     payload: dict[str, object],
     *,
     formula_col: str,
+    geometry_min_distance_ratio_pass_threshold: float,
 ) -> None:
     def normalized(value):
         return make_json_safe(value)
@@ -348,6 +350,10 @@ def _validate_structure_execution_frame_roles(
     variant_fields = tuple(dict.fromkeys((
         formula_col,
         'execution_status',
+        'execution_message',
+        'relabeled_site_count',
+        'removed_site_count',
+        'geometry_overlap_pair_count',
         'geometry_sanity_pass',
         *selected_variant_fields,
         *_STRUCTURE_EXECUTION_VARIANT_SELECTION_FIELDS,
@@ -473,6 +479,29 @@ def _validate_structure_execution_frame_roles(
             for field in variant_fields
         ):
             reject(f'payload variant {variant_id}')
+        expected_relaxation_status, expected_final_status = (
+            _structure_execution_variant_expected_state(
+                candidate_formula=row.get(formula_col),
+                execution_status=row.get('execution_status'),
+                execution_message=row.get('execution_message'),
+                generated_formula=row.get('generated_formula'),
+                formula_matches_candidate=row.get('formula_matches_candidate'),
+                geometry_min_distance_ratio=row.get('geometry_min_distance_ratio'),
+                geometry_overlap_pair_count=row.get('geometry_overlap_pair_count'),
+                geometry_sanity_pass=row.get('geometry_sanity_pass'),
+                geometry_min_distance_ratio_pass_threshold=(
+                    geometry_min_distance_ratio_pass_threshold
+                ),
+                relabeled_site_count=row.get('relabeled_site_count'),
+                removed_site_count=row.get('removed_site_count'),
+                generated_structure_n_sites=row.get('generated_structure_n_sites'),
+                cif_text=payload_variants[variant_id].get('_cif_text'),
+            )
+        )
+        if normalized(row.get('relaxation_status')) != expected_relaxation_status:
+            reject(f'variant {variant_id} relaxation_status')
+        if normalized(row.get('final_status')) != expected_final_status:
+            reject(f'variant {variant_id} final_status')
 
     for formula, summary in summaries.items():
         candidate = candidates[formula]
@@ -832,6 +861,11 @@ def save_metrics_and_predictions(
             structure_first_pass_execution_variant_df,
             structure_first_pass_execution_payload,
             formula_col=formula_col,
+            geometry_min_distance_ratio_pass_threshold=(
+                structure_first_pass_execution_cfg[
+                    'geometry_min_distance_ratio_pass_threshold'
+                ]
+            ),
         )
     if include_parity_plot:
         missing_plot_columns = {'target', 'prediction'} - set(prediction_df.columns)

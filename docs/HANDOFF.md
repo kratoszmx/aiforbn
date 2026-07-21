@@ -263,6 +263,7 @@
 - Round 20 修复 zero-variant structure-execution candidate 可协调伪装成 `executed`、`no_successful_variant` 或成功 selected-final status 并发布 current bundle 的缺口；public writer 现在会在 artifact root 创建、旧 marker 失效或任何输出写入前拒绝这些 post-attempt 状态，同时保留 inactive、empty、missing/invalid reference、unresolved scale、planner error、自定义 formula column 与实际 failed-variant/no-success 输出。未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - Round 21 修复 structure-execution selected summary 只绑定 ID/final status 的缺口：builder 与 writer 现在共用确定性的成功 variant 排序与十字段 selected-row 投影契约，payload/summary/variants 任一 rank、CIF path、formula、site/geometry/proxy、relaxation 或 winner relabel 不一致都会在 artifact root 创建、旧 marker 失效或任何写入前拒绝；无成功 variant 时全部 selected 投影保持空值，并保留 canonical `not_executed` 或 invalid-reference error 语义。默认/自定义 formula column、nested path、partial、failed-only、zero-variant 与实际 non-first winner 均有原子回归；未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - Reset Round 2 修复 zero-variant structure-execution candidate 可把 payload、summary 与 status counts 协调改成任意或 claim-like 状态后仍发布 current bundle 的缺口；builder、planner 与 writer 现共用 materials 内唯一有限状态词表，并在 artifact root 创建、旧 marker 失效或任何写入前拒绝未知、大小写/空白变体及非字符串状态。missing/invalid reference、unresolved scale、formula scale mismatch、planner error、自定义 formula column/路径、failed-only、partial/full 与 non-first winner 控制保持有效，invalid-reference 动态异常细节仍与机器状态分离；未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
+- Reset Round 1（variant-state integrity）修复 structure-execution variant 可协调使用未知/claim-like execution/final 状态、与 formula/geometry/edit/relaxation 证据矛盾的状态，或在 `ok` 时缺失 CIF bytes 后仍发布 current bundle 的缺口；builder 与 writer 现共用单一 materials 状态解析器，并在 artifact root 创建、旧 marker 失效或任何写入前核对 finite execution vocabulary、formula identity、geometry result、edit counts、generated structure、relaxation 与 final status。reference control、formula mismatch、geometry failure、external-relaxation handoff、error-only、混合 success/error、自定义 formula column/路径及自由诊断文本均保留有效；未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - contract verifier 现精确锁定 validation-profile 命令序列、三个 active project-skill 记录与七个 retired-guidance 路径；public-surface 测试同时核对模块摘要及根摘要的 callable 参数顺序和 keyword-only 边界
 - `--verify-agent-contract` 现会精确锁定六个 module 的 path/role/public-surface/agent-rules/local-utils/allowed-dependencies；公开 surface 测试逐个要求四个生产模块非空，并显式覆盖 import re-export
 
@@ -277,7 +278,7 @@
 
 3. 完整 src 测试：
 - `conda run -n quant python3 -m pytest -q src`
-- 结果：`605 passed, 1 warning`
+- 结果：`627 passed, 1 warning`
 - 剩余 warning 是 PyTorch nested-tensor prototype 提示，不是测试失败；原 sklearn feature-name warnings 已消除
 
 4. UI 文字化验证：

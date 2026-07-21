@@ -86,6 +86,18 @@ _STRUCTURE_EXECUTION_ZERO_VARIANT_STATUSES = frozenset(
     for branch, status in _STRUCTURE_EXECUTION_CANDIDATE_STATUS_BY_BRANCH.items()
     if branch not in {'executed', 'no_successful_variant'}
 )
+_STRUCTURE_EXECUTION_VARIANT_STATUS_BY_BRANCH = {
+    'execution_ok': 'ok',
+    'execution_error': 'error',
+    'relaxation_reference_geometry_reused': 'not_run_reference_geometry_reused',
+    'relaxation_unrelaxed_species_edit': 'not_run_unrelaxed_species_edit',
+    'relaxation_execution_error': 'not_run_due_to_execution_error',
+    'final_formula_mismatch': 'formula_mismatch_after_edit',
+    'final_geometry_failure': 'geometry_sanity_failed',
+    'final_reference_control': 'reference_control_ready',
+    'final_external_relaxation': 'ready_for_external_relaxation',
+    'final_execution_error': 'execution_error',
+}
 
 
 def _select_structure_execution_variant(
@@ -193,6 +205,151 @@ def _canonical_formula(formula: str | None) -> str | None:
     if not value:
         return None
     return Composition(value).reduced_formula
+
+
+def _structure_execution_variant_expected_state(
+    *,
+    candidate_formula,
+    execution_status,
+    execution_message,
+    generated_formula,
+    formula_matches_candidate,
+    geometry_min_distance_ratio,
+    geometry_overlap_pair_count,
+    geometry_sanity_pass,
+    geometry_min_distance_ratio_pass_threshold,
+    relabeled_site_count,
+    removed_site_count,
+    generated_structure_n_sites,
+    cif_text,
+) -> tuple[str, str]:
+    """Return the builder-owned relaxation/final state for one variant."""
+
+    def reject(detail):
+        raise ValueError(
+            f'structure_first_pass_execution variant state {detail}'
+        )
+
+    def nonnegative_integer(value, field_name):
+        value = make_json_safe(value)
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not np.isfinite(value)
+            or float(value) != int(value)
+            or value < 0
+        ):
+            reject(f'{field_name} must be a non-negative integer')
+        return int(value)
+
+    statuses = _STRUCTURE_EXECUTION_VARIANT_STATUS_BY_BRANCH
+    execution_status = make_json_safe(execution_status)
+    execution_message = make_json_safe(execution_message)
+    generated_formula = make_json_safe(generated_formula)
+    formula_matches_candidate = make_json_safe(formula_matches_candidate)
+    geometry_min_distance_ratio = make_json_safe(geometry_min_distance_ratio)
+    geometry_sanity_pass = make_json_safe(geometry_sanity_pass)
+    generated_structure_n_sites = make_json_safe(generated_structure_n_sites)
+    geometry_overlap_pair_count = nonnegative_integer(
+        geometry_overlap_pair_count,
+        'geometry_overlap_pair_count',
+    )
+    geometry_min_distance_ratio_pass_threshold = make_json_safe(
+        geometry_min_distance_ratio_pass_threshold
+    )
+    if (
+        isinstance(geometry_min_distance_ratio_pass_threshold, bool)
+        or not isinstance(geometry_min_distance_ratio_pass_threshold, (int, float))
+        or not np.isfinite(geometry_min_distance_ratio_pass_threshold)
+        or geometry_min_distance_ratio_pass_threshold <= 0
+    ):
+        reject('geometry pass threshold must be a positive finite number')
+    if geometry_min_distance_ratio is not None and (
+        isinstance(geometry_min_distance_ratio, bool)
+        or not isinstance(geometry_min_distance_ratio, (int, float))
+        or not np.isfinite(geometry_min_distance_ratio)
+        or geometry_min_distance_ratio <= 0
+    ):
+        reject('geometry_min_distance_ratio must be null or a positive finite number')
+    relabeled_site_count = nonnegative_integer(
+        relabeled_site_count,
+        'relabeled_site_count',
+    )
+    removed_site_count = nonnegative_integer(
+        removed_site_count,
+        'removed_site_count',
+    )
+    if not isinstance(formula_matches_candidate, bool):
+        reject('formula_matches_candidate must be boolean')
+    if not isinstance(geometry_sanity_pass, bool):
+        reject('geometry_sanity_pass must be boolean')
+
+    if execution_status == statuses['execution_error']:
+        if not isinstance(execution_message, str) or not execution_message:
+            reject('execution errors require descriptive execution_message evidence')
+        if formula_matches_candidate or geometry_sanity_pass:
+            reject('execution errors cannot claim formula or geometry success')
+        if generated_formula is not None or generated_structure_n_sites is not None:
+            reject('execution errors cannot claim generated structure evidence')
+        if geometry_min_distance_ratio is not None or geometry_overlap_pair_count != 0:
+            reject('execution errors cannot claim generated geometry evidence')
+        if cif_text is not None:
+            reject('execution errors cannot publish CIF bytes')
+        return (
+            statuses['relaxation_execution_error'],
+            statuses['final_execution_error'],
+        )
+
+    if execution_status != statuses['execution_ok']:
+        reject('execution_status is outside the builder-owned finite vocabulary')
+    if execution_message is not None:
+        reject('successful execution cannot carry execution error detail')
+    if not isinstance(cif_text, str) or not cif_text.strip():
+        reject('successful execution requires generated CIF bytes')
+    if not isinstance(generated_formula, str) or not generated_formula.strip():
+        reject('successful execution requires a generated formula')
+    if (
+        isinstance(generated_structure_n_sites, bool)
+        or not isinstance(generated_structure_n_sites, (int, float))
+        or not np.isfinite(generated_structure_n_sites)
+        or float(generated_structure_n_sites) != int(generated_structure_n_sites)
+        or generated_structure_n_sites <= 0
+    ):
+        reject('successful execution requires a positive generated site count')
+    try:
+        formula_evidence_matches = (
+            _canonical_formula(generated_formula)
+            == _canonical_formula(candidate_formula)
+        )
+    except Exception:
+        reject('generated formula evidence must be a valid composition')
+    if formula_matches_candidate is not formula_evidence_matches:
+        reject('formula_matches_candidate disagrees with generated formula evidence')
+    expected_geometry_sanity_pass = bool(
+        geometry_overlap_pair_count == 0
+        and (
+            geometry_min_distance_ratio is None
+            or geometry_min_distance_ratio
+            >= geometry_min_distance_ratio_pass_threshold
+        )
+    )
+    if geometry_sanity_pass is not expected_geometry_sanity_pass:
+        reject('geometry_sanity_pass disagrees with distance-ratio/overlap evidence')
+
+    relaxation_status = (
+        statuses['relaxation_reference_geometry_reused']
+        if relabeled_site_count == 0 and removed_site_count == 0
+        else statuses['relaxation_unrelaxed_species_edit']
+    )
+    if not formula_matches_candidate:
+        final_status = statuses['final_formula_mismatch']
+    elif not geometry_sanity_pass:
+        final_status = statuses['final_geometry_failure']
+    elif relaxation_status == statuses['relaxation_reference_geometry_reused']:
+        final_status = statuses['final_reference_control']
+    else:
+        final_status = statuses['final_external_relaxation']
+    return relaxation_status, final_status
 
 
 def _json_safe_value(value):

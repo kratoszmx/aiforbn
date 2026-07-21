@@ -23,6 +23,7 @@ from materials.structure_artifacts import (
 from materials.structure_helpers import (
     _STRUCTURE_EXECUTION_CANDIDATE_STATUS_BY_BRANCH,
     _STRUCTURE_EXECUTION_SELECTED_PROJECTION_FIELDS,
+    _STRUCTURE_EXECUTION_VARIANT_STATUS_BY_BRANCH,
     _apply_variant_plan,
     _build_variant_plans,
     _canonical_formula,
@@ -34,6 +35,7 @@ from materials.structure_helpers import (
     _scaled_formula_counts,
     _select_structure_execution_variant,
     _structure_first_pass_execution_config,
+    _structure_execution_variant_expected_state,
     _structure_from_atoms,
     _structure_to_atoms,
 )
@@ -400,20 +402,9 @@ def build_structure_first_pass_execution_artifacts(
                     structure_feature_columns=structure_feature_columns,
                     structure_feature_set=structure_feature_set,
                 )
-                relaxation_status = (
-                    'not_run_reference_geometry_reused'
-                    if not plan['relabel_indices'] and not plan['remove_indices']
-                    else 'not_run_unrelaxed_species_edit'
-                )
-                if not formula_matches_candidate:
-                    final_status = 'formula_mismatch_after_edit'
-                elif not geometry_sanity_pass:
-                    final_status = 'geometry_sanity_failed'
-                elif relaxation_status == 'not_run_reference_geometry_reused':
-                    final_status = 'reference_control_ready'
-                else:
-                    final_status = 'ready_for_external_relaxation'
-                execution_status = 'ok'
+                execution_status = _STRUCTURE_EXECUTION_VARIANT_STATUS_BY_BRANCH[
+                    'execution_ok'
+                ]
                 cif_text = variant_structure.to(fmt='cif')
                 error_message = None
             except Exception as exc:  # pragma: no cover - defensive runtime guard
@@ -428,11 +419,33 @@ def build_structure_first_pass_execution_artifacts(
                 structure_summary = {column: None for column in STRUCTURE_SUMMARY_COLUMNS}
                 predicted_band_gap_proxy = None
                 proxy_error = None
-                relaxation_status = 'not_run_due_to_execution_error'
-                final_status = 'execution_error'
-                execution_status = 'error'
+                execution_status = _STRUCTURE_EXECUTION_VARIANT_STATUS_BY_BRANCH[
+                    'execution_error'
+                ]
                 cif_text = None
                 error_message = f'{type(exc).__name__}: {exc}'
+
+            relaxation_status, final_status = (
+                _structure_execution_variant_expected_state(
+                    candidate_formula=candidate_formula,
+                    execution_status=execution_status,
+                    execution_message=error_message,
+                    generated_formula=generated_formula,
+                    formula_matches_candidate=formula_matches_candidate,
+                    geometry_min_distance_ratio=min_distance_ratio,
+                    geometry_overlap_pair_count=overlap_pair_count,
+                    geometry_sanity_pass=geometry_sanity_pass,
+                    geometry_min_distance_ratio_pass_threshold=execution_cfg[
+                        'geometry_min_distance_ratio_pass_threshold'
+                    ],
+                    relabeled_site_count=len(plan['relabel_indices']),
+                    removed_site_count=len(plan['remove_indices']),
+                    generated_structure_n_sites=structure_summary[
+                        'structure_n_sites'
+                    ],
+                    cif_text=cif_text,
+                )
+            )
 
             variant_row = {
                 formula_col: candidate_formula,
