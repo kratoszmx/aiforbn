@@ -50,10 +50,18 @@ def test_streamlit_app_reads_generated_artifacts(tmp_path, monkeypatch):
     (artifact_dir / 'bn_family_predictions.csv').write_text('formula,target,prediction\nBN,5.0,4.6\n', encoding='utf-8')
     (artifact_dir / 'bn_stratified_error_results.csv').write_text('model_type,bn_mae,non_bn_mae\nlinear_regression,1.2,0.8\n', encoding='utf-8')
     (artifact_dir / 'bn_evaluation_matrix.csv').write_text('model_type,formula_holdout_mae,family_holdout_mae\nlinear_regression,0.9,1.1\n', encoding='utf-8')
+    (artifact_dir / 'bn_model_role_comparison.csv').write_text(
+        'benchmark_role,bn_slice_mae\nselected_model,0.9\n',
+        encoding='utf-8',
+    )
     (artifact_dir / 'predictions.csv').write_text('formula,target,prediction\nBN,5.0,4.8\n', encoding='utf-8')
     (artifact_dir / 'demo_candidate_ranking.csv').write_text('formula,predicted_band_gap\nBN,4.8\n', encoding='utf-8')
     (artifact_dir / 'demo_candidate_ranking_uncertainty.csv').write_text('formula,rank_mean\nBN,1\n', encoding='utf-8')
     (artifact_dir / 'demo_candidate_bn_centered_ranking.csv').write_text('formula,predicted_band_gap\nAlBN,4.2\n', encoding='utf-8')
+    (artifact_dir / 'demo_candidate_rank_stability_summary.csv').write_text(
+        'top_k,top_k_overlap_count\n3,2\n',
+        encoding='utf-8',
+    )
     (artifact_dir / 'demo_candidate_structure_generation_seeds.csv').write_text('formula,seed_reference_formula\nBN,BN\n', encoding='utf-8')
     (artifact_dir / 'demo_candidate_structure_generation_handoff.json').write_text(json.dumps({'candidate_count': 1}), encoding='utf-8')
     (artifact_dir / 'demo_candidate_structure_generation_reference_records.json').write_text(json.dumps({'record_count': 1}), encoding='utf-8')
@@ -64,6 +72,10 @@ def test_streamlit_app_reads_generated_artifacts(tmp_path, monkeypatch):
     (artifact_dir / 'demo_candidate_structure_generation_first_pass_execution.json').write_text(json.dumps({'candidate_count': 1}), encoding='utf-8')
     (artifact_dir / 'demo_candidate_structure_generation_first_pass_execution_summary.csv').write_text('formula,first_pass_execution_status\nBN,executed\n', encoding='utf-8')
     (artifact_dir / 'demo_candidate_structure_generation_first_pass_execution_variants.csv').write_text('formula,execution_variant_id\nBN,bn__variant_01\n', encoding='utf-8')
+    (artifact_dir / 'demo_candidate_structure_followup_report.csv').write_text(
+        'formula,first_pass_execution_selected_final_status\nBN,executed\n',
+        encoding='utf-8',
+    )
     (artifact_dir / 'demo_candidate_proposal_shortlist.csv').write_text('formula,proposal_shortlist_rank\nBN,1\n', encoding='utf-8')
     (artifact_dir / 'demo_candidate_extrapolation_shortlist.csv').write_text('formula,extrapolation_shortlist_rank\nBCN2,1\n', encoding='utf-8')
 
@@ -94,10 +106,12 @@ def test_streamlit_app_reads_generated_artifacts(tmp_path, monkeypatch):
     assert ('subheader', 'BN family holdout predictions') in fake_streamlit.calls
     assert ('subheader', 'BN vs non-BN stratified errors') in fake_streamlit.calls
     assert ('subheader', 'BN evaluation matrix') in fake_streamlit.calls
+    assert ('subheader', 'BN model role comparison evidence') in fake_streamlit.calls
     assert ('subheader', 'Prediction samples') in fake_streamlit.calls
     assert ('subheader', 'Top demo candidate ranking') in fake_streamlit.calls
     assert ('subheader', 'BN-centered alternative candidate ranking') in fake_streamlit.calls
     assert ('subheader', 'Candidate ranking uncertainty and decision policy') in fake_streamlit.calls
+    assert ('subheader', 'Default vs BN-centered rank-stability evidence') in fake_streamlit.calls
     assert ('subheader', 'Structure-generation seed bridge') in fake_streamlit.calls
     assert ('subheader', 'Structure-generation handoff JSON') in fake_streamlit.calls
     assert ('subheader', 'Structure-generation reference records JSON') in fake_streamlit.calls
@@ -108,6 +122,7 @@ def test_streamlit_app_reads_generated_artifacts(tmp_path, monkeypatch):
     assert ('subheader', 'Structure first-pass execution summary') in fake_streamlit.calls
     assert ('subheader', 'Structure first-pass execution variants') in fake_streamlit.calls
     assert ('subheader', 'Structure first-pass execution JSON') in fake_streamlit.calls
+    assert ('subheader', 'Structure follow-up handoff (unrelaxed evidence)') in fake_streamlit.calls
     assert ('subheader', 'Proposal shortlist') in fake_streamlit.calls
     assert ('subheader', 'Formula-level extrapolation shortlist') in fake_streamlit.calls
     assert fake_streamlit.dataframe_kwargs

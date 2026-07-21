@@ -140,6 +140,48 @@ def _build_bn_model_role_comparison_table(
             ).iloc[0]
         return role_rows
 
+    def _matching_identity_row(
+        df: pd.DataFrame | None,
+        *,
+        best_metric: str,
+        role: str,
+        reference_row: pd.Series,
+    ) -> pd.Series | None:
+        if df is None or df.empty or 'benchmark_role' not in df.columns:
+            return None
+        source_df = df.copy()
+        source_df['benchmark_role'] = source_df['benchmark_role'].map(_normalize_role)
+        source_df = source_df[source_df['benchmark_role'].eq(role)].copy()
+        if source_df.empty:
+            return None
+        for column in ('feature_set', 'model_type'):
+            if column not in source_df.columns:
+                source_df[column] = pd.NA
+
+        reference_feature_set = _safe_text(reference_row.get('feature_set'))
+        reference_model_type = _safe_text(reference_row.get('model_type'))
+        feature_sets = source_df['feature_set'].map(_safe_text)
+        model_types = source_df['model_type'].map(_safe_text)
+        feature_match = (
+            feature_sets.isna()
+            if reference_feature_set is None
+            else feature_sets.eq(reference_feature_set)
+        )
+        model_match = (
+            model_types.isna()
+            if reference_model_type is None
+            else model_types.eq(reference_model_type)
+        )
+        matching_df = source_df.loc[feature_match & model_match]
+        if matching_df.empty and role in {
+            'global_dummy_mean_baseline',
+            'bn_local_reference_baseline',
+        }:
+            matching_df = source_df.loc[model_match]
+        if matching_df.empty:
+            return None
+        return _build_role_map(matching_df, best_metric).get(role)
+
     slice_role_map = _build_role_map(bn_slice_benchmark_df, 'mae')
     family_role_map = _build_role_map(bn_family_benchmark_df, 'mae')
     stratified_role_map = _build_role_map(bn_stratified_error_df, 'bn_mae')
@@ -165,11 +207,25 @@ def _build_bn_model_role_comparison_table(
         all_role_rows,
         key=lambda role_key: (role_priority.get(role_key, 99), role_key),
     ):
-        role_scope_rows = all_role_rows[role]
-        reference_row = role_scope_rows.get(
+        best_role_scope_rows = all_role_rows[role]
+        reference_row = best_role_scope_rows.get(
             'slice',
-            role_scope_rows.get('family', role_scope_rows.get('stratified')),
+            best_role_scope_rows.get('family', best_role_scope_rows.get('stratified')),
         )
+        role_scope_rows = {}
+        for scope_name, source_df, best_metric in (
+            ('slice', bn_slice_benchmark_df, 'mae'),
+            ('family', bn_family_benchmark_df, 'mae'),
+            ('stratified', bn_stratified_error_df, 'bn_mae'),
+        ):
+            matched_row = _matching_identity_row(
+                source_df,
+                best_metric=best_metric,
+                role=role,
+                reference_row=reference_row,
+            )
+            if matched_row is not None:
+                role_scope_rows[scope_name] = matched_row
         compact_rows.append(
             {
                 'benchmark_role': role,

@@ -16,6 +16,7 @@ from materials.feature_building import *
 from materials.benchmarking import *
 from materials.common import *
 from materials.common import (
+    _ranking_stability_config,
     _resolve_artifact_path,
     _structure_followup_extrapolation_shortlist_config,
     _structure_followup_shortlist_config,
@@ -719,17 +720,19 @@ def save_metrics_and_predictions(
     elif bn_model_role_comparison_path.exists():
         bn_model_role_comparison_path.unlink()
 
-    candidate_rank_stability_summary_df = pd.DataFrame(
-        [
-            _candidate_ranking_comparison_payload(
-                screened_df,
-                bn_centered_screened_df,
-                formula_col=formula_col,
-                top_k=top_k,
-            )
-            for top_k in [3, 5, 10, 20]
-        ]
-    )
+    candidate_rank_stability_summary_df = pd.DataFrame()
+    if bool(_ranking_stability_config(cfg)['enabled']):
+        candidate_rank_stability_summary_df = pd.DataFrame(
+            [
+                _candidate_ranking_comparison_payload(
+                    screened_df,
+                    bn_centered_screened_df,
+                    formula_col=formula_col,
+                    top_k=top_k,
+                )
+                for top_k in [3, 5, 10, 20]
+            ]
+        )
     if not candidate_rank_stability_summary_df.empty:
         candidate_rank_stability_summary_df.to_csv(
             candidate_rank_stability_summary_path,

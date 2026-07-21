@@ -418,23 +418,4 @@ CONFIG = {
             ),
         },
     },
-    'llm': {
-        'enabled': False,
-        'provider': 'openai',
-        'model': 'gpt-5.4',
-        'api_key_env': 'OPENAI_API_KEY',
-        'use_for': ['explanation', 'summary'],
-    },
-    'api': {
-        'enabled': False,
-        'framework': 'fastapi',
-        'host': '0.0.0.0',
-        'port': 8000,
-        'route_prefix': '/v1',
-        'auth_enabled': False,
-    },
-    'ui': {
-        'streamlit_enabled': True,
-        'title': 'BN Explorer',
-    },
 }

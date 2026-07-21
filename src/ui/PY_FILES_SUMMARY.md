@@ -9,6 +9,8 @@ Anything underscore-prefixed or omitted here should be treated as internal.
 
 - `render_streamlit_app()`
   - Render the Streamlit artifact viewer for the generated project outputs.
+  - Includes BN model-role evidence, default-vs-BN-centered rank-stability evidence,
+    and the unrelaxed structure follow-up handoff report; absent optional artifacts are skipped.
 
 ## utils.py
 

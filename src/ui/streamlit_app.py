@@ -25,10 +25,14 @@ ARTIFACT_PATHS = {
     'bn_family_prediction': Path('artifacts/bn_family_predictions.csv'),
     'bn_stratified_error': Path('artifacts/bn_stratified_error_results.csv'),
     'bn_evaluation_matrix': Path('artifacts/bn_evaluation_matrix.csv'),
+    'bn_model_role_comparison': Path('artifacts/bn_model_role_comparison.csv'),
     'predictions': Path('artifacts/predictions.csv'),
     'candidate_ranking': Path('artifacts/demo_candidate_ranking.csv'),
     'candidate_uncertainty': Path('artifacts/demo_candidate_ranking_uncertainty.csv'),
     'bn_centered_ranking': Path('artifacts/demo_candidate_bn_centered_ranking.csv'),
+    'candidate_rank_stability_summary': Path(
+        'artifacts/demo_candidate_rank_stability_summary.csv'
+    ),
     'structure_generation_seed': Path('artifacts/demo_candidate_structure_generation_seeds.csv'),
     'structure_generation_handoff': Path('artifacts/demo_candidate_structure_generation_handoff.json'),
     'structure_generation_reference_records': Path('artifacts/demo_candidate_structure_generation_reference_records.json'),
@@ -39,6 +43,9 @@ ARTIFACT_PATHS = {
     'structure_generation_first_pass_execution': Path('artifacts/demo_candidate_structure_generation_first_pass_execution.json'),
     'structure_generation_first_pass_execution_summary': Path('artifacts/demo_candidate_structure_generation_first_pass_execution_summary.csv'),
     'structure_generation_first_pass_execution_variants': Path('artifacts/demo_candidate_structure_generation_first_pass_execution_variants.csv'),
+    'candidate_structure_followup_report': Path(
+        'artifacts/demo_candidate_structure_followup_report.csv'
+    ),
     'proposal_shortlist': Path('artifacts/demo_candidate_proposal_shortlist.csv'),
     'extrapolation_shortlist': Path('artifacts/demo_candidate_extrapolation_shortlist.csv'),
 }
@@ -53,15 +60,18 @@ CSV_SECTIONS = [
     ('BN family holdout predictions', 'bn_family_prediction'),
     ('BN vs non-BN stratified errors', 'bn_stratified_error'),
     ('BN evaluation matrix', 'bn_evaluation_matrix'),
+    ('BN model role comparison evidence', 'bn_model_role_comparison'),
     ('Prediction samples', 'predictions'),
     ('Top demo candidate ranking', 'candidate_ranking'),
     ('BN-centered alternative candidate ranking', 'bn_centered_ranking'),
     ('Candidate ranking uncertainty and decision policy', 'candidate_uncertainty'),
+    ('Default vs BN-centered rank-stability evidence', 'candidate_rank_stability_summary'),
     ('Structure-generation seed bridge', 'structure_generation_seed'),
     ('Structure-grounded follow-up shortlist', 'structure_generation_followup_shortlist'),
     ('Novelty-aware structure follow-up shortlist', 'structure_generation_followup_extrapolation_shortlist'),
     ('Structure first-pass execution summary', 'structure_generation_first_pass_execution_summary'),
     ('Structure first-pass execution variants', 'structure_generation_first_pass_execution_variants'),
+    ('Structure follow-up handoff (unrelaxed evidence)', 'candidate_structure_followup_report'),
     ('Proposal shortlist', 'proposal_shortlist'),
     ('Formula-level extrapolation shortlist', 'extrapolation_shortlist'),
 ]

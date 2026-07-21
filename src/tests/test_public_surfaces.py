@@ -349,6 +349,7 @@ def test_documented_public_callable_parameter_order_matches_live_source():
 
 def test_root_public_summary_callable_parameter_order_matches_live_source():
     mismatches: list[tuple[str, str, list[str], list[str]]] = []
+    unresolved: list[tuple[str, str, int]] = []
     checked_callable_count = 0
     for module_name, documented_callables in (
         _root_documented_callable_parameters().items()
@@ -369,6 +370,7 @@ def test_root_public_summary_callable_parameter_order_matches_live_source():
         ):
             candidates = live_candidates.get(callable_name, [])
             if len(candidates) != 1:
+                unresolved.append((module_name, callable_name, len(candidates)))
                 continue
             source_path, live_parameters = candidates[0]
             checked_callable_count += 1
@@ -385,6 +387,7 @@ def test_root_public_summary_callable_parameter_order_matches_live_source():
                 ))
 
     assert checked_callable_count > 0, 'No root-summary callable signatures were checked'
+    assert unresolved == []
     assert mismatches == []
 
 

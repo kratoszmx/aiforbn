@@ -231,4 +231,4 @@ def test_default_config_has_expected_poc_defaults():
     assert cfg['screening']['decision_policy']['prediction_std_above_quantile'] == 0.75
     assert cfg['screening']['decision_policy']['rank_std_above_quantile'] == 0.75
     assert cfg['screening']['decision_policy']['minimum_top_10_selection_frequency'] == 0.5
-    assert cfg['ui']['streamlit_enabled'] is True
+    assert {'llm', 'api', 'ui'}.isdisjoint(cfg)

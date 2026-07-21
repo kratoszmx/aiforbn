@@ -441,8 +441,12 @@ Important:
 - experimental only, not part of the default sweep
 - currently intended for short BN-slice pilots rather than mainline rollout
 
-### `make_model(..., model_type='torch_mlp' | 'torch_mlp_ensemble' | 'torch_fractional_attention' | 'torch_sparse_fractional_attention' | 'torch_roost_like')`
-The existing factory in `src/materials/modeling.py` lazily imports these PyTorch regressors from this module.
+---
+
+## src/materials/
+
+### Torch model factory integration
+The existing `make_model(...)` factory in `src/materials/modeling.py` lazily imports these PyTorch regressors from this module.
 
 ### `fractional_composition_vector`
 The new composition-only feature set is designed to pair naturally with `torch_mlp`, `torch_mlp_ensemble`, and the current experimental present-element / attention baselines.
@@ -875,6 +879,8 @@ Important:
 ### `save_metrics_and_predictions(metrics, prediction_df, bn_df, screened_df, benchmark_df, robustness_df, bn_slice_benchmark_df, bn_slice_prediction_df, bn_centered_screened_df, structure_generation_seed_df, experiment_summary, manifest, cfg, ...)`
 Writes the main artifact files under `artifacts/`.
 Every fixed, configurable, dynamic, and stale-cleanup CIF leaf is preflighted in its originally declared form before directory creation. Configurable structure-execution outputs must remain under that directory, use the expected JSON/CSV types, avoid core/pairwise/alias collisions, and place CIF files directly under the configured structure directory. Empty execution results remove only preflighted stale execution outputs from a previous run.
+The rank-stability comparison CSV is emitted only while `screening.ranking_stability.enabled` is true; disabling that layer removes a stale comparison file.
+Each compact BN model-role row uses one canonical feature/model identity across diagnostic scopes; unavailable identity-matched metrics stay empty rather than borrowing a different model's best value.
 This now includes both shortlist CSVs, BN-slice benchmark artifacts, BN-family / stratified BN evaluation artifacts, the BN-centered alternative ranking artifact, the ranking-stability / abstention artifact, the BN candidate-compatible evaluation artifact, and the structure-generation bridge artifacts in addition to the full ranking artifact:
 - `bn_slice_benchmark_results.csv`
 - `bn_slice_predictions.csv`
@@ -882,8 +888,10 @@ This now includes both shortlist CSVs, BN-slice benchmark artifacts, BN-family /
 - `bn_family_predictions.csv`
 - `bn_stratified_error_results.csv`
 - `bn_evaluation_matrix.csv`
+- `bn_model_role_comparison.csv`
 - `bn_candidate_compatible_evaluation.csv`
 - `demo_candidate_bn_centered_ranking.csv`
+- `demo_candidate_rank_stability_summary.csv`
 - `demo_candidate_ranking_uncertainty.csv`
 - `demo_candidate_structure_generation_seeds.csv`
 - `demo_candidate_structure_generation_handoff.json`
@@ -895,6 +903,7 @@ This now includes both shortlist CSVs, BN-slice benchmark artifacts, BN-family /
 - `demo_candidate_structure_generation_first_pass_execution.json`
 - `demo_candidate_structure_generation_first_pass_execution_summary.csv`
 - `demo_candidate_structure_generation_first_pass_execution_variants.csv`
+- `demo_candidate_structure_followup_report.csv`
 - `demo_candidate_proposal_shortlist.csv`
 - `demo_candidate_extrapolation_shortlist.csv`
 
@@ -918,11 +927,13 @@ It displays:
 - `bn_family_predictions.csv`
 - `bn_stratified_error_results.csv`
 - `bn_evaluation_matrix.csv`
+- `bn_model_role_comparison.csv`
 - `bn_candidate_compatible_evaluation.csv`
 - `predictions.csv`
 - `demo_candidate_ranking.csv`
 - `demo_candidate_bn_centered_ranking.csv`
 - `demo_candidate_ranking_uncertainty.csv`
+- `demo_candidate_rank_stability_summary.csv`
 - `demo_candidate_structure_generation_seeds.csv`
 - `demo_candidate_structure_generation_handoff.json`
 - `demo_candidate_structure_generation_reference_records.json`
@@ -933,6 +944,7 @@ It displays:
 - `demo_candidate_structure_generation_first_pass_execution.json`
 - `demo_candidate_structure_generation_first_pass_execution_summary.csv`
 - `demo_candidate_structure_generation_first_pass_execution_variants.csv`
+- `demo_candidate_structure_followup_report.csv`
 - `demo_candidate_proposal_shortlist.csv`
 - `demo_candidate_extrapolation_shortlist.csv`
 

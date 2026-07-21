@@ -15,7 +15,10 @@ from materials import artifacts as artifacts_module
 from materials.artifacts import save_metrics_and_predictions
 from materials.constants import NOVELTY_BUCKET_FORMULA_LEVEL_EXTRAPOLATION
 from materials.plots import save_basic_plots
-from materials.ranking_tables import _candidate_ranking_uncertainty_table
+from materials.ranking_tables import (
+    _build_bn_model_role_comparison_table,
+    _candidate_ranking_uncertainty_table,
+)
 from materials.summary import build_experiment_summary
 from materials.structure_execution import build_structure_first_pass_execution_artifacts
 from materials.structure_helpers import _structure_first_pass_execution_config
@@ -394,6 +397,52 @@ def test_disabled_decision_policy_leaves_ranking_uncertainty_policy_neutral():
     assert summary['rank_std_abstain_threshold'] is None
     assert summary['abstained_candidate_count'] == 0
     assert summary['final_action_counts'] == {}
+
+
+def test_bn_model_role_comparison_preserves_one_model_identity_across_scopes():
+    identity_columns = {
+        'benchmark_role': 'candidate_model',
+        'feature_family': 'composition',
+        'candidate_compatible': True,
+        'selected_by_validation': False,
+    }
+    slice_df = pd.DataFrame([
+        {
+            **identity_columns,
+            'feature_set': 'basic_formula_composition',
+            'model_type': 'linear_regression',
+            'mae': 1.0,
+            'r2': 0.1,
+        },
+        {
+            **identity_columns,
+            'feature_set': 'fractional_composition_vector',
+            'model_type': 'torch_mlp',
+            'mae': 2.0,
+            'r2': 0.2,
+        },
+    ])
+    family_df = slice_df.assign(mae=[4.0, 0.5], r2=[0.4, 0.8])
+    stratified_df = slice_df.assign(
+        bn_mae=[3.0, 0.25],
+        non_bn_mae=[1.5, 0.5],
+        bn_to_non_bn_mae_ratio=[2.0, 0.5],
+    )
+
+    comparison_df = _build_bn_model_role_comparison_table(
+        slice_df,
+        bn_family_benchmark_df=family_df,
+        bn_stratified_error_df=stratified_df,
+    )
+
+    row = comparison_df.iloc[0]
+    assert row['feature_set'] == 'basic_formula_composition'
+    assert row['model_type'] == 'linear_regression'
+    assert row['bn_slice_mae'] == 1.0
+    assert row['bn_family_mae'] == 4.0
+    assert row['bn_mae'] == 3.0
+    assert row['non_bn_mae'] == 1.5
+    assert row['bn_to_non_bn_mae_ratio'] == 2.0
 
 
 @pytest.mark.parametrize(
@@ -923,11 +972,12 @@ def test_reporting_rejects_structure_artifact_write_or_cleanup_escape(tmp_path):
     assert not (artifact_dir / 'metrics.json').exists()
 
 
-def test_reporting_clears_stale_structure_execution_artifacts_on_empty_second_run(tmp_path):
+def test_reporting_clears_stale_optional_artifacts_on_disabled_second_run(tmp_path):
     artifact_dir = tmp_path / 'artifacts'
     cfg = {
         'project': {'artifact_dir': str(artifact_dir)},
         'data': {'formula_column': 'formula'},
+        'screening': {'ranking_stability': {'enabled': True}},
     }
     empty_df = pd.DataFrame()
     screened_df = pd.DataFrame(columns=['formula', 'ranking_rank'])
@@ -982,9 +1032,11 @@ def test_reporting_clears_stale_structure_execution_artifacts_on_empty_second_ru
         artifact_dir / execution_cfg['variants_artifact'],
         artifact_dir / cif_relative_path,
         artifact_dir / 'demo_candidate_structure_followup_report.csv',
+        artifact_dir / 'demo_candidate_rank_stability_summary.csv',
     ]
     assert all(path.exists() for path in stale_paths)
 
+    cfg['screening']['ranking_stability']['enabled'] = False
     save_structure_outputs(payload={})
 
     assert all(not path.exists() for path in stale_paths)

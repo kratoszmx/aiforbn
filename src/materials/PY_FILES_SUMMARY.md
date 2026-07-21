@@ -158,6 +158,8 @@ No callable public surface. The following non-callable contracts are imported ac
 
 - `save_metrics_and_predictions(...)`
   - Write the main artifact bundle under the configured artifact directory.
+  - Honor `screening.ranking_stability.enabled` for the rank-stability comparison output and remove a stale copy when the feature is disabled.
+  - Keep each compact BN model-role comparison row bound to one feature/model identity across slice, family, and stratified diagnostics instead of splicing per-scope winners.
   - Preflight every fixed, configurable, dynamic, and stale-cleanup CIF leaf in its originally declared form before directory creation; contain structure-execution paths beneath their configured roots, reject kind/parent-chain/reserved/pairwise/filesystem-alias collisions before mutation, and remove valid stale execution artifacts when the current run produces no execution payload.
 
 ## plots.py
