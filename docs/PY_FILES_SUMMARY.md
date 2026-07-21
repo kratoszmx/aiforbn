@@ -245,6 +245,8 @@ Returns the BN-themed slice, defined here as formulas containing both `B` and `N
 
 ### `generate_bn_candidates(cfg=None)`
 Builds the current BN-anchored demo candidate space.
+The returned plausibility annotations honor the supplied `screening.chemical_plausibility`
+configuration rather than falling back to annotation defaults.
 Default space is no longer the plain Group 13 / Group 15 cartesian product. It is now a 25-formula
 BN-containing formula-family grid anchored by:
 - BCN / h-BCN-style ternary motifs
@@ -849,8 +851,11 @@ Implementation is split across:
 - `src/materials/artifacts.py`
 - `src/materials/plots.py`
 
-### `build_experiment_summary(dataset_df, bn_df, candidate_df, split_masks, selection_summary, cfg, robustness_df=None, bn_slice_benchmark_df=None, bn_family_benchmark_df=None, bn_stratified_error_df=None, bn_centered_candidate_df=None, bn_centered_screening_selection=None, structure_generation_seed_df=None, ...)`
+### `build_experiment_summary(dataset_df, bn_df, candidate_df, split_masks, selection_summary, cfg, robustness_df=None, bn_slice_benchmark_df=None, bn_family_benchmark_df=None, bn_stratified_error_df=None, bn_centered_candidate_df=None, bn_centered_screening_selection=None, structure_generation_seed_df=None, candidate_prediction_member_df=None, candidate_grouped_robustness_member_df=None, bn_centered_grouped_robustness_member_df=None, structure_first_pass_execution_summary_df=None, structure_first_pass_execution_payload=None, bn_slice_prediction_df=None, bn_family_prediction_df=None)`
 Builds the structured experiment summary dict written to `artifacts/experiment_summary.json`.
+Data-insufficient BN diagnostics remain reportable with unavailable metric comparisons represented
+as `null`; BN slice/family prediction paths are advertised only when the corresponding prediction
+frames contain rows, matching the writer and v2 published-output inventory.
 Includes:
 - dataset stats
 - feature summary

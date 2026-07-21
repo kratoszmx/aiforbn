@@ -55,7 +55,7 @@ No callable public surface. The following non-callable contracts are imported ac
 - `annotate_bn_families(df, *, formula_col='formula', grouping_method=...)`
   - Add BN-family labels for BN-local grouping logic.
 - `generate_bn_candidates(cfg)`
-  - Build the configured BN candidate space.
+  - Build the configured BN candidate space and apply the same configured chemical-plausibility policy to its returned annotations.
 - `annotate_candidate_proposal_shortlist(ranked_candidate_df, cfg=None)`
   - Add the family-aware proposal-shortlist annotations.
 - `annotate_candidate_extrapolation_shortlist(ranked_candidate_df, cfg=None)`
@@ -152,7 +152,7 @@ No callable public surface. The following non-callable contracts are imported ac
 ## summary.py
 
 - `build_experiment_summary(...)`
-  - Build the structured experiment summary payload and advertise optional structure outputs only when their rows will be emitted.
+  - Build the structured experiment summary payload; tolerate data-insufficient BN diagnostics and advertise optional BN-prediction/structure outputs only when their rows will be emitted.
 
 ## artifacts.py
 

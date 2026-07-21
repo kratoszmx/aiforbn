@@ -11,7 +11,7 @@ Anything underscore-prefixed or omitted here should be treated as internal.
   - Render the Streamlit artifact viewer for the generated project outputs.
   - Includes BN model-role evidence, default-vs-BN-centered rank-stability evidence,
     and the unrelaxed structure follow-up handoff report; absent optional artifacts are skipped.
-  - Resolves the configured artifact root and summary-declared execution paths, verifies v2 committed output bytes before showing current, skips known viewer files absent from that successful-run inventory, and never marks missing/changed/malformed committed content current; JSON/CSV read failures produce text warnings instead of renderer failures.
+  - Resolves the configured artifact root and summary-declared execution paths, verifies v2 committed output bytes before rendering a committed bundle, skips non-current or uncommitted known outputs, and never marks missing/changed/malformed committed content current; JSON/CSV read failures produce text warnings instead of renderer failures.
 
 ## utils.py
 

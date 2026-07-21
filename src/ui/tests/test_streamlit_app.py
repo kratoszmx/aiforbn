@@ -3,6 +3,7 @@ from __future__ import annotations
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 import json
+import shutil
 import sys
 import types
 
@@ -342,6 +343,7 @@ def test_streamlit_provenance_never_marks_incomplete_or_malformed_bundle_current
         ('changed-summary', False, False),
         ('changed-manifest', False, False),
         ('changed-optional', False, False),
+        ('relocated-root', False, False),
         ('uncommitted-known-optional', True, False),
         ('unrelated-extra', True, True),
     ],
@@ -394,7 +396,7 @@ def test_streamlit_real_renderer_never_marks_content_mixed_bundle_current(
         cfg,
     )
 
-    mutation = {
+    mutations = {
         'baseline': lambda: None,
         'missing-json': lambda: (artifact_dir / 'metrics.json').unlink(),
         'missing-csv': lambda: (artifact_dir / 'demo_candidate_ranking.csv').unlink(),
@@ -429,8 +431,14 @@ def test_streamlit_real_renderer_never_marks_content_mixed_bundle_current(
             (artifact_dir / 'cache').mkdir(),
             (artifact_dir / 'cache' / 'scratch.bin').write_bytes(b'unrelated'),
         ),
-    }[case]
-    mutation()
+    }
+    if case == 'relocated-root':
+        relocated_artifact_dir = tmp_path / 'relocated-artifacts'
+        shutil.copytree(artifact_dir, relocated_artifact_dir)
+        artifact_dir = relocated_artifact_dir
+        cfg['project']['artifact_dir'] = str(artifact_dir)
+    else:
+        mutations[case]()
 
     provenance = io_utils.read_json_file(artifact_dir / 'artifact_provenance.json')
     current_manifest = io_utils.read_json_file(artifact_dir / 'manifest.json')
@@ -466,10 +474,12 @@ def test_streamlit_real_renderer_never_marks_content_mixed_bundle_current(
     assert (len(app.success) == 1) is expected_viewer_current
     if not expected_viewer_current:
         assert len(app.warning) >= 1
+    rendered_subheaders = [subheader.value for subheader in app.subheader]
+    if not expected_assessor_current:
+        assert 'Metrics' not in rendered_subheaders
+        assert 'Benchmark results' not in rendered_subheaders
     if case == 'uncommitted-known-optional':
-        assert 'BN family holdout predictions' not in [
-            subheader.value for subheader in app.subheader
-        ]
+        assert 'BN family holdout predictions' not in rendered_subheaders
 
 
 def test_streamlit_app_runs_through_real_streamlit_renderer(tmp_path, monkeypatch):

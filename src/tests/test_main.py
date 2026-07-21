@@ -306,6 +306,8 @@ def test_main_orchestrates_pipeline(monkeypatch, capsys):
     ]
     assert screening_disagreement_flags == [None, False]
     assert captured_summary_kwargs[0]['bn_family_benchmark_df'] is bn_family_benchmark_df
+    assert captured_summary_kwargs[0]['bn_slice_prediction_df'] is bn_slice_prediction_df
+    assert captured_summary_kwargs[0]['bn_family_prediction_df'] is bn_family_prediction_df
     assert captured_summary_kwargs[0]['bn_stratified_error_df'] is bn_stratified_error_df
     assert captured_summary_kwargs[0]['bn_centered_candidate_df'] is ranked_candidate_df
     assert (
@@ -454,7 +456,7 @@ def test_emit_agent_state_emits_machine_readable_project_state(monkeypatch, caps
 
     assert report is state
     assert calls == [
-        'build_agent_state:aiforbn',
+        f'build_agent_state:{ROOT.name}',
         'write_agent_state:agent_state.json',
         'agent_state_to_json:ok',
     ]
@@ -505,7 +507,7 @@ def test_emit_agent_commands_emits_machine_readable_command_index(monkeypatch, c
 
     assert report is command_index
     assert calls == [
-        'build_agent_command_index:aiforbn',
+        f'build_agent_command_index:{ROOT.name}',
         'agent_state_to_json:aiforbn.agent_command_index.v1',
     ]
     assert capsys.readouterr().out == '{"schema_version":"aiforbn.agent_command_index.v1"}\n'

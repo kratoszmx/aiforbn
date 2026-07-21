@@ -186,6 +186,7 @@ def render_streamlit_app() -> None:
         expected_output_kind='directory',
     )
     committed_output_paths: set[Path] | None = None
+    committed_outputs_verified = False
     uncommitted_artifact_keys: list[str] = []
     has_artifacts = any(
         path is not None and path.exists()
@@ -257,6 +258,9 @@ def render_streamlit_app() -> None:
                     CONFIG,
                     manifest_payload,
                 )
+                committed_outputs_verified = (
+                    provenance_assessment['status'] == 'current'
+                )
                 if provenance_assessment['status'] == 'current' and (
                     missing_bundle_keys
                     or summary_unreadable
@@ -298,7 +302,10 @@ def render_streamlit_app() -> None:
             and path.exists()
             and (
                 committed_output_paths is None
-                or path in committed_output_paths
+                or (
+                    committed_outputs_verified
+                    and path in committed_output_paths
+                )
             )
         )
 

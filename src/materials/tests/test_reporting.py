@@ -15,6 +15,7 @@ from runtime import io_utils
 from materials import artifacts as artifacts_module
 from materials import plots as plots_module
 from materials.artifacts import save_metrics_and_predictions
+from materials.benchmarking import benchmark_bn_family_holdout, benchmark_bn_slice
 from materials.constants import NOVELTY_BUCKET_FORMULA_LEVEL_EXTRAPOLATION
 from materials.plots import save_basic_plots
 from materials.ranking_tables import (
@@ -1230,6 +1231,86 @@ def test_empty_structure_generation_bridge_does_not_advertise_absent_artifacts()
         assert bridge.get(artifact_field) is None
 
 
+def test_summary_handles_insufficient_bn_diagnostics_without_advertising_empty_predictions():
+    cfg = io_utils.load_config(Path(__file__).resolve().parents[2] / 'config.py')
+    cfg['features']['feature_set'] = 'basic_formula_composition'
+    cfg['features']['candidate_sets'] = ['basic_formula_composition']
+    cfg['model']['type'] = 'linear_regression'
+    cfg['model']['candidate_types'] = ['linear_regression']
+    dataset_df = pd.DataFrame({
+        'formula': ['BN', 'BN', 'AlN'],
+        'band_gap': [5.0, 5.1, 3.0],
+        'target': [5.0, 5.1, 3.0],
+    })
+    feature_tables = {
+        'basic_formula_composition': pd.DataFrame({
+            'formula': ['BN', 'BN', 'AlN'],
+            'target': [5.0, 5.1, 3.0],
+            'feature_1': [1.0, 2.0, 3.0],
+            'feature_generation_failed': [False, False, False],
+            'feature_generation_error': [None, None, None],
+            'feature_set': ['basic_formula_composition'] * 3,
+        }),
+    }
+    diagnostic_kwargs = {
+        'selected_feature_set': 'basic_formula_composition',
+        'selected_model_type': 'linear_regression',
+        'screening_feature_set': 'basic_formula_composition',
+        'screening_model_type': 'linear_regression',
+    }
+    bn_slice_df, bn_slice_prediction_df = benchmark_bn_slice(
+        dataset_df,
+        feature_tables,
+        cfg,
+        **diagnostic_kwargs,
+    )
+    bn_family_df, bn_family_prediction_df = benchmark_bn_family_holdout(
+        dataset_df,
+        feature_tables,
+        cfg,
+        **diagnostic_kwargs,
+    )
+
+    summary = build_experiment_summary(
+        dataset_df,
+        dataset_df.loc[dataset_df['formula'].eq('BN')],
+        pd.DataFrame({
+            'formula': ['XBN'],
+            'ranking_rank': [1],
+            'ranking_score': [1.0],
+            'predicted_band_gap': [5.0],
+        }),
+        {
+            'train': [True, True, False],
+            'val': [False, False, False],
+            'test': [False, False, True],
+            'metadata': {},
+        },
+        {
+            'selected_feature_set': 'basic_formula_composition',
+            'selected_model_type': 'linear_regression',
+            'selected_feature_family': 'composition_only',
+            'screening_selected_feature_set': 'basic_formula_composition',
+            'screening_selected_model_type': 'linear_regression',
+            'screening_selected_feature_family': 'composition_only',
+        },
+        cfg,
+        bn_slice_benchmark_df=bn_slice_df,
+        bn_slice_prediction_df=bn_slice_prediction_df,
+        bn_family_benchmark_df=bn_family_df,
+        bn_family_prediction_df=bn_family_prediction_df,
+    )
+
+    diagnostic_summary = summary['bn_slice_benchmark']
+    assert set(bn_slice_df['benchmark_status']) == {'insufficient_bn_formulas'}
+    assert set(bn_family_df['benchmark_status']) == {'insufficient_bn_families'}
+    assert bn_slice_prediction_df.empty and bn_family_prediction_df.empty
+    assert diagnostic_summary['prediction_artifact'] is None
+    assert diagnostic_summary['family_prediction_artifact'] is None
+    assert diagnostic_summary['selected_model_beats_global_dummy'] is None
+    assert diagnostic_summary['family_selected_model_beats_global_dummy'] is None
+
+
 def test_reporting_preflights_summary_before_mutating_existing_bundle(tmp_path):
     artifact_dir = tmp_path / 'artifacts'
     cfg = {
@@ -2121,6 +2202,7 @@ def test_reporting_writes_expected_artifacts(tmp_path):
         cfg=cfg,
         robustness_df=robustness_df,
         bn_slice_benchmark_df=bn_slice_benchmark_df,
+        bn_slice_prediction_df=bn_slice_prediction_df,
         bn_centered_candidate_df=bn_centered_candidate_df,
         bn_centered_screening_selection=bn_centered_screening_selection,
         structure_generation_seed_df=structure_generation_seed_df,

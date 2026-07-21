@@ -49,6 +49,24 @@ from materials.structure_artifacts import (
     _collect_structure_generation_seed_summary,
 )
 
+
+def _payload_metric_less_than(
+    left_payload: dict | None,
+    right_payload: dict | None,
+    metric_name: str,
+) -> bool | None:
+    if not left_payload or not right_payload:
+        return None
+    try:
+        left_value = float(left_payload.get(metric_name))
+        right_value = float(right_payload.get(metric_name))
+    except (TypeError, ValueError):
+        return None
+    if not np.isfinite(left_value) or not np.isfinite(right_value):
+        return None
+    return bool(left_value < right_value)
+
+
 def _collect_shortlist_summary(
     candidate_df: pd.DataFrame,
     *,
@@ -173,6 +191,8 @@ def build_experiment_summary(
     bn_centered_grouped_robustness_member_df=None,
     structure_first_pass_execution_summary_df=None,
     structure_first_pass_execution_payload=None,
+    bn_slice_prediction_df=None,
+    bn_family_prediction_df=None,
 ):
     formula_col = cfg['data']['formula_column']
     target_col = cfg['data']['target_column']
@@ -218,8 +238,14 @@ def build_experiment_summary(
     bn_slice_benchmark_df = (
         pd.DataFrame() if bn_slice_benchmark_df is None else bn_slice_benchmark_df.copy()
     )
+    bn_slice_prediction_df = (
+        pd.DataFrame() if bn_slice_prediction_df is None else bn_slice_prediction_df.copy()
+    )
     bn_family_benchmark_df = (
         pd.DataFrame() if bn_family_benchmark_df is None else bn_family_benchmark_df.copy()
+    )
+    bn_family_prediction_df = (
+        pd.DataFrame() if bn_family_prediction_df is None else bn_family_prediction_df.copy()
     )
     bn_stratified_error_df = (
         pd.DataFrame() if bn_stratified_error_df is None else bn_stratified_error_df.copy()
@@ -635,22 +661,22 @@ def build_experiment_summary(
         bn_slice_benchmark_df,
         bn_slice_best_candidate_mask,
     ) if 'benchmark_role' in bn_slice_benchmark_df.columns else None
-    bn_slice_selected_beats_global_dummy = None
-    bn_slice_screening_beats_global_dummy = None
-    bn_slice_best_candidate_beats_global_dummy = None
+    bn_slice_selected_beats_global_dummy = _payload_metric_less_than(
+        bn_slice_selected_metrics,
+        bn_slice_global_dummy_metrics,
+        'mae',
+    )
+    bn_slice_screening_beats_global_dummy = _payload_metric_less_than(
+        bn_slice_screening_metrics,
+        bn_slice_global_dummy_metrics,
+        'mae',
+    )
+    bn_slice_best_candidate_beats_global_dummy = _payload_metric_less_than(
+        bn_slice_best_candidate_metrics,
+        bn_slice_global_dummy_metrics,
+        'mae',
+    )
     bn_slice_selected_matches_best_candidate = None
-    if bn_slice_selected_metrics and bn_slice_global_dummy_metrics:
-        bn_slice_selected_beats_global_dummy = bool(
-            bn_slice_selected_metrics['mae'] < bn_slice_global_dummy_metrics['mae']
-        )
-    if bn_slice_screening_metrics and bn_slice_global_dummy_metrics:
-        bn_slice_screening_beats_global_dummy = bool(
-            bn_slice_screening_metrics['mae'] < bn_slice_global_dummy_metrics['mae']
-        )
-    if bn_slice_best_candidate_metrics and bn_slice_global_dummy_metrics:
-        bn_slice_best_candidate_beats_global_dummy = bool(
-            bn_slice_best_candidate_metrics['mae'] < bn_slice_global_dummy_metrics['mae']
-        )
     if bn_slice_best_candidate_metrics and bn_slice_selected_metrics:
         bn_slice_selected_matches_best_candidate = bool(
             bn_slice_best_candidate_metrics['feature_set'] == bn_slice_selected_metrics['feature_set']
@@ -697,21 +723,21 @@ def build_experiment_summary(
         bn_family_benchmark_df,
         bn_family_best_candidate_mask,
     ) if 'benchmark_role' in bn_family_benchmark_df.columns else None
-    bn_family_selected_beats_global_dummy = None
-    bn_family_screening_beats_global_dummy = None
-    bn_family_best_candidate_beats_global_dummy = None
-    if bn_family_selected_metrics and bn_family_global_dummy_metrics:
-        bn_family_selected_beats_global_dummy = bool(
-            bn_family_selected_metrics['mae'] < bn_family_global_dummy_metrics['mae']
-        )
-    if bn_family_screening_metrics and bn_family_global_dummy_metrics:
-        bn_family_screening_beats_global_dummy = bool(
-            bn_family_screening_metrics['mae'] < bn_family_global_dummy_metrics['mae']
-        )
-    if bn_family_best_candidate_metrics and bn_family_global_dummy_metrics:
-        bn_family_best_candidate_beats_global_dummy = bool(
-            bn_family_best_candidate_metrics['mae'] < bn_family_global_dummy_metrics['mae']
-        )
+    bn_family_selected_beats_global_dummy = _payload_metric_less_than(
+        bn_family_selected_metrics,
+        bn_family_global_dummy_metrics,
+        'mae',
+    )
+    bn_family_screening_beats_global_dummy = _payload_metric_less_than(
+        bn_family_screening_metrics,
+        bn_family_global_dummy_metrics,
+        'mae',
+    )
+    bn_family_best_candidate_beats_global_dummy = _payload_metric_less_than(
+        bn_family_best_candidate_metrics,
+        bn_family_global_dummy_metrics,
+        'mae',
+    )
 
     bn_stratified_selected_mask = pd.Series(False, index=bn_stratified_error_df.index)
     bn_stratified_screening_mask = pd.Series(False, index=bn_stratified_error_df.index)
@@ -1079,7 +1105,7 @@ def build_experiment_summary(
                 'bn_slice_benchmark_results.csv' if bool(bn_slice_benchmark_cfg['enabled']) else None
             ),
             'prediction_artifact': (
-                'bn_slice_predictions.csv' if bool(bn_slice_benchmark_cfg['enabled']) else None
+                'bn_slice_predictions.csv' if not bn_slice_prediction_df.empty else None
             ),
             'method': bn_slice_benchmark_cfg['method'],
             'k_neighbors': int(bn_slice_benchmark_cfg['k_neighbors']),
@@ -1122,7 +1148,7 @@ def build_experiment_summary(
                 'bn_family_benchmark_results.csv' if bool(bn_family_benchmark_cfg['enabled']) else None
             ),
             'family_prediction_artifact': (
-                'bn_family_predictions.csv' if bool(bn_family_benchmark_cfg['enabled']) else None
+                'bn_family_predictions.csv' if not bn_family_prediction_df.empty else None
             ),
             'family_benchmark_method': bn_family_benchmark_cfg['method'],
             'family_grouping_method': bn_family_benchmark_cfg['grouping_method'],

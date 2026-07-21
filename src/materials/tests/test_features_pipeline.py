@@ -416,6 +416,19 @@ def test_generate_bn_candidates_adds_bn_anchored_family_metadata_and_chemical_pl
     )
 
 
+def test_generate_bn_candidates_honors_disabled_chemical_plausibility():
+    cfg = copy.deepcopy(CFG)
+    cfg['screening']['chemical_plausibility']['enabled'] = False
+
+    candidate_df = generate_bn_candidates(cfg)
+
+    assert candidate_df['chemical_plausibility_enabled'].eq(False).all()
+    assert candidate_df['chemical_plausibility_pass'].eq(True).all()
+    assert candidate_df['chemical_plausibility_note'].eq(
+        'Chemical plausibility screening disabled in config.'
+    ).all()
+
+
 def test_generate_bn_candidates_rejects_retired_non_bn_toy_grid():
     cfg = copy.deepcopy(CFG)
     cfg['screening']['candidate_generation_strategy'] = 'toy_iii_v_demo_grid'

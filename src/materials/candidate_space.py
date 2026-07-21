@@ -194,7 +194,7 @@ def generate_bn_candidates(cfg: dict | None = None) -> pd.DataFrame:
         rows = _generate_bn_anchored_candidates(metadata)
     else:  # pragma: no cover
         raise ValueError(f'Unsupported candidate_generation_strategy: {strategy}')
-    return annotate_candidate_chemical_plausibility(pd.DataFrame(rows))
+    return annotate_candidate_chemical_plausibility(pd.DataFrame(rows), cfg=cfg)
 
 
 def _ordered_values(values: list[str]) -> list[str]:
