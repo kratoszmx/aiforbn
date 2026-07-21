@@ -831,8 +831,12 @@ def save_metrics_and_predictions(
     legacy_screen_path = artifact_dir / 'screened_candidates.csv'
     if legacy_screen_path.exists():
         legacy_screen_path.unlink()
-    write_json_file(
-        artifact_provenance,
-        artifact_provenance_path,
-        indent=2,
-    )
+    try:
+        write_json_file(
+            artifact_provenance,
+            artifact_provenance_path,
+            indent=2,
+        )
+    except BaseException:
+        artifact_provenance_path.unlink(missing_ok=True)
+        raise

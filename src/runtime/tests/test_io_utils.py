@@ -292,7 +292,13 @@ def test_artifact_provenance_tracks_source_config_and_dataset_identity(
         lambda _root: {'revision': 'abc123', 'dirty': False},
     )
     cfg = {'project': {'artifact_dir': 'artifacts'}, 'value': 7}
-    manifest = {'name': 'twod_matpd', 'target_column': 'band_gap'}
+    reordered_cfg = {'value': 7, 'project': {'artifact_dir': 'artifacts'}}
+    manifest = {
+        'name': 'twod_matpd',
+        'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-21T00:00:00+00:00',
+        'target_column': 'band_gap',
+    }
 
     provenance = build_artifact_provenance(
         cfg,
@@ -305,6 +311,11 @@ def test_artifact_provenance_tracks_source_config_and_dataset_identity(
     assert provenance['source_worktree_dirty'] is False
     assert len(provenance['config_sha256']) == 64
     assert len(provenance['dataset_manifest_sha256']) == 64
+    assert build_artifact_provenance(
+        reordered_cfg,
+        manifest,
+        project_root_path=tmp_path,
+    )['config_sha256'] == provenance['config_sha256']
     assert assess_artifact_provenance(
         provenance,
         cfg,
@@ -370,6 +381,148 @@ def test_artifact_provenance_tracks_source_config_and_dataset_identity(
         'status': 'unverified',
         'reason': 'source_revision_unavailable',
     }
+
+
+@pytest.mark.parametrize(
+    ('manifest', 'reason'),
+    [
+        (None, 'dataset_manifest_missing'),
+        ({}, 'dataset_manifest_invalid'),
+        ([], 'dataset_manifest_invalid'),
+        ('malformed', 'dataset_manifest_invalid'),
+        ({'name': 'missing-required-fields'}, 'dataset_manifest_invalid'),
+    ],
+)
+def test_artifact_provenance_never_accepts_missing_or_malformed_dataset_identity(
+    tmp_path: Path,
+    monkeypatch,
+    manifest,
+    reason,
+):
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    cfg = {'project': {'artifact_dir': 'artifacts'}}
+    valid_manifest = {
+        'name': 'twod_matpd',
+        'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-21T00:00:00+00:00',
+        'target_column': 'band_gap',
+    }
+    provenance = build_artifact_provenance(
+        cfg,
+        manifest,
+        project_root_path=tmp_path,
+    )
+    if manifest is None:
+        provenance = build_artifact_provenance(
+            cfg,
+            valid_manifest,
+            project_root_path=tmp_path,
+        )
+
+    assert assess_artifact_provenance(
+        provenance,
+        cfg,
+        manifest,
+        project_root_path=tmp_path,
+    ) == {'status': 'unverified', 'reason': reason}
+
+
+@pytest.mark.parametrize(
+    ('field', 'value', 'remove_field'),
+    [
+        ('source_worktree_dirty', None, True),
+        ('source_revision', '', False),
+        ('source_worktree_dirty', 'clean', False),
+        ('config_sha256', 'not-a-sha256', False),
+        ('dataset_manifest_sha256', None, False),
+    ],
+)
+def test_artifact_provenance_rejects_malformed_marker_fields(
+    tmp_path: Path,
+    monkeypatch,
+    field,
+    value,
+    remove_field,
+):
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    cfg = {'project': {'artifact_dir': 'artifacts'}}
+    manifest = {
+        'name': 'twod_matpd',
+        'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-21T00:00:00+00:00',
+        'target_column': 'band_gap',
+    }
+    provenance = build_artifact_provenance(cfg, manifest, project_root_path=tmp_path)
+    if remove_field:
+        provenance.pop(field)
+    else:
+        provenance[field] = value
+
+    assert assess_artifact_provenance(
+        provenance,
+        cfg,
+        manifest,
+        project_root_path=tmp_path,
+    ) == {'status': 'unverified', 'reason': 'artifact_provenance_invalid'}
+
+
+def test_artifact_provenance_source_identity_handles_detached_dirty_and_ignored_state(
+    tmp_path: Path,
+):
+    project_root = tmp_path / 'project'
+    (project_root / 'src').mkdir(parents=True)
+    (project_root / '.gitignore').write_text(
+        '__pycache__/\n.pytest_cache/\n',
+        encoding='utf-8',
+    )
+    (project_root / 'main.py').write_text('VALUE = 1\n', encoding='utf-8')
+    (project_root / 'src' / 'module.py').write_text('VALUE = 1\n', encoding='utf-8')
+    (project_root / 'requirements.txt').write_text('pandas\n', encoding='utf-8')
+    subprocess.run(['git', 'init', '-q'], cwd=project_root, check=True)
+    subprocess.run(['git', 'add', '.'], cwd=project_root, check=True)
+    subprocess.run(
+        [
+            'git',
+            '-c',
+            'user.name=Round 10 Test',
+            '-c',
+            'user.email=round10@example.invalid',
+            'commit',
+            '-q',
+            '-m',
+            'fixture',
+        ],
+        cwd=project_root,
+        check=True,
+    )
+
+    clean_state = io_utils._read_local_source_state(project_root)
+    assert clean_state['revision']
+    assert clean_state['dirty'] is False
+
+    cache_path = project_root / 'src' / '__pycache__' / 'module.pyc'
+    cache_path.parent.mkdir()
+    cache_path.write_bytes(b'ignored')
+    assert io_utils._read_local_source_state(project_root) == clean_state
+
+    (project_root / 'untracked-scratch.tmp').write_text('irrelevant', encoding='utf-8')
+    assert io_utils._read_local_source_state(project_root) == clean_state
+
+    subprocess.run(['git', 'checkout', '--detach', '-q'], cwd=project_root, check=True)
+    assert io_utils._read_local_source_state(project_root) == clean_state
+
+    (project_root / 'src' / 'module.py').write_text('VALUE = 2\n', encoding='utf-8')
+    dirty_state = io_utils._read_local_source_state(project_root)
+    assert dirty_state['revision'] == clean_state['revision']
+    assert dirty_state['dirty'] is True
 
 
 def test_validate_json_payload_matches_write_serialization_contract():

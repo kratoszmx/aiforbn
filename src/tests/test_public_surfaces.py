@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = ROOT / 'src'
 MODULE_DIRS = {'runtime', 'materials', 'torch_models', 'ui', 'tests', 'template'}
 PRODUCTION_MODULE_DIRS = {'runtime', 'materials', 'torch_models', 'ui'}
+ROOT_FUNCTION_MODULES = {'runtime', 'materials', 'ui'}
 PUBLIC_NAME_PATTERN = re.compile(r'`([A-Za-z_][A-Za-z0-9_]*)\s*(?:\(|`)')
 FILE_HEADING_PATTERN = re.compile(
     r'^##\s+(?:`(?P<quoted>[^`]+\.py)`|(?P<plain>\S+\.py))\s*$'
@@ -18,7 +19,9 @@ PUBLIC_ENTRY_PATTERN = re.compile(r'^- `([A-Za-z_][A-Za-z0-9_]*)\s*(?:\([^`]*\))
 PUBLIC_CALLABLE_ENTRY_PATTERN = re.compile(
     r'^- `(?P<name>[A-Za-z_][A-Za-z0-9_]*)\((?P<parameters>[^`]*)\)`'
 )
-ROOT_MODULE_HEADING_PATTERN = re.compile(r'^## src/(?P<module>[A-Za-z_][A-Za-z0-9_]*)/$')
+ROOT_MODULE_HEADING_PATTERN = re.compile(
+    r'^## src/(?P<module>[A-Za-z_][A-Za-z0-9_]*)/(?:[^/\s]+\.py)?$'
+)
 ROOT_CALLABLE_HEADING_PATTERN = re.compile(
     r'^### `(?P<name>[A-Za-z_][A-Za-z0-9_]*)\((?P<parameters>[^`]*)\)`$'
 )
@@ -351,9 +354,17 @@ def test_root_public_summary_callable_parameter_order_matches_live_source():
     mismatches: list[tuple[str, str, list[str], list[str]]] = []
     unresolved: list[tuple[str, str, int]] = []
     checked_callable_count = 0
-    for module_name, documented_callables in (
-        _root_documented_callable_parameters().items()
-    ):
+    root_documented_callables = _root_documented_callable_parameters()
+    empty_root_modules = sorted(
+        module_name
+        for module_name in ROOT_FUNCTION_MODULES
+        if not root_documented_callables.get(module_name)
+    )
+    assert empty_root_modules == [], (
+        'No root-summary callable signatures were parsed for modules: '
+        f'{empty_root_modules}'
+    )
+    for module_name, documented_callables in root_documented_callables.items():
         module_dir = SRC_ROOT / module_name
         if not module_dir.is_dir():
             continue

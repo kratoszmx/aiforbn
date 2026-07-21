@@ -68,6 +68,14 @@ _SUMMARY_EXECUTION_PATH_FIELDS = {
         'first_pass_execution_variants_artifact'
     ),
 }
+_REQUIRED_COMPLETE_BUNDLE_KEYS = (
+    'metrics',
+    'summary',
+    'benchmark',
+    'predictions',
+    'candidate_ranking',
+    'manifest',
+)
 
 
 def _artifact_file_path(artifact_root: Path, value: object) -> Path | None:
@@ -158,9 +166,20 @@ def render_streamlit_app() -> None:
 
     base_paths = _build_artifact_paths(CONFIG)
     summary_payload = None
+    summary_unreadable = False
     summary_path = base_paths['summary']
     if summary_path is not None and summary_path.exists():
-        summary_payload = read_json_file(summary_path)
+        try:
+            summary_payload = read_json_file(summary_path)
+        except (OSError, TypeError, ValueError):
+            summary_unreadable = True
+        if not isinstance(summary_payload, dict):
+            summary_payload = None
+            summary_unreadable = True
+        if summary_unreadable:
+            st.warning(
+                'Experiment summary is unreadable; artifact provenance cannot be current.'
+            )
     artifact_paths = _build_artifact_paths(CONFIG, summary_payload)
     has_artifacts = any(
         path is not None and path.exists()
@@ -169,6 +188,11 @@ def render_streamlit_app() -> None:
     )
     provenance_path = artifact_paths['provenance']
     manifest_path = artifact_paths['manifest']
+    missing_bundle_keys = [
+        key
+        for key in _REQUIRED_COMPLETE_BUNDLE_KEYS
+        if artifact_paths.get(key) is None or not artifact_paths[key].exists()
+    ]
     if has_artifacts:
         if provenance_path is None or not provenance_path.exists():
             st.warning(
@@ -176,22 +200,46 @@ def render_streamlit_app() -> None:
                 'the current source and configuration.'
             )
         else:
-            provenance_payload = read_json_file(provenance_path)
-            manifest_payload = (
-                read_json_file(manifest_path)
-                if manifest_path is not None and manifest_path.exists()
-                else {}
-            )
-            provenance_assessment = assess_artifact_provenance(
-                provenance_payload,
-                CONFIG,
-                manifest_payload,
-            )
+            try:
+                provenance_payload = read_json_file(provenance_path)
+            except (OSError, TypeError, ValueError):
+                provenance_payload = None
+                provenance_assessment = {
+                    'status': 'unverified',
+                    'reason': 'artifact_provenance_unreadable',
+                }
+            else:
+                manifest_payload = None
+                if manifest_path is not None and manifest_path.exists():
+                    try:
+                        manifest_payload = read_json_file(manifest_path)
+                    except (OSError, TypeError, ValueError):
+                        manifest_payload = {}
+                provenance_assessment = assess_artifact_provenance(
+                    provenance_payload,
+                    CONFIG,
+                    manifest_payload,
+                )
+                if provenance_assessment['status'] == 'current' and (
+                    missing_bundle_keys or summary_unreadable
+                ):
+                    provenance_assessment = {
+                        'status': 'unverified',
+                        'reason': 'artifact_bundle_incomplete_or_unreadable',
+                    }
             st.subheader('Artifact bundle provenance')
-            st.json({
-                **provenance_payload,
-                'assessment': provenance_assessment,
-            })
+            provenance_display = (
+                provenance_payload
+                if isinstance(provenance_payload, dict)
+                else {'stored_provenance': provenance_payload}
+            )
+            st.json(
+                {
+                    **provenance_display,
+                    'assessment': provenance_assessment,
+                    'missing_required_artifacts': missing_bundle_keys,
+                }
+            )
             if provenance_assessment['status'] == 'current':
                 st.success('Artifact provenance matches the current source and configuration.')
             else:

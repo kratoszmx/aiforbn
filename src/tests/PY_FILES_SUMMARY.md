@@ -11,11 +11,11 @@
 ## What lives here
 
 - `test_config.py`
-  - Validates the real `src/config.py` defaults.
+  - Validates the real `src/config.py` defaults, including that mandatory formula screening has no false top-level `screening.enabled` master switch while its explicit nested gates remain independently testable.
 - `test_main.py`
   - Covers the complete top-level orchestration branch, `--dry-run`, and all JSON control-plane commands, including operation without runtime `myutils` imports.
 - `test_public_surfaces.py`
-  - Verifies explicit cross-module imports are documented, production imports follow manifest dependency boundaries, private/wildcard cross-module imports are absent, and every documented symbol exists in its declared file.
+  - Verifies explicit cross-module imports are documented, production imports follow manifest dependency boundaries, private/wildcard cross-module imports are absent, and every documented symbol/signature exists in its declared file; root-summary callable parsing must be nonempty for runtime, materials, and UI.
 - `utils.py`
   - Currently exposes no public helper functions.
 

@@ -159,7 +159,7 @@ No callable public surface. The following non-callable contracts are imported ac
 - `save_metrics_and_predictions(...)`
   - Write the main artifact bundle under the configured artifact directory.
   - Honor ranking-stability, decision-policy, shortlist, and structure-seed gates; remove stale optional outputs on a disabled second run, including case-equivalent CIF suffixes.
-  - Preflight caller JSON, replace CSV files atomically, and publish `artifact_provenance.json` last so an incomplete bundle is never marked current.
+  - Preflight caller JSON, replace CSV files atomically, invalidate any prior completion marker before the first bundle mutation, and publish `artifact_provenance.json` last; interrupted marker publication removes its partial leaf.
   - Keep each compact BN model-role comparison row bound to one feature/model identity across slice, family, and stratified diagnostics instead of splicing per-scope winners.
   - Preflight every fixed, configurable, dynamic, and stale-cleanup CIF leaf in its originally declared form before directory creation; contain structure-execution paths beneath their configured roots, reject kind/parent-chain/reserved/pairwise/filesystem-alias collisions before mutation, and remove valid stale execution artifacts when the current run produces no execution payload.
 

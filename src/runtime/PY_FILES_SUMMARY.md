@@ -18,7 +18,7 @@ Anything underscore-prefixed or omitted here should be treated as internal.
 - `build_artifact_provenance(cfg, dataset_manifest=None, *, project_root_path=None)`
   - Build local-only artifact provenance from the current source revision/dirty state plus canonical effective-config and dataset-manifest hashes; missing Git identity degrades to explicit unknown values.
 - `assess_artifact_provenance(provenance, cfg, dataset_manifest=None, *, project_root_path=None)`
-  - Classify a stored bundle as `current`, `stale`, or `unverified` using stable local source/config/dataset identity.
+  - Classify a stored bundle as `current`, `stale`, or `unverified` using stable local source/config/dataset identity; malformed marker fields and missing or schema-invalid dataset manifests fail closed as `unverified`.
 - `validate_json_payload(payload, ...)`
   - Apply the same JSON-safety and serialization contract as `write_json_file` without creating or replacing a path, for multi-output preflight.
 - `clear_project_cache(project_root_path='.')`

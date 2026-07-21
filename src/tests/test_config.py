@@ -64,6 +64,7 @@ def test_default_config_has_expected_poc_defaults():
     )
     assert cfg['bn_stratified_error']['group_column'] == 'formula'
     assert cfg['bn_stratified_error']['n_splits'] == 5
+    assert 'enabled' not in cfg['screening']
     assert cfg['screening']['objective_name'] == 'ai_powered_boron_nitride_material_exploration'
     assert cfg['screening']['objective_target_property'] == 'band_gap'
     assert cfg['screening']['objective_target_direction'] == 'target_window_proxy'

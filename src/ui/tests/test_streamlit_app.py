@@ -6,6 +6,8 @@ import json
 import sys
 import types
 
+import pytest
+
 
 class FakeStreamlit(types.ModuleType):
     def __init__(self):
@@ -212,6 +214,100 @@ def test_streamlit_app_uses_configured_artifact_root_and_summary_paths(
         call_name == 'warning' and 'no readable CSV schema' in str(value)
         for call_name, value in fake_streamlit.calls
     )
+
+
+@pytest.mark.parametrize(
+    ('case', 'expect_current'),
+    [
+        ('current', True),
+        ('missing-manifest', False),
+        ('malformed-manifest', False),
+        ('manifest-mismatch', False),
+        ('malformed-provenance', False),
+        ('non-object-summary', False),
+        ('missing-summary', False),
+        ('marker-only', False),
+    ],
+)
+def test_streamlit_provenance_never_marks_incomplete_or_malformed_bundle_current(
+    tmp_path,
+    monkeypatch,
+    case,
+    expect_current,
+):
+    artifact_dir = tmp_path / 'configured-artifacts'
+    artifact_dir.mkdir()
+    cfg = {
+        'project': {'artifact_dir': str(artifact_dir)},
+        'screening': {},
+    }
+    valid_manifest = {
+        'name': 'twod_matpd',
+        'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-21T00:00:00+00:00',
+        'target_column': 'band_gap',
+    }
+    if case != 'marker-only':
+        for name, contents in {
+            'metrics.json': json.dumps({'mae': 1.0}),
+            'benchmark_results.csv': 'model_type,mae\nlinear_regression,1.0\n',
+            'predictions.csv': 'formula,prediction\nBN,5.0\n',
+            'demo_candidate_ranking.csv': 'formula,ranking_rank\nBN,1\n',
+        }.items():
+            (artifact_dir / name).write_text(contents, encoding='utf-8')
+    if case not in {'missing-summary', 'marker-only'}:
+        summary_contents = '[]' if case == 'non-object-summary' else '{}'
+        (artifact_dir / 'experiment_summary.json').write_text(
+            summary_contents,
+            encoding='utf-8',
+        )
+
+    fake_streamlit = FakeStreamlit()
+    monkeypatch.setitem(sys.modules, 'streamlit', fake_streamlit)
+    monkeypatch.chdir(tmp_path)
+    from runtime import io_utils
+
+    monkeypatch.setattr(io_utils, 'load_config', lambda _path: cfg)
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    marker_manifest = None if case == 'missing-manifest' else valid_manifest
+    provenance = io_utils.build_artifact_provenance(cfg, marker_manifest)
+    provenance_path = artifact_dir / 'artifact_provenance.json'
+    if case == 'malformed-provenance':
+        provenance_path.write_text('{', encoding='utf-8')
+    else:
+        provenance_path.write_text(json.dumps(provenance), encoding='utf-8')
+
+    manifest_path = artifact_dir / 'manifest.json'
+    if case == 'malformed-manifest':
+        manifest_path.write_text('{', encoding='utf-8')
+    elif case == 'manifest-mismatch':
+        manifest_path.write_text(
+            json.dumps({**valid_manifest, 'name': 'different'}),
+            encoding='utf-8',
+        )
+    elif case != 'missing-manifest':
+        manifest_path.write_text(json.dumps(valid_manifest), encoding='utf-8')
+
+    root = Path(__file__).resolve().parents[3]
+    app_path = root / 'src' / 'ui' / 'streamlit_app.py'
+    spec = spec_from_file_location(f'streamlit_app_provenance_{case}', app_path)
+    module = module_from_spec(spec)
+    assert spec is not None and spec.loader is not None
+    spec.loader.exec_module(module)
+    module.render_streamlit_app()
+
+    success_calls = [value for name, value in fake_streamlit.calls if name == 'success']
+    if expect_current:
+        assert success_calls == [
+            'Artifact provenance matches the current source and configuration.'
+        ]
+    else:
+        assert success_calls == []
+        assert any(name == 'warning' for name, _value in fake_streamlit.calls)
 
 
 def test_streamlit_app_runs_through_real_streamlit_renderer(tmp_path, monkeypatch):

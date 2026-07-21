@@ -48,6 +48,7 @@ if str(_MYUTILS_FILE_UTILS_DIR) not in sys.path:
 
 from filesystem import ensure_dirs, find_cache_dirs
 from json_io import make_json_safe, read_json_file, write_json_file as _shared_write_json_file
+from runtime.schema import DatasetManifest
 from runtime.utils import _path_has_symlink_component, _path_is_same_or_descendant
 
 
@@ -139,6 +140,49 @@ def build_artifact_provenance(
     }
 
 
+def _dataset_manifest_validation_reason(dataset_manifest: object) -> str | None:
+    if dataset_manifest is None:
+        return 'dataset_manifest_missing'
+    if not isinstance(dataset_manifest, dict):
+        return 'dataset_manifest_invalid'
+    try:
+        DatasetManifest.model_validate(dataset_manifest)
+    except (TypeError, ValueError):
+        return 'dataset_manifest_invalid'
+    return None
+
+
+def _is_sha256_digest(value: object) -> bool:
+    return (
+        isinstance(value, str)
+        and len(value) == 64
+        and all(character in '0123456789abcdef' for character in value)
+    )
+
+
+def _artifact_provenance_is_well_formed(provenance: dict) -> bool:
+    required_fields = {
+        'schema',
+        'source_revision',
+        'source_worktree_dirty',
+        'config_sha256',
+        'dataset_manifest_sha256',
+    }
+    if not required_fields.issubset(provenance):
+        return False
+    revision = provenance['source_revision']
+    dirty = provenance['source_worktree_dirty']
+    if revision is not None and (not isinstance(revision, str) or not revision.strip()):
+        return False
+    if dirty is not None and not isinstance(dirty, bool):
+        return False
+    if (revision is None) != (dirty is None):
+        return False
+    return _is_sha256_digest(provenance['config_sha256']) and _is_sha256_digest(
+        provenance['dataset_manifest_sha256']
+    )
+
+
 def assess_artifact_provenance(
     provenance: dict | None,
     cfg: dict,
@@ -150,6 +194,11 @@ def assess_artifact_provenance(
         return {'status': 'unverified', 'reason': 'artifact_provenance_missing'}
     if provenance.get('schema') != ARTIFACT_PROVENANCE_SCHEMA:
         return {'status': 'unverified', 'reason': 'artifact_provenance_schema_unknown'}
+    if not _artifact_provenance_is_well_formed(provenance):
+        return {'status': 'unverified', 'reason': 'artifact_provenance_invalid'}
+    manifest_reason = _dataset_manifest_validation_reason(dataset_manifest)
+    if manifest_reason is not None:
+        return {'status': 'unverified', 'reason': manifest_reason}
 
     current_source_state = _read_local_source_state(project_root_path or PROJECT_ROOT)
     stored_revision = provenance.get('source_revision')

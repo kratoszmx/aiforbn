@@ -1227,11 +1227,6 @@ def test_empty_structure_generation_bridge_does_not_advertise_absent_artifacts()
 
 def test_reporting_preflights_summary_before_mutating_existing_bundle(tmp_path):
     artifact_dir = tmp_path / 'artifacts'
-    artifact_dir.mkdir()
-    predictions_path = artifact_dir / 'predictions.csv'
-    bn_centered_path = artifact_dir / 'demo_candidate_bn_centered_ranking.csv'
-    predictions_path.write_text('old,prediction\n1,2\n', encoding='utf-8')
-    bn_centered_path.write_text('formula,ranking_rank\nOLD,1\n', encoding='utf-8')
     cfg = {
         'project': {'artifact_dir': str(artifact_dir)},
         'data': {'formula_column': 'formula'},
@@ -1240,15 +1235,107 @@ def test_reporting_preflights_summary_before_mutating_existing_bundle(tmp_path):
             'decision_policy': {'enabled': False},
         },
     }
+    _save_minimal_report_bundle(cfg)
+    before = {
+        path.relative_to(artifact_dir): path.read_bytes()
+        for path in artifact_dir.rglob('*')
+        if path.is_file()
+    }
+    assert Path('artifact_provenance.json') in before
+
     with pytest.raises(ValueError, match='not JSON-serializable'):
         _save_minimal_report_bundle(
             cfg,
             experiment_summary={'invalid': object()},
         )
 
-    assert predictions_path.read_text(encoding='utf-8') == 'old,prediction\n1,2\n'
-    assert bn_centered_path.read_text(encoding='utf-8') == 'formula,ranking_rank\nOLD,1\n'
-    assert not (artifact_dir / 'metrics.json').exists()
+    after = {
+        path.relative_to(artifact_dir): path.read_bytes()
+        for path in artifact_dir.rglob('*')
+        if path.is_file()
+    }
+    assert after == before
+
+
+@pytest.mark.parametrize('prior_bundle', [False, True], ids=['no-prior', 'known-good-prior'])
+@pytest.mark.parametrize(
+    'failure_target',
+    [
+        'metrics.json',
+        'nested/execution-summary.csv',
+        'experiment_summary.json',
+        'artifact_provenance.json',
+    ],
+    ids=['early-json', 'middle-nested-csv', 'late-summary', 'completion-marker'],
+)
+def test_reporting_failure_after_publication_begins_leaves_no_completion_marker(
+    tmp_path,
+    monkeypatch,
+    prior_bundle,
+    failure_target,
+):
+    artifact_dir = tmp_path / 'custom-output' / 'artifacts'
+    execution_cfg = {
+        'artifact': 'nested/execution.json',
+        'summary_artifact': 'nested/execution-summary.csv',
+        'variants_artifact': 'nested/execution-variants.csv',
+        'structure_dir': 'nested/cifs',
+    }
+    cfg = {
+        'project': {'artifact_dir': str(artifact_dir)},
+        'data': {'formula_column': 'formula'},
+        'screening': {
+            'ranking_stability': {'enabled': False},
+            'decision_policy': {'enabled': False},
+            'structure_first_pass_execution': execution_cfg,
+        },
+    }
+    structure_payload = {
+        **execution_cfg,
+        'candidates': [],
+    }
+    writer_kwargs = {
+        'structure_payload': structure_payload,
+        'structure_summary_df': pd.DataFrame([{'formula': 'XBN'}]),
+        'structure_variant_df': pd.DataFrame(columns=['formula']),
+    }
+    completion_marker = artifact_dir / 'artifact_provenance.json'
+    if prior_bundle:
+        _save_minimal_report_bundle(cfg, **writer_kwargs)
+        assert completion_marker.exists()
+
+    original_json_writer = artifacts_module.write_json_file
+    original_csv_writer = artifacts_module._write_csv_file
+
+    def fail_json_after_write(payload, path, **kwargs):
+        result = original_json_writer(payload, path, **kwargs)
+        if Path(path).as_posix().endswith(failure_target):
+            exception_type = (
+                KeyboardInterrupt
+                if failure_target == 'artifact_provenance.json'
+                else RuntimeError
+            )
+            raise exception_type(f'synthetic failure after {failure_target}')
+        return result
+
+    def fail_csv_after_write(frame, path):
+        result = original_csv_writer(frame, path)
+        if Path(path).as_posix().endswith(failure_target):
+            raise RuntimeError(f'synthetic failure after {failure_target}')
+        return result
+
+    monkeypatch.setattr(artifacts_module, 'write_json_file', fail_json_after_write)
+    monkeypatch.setattr(artifacts_module, '_write_csv_file', fail_csv_after_write)
+
+    expected_exception = (
+        KeyboardInterrupt
+        if failure_target == 'artifact_provenance.json'
+        else RuntimeError
+    )
+    with pytest.raises(expected_exception, match='synthetic failure'):
+        _save_minimal_report_bundle(cfg, **writer_kwargs)
+
+    assert not completion_marker.exists()
 
 
 def test_csv_report_replace_preserves_previous_file_on_serialization_failure(tmp_path):

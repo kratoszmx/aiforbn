@@ -176,7 +176,6 @@ CONFIG = {
         ),
     },
     'screening': {
-        'enabled': True,
         'top_k': 20,
         'candidate_generation_strategy': 'bn_anchored_formula_family_grid',
         'candidate_space_name': 'bn_anchored_formula_family_grid',
