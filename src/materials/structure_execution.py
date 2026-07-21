@@ -21,6 +21,7 @@ from materials.structure_artifacts import (
     _build_structure_generation_reference_record_payload,
 )
 from materials.structure_helpers import (
+    _STRUCTURE_EXECUTION_CANDIDATE_STATUS_BY_BRANCH,
     _STRUCTURE_EXECUTION_SELECTED_PROJECTION_FIELDS,
     _apply_variant_plan,
     _build_variant_plans,
@@ -183,6 +184,9 @@ def build_structure_first_pass_execution_artifacts(
         }
 
         if reference_record is None or not isinstance(reference_record.get('atoms'), dict):
+            candidate_status = _STRUCTURE_EXECUTION_CANDIDATE_STATUS_BY_BRANCH[
+                'missing_reference'
+            ]
             summary_rows.append(
                 {
                     formula_col: candidate_formula,
@@ -195,7 +199,7 @@ def build_structure_first_pass_execution_artifacts(
                     'first_pass_execution_variant_count': 0,
                     'first_pass_execution_successful_variant_count': 0,
                     'first_pass_execution_geometry_pass_variant_count': 0,
-                    'first_pass_execution_status': 'missing_reference_record',
+                    'first_pass_execution_status': candidate_status,
                     'first_pass_execution_selected_variant_id': None,
                     'first_pass_execution_selected_variant_rank': None,
                     'first_pass_execution_selected_cif_path': None,
@@ -208,7 +212,7 @@ def build_structure_first_pass_execution_artifacts(
                     'first_pass_execution_selected_final_status': 'not_executed',
                 }
             )
-            candidate_payload['candidate_status'] = 'missing_reference_record'
+            candidate_payload['candidate_status'] = candidate_status
             payload_candidates.append(candidate_payload)
             continue
 
@@ -216,6 +220,9 @@ def build_structure_first_pass_execution_artifacts(
         try:
             reference_structure = _structure_from_atoms(reference_atoms)
         except Exception as exc:  # pragma: no cover - defensive runtime guard
+            candidate_status = _STRUCTURE_EXECUTION_CANDIDATE_STATUS_BY_BRANCH[
+                'invalid_reference'
+            ]
             summary_rows.append(
                 {
                     formula_col: candidate_formula,
@@ -228,7 +235,7 @@ def build_structure_first_pass_execution_artifacts(
                     'first_pass_execution_variant_count': 0,
                     'first_pass_execution_successful_variant_count': 0,
                     'first_pass_execution_geometry_pass_variant_count': 0,
-                    'first_pass_execution_status': 'invalid_reference_structure',
+                    'first_pass_execution_status': candidate_status,
                     'first_pass_execution_selected_variant_id': None,
                     'first_pass_execution_selected_variant_rank': None,
                     'first_pass_execution_selected_cif_path': None,
@@ -241,12 +248,15 @@ def build_structure_first_pass_execution_artifacts(
                     'first_pass_execution_selected_final_status': f'{type(exc).__name__}: {exc}',
                 }
             )
-            candidate_payload['candidate_status'] = 'invalid_reference_structure'
+            candidate_payload['candidate_status'] = candidate_status
             payload_candidates.append(candidate_payload)
             continue
 
         scale_factor = _infer_reference_formula_multiplier(reference_atoms, seed_formula)
         if scale_factor is None:
+            candidate_status = _STRUCTURE_EXECUTION_CANDIDATE_STATUS_BY_BRANCH[
+                'unresolved_reference_scale'
+            ]
             summary_rows.append(
                 {
                     formula_col: candidate_formula,
@@ -259,7 +269,7 @@ def build_structure_first_pass_execution_artifacts(
                     'first_pass_execution_variant_count': 0,
                     'first_pass_execution_successful_variant_count': 0,
                     'first_pass_execution_geometry_pass_variant_count': 0,
-                    'first_pass_execution_status': 'unresolved_reference_scale_factor',
+                    'first_pass_execution_status': candidate_status,
                     'first_pass_execution_selected_variant_id': None,
                     'first_pass_execution_selected_variant_rank': None,
                     'first_pass_execution_selected_cif_path': None,
@@ -272,12 +282,15 @@ def build_structure_first_pass_execution_artifacts(
                     'first_pass_execution_selected_final_status': 'not_executed',
                 }
             )
-            candidate_payload['candidate_status'] = 'unresolved_reference_scale_factor'
+            candidate_payload['candidate_status'] = candidate_status
             payload_candidates.append(candidate_payload)
             continue
 
         target_counts = _scaled_formula_counts(candidate_formula, scale_factor)
         if target_counts is None:
+            candidate_status = _STRUCTURE_EXECUTION_CANDIDATE_STATUS_BY_BRANCH[
+                'unscalable_candidate_formula'
+            ]
             summary_rows.append(
                 {
                     formula_col: candidate_formula,
@@ -290,7 +303,7 @@ def build_structure_first_pass_execution_artifacts(
                     'first_pass_execution_variant_count': 0,
                     'first_pass_execution_successful_variant_count': 0,
                     'first_pass_execution_geometry_pass_variant_count': 0,
-                    'first_pass_execution_status': 'candidate_formula_does_not_scale_to_reference_cell',
+                    'first_pass_execution_status': candidate_status,
                     'first_pass_execution_selected_variant_id': None,
                     'first_pass_execution_selected_variant_rank': None,
                     'first_pass_execution_selected_cif_path': None,
@@ -303,7 +316,7 @@ def build_structure_first_pass_execution_artifacts(
                     'first_pass_execution_selected_final_status': 'not_executed',
                 }
             )
-            candidate_payload['candidate_status'] = 'candidate_formula_does_not_scale_to_reference_cell'
+            candidate_payload['candidate_status'] = candidate_status
             payload_candidates.append(candidate_payload)
             continue
 
@@ -315,6 +328,12 @@ def build_structure_first_pass_execution_artifacts(
             max_variants=int(execution_cfg['max_variants_per_candidate']),
         )
         if plan_error or not variant_plans:
+            candidate_status = str(
+                plan_error
+                or _STRUCTURE_EXECUTION_CANDIDATE_STATUS_BY_BRANCH[
+                    'no_variant_plan'
+                ]
+            )
             summary_rows.append(
                 {
                     formula_col: candidate_formula,
@@ -327,7 +346,7 @@ def build_structure_first_pass_execution_artifacts(
                     'first_pass_execution_variant_count': 0,
                     'first_pass_execution_successful_variant_count': 0,
                     'first_pass_execution_geometry_pass_variant_count': 0,
-                    'first_pass_execution_status': str(plan_error or 'no_variant_plan_generated'),
+                    'first_pass_execution_status': candidate_status,
                     'first_pass_execution_selected_variant_id': None,
                     'first_pass_execution_selected_variant_rank': None,
                     'first_pass_execution_selected_cif_path': None,
@@ -340,7 +359,7 @@ def build_structure_first_pass_execution_artifacts(
                     'first_pass_execution_selected_final_status': 'not_executed',
                 }
             )
-            candidate_payload['candidate_status'] = str(plan_error or 'no_variant_plan_generated')
+            candidate_payload['candidate_status'] = candidate_status
             payload_candidates.append(candidate_payload)
             continue
 
@@ -471,7 +490,9 @@ def build_structure_first_pass_execution_artifacts(
 
         selected_variant = _select_structure_execution_variant(candidate_variant_df)
 
-        candidate_status = 'executed' if selected_variant is not None else 'no_successful_variant'
+        candidate_status = _STRUCTURE_EXECUTION_CANDIDATE_STATUS_BY_BRANCH[
+            'executed' if selected_variant is not None else 'no_successful_variant'
+        ]
         summary_rows.append(
             {
                 formula_col: candidate_formula,
@@ -535,7 +556,9 @@ def build_structure_first_pass_execution_artifacts(
         'successful_variant_count': successful_variant_count,
         'status_counts': {str(key): int(value) for key, value in status_counts.items()},
         'executed_formulas': summary_df.loc[
-            summary_df['first_pass_execution_status'].astype(str).eq('executed'),
+            summary_df['first_pass_execution_status'].astype(str).eq(
+                _STRUCTURE_EXECUTION_CANDIDATE_STATUS_BY_BRANCH['executed']
+            ),
             formula_col,
         ].astype(str).tolist() if not summary_df.empty else [],
         'model_feature_set': structure_feature_set,

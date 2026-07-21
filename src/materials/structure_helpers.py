@@ -65,6 +65,27 @@ _STRUCTURE_EXECUTION_VARIANT_SELECTION_FIELDS = (
     'execution_variant_selection_score',
     'execution_variant_rank',
 )
+_STRUCTURE_EXECUTION_CANDIDATE_STATUS_BY_BRANCH = {
+    'missing_reference': 'missing_reference_record',
+    'invalid_reference': 'invalid_reference_structure',
+    'unresolved_reference_scale': 'unresolved_reference_scale_factor',
+    'unscalable_candidate_formula': (
+        'candidate_formula_does_not_scale_to_reference_cell'
+    ),
+    'requires_atom_insertion': 'requires_atom_insertion',
+    'multiple_donor_species': 'multiple_donor_species_not_supported',
+    'no_donor_species': 'no_donor_species_found',
+    'invalid_edit_counts': 'invalid_edit_counts',
+    'insufficient_donor_sites': 'insufficient_donor_sites',
+    'no_variant_plan': 'no_variant_plan_generated',
+    'executed': 'executed',
+    'no_successful_variant': 'no_successful_variant',
+}
+_STRUCTURE_EXECUTION_ZERO_VARIANT_STATUSES = frozenset(
+    status
+    for branch, status in _STRUCTURE_EXECUTION_CANDIDATE_STATUS_BY_BRANCH.items()
+    if branch not in {'executed', 'no_successful_variant'}
+)
 
 
 def _select_structure_execution_variant(
@@ -363,14 +384,20 @@ def _build_variant_plans(
     }
 
     if total_site_delta > 0:
-        return [], 'requires_atom_insertion'
+        return [], _STRUCTURE_EXECUTION_CANDIDATE_STATUS_BY_BRANCH[
+            'requires_atom_insertion'
+        ]
 
     if len(donor_elements) > 1:
-        return [], 'multiple_donor_species_not_supported'
+        return [], _STRUCTURE_EXECUTION_CANDIDATE_STATUS_BY_BRANCH[
+            'multiple_donor_species'
+        ]
 
     donor_element = next(iter(donor_elements), None)
     if donor_element is None:
-        return [], 'no_donor_species_found'
+        return [], _STRUCTURE_EXECUTION_CANDIDATE_STATUS_BY_BRANCH[
+            'no_donor_species'
+        ]
 
     donor_indices = [
         index for index, site in enumerate(structure)
@@ -380,9 +407,13 @@ def _build_variant_plans(
     relabel_count = int(sum(recipient_elements.values()))
     remove_count = max(donor_surplus - relabel_count, 0)
     if relabel_count < 0 or remove_count < 0:
-        return [], 'invalid_edit_counts'
+        return [], _STRUCTURE_EXECUTION_CANDIDATE_STATUS_BY_BRANCH[
+            'invalid_edit_counts'
+        ]
     if relabel_count + remove_count > len(donor_indices):
-        return [], 'insufficient_donor_sites'
+        return [], _STRUCTURE_EXECUTION_CANDIDATE_STATUS_BY_BRANCH[
+            'insufficient_donor_sites'
+        ]
 
     relabel_combos = _rank_index_combinations(
         structure,

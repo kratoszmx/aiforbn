@@ -28,7 +28,9 @@ from materials.screening import build_candidate_structure_generation_seeds
 from materials.summary import build_experiment_summary
 from materials.structure_execution import build_structure_first_pass_execution_artifacts
 from materials.structure_helpers import (
+    _STRUCTURE_EXECUTION_CANDIDATE_STATUS_BY_BRANCH,
     _STRUCTURE_EXECUTION_SELECTED_PROJECTION_FIELDS,
+    _STRUCTURE_EXECUTION_ZERO_VARIANT_STATUSES,
     _select_structure_execution_variant,
     _structure_first_pass_execution_config,
 )
@@ -1742,7 +1744,7 @@ def _canonical_structure_execution_writer_inputs(
         'max_candidates': 2,
         'max_variants_per_candidate': 2,
     }
-    if baseline_case == 'custom-paths':
+    if baseline_case in {'custom-paths', 'error-custom-paths'}:
         execution_overrides.update({
             'artifact': 'nested/execution.json',
             'summary_artifact': 'nested/execution-summary.csv',
@@ -1769,8 +1771,11 @@ def _canonical_structure_execution_writer_inputs(
     else:
         seed_rows = {
             'error': [('BN', 'missing-jid', 'BN')],
+            'error-custom-paths': [('BN', 'missing-jid', 'BN')],
             'invalid-reference': [('BN', 'jid-1', 'BN')],
             'unresolved-scale': [('BN', 'jid-1', 'C')],
+            'formula-scale-mismatch': [('B0.5N0.5', 'jid-1', 'BN')],
+            'multiple-donor': [('C', 'jid-1', 'BN')],
             'no-plan': [('AlBN', 'jid-1', 'BN')],
             'multiple-success': [('AlBN', 'jid-1', 'B2N')],
         }.get(baseline_case, [('BN', 'jid-1', 'BN')])
@@ -1978,6 +1983,12 @@ _CANONICAL_STRUCTURE_EXECUTION_CASES = (
     ('error', 'formula', ('missing_reference_record',)),
     ('invalid-reference', 'formula', ('invalid_reference_structure',)),
     ('unresolved-scale', 'formula', ('unresolved_reference_scale_factor',)),
+    (
+        'formula-scale-mismatch',
+        'formula',
+        ('candidate_formula_does_not_scale_to_reference_cell',),
+    ),
+    ('multiple-donor', 'formula', ('multiple_donor_species_not_supported',)),
     ('no-plan', 'formula', ('requires_atom_insertion',)),
     ('partial', 'formula', ('executed', 'missing_reference_record')),
     ('full', 'formula', ('executed',)),
@@ -1986,7 +1997,14 @@ _CANONICAL_STRUCTURE_EXECUTION_CASES = (
     ('error', 'composition', ('missing_reference_record',)),
     ('invalid-reference', 'composition', ('invalid_reference_structure',)),
     ('unresolved-scale', 'composition', ('unresolved_reference_scale_factor',)),
+    (
+        'formula-scale-mismatch',
+        'composition',
+        ('candidate_formula_does_not_scale_to_reference_cell',),
+    ),
+    ('multiple-donor', 'composition', ('multiple_donor_species_not_supported',)),
     ('no-plan', 'composition', ('requires_atom_insertion',)),
+    ('error-custom-paths', 'composition', ('missing_reference_record',)),
 )
 
 
@@ -2144,6 +2162,116 @@ def test_reporting_rejects_coordinated_impossible_zero_variant_statuses_atomical
         project_root_path=tmp_path,
     )
     assert assessment['status'] == 'current'
+
+
+_NONCANONICAL_ZERO_VARIANT_STATUSES = (
+    ('pending_manual_review', 'zero-variant status'),
+    ('execution_complete', 'zero-variant status'),
+    ('validated', 'zero-variant status'),
+    ('stable', 'zero-variant status'),
+    ('synthesized', 'zero-variant status'),
+    ('ready', 'zero-variant status'),
+    ('Missing_Reference_Record', 'zero-variant status'),
+    (' missing_reference_record ', 'zero-variant status'),
+    ('', 'non-empty string'),
+    ('   ', 'zero-variant status'),
+    (None, 'non-empty string'),
+    (17, 'non-empty string'),
+)
+
+
+def test_structure_execution_candidate_status_authority_is_finite_and_complete():
+    assert _STRUCTURE_EXECUTION_CANDIDATE_STATUS_BY_BRANCH == {
+        'missing_reference': 'missing_reference_record',
+        'invalid_reference': 'invalid_reference_structure',
+        'unresolved_reference_scale': 'unresolved_reference_scale_factor',
+        'unscalable_candidate_formula': (
+            'candidate_formula_does_not_scale_to_reference_cell'
+        ),
+        'requires_atom_insertion': 'requires_atom_insertion',
+        'multiple_donor_species': 'multiple_donor_species_not_supported',
+        'no_donor_species': 'no_donor_species_found',
+        'invalid_edit_counts': 'invalid_edit_counts',
+        'insufficient_donor_sites': 'insufficient_donor_sites',
+        'no_variant_plan': 'no_variant_plan_generated',
+        'executed': 'executed',
+        'no_successful_variant': 'no_successful_variant',
+    }
+    assert len(set(_STRUCTURE_EXECUTION_CANDIDATE_STATUS_BY_BRANCH.values())) == 12
+    assert _STRUCTURE_EXECUTION_ZERO_VARIANT_STATUSES == frozenset(
+        status
+        for branch, status
+        in _STRUCTURE_EXECUTION_CANDIDATE_STATUS_BY_BRANCH.items()
+        if branch not in {'executed', 'no_successful_variant'}
+    )
+
+
+@pytest.mark.parametrize(('baseline_case', 'formula_col'), _ZERO_VARIANT_BRANCH_CASES)
+def test_reporting_rejects_noncanonical_zero_variant_status_vocabulary(
+    tmp_path,
+    baseline_case,
+    formula_col,
+):
+    manifest = {
+        'name': 'twod_matpd',
+        'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-21T00:00:00+00:00',
+        'target_column': 'band_gap',
+    }
+    for index, (false_status, expected_message) in enumerate(
+        _NONCANONICAL_ZERO_VARIANT_STATUSES
+    ):
+        case_root = tmp_path / str(index)
+        case_root.mkdir()
+        cfg, canonical_kwargs = _canonical_structure_execution_writer_inputs(
+            case_root,
+            baseline_case=baseline_case,
+            formula_col=formula_col,
+        )
+        invalid_kwargs = _coordinated_zero_variant_status_story(
+            canonical_kwargs,
+            formula_col=formula_col,
+            false_status=false_status,
+        )
+
+        with pytest.raises(ValueError, match=expected_message):
+            _save_minimal_report_bundle(cfg, manifest=manifest, **invalid_kwargs)
+        assert _report_bundle_snapshot(Path(cfg['project']['artifact_dir'])) is None
+
+
+def test_reporting_rejects_claim_like_zero_variant_status_atomically_and_recovers(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    cfg, canonical_kwargs = _canonical_structure_execution_writer_inputs(
+        tmp_path,
+        baseline_case='error-custom-paths',
+        formula_col='composition',
+    )
+    invalid_kwargs = _coordinated_zero_variant_status_story(
+        canonical_kwargs,
+        formula_col='composition',
+        false_status='experimentally_synthesized',
+    )
+    manifest = {
+        'name': 'twod_matpd',
+        'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-21T00:00:00+00:00',
+        'target_column': 'band_gap',
+    }
+
+    _assert_structure_execution_rejection_is_atomic(
+        tmp_path,
+        cfg,
+        canonical_kwargs,
+        invalid_kwargs,
+        manifest,
+    )
 
 
 @pytest.mark.parametrize('formula_col', ['formula', 'composition'])

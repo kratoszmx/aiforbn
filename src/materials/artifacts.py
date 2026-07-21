@@ -56,8 +56,10 @@ from materials.structure_artifacts import (
     _build_structure_generation_reference_record_payload,
 )
 from materials.structure_helpers import (
+    _STRUCTURE_EXECUTION_CANDIDATE_STATUS_BY_BRANCH,
     _STRUCTURE_EXECUTION_SELECTED_PROJECTION_FIELDS,
     _STRUCTURE_EXECUTION_VARIANT_SELECTION_FIELDS,
+    _STRUCTURE_EXECUTION_ZERO_VARIANT_STATUSES,
     _select_structure_execution_variant,
     _structure_first_pass_execution_config,
 )
@@ -448,7 +450,7 @@ def _validate_structure_execution_frame_roles(
     executed_formulas = [
         text(row.get(formula_col), f'summary {formula_col}')
         for row, status in zip(summary_records, statuses)
-        if status == 'executed'
+        if status == _STRUCTURE_EXECUTION_CANDIDATE_STATUS_BY_BRANCH['executed']
     ]
     aggregate_relations = {
         'candidate_count': len(summary_records),
@@ -496,11 +498,25 @@ def _validate_structure_execution_frame_roles(
         status = text(summary.get('first_pass_execution_status'), f'{formula} status')
         if text(candidate.get('candidate_status'), f'{formula} candidate status') != status:
             reject(f'{formula} candidate status')
-        if not candidate_variants and status in {'executed', 'no_successful_variant'}:
+        if (
+            not candidate_variants
+            and status not in _STRUCTURE_EXECUTION_ZERO_VARIANT_STATUSES
+        ):
             reject(f'{formula} zero-variant status')
-        if successful and status != 'executed':
+        if (
+            successful
+            and status
+            != _STRUCTURE_EXECUTION_CANDIDATE_STATUS_BY_BRANCH['executed']
+        ):
             reject(f'{formula} executed status')
-        if candidate_variants and not successful and status != 'no_successful_variant':
+        if (
+            candidate_variants
+            and not successful
+            and status
+            != _STRUCTURE_EXECUTION_CANDIDATE_STATUS_BY_BRANCH[
+                'no_successful_variant'
+            ]
+        ):
             reject(f'{formula} unsuccessful status')
 
         selected_id = text(
@@ -539,7 +555,10 @@ def _validate_structure_execution_frame_roles(
                 if variant_field == 'final_status':
                     if (
                         not candidate_variants
-                        and status == 'invalid_reference_structure'
+                        and status
+                        == _STRUCTURE_EXECUTION_CANDIDATE_STATUS_BY_BRANCH[
+                            'invalid_reference'
+                        ]
                     ):
                         valid_unattempted_status = (
                             isinstance(selected_value, str)

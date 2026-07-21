@@ -161,7 +161,7 @@ No callable public surface. The following non-callable contracts are imported ac
   - Honor ranking-stability, decision-policy, shortlist, and structure-seed gates; remove stale optional outputs on a disabled second run, including case-equivalent CIF suffixes.
   - Preflight caller JSON and optional parity-plot inputs, replace CSV files atomically, invalidate any prior completion marker before the first bundle mutation, record only successfully emitted fixed/optional/configured/CIF/plot paths, and publish their v2 SHA-256 commitment in `artifact_provenance.json` as the final action; failed plotting or marker publication leaves no completion marker.
   - Reject wrong-shaped screening/structure-bridge containers and mismatched dynamic output declarations before artifact-directory creation, marker invalidation, or any bundle write; absent/null/empty containers and matching normalized/same-file roles remain valid.
-  - Reject nonempty structure-execution summary or variants tables that lack their canonical fields, or whose candidate/variant membership, counts, statuses, geometry results, deterministic selected winner, or any of the ten selected-row projections disagree across payload/summary/variants, before mutation; no-selection candidates must keep every selected projection null except the canonical `not_executed` or invalid-reference error status.
+  - Reject nonempty structure-execution summary or variants tables that lack their canonical fields, use a candidate status outside the builder-owned finite vocabulary, or disagree across payload/summary/variants on membership, counts, statuses, geometry results, deterministic selected winner, or any of the ten selected-row projections, before mutation; no-selection candidates must keep every selected projection null except the canonical `not_executed` or invalid-reference error status.
   - Keep each compact BN model-role comparison row bound to one feature/model identity across slice, family, and stratified diagnostics instead of splicing per-scope winners.
   - Preflight every fixed, configurable, dynamic, and stale-cleanup CIF leaf in its originally declared form before directory creation; contain structure-execution paths beneath their configured roots, reject kind/parent-chain/fixed-name/pairwise/cross-role-default/filesystem-alias collisions before mutation, and remove valid stale execution artifacts when the current run produces no execution payload.
 
@@ -173,7 +173,7 @@ No callable public surface. The following non-callable contracts are imported ac
 ## structure_execution.py
 
 - `build_structure_first_pass_execution_artifacts(...)`
-  - Build the deterministic first-pass structure-execution artifacts; selected summaries and writer preflight share one canonical variant-ordering and ten-field projection contract.
+  - Build the deterministic first-pass structure-execution artifacts; builder and writer share one finite candidate-status vocabulary plus the canonical variant-ordering and ten-field selected projection contract.
 
 ## Internal-only files
 
@@ -187,5 +187,5 @@ These files currently expose no supported external call surface:
 ## tests/
 
 - `test_diagnostic_edge_cases.py` locks disabled and insufficient-data status semantics for BN diagnostics and alternative screening selection.
-- `test_reporting.py` locks artifact publication, provenance, role-schema preflight, repeat-run cleanup, and failure-order behavior.
+- `test_reporting.py` locks artifact publication, provenance, finite structure-execution status vocabulary, role-schema preflight, repeat-run cleanup, and failure-order behavior.
 - `test_structure_execution_contracts.py` locks relabel, vacancy, unsupported edit, and structure-aware proxy execution behavior.
