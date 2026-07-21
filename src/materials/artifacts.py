@@ -461,6 +461,20 @@ def _validate_structure_execution_frame_roles(
         status = text(summary.get('first_pass_execution_status'), f'{formula} status')
         if text(candidate.get('candidate_status'), f'{formula} candidate status') != status:
             reject(f'{formula} candidate status')
+        if not candidate_variants and status in {'executed', 'no_successful_variant'}:
+            reject(f'{formula} zero-variant status')
+        if not candidate_variants:
+            selected_final_status = text(
+                summary.get('first_pass_execution_selected_final_status'),
+                f'{formula} selected final status',
+            )
+            valid_unattempted_status = (
+                ': ' in selected_final_status
+                if status == 'invalid_reference_structure'
+                else selected_final_status == 'not_executed'
+            )
+            if not valid_unattempted_status:
+                reject(f'{formula} selected final status')
         if successful and status != 'executed':
             reject(f'{formula} executed status')
         if candidate_variants and not successful and status != 'no_successful_variant':

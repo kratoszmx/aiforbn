@@ -15,6 +15,7 @@ import pytest
 from runtime import io_utils
 from materials import artifacts as artifacts_module
 from materials import plots as plots_module
+from materials import structure_execution as structure_execution_module
 from materials.artifacts import save_metrics_and_predictions
 from materials.benchmarking import benchmark_bn_family_holdout, benchmark_bn_slice
 from materials.constants import NOVELTY_BUCKET_FORMULA_LEVEL_EXTRAPOLATION
@@ -1655,28 +1656,32 @@ def _canonical_structure_execution_writer_inputs(
     tmp_path: Path,
     *,
     baseline_case: str = 'full',
+    formula_col: str = 'formula',
 ):
     artifact_dir = tmp_path / 'artifacts'
     raw_dir = tmp_path / 'raw'
     raw_dir.mkdir()
+    atoms = {
+        'elements': ['B', 'N'],
+        'coords': [[0.0, 0.0, 0.0], [0.5, 0.5, 0.0]],
+        'lattice_mat': [
+            [2.5, 0.0, 0.0],
+            [0.0, 2.5, 0.0],
+            [0.0, 0.0, 20.0],
+        ],
+        'abc': [2.5, 2.5, 20.0],
+        'angles': [90.0, 90.0, 120.0],
+        'cartesian': False,
+    }
+    if baseline_case == 'invalid-reference':
+        atoms = {'elements': ['B', 'N']}
     (raw_dir / 'twod_matpd.json').write_text(
         json.dumps([
             {
                 'jid': 'jid-1',
                 'formula': 'BN',
                 'band_gap': 5.8,
-                'atoms': {
-                    'elements': ['B', 'N'],
-                    'coords': [[0.0, 0.0, 0.0], [0.5, 0.5, 0.0]],
-                    'lattice_mat': [
-                        [2.5, 0.0, 0.0],
-                        [0.0, 2.5, 0.0],
-                        [0.0, 0.0, 20.0],
-                    ],
-                    'abc': [2.5, 2.5, 20.0],
-                    'angles': [90.0, 90.0, 120.0],
-                    'cartesian': False,
-                },
+                'atoms': atoms,
             },
         ]),
         encoding='utf-8',
@@ -1698,7 +1703,7 @@ def _canonical_structure_execution_writer_inputs(
         'data': {
             'dataset': 'twod_matpd',
             'raw_dir': str(raw_dir),
-            'formula_column': 'formula',
+            'formula_column': formula_col,
             'target_column': 'band_gap',
         },
         'screening': {
@@ -1711,11 +1716,16 @@ def _canonical_structure_execution_writer_inputs(
     if baseline_case == 'empty':
         seed_df = pd.DataFrame()
     else:
-        seed_rows = [('BN', 'missing-jid')] if baseline_case == 'error' else [('BN', 'jid-1')]
+        seed_rows = {
+            'error': [('BN', 'missing-jid', 'BN')],
+            'invalid-reference': [('BN', 'jid-1', 'BN')],
+            'unresolved-scale': [('BN', 'jid-1', 'C')],
+            'no-plan': [('AlBN', 'jid-1', 'BN')],
+        }.get(baseline_case, [('BN', 'jid-1', 'BN')])
         if baseline_case == 'partial':
-            seed_rows.append(('AlBN', 'missing-jid'))
+            seed_rows.append(('AlBN', 'missing-jid', 'BN'))
         seed_df = pd.DataFrame({
-            'formula': [formula for formula, _record_id in seed_rows],
+            formula_col: [formula for formula, _record_id, _seed_formula in seed_rows],
             'ranking_rank': list(range(1, len(seed_rows) + 1)),
             'ranking_score': [4.8 - index for index in range(len(seed_rows))],
             'candidate_family': ['bn_binary_anchor'] * len(seed_rows),
@@ -1730,13 +1740,17 @@ def _canonical_structure_execution_writer_inputs(
             ] * len(seed_rows),
             'structure_generation_seed_rank': [1] * len(seed_rows),
             'structure_generation_seed_status': ['ok'] * len(seed_rows),
-            'seed_reference_formula': ['BN'] * len(seed_rows),
-            'seed_reference_record_id': [record_id for _formula, record_id in seed_rows],
+            'seed_reference_formula': [
+                seed_formula for _formula, _record_id, seed_formula in seed_rows
+            ],
+            'seed_reference_record_id': [
+                record_id for _formula, record_id, _seed_formula in seed_rows
+            ],
         })
     variant_df, summary_df, payload = build_structure_first_pass_execution_artifacts(
         seed_df,
         cfg=cfg,
-        formula_col='formula',
+        formula_col=formula_col,
     )
     return cfg, {
         'structure_payload': payload,
@@ -1832,14 +1846,33 @@ def test_reporting_rejects_mislabeled_structure_execution_frames_before_mutation
     assert _report_bundle_snapshot(artifact_dir) == before
 
 
+_CANONICAL_STRUCTURE_EXECUTION_CASES = (
+    ('inactive', 'formula', ()),
+    ('empty', 'formula', ()),
+    ('error', 'formula', ('missing_reference_record',)),
+    ('invalid-reference', 'formula', ('invalid_reference_structure',)),
+    ('unresolved-scale', 'formula', ('unresolved_reference_scale_factor',)),
+    ('no-plan', 'formula', ('requires_atom_insertion',)),
+    ('partial', 'formula', ('executed', 'missing_reference_record')),
+    ('full', 'formula', ('executed',)),
+    ('custom-paths', 'formula', ('executed',)),
+    ('error', 'composition', ('missing_reference_record',)),
+    ('invalid-reference', 'composition', ('invalid_reference_structure',)),
+    ('unresolved-scale', 'composition', ('unresolved_reference_scale_factor',)),
+    ('no-plan', 'composition', ('requires_atom_insertion',)),
+)
+
+
 @pytest.mark.parametrize(
-    'baseline_case',
-    ['inactive', 'empty', 'error', 'partial', 'full', 'custom-paths'],
+    ('baseline_case', 'formula_col', 'expected_statuses'),
+    _CANONICAL_STRUCTURE_EXECUTION_CASES,
 )
 def test_reporting_accepts_canonical_structure_execution_builder_states(
     tmp_path,
     monkeypatch,
     baseline_case,
+    formula_col,
+    expected_statuses,
 ):
     monkeypatch.setattr(
         io_utils,
@@ -1849,6 +1882,7 @@ def test_reporting_accepts_canonical_structure_execution_builder_states(
     cfg, writer_kwargs = _canonical_structure_execution_writer_inputs(
         tmp_path,
         baseline_case=baseline_case,
+        formula_col=formula_col,
     )
     manifest = {
         'name': 'twod_matpd',
@@ -1870,6 +1904,213 @@ def test_reporting_accepts_canonical_structure_execution_builder_states(
     execution_cfg = _structure_first_pass_execution_config(cfg)
     should_publish_execution = baseline_case not in {'inactive', 'empty'}
     assert (artifact_dir / execution_cfg['artifact']).exists() is should_publish_execution
+    summary_statuses = tuple(
+        writer_kwargs['structure_summary_df'].get(
+            'first_pass_execution_status', pd.Series(dtype='object')
+        ).astype(str)
+    )
+    candidate_statuses = tuple(
+        candidate['candidate_status']
+        for candidate in writer_kwargs['structure_payload']['candidates']
+    )
+    assert summary_statuses == expected_statuses
+    assert candidate_statuses == expected_statuses
+    assert writer_kwargs['structure_payload']['enabled'] is (baseline_case != 'inactive')
+    assert writer_kwargs['structure_payload']['candidate_count'] == len(expected_statuses)
+
+
+_ZERO_VARIANT_BRANCH_CASES = tuple(
+    (baseline_case, formula_col)
+    for baseline_case, formula_col, expected_statuses
+    in _CANONICAL_STRUCTURE_EXECUTION_CASES
+    if expected_statuses
+    and not {'executed', 'no_successful_variant'}.intersection(expected_statuses)
+)
+
+
+def _coordinated_zero_variant_status_story(
+    writer_kwargs,
+    *,
+    formula_col,
+    false_status,
+):
+    mutated = copy.deepcopy(writer_kwargs)
+    payload = mutated['structure_payload']
+    summary = mutated['structure_summary_df']
+    formula = str(summary.loc[0, formula_col])
+    payload['successful_variant_count'] = 0
+    payload['status_counts'] = {false_status: 1}
+    payload['executed_formulas'] = [formula] if false_status == 'executed' else []
+    payload['candidates'][0]['candidate_status'] = false_status
+    payload['candidates'][0]['selected_variant_id'] = None
+    summary.loc[0, 'first_pass_execution_status'] = false_status
+    summary.loc[0, 'first_pass_execution_variant_count'] = 0
+    summary.loc[0, 'first_pass_execution_successful_variant_count'] = 0
+    summary.loc[0, 'first_pass_execution_geometry_pass_variant_count'] = 0
+    summary.loc[0, 'first_pass_execution_selected_variant_id'] = None
+    summary.loc[0, 'first_pass_execution_selected_final_status'] = 'not_executed'
+    return mutated
+
+
+@pytest.mark.parametrize(('baseline_case', 'formula_col'), _ZERO_VARIANT_BRANCH_CASES)
+@pytest.mark.parametrize(
+    'mutation_kind',
+    ['executed', 'no_successful_variant', 'selected-final-status'],
+)
+def test_reporting_rejects_coordinated_impossible_zero_variant_statuses_atomically(
+    tmp_path,
+    monkeypatch,
+    baseline_case,
+    formula_col,
+    mutation_kind,
+):
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    cfg, canonical_kwargs = _canonical_structure_execution_writer_inputs(
+        tmp_path,
+        baseline_case=baseline_case,
+        formula_col=formula_col,
+    )
+    artifact_dir = Path(cfg['project']['artifact_dir'])
+    manifest = {
+        'name': 'twod_matpd',
+        'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-21T00:00:00+00:00',
+        'target_column': 'band_gap',
+    }
+    assert canonical_kwargs['structure_variant_df'].empty
+    assert len(canonical_kwargs['structure_summary_df']) == 1
+    assert canonical_kwargs['structure_payload']['enabled'] is True
+    assert canonical_kwargs['structure_payload']['candidate_count'] == 1
+    if mutation_kind == 'selected-final-status':
+        invalid_kwargs = copy.deepcopy(canonical_kwargs)
+        invalid_kwargs['structure_summary_df'].loc[
+            0, 'first_pass_execution_selected_final_status'
+        ] = 'ready_for_external_relaxation'
+        expected_message = 'selected final status'
+    else:
+        invalid_kwargs = _coordinated_zero_variant_status_story(
+            canonical_kwargs,
+            formula_col=formula_col,
+            false_status=mutation_kind,
+        )
+        expected_message = 'zero-variant status'
+
+    with pytest.raises(ValueError, match=expected_message):
+        _save_minimal_report_bundle(cfg, manifest=manifest, **invalid_kwargs)
+    assert _report_bundle_snapshot(artifact_dir) is None
+
+    _save_minimal_report_bundle(cfg, manifest=manifest, **canonical_kwargs)
+    valid_snapshot = _report_bundle_snapshot(artifact_dir)
+    with pytest.raises(ValueError, match=expected_message):
+        _save_minimal_report_bundle(cfg, manifest=manifest, **invalid_kwargs)
+    assert _report_bundle_snapshot(artifact_dir) == valid_snapshot
+
+    _save_minimal_report_bundle(cfg, manifest=manifest, **canonical_kwargs)
+    assessment = io_utils.assess_artifact_provenance(
+        io_utils.read_json_file(artifact_dir / 'artifact_provenance.json'),
+        cfg,
+        manifest,
+        project_root_path=tmp_path,
+    )
+    assert assessment['status'] == 'current'
+
+
+@pytest.mark.parametrize('formula_col', ['formula', 'composition'])
+def test_reporting_accepts_canonical_failed_variant_no_success_control(
+    tmp_path,
+    monkeypatch,
+    formula_col,
+):
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    monkeypatch.setattr(
+        structure_execution_module,
+        '_apply_variant_plan',
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError('synthetic failure')),
+    )
+    cfg, writer_kwargs = _canonical_structure_execution_writer_inputs(
+        tmp_path,
+        formula_col=formula_col,
+    )
+    assert len(writer_kwargs['structure_variant_df']) == 1
+    assert writer_kwargs['structure_variant_df']['execution_status'].tolist() == ['error']
+    assert writer_kwargs['structure_summary_df'][
+        'first_pass_execution_status'
+    ].tolist() == ['no_successful_variant']
+
+    manifest = {
+        'name': 'twod_matpd',
+        'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-21T00:00:00+00:00',
+        'target_column': 'band_gap',
+    }
+    _save_minimal_report_bundle(cfg, manifest=manifest, **writer_kwargs)
+    artifact_dir = Path(cfg['project']['artifact_dir'])
+    assessment = io_utils.assess_artifact_provenance(
+        io_utils.read_json_file(artifact_dir / 'artifact_provenance.json'),
+        cfg,
+        manifest,
+        project_root_path=tmp_path,
+    )
+    assert assessment['status'] == 'current'
+
+
+@pytest.mark.parametrize('formula_col', ['formula', 'composition'])
+def test_reporting_rejects_coordinated_selected_id_without_variants(
+    tmp_path,
+    monkeypatch,
+    formula_col,
+):
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    cfg, writer_kwargs = _canonical_structure_execution_writer_inputs(
+        tmp_path,
+        baseline_case='error',
+        formula_col=formula_col,
+    )
+    manifest = {
+        'name': 'twod_matpd',
+        'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-21T00:00:00+00:00',
+        'target_column': 'band_gap',
+    }
+    canonical_kwargs = copy.deepcopy(writer_kwargs)
+    writer_kwargs['structure_payload']['candidates'][0][
+        'selected_variant_id'
+    ] = 'ghost__variant_01'
+    writer_kwargs['structure_summary_df'].loc[
+        0, 'first_pass_execution_selected_variant_id'
+    ] = 'ghost__variant_01'
+
+    with pytest.raises(ValueError, match='absent selected variant'):
+        _save_minimal_report_bundle(cfg, manifest=manifest, **writer_kwargs)
+    artifact_dir = Path(cfg['project']['artifact_dir'])
+    assert _report_bundle_snapshot(artifact_dir) is None
+
+    _save_minimal_report_bundle(cfg, manifest=manifest, **canonical_kwargs)
+    valid_snapshot = _report_bundle_snapshot(artifact_dir)
+    with pytest.raises(ValueError, match='absent selected variant'):
+        _save_minimal_report_bundle(cfg, manifest=manifest, **writer_kwargs)
+    assert _report_bundle_snapshot(artifact_dir) == valid_snapshot
+
+    _save_minimal_report_bundle(cfg, manifest=manifest, **canonical_kwargs)
+    assessment = io_utils.assess_artifact_provenance(
+        io_utils.read_json_file(artifact_dir / 'artifact_provenance.json'),
+        cfg,
+        manifest,
+        project_root_path=tmp_path,
+    )
+    assert assessment['status'] == 'current'
 
 
 @pytest.mark.parametrize(
