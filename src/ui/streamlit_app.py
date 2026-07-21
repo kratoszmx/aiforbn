@@ -94,7 +94,7 @@ def _artifact_file_path(artifact_root: Path, value: object) -> Path | None:
 def _build_artifact_paths(
     cfg: dict,
     experiment_summary: dict | None = None,
-) -> dict[str, Path | None]:
+) -> tuple[dict[str, Path | None], set[str], set[str]]:
     artifact_root = Path(cfg['project']['artifact_dir'])
     paths = {
         key: _artifact_file_path(
@@ -109,11 +109,40 @@ def _build_artifact_paths(
         )
         or {}
     )
-    for key, field_name in _SUMMARY_EXECUTION_PATH_FIELDS.items():
-        configured_value = bridge.get(field_name)
+    execution_cfg = (
+        ((cfg.get('screening') or {}).get('structure_first_pass_execution'))
+        or {}
+    )
+    declared_summary_keys: set[str] = set()
+    invalid_summary_keys: set[str] = set()
+    for key, summary_field_name in _SUMMARY_EXECUTION_PATH_FIELDS.items():
+        config_field_name = summary_field_name.removeprefix('first_pass_execution_')
+        configured_value = execution_cfg.get(config_field_name)
         if configured_value:
             paths[key] = _artifact_file_path(artifact_root, configured_value)
-    return paths
+        if summary_field_name not in bridge:
+            continue
+        declared_summary_keys.add(key)
+        summary_path = _artifact_file_path(
+            artifact_root,
+            bridge[summary_field_name],
+        )
+        if (
+            summary_path is None
+            or summary_path.suffix.casefold()
+            != ARTIFACT_PATHS[key].suffix.casefold()
+        ):
+            paths[key] = None
+            invalid_summary_keys.add(key)
+        else:
+            paths[key] = summary_path
+    for key in declared_summary_keys - invalid_summary_keys:
+        if any(
+            other_key != key and other_path == paths[key]
+            for other_key, other_path in paths.items()
+        ):
+            invalid_summary_keys.add(key)
+    return paths, declared_summary_keys, invalid_summary_keys
 
 CSV_SECTIONS = [
     ('Benchmark results', 'benchmark'),
@@ -164,7 +193,7 @@ def render_streamlit_app() -> None:
         'pipeline with transparent candidate prioritization and structure follow-up outputs.'
     )
 
-    base_paths = _build_artifact_paths(CONFIG)
+    base_paths, _, _ = _build_artifact_paths(CONFIG)
     summary_payload = None
     summary_unreadable = False
     summary_path = base_paths['summary']
@@ -180,7 +209,11 @@ def render_streamlit_app() -> None:
             st.warning(
                 'Experiment summary is unreadable; artifact provenance cannot be current.'
             )
-    artifact_paths = _build_artifact_paths(CONFIG, summary_payload)
+    (
+        artifact_paths,
+        declared_summary_artifact_keys,
+        invalid_summary_artifact_keys,
+    ) = _build_artifact_paths(CONFIG, summary_payload)
     artifact_root = validate_runtime_output_path(
         CONFIG['project']['artifact_dir'],
         expected_output_kind='directory',
@@ -188,6 +221,9 @@ def render_streamlit_app() -> None:
     committed_output_paths: set[Path] | None = None
     committed_outputs_verified = False
     uncommitted_artifact_keys: list[str] = []
+    invalid_or_uncommitted_declared_artifact_keys = sorted(
+        invalid_summary_artifact_keys
+    )
     has_artifacts = any(
         path is not None and path.exists()
         for key, path in artifact_paths.items()
@@ -247,6 +283,16 @@ def render_streamlit_app() -> None:
                                 or artifact_paths[key] not in committed_output_paths
                             )
                         ]
+                        invalid_or_uncommitted_declared_artifact_keys = sorted(
+                            key
+                            for key in declared_summary_artifact_keys
+                            if (
+                                key in invalid_summary_artifact_keys
+                                or artifact_paths.get(key) is None
+                                or not artifact_paths[key].exists()
+                                or artifact_paths[key] not in committed_output_paths
+                            )
+                        )
                 manifest_payload = None
                 if manifest_path is not None and manifest_path.exists():
                     try:
@@ -262,6 +308,7 @@ def render_streamlit_app() -> None:
                     missing_bundle_keys
                     or summary_unreadable
                     or uncommitted_artifact_keys
+                    or invalid_or_uncommitted_declared_artifact_keys
                 ):
                     provenance_assessment = {
                         'status': 'unverified',
@@ -283,6 +330,9 @@ def render_streamlit_app() -> None:
                     'assessment': provenance_assessment,
                     'missing_required_artifacts': missing_bundle_keys,
                     'uncommitted_known_artifacts': uncommitted_artifact_keys,
+                    'invalid_or_uncommitted_declared_artifacts': (
+                        invalid_or_uncommitted_declared_artifact_keys
+                    ),
                 }
             )
             if provenance_assessment['status'] == 'current':

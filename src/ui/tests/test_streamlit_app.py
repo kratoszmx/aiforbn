@@ -136,6 +136,123 @@ def _save_bn_prediction_bundle(
     return cfg
 
 
+def _save_structure_execution_bundle(
+    artifact_dir: Path,
+    *,
+    execution_paths: dict[str, str] | None,
+    execution_active: bool,
+    summary_execution_overrides: dict[str, object] | None = None,
+):
+    from runtime import io_utils
+    from materials.summary import build_experiment_summary
+    from materials.structure_helpers import _structure_first_pass_execution_config
+
+    root = Path(__file__).resolve().parents[3]
+    cfg = io_utils.load_config(root / 'src' / 'config.py')
+    cfg['project']['artifact_dir'] = str(artifact_dir)
+    for gate in (
+        'ranking_stability',
+        'decision_policy',
+        'proposal_shortlist',
+        'extrapolation_shortlist',
+    ):
+        cfg['screening'][gate]['enabled'] = False
+    if execution_paths is not None:
+        cfg['screening']['structure_first_pass_execution'].update(execution_paths)
+
+    dataset_df = pd.DataFrame([{
+        'formula': 'BN', 'target': 5.0, 'band_gap': 5.0,
+    }])
+    candidate_df = pd.DataFrame([{
+        'formula': 'AlBN', 'ranking_rank': 1, 'ranking_score': 1.0,
+        'predicted_band_gap': 5.0,
+    }])
+    structure_generation_seed_df = pd.DataFrame([{
+        'formula': 'AlBN', 'structure_generation_seed_status': 'ok',
+        'seed_reference_formula': 'BN', 'seed_reference_record_id': 'jid-1',
+    }])
+    selection_summary = {
+        'selected_feature_set': cfg['features']['feature_set'],
+        'selected_model_type': cfg['model']['type'],
+        'selected_feature_family': 'composition_only',
+        'screening_selected_feature_set': cfg['features']['feature_set'],
+        'screening_selected_model_type': cfg['model']['type'],
+        'screening_selected_feature_family': 'composition_only',
+    }
+    execution_cfg = _structure_first_pass_execution_config(cfg)
+    structure_payload = {
+        field: execution_cfg[field]
+        for field in (
+            'artifact', 'summary_artifact', 'variants_artifact', 'structure_dir',
+        )
+    }
+    structure_payload.update({
+        'candidate_count': int(execution_active),
+        'variant_count': int(execution_active),
+        'successful_variant_count': int(execution_active),
+        'candidates': [],
+    })
+    structure_summary_df = (
+        pd.DataFrame([{
+            'formula': 'AlBN', 'first_pass_execution_status': 'executed',
+        }])
+        if execution_active
+        else pd.DataFrame()
+    )
+    structure_variant_df = (
+        pd.DataFrame([{
+            'formula': 'AlBN', 'execution_variant_id': 'albn__variant_01',
+        }])
+        if execution_active
+        else pd.DataFrame()
+    )
+    summary = build_experiment_summary(
+        dataset_df,
+        dataset_df,
+        candidate_df,
+        {
+            'train': [True],
+            'val': [False],
+            'test': [False],
+            'metadata': {},
+        },
+        selection_summary,
+        cfg,
+        structure_generation_seed_df=structure_generation_seed_df,
+        structure_first_pass_execution_summary_df=structure_summary_df,
+        structure_first_pass_execution_payload=structure_payload,
+    )
+    if summary_execution_overrides:
+        summary['screening']['structure_generation_bridge'].update(
+            summary_execution_overrides
+        )
+    manifest = {
+        'name': 'twod_matpd',
+        'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-21T00:00:00+00:00',
+        'target_column': 'band_gap',
+    }
+    save_metrics_and_predictions(
+        {'mae': 0.0},
+        dataset_df.assign(prediction=5.0),
+        dataset_df,
+        candidate_df,
+        pd.DataFrame(),
+        pd.DataFrame(),
+        pd.DataFrame(),
+        pd.DataFrame(),
+        pd.DataFrame(),
+        structure_generation_seed_df,
+        summary,
+        manifest,
+        cfg,
+        structure_first_pass_execution_variant_df=structure_variant_df,
+        structure_first_pass_execution_summary_df=structure_summary_df,
+        structure_first_pass_execution_payload=structure_payload,
+    )
+    return cfg, summary, execution_cfg
+
+
 def _load_fake_streamlit_app(monkeypatch, tmp_path, cfg, module_name):
     fake_streamlit = FakeStreamlit()
     monkeypatch.setitem(sys.modules, 'streamlit', fake_streamlit)
@@ -153,6 +270,28 @@ def _load_fake_streamlit_app(monkeypatch, tmp_path, cfg, module_name):
     spec.loader.exec_module(module)
     module.render_streamlit_app()
     return fake_streamlit, module
+
+
+def _run_real_streamlit_app(tmp_path: Path, cfg: dict, module_name: str):
+    from streamlit.testing.v1 import AppTest
+
+    wrapper_path = tmp_path / f'{module_name}.py'
+    wrapper_path.write_text(
+        'from runtime import io_utils\n'
+        '_original_source_reader = io_utils._read_local_source_state\n'
+        "io_utils._read_local_source_state = lambda _root: "
+        "{'revision': 'abc123', 'dirty': False}\n"
+        'from ui import streamlit_app\n'
+        '_original_config = streamlit_app.CONFIG\n'
+        f'streamlit_app.CONFIG = {cfg!r}\n'
+        'try:\n'
+        '    streamlit_app.render_streamlit_app()\n'
+        'finally:\n'
+        '    streamlit_app.CONFIG = _original_config\n'
+        '    io_utils._read_local_source_state = _original_source_reader\n',
+        encoding='utf-8',
+    )
+    return AppTest.from_file(str(wrapper_path)).run(timeout=10)
 
 
 def test_streamlit_app_reads_generated_artifacts(tmp_path, monkeypatch):
@@ -228,6 +367,32 @@ def test_streamlit_app_reads_generated_artifacts(tmp_path, monkeypatch):
         encoding='utf-8',
     )
 
+    current_app = _run_real_streamlit_app(
+        tmp_path,
+        cfg,
+        'all_artifact_sections',
+    )
+    uncommitted_provenance = {
+        **provenance,
+        'published_outputs': dict(provenance['published_outputs']),
+    }
+    uncommitted_provenance['published_outputs'].pop(
+        'demo_candidate_structure_generation_first_pass_execution_variants.csv'
+    )
+    (artifact_dir / 'artifact_provenance.json').write_text(
+        json.dumps(uncommitted_provenance),
+        encoding='utf-8',
+    )
+    downgraded_app = _run_real_streamlit_app(
+        tmp_path,
+        cfg,
+        'all_artifact_sections_downgraded',
+    )
+    (artifact_dir / 'artifact_provenance.json').write_text(
+        json.dumps(provenance),
+        encoding='utf-8',
+    )
+
     fake_streamlit, module = _load_fake_streamlit_app(
         monkeypatch,
         tmp_path,
@@ -238,37 +403,31 @@ def test_streamlit_app_reads_generated_artifacts(tmp_path, monkeypatch):
 
     assert module.read_json_file is shared_read_json_file
 
+    csv_keys = [key for _title, key in module.CSV_SECTIONS]
+    json_keys = [key for _title, key in module.JSON_SECTIONS]
+    assert csv_keys and len(csv_keys) == len(set(csv_keys))
+    assert json_keys and len(json_keys) == len(set(json_keys))
+    report_keys = {'metrics', 'summary', *csv_keys, *json_keys}
+    assert set(module.ARTIFACT_PATHS) - {'provenance', 'manifest'} == report_keys
+    expected_report_titles = {
+        'Metrics',
+        'Experiment summary',
+        *(title for title, _key in module.CSV_SECTIONS),
+        *(title for title, _key in module.JSON_SECTIONS),
+    }
+    assert len(current_app.exception) == 0
+    assert {
+        node.value for node in current_app.subheader
+    } - {'Artifact bundle provenance'} == expected_report_titles
+    assert len(downgraded_app.exception) == 0
+    assert {node.value for node in downgraded_app.subheader} == {
+        'Artifact bundle provenance'
+    }
+
     assert ('title', 'AI-Powered Boron Nitride Material Exploration') in fake_streamlit.calls
-    assert ('subheader', 'Metrics') in fake_streamlit.calls
-    assert ('subheader', 'Experiment summary') in fake_streamlit.calls
-    assert ('subheader', 'Benchmark results') in fake_streamlit.calls
-    assert ('subheader', 'Grouped robustness results') in fake_streamlit.calls
-    assert ('subheader', 'BN-focused benchmark results') in fake_streamlit.calls
-    assert ('subheader', 'BN-focused benchmark predictions') in fake_streamlit.calls
-    assert ('subheader', 'BN candidate-compatible evaluation') in fake_streamlit.calls
-    assert ('subheader', 'BN family holdout benchmark results') in fake_streamlit.calls
-    assert ('subheader', 'BN family holdout predictions') in fake_streamlit.calls
-    assert ('subheader', 'BN vs non-BN stratified errors') in fake_streamlit.calls
-    assert ('subheader', 'BN evaluation matrix') in fake_streamlit.calls
-    assert ('subheader', 'BN model role comparison evidence') in fake_streamlit.calls
-    assert ('subheader', 'Prediction samples') in fake_streamlit.calls
-    assert ('subheader', 'Top demo candidate ranking') in fake_streamlit.calls
-    assert ('subheader', 'BN-centered alternative candidate ranking') in fake_streamlit.calls
-    assert ('subheader', 'Candidate ranking uncertainty and decision policy') in fake_streamlit.calls
-    assert ('subheader', 'Default vs BN-centered rank-stability evidence') in fake_streamlit.calls
-    assert ('subheader', 'Structure-generation seed bridge') in fake_streamlit.calls
-    assert ('subheader', 'Structure-generation handoff JSON') in fake_streamlit.calls
-    assert ('subheader', 'Structure-generation reference records JSON') in fake_streamlit.calls
-    assert ('subheader', 'Structure-generation job-plan JSON') in fake_streamlit.calls
-    assert ('subheader', 'Structure-generation first-pass queue JSON') in fake_streamlit.calls
-    assert ('subheader', 'Structure-grounded follow-up shortlist') in fake_streamlit.calls
-    assert ('subheader', 'Novelty-aware structure follow-up shortlist') in fake_streamlit.calls
-    assert ('subheader', 'Structure first-pass execution summary') in fake_streamlit.calls
-    assert ('subheader', 'Structure first-pass execution variants') in fake_streamlit.calls
-    assert ('subheader', 'Structure first-pass execution JSON') in fake_streamlit.calls
-    assert ('subheader', 'Structure follow-up handoff (unrelaxed evidence)') in fake_streamlit.calls
-    assert ('subheader', 'Proposal shortlist') in fake_streamlit.calls
-    assert ('subheader', 'Formula-level extrapolation shortlist') in fake_streamlit.calls
+    assert expected_report_titles <= {
+        value for call_name, value in fake_streamlit.calls if call_name == 'subheader'
+    }
     assert any(call_name == 'success' for call_name, _value in fake_streamlit.calls)
     assert not any(
         call_name == 'warning' and 'provenance' in str(value).lower()
@@ -383,6 +542,204 @@ def test_streamlit_app_uses_configured_artifact_root_and_summary_paths(
     )
 
 
+def test_streamlit_empty_custom_execution_ignores_stale_default_paths(
+    tmp_path,
+    monkeypatch,
+):
+    from runtime import io_utils
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    artifact_dir = tmp_path / 'artifacts'
+    _default_cfg, _default_summary, default_execution_cfg = (
+        _save_structure_execution_bundle(
+            artifact_dir,
+            execution_paths=None,
+            execution_active=True,
+        )
+    )
+    custom_execution_paths = {
+        'artifact': 'custom/execution.json',
+        'summary_artifact': 'custom/execution-summary.csv',
+        'variants_artifact': 'custom/execution-variants.csv',
+        'structure_dir': 'custom/cifs',
+    }
+    _save_structure_execution_bundle(
+        artifact_dir,
+        execution_paths=custom_execution_paths,
+        execution_active=True,
+    )
+    cfg, summary, _execution_cfg = _save_structure_execution_bundle(
+        artifact_dir,
+        execution_paths=custom_execution_paths,
+        execution_active=False,
+    )
+
+    bridge = summary['screening']['structure_generation_bridge']
+    assert bridge.get('first_pass_execution_artifact') is None
+    assert all(
+        (artifact_dir / default_execution_cfg[field]).exists()
+        for field in ('artifact', 'summary_artifact', 'variants_artifact')
+    )
+    provenance = io_utils.read_json_file(
+        artifact_dir / 'artifact_provenance.json'
+    )
+    assert not any(
+        path in provenance['published_outputs']
+        for path in (
+            default_execution_cfg['artifact'],
+            default_execution_cfg['summary_artifact'],
+            default_execution_cfg['variants_artifact'],
+        )
+    )
+
+    app = _run_real_streamlit_app(
+        tmp_path,
+        cfg,
+        'empty_custom_execution',
+    )
+
+    assert len(app.exception) == 0
+    assert len(app.success) == 1
+    rendered_subheaders = {subheader.value for subheader in app.subheader}
+    assert 'Metrics' in rendered_subheaders
+    assert 'Benchmark results' in rendered_subheaders
+    assert 'Structure first-pass execution summary' not in rendered_subheaders
+    assert 'Structure first-pass execution variants' not in rendered_subheaders
+    assert 'Structure first-pass execution JSON' not in rendered_subheaders
+
+
+@pytest.mark.parametrize(
+    'override_case',
+    [
+        'blank',
+        'traversal',
+        'absolute',
+        'non-string',
+        'directory',
+        'wrong-suffix',
+        'fixed-alias',
+        'missing',
+    ],
+)
+def test_streamlit_rejects_invalid_dynamic_summary_path_contract(
+    tmp_path,
+    monkeypatch,
+    override_case,
+):
+    from runtime import io_utils
+
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    artifact_dir = tmp_path / 'artifacts'
+    override_values = {
+        'blank': ' ',
+        'traversal': '../escape.json',
+        'absolute': str(tmp_path / 'outside.json'),
+        'non-string': 7,
+        'directory': 'nested/execution.json',
+        'wrong-suffix': 'nested/execution.csv',
+        'fixed-alias': 'metrics.json',
+        'missing': 'nested/missing.json',
+    }
+    if override_case == 'directory':
+        (artifact_dir / 'nested' / 'execution.json').mkdir(parents=True)
+    cfg, _summary, _execution_cfg = _save_structure_execution_bundle(
+        artifact_dir,
+        execution_paths=None,
+        execution_active=False,
+        summary_execution_overrides={
+            'first_pass_execution_artifact': override_values[override_case],
+        },
+    )
+    provenance = io_utils.read_json_file(
+        artifact_dir / 'artifact_provenance.json'
+    )
+    manifest = io_utils.read_json_file(artifact_dir / 'manifest.json')
+    assert io_utils.assess_artifact_provenance(
+        provenance,
+        cfg,
+        manifest,
+        project_root_path=tmp_path,
+    )['status'] == 'current'
+
+    app = _run_real_streamlit_app(
+        tmp_path,
+        cfg,
+        f'invalid_dynamic_{override_case}',
+    )
+
+    assert len(app.exception) == 0
+    assert len(app.success) == 0
+    assert {node.value for node in app.subheader} == {
+        'Artifact bundle provenance'
+    }
+
+
+@pytest.mark.parametrize(
+    'path_field',
+    ['artifact', 'summary_artifact', 'variants_artifact'],
+)
+@pytest.mark.parametrize('mutation', ['mismatch', 'missing'])
+def test_streamlit_dynamic_outputs_require_matching_v2_content(
+    tmp_path,
+    monkeypatch,
+    path_field,
+    mutation,
+):
+    from runtime import io_utils
+
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    custom_execution_paths = {
+        'artifact': 'nested/execution.json',
+        'summary_artifact': 'nested/execution-summary.csv',
+        'variants_artifact': 'nested/execution-variants.csv',
+        'structure_dir': 'nested/cifs',
+    }
+    artifact_dir = tmp_path / mutation / 'artifacts'
+    cfg, _summary, execution_cfg = _save_structure_execution_bundle(
+        artifact_dir,
+        execution_paths=custom_execution_paths,
+        execution_active=True,
+    )
+    output_path = artifact_dir / execution_cfg[path_field]
+    if mutation == 'mismatch':
+        output_path.write_bytes(b'changed-after-publication')
+    else:
+        output_path.unlink()
+    provenance = io_utils.read_json_file(
+        artifact_dir / 'artifact_provenance.json'
+    )
+    manifest = io_utils.read_json_file(artifact_dir / 'manifest.json')
+    assert io_utils.assess_artifact_provenance(
+        provenance,
+        cfg,
+        manifest,
+        project_root_path=tmp_path,
+    )['status'] != 'current'
+
+    app = _run_real_streamlit_app(
+        tmp_path,
+        cfg,
+        f'dynamic_{path_field}_{mutation}',
+    )
+
+    assert len(app.exception) == 0
+    assert len(app.success) == 0
+    assert {node.value for node in app.subheader} == {
+        'Artifact bundle provenance'
+    }
+
+
 @pytest.mark.parametrize(
     ('slice_nonempty', 'family_nonempty'),
     [(True, False), (False, True), (False, False), (True, True)],
@@ -454,7 +811,6 @@ def test_streamlit_asymmetric_bn_predictions_require_current_v2_provenance(
     provenance_case,
 ):
     from runtime import io_utils
-    from streamlit.testing.v1 import AppTest
 
     monkeypatch.setattr(
         io_utils,
@@ -493,23 +849,11 @@ def test_streamlit_asymmetric_bn_predictions_require_current_v2_provenance(
         artifact_dir = relocated_dir
         cfg['project']['artifact_dir'] = str(artifact_dir)
 
-    wrapper_path = tmp_path / f'{prediction_kind}_{provenance_case}.py'
-    wrapper_path.write_text(
-        'from runtime import io_utils\n'
-        '_original_source_reader = io_utils._read_local_source_state\n'
-        "io_utils._read_local_source_state = lambda _root: "
-        "{'revision': 'abc123', 'dirty': False}\n"
-        'from ui import streamlit_app\n'
-        '_original_config = streamlit_app.CONFIG\n'
-        f'streamlit_app.CONFIG = {cfg!r}\n'
-        'try:\n'
-        '    streamlit_app.render_streamlit_app()\n'
-        'finally:\n'
-        '    streamlit_app.CONFIG = _original_config\n'
-        '    io_utils._read_local_source_state = _original_source_reader\n',
-        encoding='utf-8',
+    app = _run_real_streamlit_app(
+        tmp_path,
+        cfg,
+        f'{prediction_kind}_{provenance_case}',
     )
-    app = AppTest.from_file(str(wrapper_path)).run(timeout=10)
 
     expect_current = provenance_case == 'current-v2'
     assert len(app.exception) == 0
@@ -683,7 +1027,6 @@ def test_streamlit_real_renderer_never_marks_content_mixed_bundle_current(
     expected_viewer_current,
 ):
     from runtime import io_utils
-    from streamlit.testing.v1 import AppTest
 
     artifact_dir = tmp_path / 'custom-root' / 'nested-artifacts'
     cfg = {
@@ -779,23 +1122,11 @@ def test_streamlit_real_renderer_never_marks_content_mixed_bundle_current(
         assessment['status'] == 'current'
     ) is expected_assessor_current
 
-    wrapper_path = tmp_path / f'streamlit_{case}.py'
-    wrapper_path.write_text(
-        'from runtime import io_utils\n'
-        '_original_source_reader = io_utils._read_local_source_state\n'
-        "io_utils._read_local_source_state = lambda _root: "
-        "{'revision': 'abc123', 'dirty': False}\n"
-        'from ui import streamlit_app\n'
-        '_original_config = streamlit_app.CONFIG\n'
-        f'streamlit_app.CONFIG = {cfg!r}\n'
-        'try:\n'
-        '    streamlit_app.render_streamlit_app()\n'
-        'finally:\n'
-        '    streamlit_app.CONFIG = _original_config\n'
-        '    io_utils._read_local_source_state = _original_source_reader\n',
-        encoding='utf-8',
+    app = _run_real_streamlit_app(
+        tmp_path,
+        cfg,
+        f'streamlit_{case}',
     )
-    app = AppTest.from_file(str(wrapper_path)).run(timeout=10)
 
     assert len(app.exception) == 0
     assert (len(app.success) == 1) is expected_viewer_current

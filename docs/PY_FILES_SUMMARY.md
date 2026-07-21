@@ -927,7 +927,7 @@ Guards and canonicalizes the Matplotlib cache before pyplot import, then preflig
 ## src/ui/streamlit_app.py
 
 ### `render_streamlit_app()`
-Renders the artifact viewer from the configured artifact root and summary-declared execution paths, reads JSON through the documented runtime helper, and verifies every v2 committed output digest before labeling provenance current. Report content requires the final viewer assessment to remain current with a concrete committed-path set; malformed or legacy markers, missing/changed content, incomplete bundles, and known viewer outputs absent from the successful-run inventory are non-green and fully suppressed. Unrelated extras remain ignored, and JSON/CSV parse failures warn instead of crashing.
+Renders the artifact viewer from the configured artifact root and configured execution paths, with valid summary-declared execution paths as overrides, reads JSON through the documented runtime helper, and verifies every v2 committed output digest before labeling provenance current. Present summary overrides that are invalid, missing, aliased, or uncommitted fail closed, while an absent declaration retains the configured baseline so disabled custom execution cannot revive stale default paths. Report content requires the final viewer assessment to remain current with a concrete committed-path set; malformed or legacy markers, missing/changed content, incomplete bundles, and known viewer outputs absent from the successful-run inventory are non-green and fully suppressed. Unrelated extras remain ignored, and JSON/CSV parse failures warn instead of crashing.
 It displays:
 - `metrics.json`
 - `experiment_summary.json`
