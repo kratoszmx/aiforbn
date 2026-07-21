@@ -539,3 +539,24 @@ def test_control_plane_cli_stdout_is_pure_json_without_myutils(flag, expected_sc
     assert result.stdout.lstrip().startswith('{')
     payload = json.loads(result.stdout)
     assert payload['schema_version'] == expected_schema
+
+
+def test_write_agent_state_cli_writes_the_requested_json_path(tmp_path):
+    output_path = tmp_path / 'agent-state.json'
+    env = os.environ.copy()
+    env.pop('PYTHONPATH', None)
+    env['MYUTILS_ROOT'] = str(ROOT / 'missing-myutils-for-control-plane-test')
+    result = subprocess.run(
+        [sys.executable, 'main.py', '--write-agent-state', str(output_path)],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert result.returncode == 0
+    assert result.stderr == ''
+    stdout_payload = json.loads(result.stdout)
+    assert stdout_payload['schema_version'] == 'aiforbn.agent_state.v1'
+    assert json.loads(output_path.read_text(encoding='utf-8')) == stdout_payload

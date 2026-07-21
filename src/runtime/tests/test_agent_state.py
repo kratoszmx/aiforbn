@@ -36,6 +36,7 @@ def test_agent_manifest_loads_machine_readable_contract():
     assert 'skills/codex_skill.txt' in manifest['retired_guidance_files']
     assert any(entry['name'] == 'verify_agent_contract' for entry in manifest['entrypoints'])
     assert any(entry['name'] == 'emit_agent_commands' for entry in manifest['entrypoints'])
+    assert any(entry['name'] == 'write_agent_state' for entry in manifest['entrypoints'])
     assert manifest['human_docs_policy'] == {
         'policy_id': 'user_owned_read_only_unless_explicit_human_document_task',
         'path': 'human_docs/',
@@ -149,6 +150,7 @@ def test_build_agent_command_index_returns_validation_profiles():
         'fast_smoke',
         'emit_agent_commands',
         'verify_agent_contract',
+        'write_agent_state',
     }
     validation_names = {entry['name'] for entry in command_index['validation_commands']}
     assert {
@@ -158,7 +160,16 @@ def test_build_agent_command_index_returns_validation_profiles():
         'ui_render_smoke',
     }.issubset(validation_names)
     assert any(profile['name'] == 'architecture_doc_skill_edit' for profile in command_index['validation_profiles'])
-    assert any(profile['name'] == 'ui_edit' for profile in command_index['validation_profiles'])
+    ui_profile = next(
+        profile
+        for profile in command_index['validation_profiles']
+        if profile['name'] == 'ui_edit'
+    )
+    assert ui_profile['commands'] == [
+        'verify_agent_contract',
+        'focused_regression',
+        'ui_render_smoke',
+    ]
     assert command_index['modules'] == manifest['modules']
     assert command_index['human_docs_policy']['policy_id'] == (
         'user_owned_read_only_unless_explicit_human_document_task'

@@ -26,6 +26,12 @@ ROOT_MODULE_HEADING_PATTERN = re.compile(
 ROOT_CALLABLE_HEADING_PATTERN = re.compile(
     r'^### `(?P<name>[A-Za-z_][A-Za-z0-9_]*)\((?P<parameters>[^`]*)\)`$'
 )
+ROOT_FILE_HEADING_PATTERN = re.compile(
+    r'^## (?P<path>main\.py|src/[A-Za-z_][A-Za-z0-9_]*/[^/\s]+\.py)$'
+)
+ROOT_PUBLIC_ENTRY_PATTERN = re.compile(
+    r'^### `(?P<name>[A-Za-z_][A-Za-z0-9_]*)(?:\([^`]*\))?`$'
+)
 
 
 def _documented_public_names(module_name: str) -> set[str]:
@@ -165,6 +171,53 @@ def _root_documented_callable_parameters() -> dict[str, dict[str, tuple[list[str
     return documented
 
 
+def _root_documented_names_by_file() -> dict[str, set[str]]:
+    documented: dict[str, set[str]] = {}
+    current_file: str | None = None
+    for line in (ROOT / 'docs' / 'PY_FILES_SUMMARY.md').read_text(
+        encoding='utf-8'
+    ).splitlines():
+        file_match = ROOT_FILE_HEADING_PATTERN.match(line)
+        if file_match:
+            current_file = file_match.group('path')
+            documented.setdefault(current_file, set())
+            continue
+        if line.startswith('## '):
+            current_file = None
+            continue
+        entry_match = ROOT_PUBLIC_ENTRY_PATTERN.match(line)
+        if current_file is not None and entry_match:
+            documented[current_file].add(entry_match.group('name'))
+    return documented
+
+
+def _main_control_flags() -> set[str]:
+    tree = ast.parse((ROOT / 'main.py').read_text(encoding='utf-8'))
+    return {
+        argument.value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == 'add_argument'
+        for argument in node.args
+        if isinstance(argument, ast.Constant)
+        and isinstance(argument.value, str)
+        and argument.value.startswith('--')
+    }
+
+
+def _manifest_entrypoint_flags() -> set[str]:
+    manifest = json.loads(
+        (ROOT / 'docs' / 'AGENT_MANIFEST.json').read_text(encoding='utf-8')
+    )
+    return {
+        token
+        for entry in manifest['entrypoints']
+        for token in entry['command'].split()
+        if token.startswith('--')
+    }
+
+
 def _defined_top_level_function_parameters(source_path: Path) -> dict[str, list[str]]:
     tree = ast.parse(source_path.read_text(encoding='utf-8'), filename=str(source_path))
     signatures: dict[str, list[str]] = {}
@@ -281,6 +334,24 @@ def test_production_cross_module_imports_follow_manifest_boundaries():
     assert violations == []
 
 
+def test_main_entrypoint_avoids_private_or_wildcard_module_imports():
+    violations: list[str] = []
+    tree = ast.parse((ROOT / 'main.py').read_text(encoding='utf-8'))
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ImportFrom) or not node.module:
+            continue
+        imported_module = node.module.split('.')[0]
+        if imported_module not in MODULE_DIRS:
+            continue
+        violations.extend(
+            f'{node.module}.{alias.name}'
+            for alias in node.names
+            if alias.name == '*' or alias.name.startswith('_')
+        )
+
+    assert violations == []
+
+
 def test_every_documented_public_symbol_exists_in_its_declared_file():
     missing: list[tuple[str, str]] = []
     checked_symbol_count = 0
@@ -313,6 +384,33 @@ def test_every_documented_public_symbol_exists_in_its_declared_file():
         f'{empty_production_modules}'
     )
     assert missing == []
+
+
+def test_every_root_documented_symbol_exists_in_its_declared_file():
+    missing: list[tuple[str, str]] = []
+    documented = _root_documented_names_by_file()
+    checked_symbol_count = sum(len(names) for names in documented.values())
+    for relative_path, documented_names in documented.items():
+        source_path = ROOT / relative_path
+        if not source_path.is_file():
+            missing.extend((relative_path, name) for name in sorted(documented_names))
+            continue
+        defined_names = _defined_top_level_names(source_path)
+        missing.extend(
+            (relative_path, name)
+            for name in sorted(documented_names - defined_names)
+        )
+
+    assert checked_symbol_count > 0, 'No root-summary public symbols were parsed'
+    assert missing == []
+
+
+def test_every_main_control_flag_is_declared_as_an_agent_entrypoint():
+    implemented_flags = _main_control_flags()
+    manifested_flags = _manifest_entrypoint_flags()
+
+    assert implemented_flags
+    assert manifested_flags == implemented_flags
 
 
 def test_documented_public_callable_parameter_order_matches_live_source():

@@ -54,6 +54,9 @@ REQUIRED_ENTRYPOINT_COMMANDS = {
     'full_pipeline': 'python3 main.py',
     'fast_smoke': 'python3 main.py --dry-run',
     'emit_agent_state': 'python3 main.py --emit-agent-state',
+    'write_agent_state': (
+        'python3 main.py --write-agent-state /tmp/aiforbn-agent-state.json'
+    ),
     'emit_agent_commands': 'python3 main.py --emit-agent-commands',
     'verify_agent_contract': 'python3 main.py --verify-agent-contract',
 }
@@ -92,6 +95,7 @@ REQUIRED_VALIDATION_PROFILE_COMMANDS = {
     ],
     'ui_edit': [
         'verify_agent_contract',
+        'focused_regression',
         'ui_render_smoke',
     ],
 }

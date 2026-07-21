@@ -318,6 +318,7 @@ def _validate_experiment_summary_output_contract(
 def _validate_structure_generation_seed_reference_evidence(
     seed_df: pd.DataFrame,
     *,
+    bn_df: pd.DataFrame,
     cfg: dict,
     raw_record_lookup: dict[str, dict],
 ) -> None:
@@ -328,10 +329,38 @@ def _validate_structure_generation_seed_reference_evidence(
     ):
         return
 
-    target_col = ((cfg.get('data') or {}).get('target_column') or 'target')
-    # Formula row-count/mean fields depend on the builder's train+val mask. Keep
-    # them as planning context; only record-level evidence is exactly
-    # reconstructable at this writer boundary.
+    data_cfg = cfg.get('data') or {}
+    target_col = data_cfg.get('target_column') or 'target'
+    formula_col = data_cfg.get('formula_column') or 'formula'
+    split_cfg = cfg.get('split') or {}
+    grouped_by_seed_formula = bool(
+        split_cfg.get('method', 'group_by_formula') == 'group_by_formula'
+        and split_cfg.get('group_column', 'formula') == formula_col
+    )
+    formula_aggregate_fields = (
+        'seed_reference_formula_row_count',
+        'seed_reference_formula_mean_band_gap',
+    )
+    declared_formula_aggregate_fields = tuple(
+        field_name
+        for field_name in formula_aggregate_fields
+        if field_name in seed_df.columns
+    )
+    formula_aggregate_lookup: dict[str, tuple[int, object]] = {}
+    if grouped_by_seed_formula and declared_formula_aggregate_fields:
+        missing_columns = {formula_col, 'target'} - set(bn_df.columns)
+        if missing_columns:
+            raise ValueError(
+                'structure_generation seed reference evidence requires grouped '
+                'BN formula and target columns'
+            )
+        for formula_value, formula_rows in bn_df.groupby(formula_col, sort=False):
+            mean_value = formula_rows['target'].mean()
+            formula_aggregate_lookup[str(formula_value)] = (
+                int(len(formula_rows)),
+                None if pd.isna(mean_value) else float(mean_value),
+            )
+
     field_map = {
         'seed_reference_source': 'source',
         'seed_reference_band_gap': 'target',
@@ -344,6 +373,29 @@ def _validate_structure_generation_seed_reference_evidence(
             for field_name in STRUCTURE_SUMMARY_COLUMNS
         },
     }
+    if grouped_by_seed_formula and declared_formula_aggregate_fields:
+        for _, row in seed_df.iterrows():
+            if pd.isna(row.get('seed_reference_formula')):
+                continue
+            seed_formula = str(row['seed_reference_formula'])
+            expected_aggregates = formula_aggregate_lookup.get(seed_formula)
+            if expected_aggregates is None:
+                raise ValueError(
+                    'structure_generation seed reference evidence formula must '
+                    f'exist in the grouped BN frame: {seed_formula}'
+                )
+            expected_by_field = {
+                'seed_reference_formula_row_count': expected_aggregates[0],
+                'seed_reference_formula_mean_band_gap': expected_aggregates[1],
+            }
+            for seed_field in declared_formula_aggregate_fields:
+                expected = expected_by_field[seed_field]
+                if make_json_safe(row.get(seed_field)) != make_json_safe(expected):
+                    raise ValueError(
+                        'structure_generation seed reference evidence '
+                        f'{seed_field} must match grouped BN formula {seed_formula}'
+                    )
+
     record_rows = seed_df.loc[
         seed_df['seed_reference_record_id'].notna()
     ]
@@ -1075,6 +1127,7 @@ def save_metrics_and_predictions(
     if structure_seed_outputs_will_publish:
         _validate_structure_generation_seed_reference_evidence(
             structure_generation_seed_df,
+            bn_df=bn_df,
             cfg=cfg,
             raw_record_lookup=raw_record_lookup,
         )

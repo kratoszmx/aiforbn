@@ -59,6 +59,7 @@ Use it as the short per-round smoke test before deciding whether a full `main.py
 Machine-readable AI-native project inspection entrypoint used by agent control commands:
 - `python3 main.py --emit-agent-state`
 - `python3 main.py --verify-agent-contract`
+- `python3 main.py --write-agent-state /tmp/aiforbn-agent-state.json`
 
 What it does:
 - loads `docs/AGENT_MANIFEST.json`
@@ -183,6 +184,10 @@ Serializes the live state for stdout or log capture.
 
 ### `write_agent_state(state, path)`
 Serializes before parent creation, then writes the live state while refusing canonical, state-declared, or filesystem-equivalent user-owned `human_docs/` targets and multi-hardlink leaves; the payload cannot redirect the canonical guard.
+
+---
+
+## src/runtime/schema.py
 
 ### `STRUCTURE_EXECUTION_OUTPUT_ROLES`
 Canonical runtime-schema mapping for the three structure-execution viewer roles, experiment-summary fields, configured output fields, required suffixes, and canonical default filenames. Structure building, materials publication, and UI persisted-state validation consume the same records without importing one another.
@@ -900,6 +905,7 @@ Writes the main artifact files under `artifacts/`.
 Every fixed, configurable, dynamic, and stale-cleanup CIF leaf is preflighted in its originally declared form before directory creation. Configurable structure-execution outputs must remain under that directory, use the expected JSON/CSV types, avoid core/pairwise/alias collisions, and place CIF files directly under the configured structure directory. Empty execution results remove only preflighted stale execution outputs from a previous run.
 The writer also preflights experiment-summary container shape and each declared dynamic output role against the shared runtime role mapping before artifact-directory creation or prior-marker invalidation. Semantically empty absent/null/empty containers and matching normalized or filesystem-identical same-role paths remain accepted.
 Nonempty structure-execution summary and variants frames must carry every canonical relation field, use the builder-owned finite candidate-status vocabulary, and agree with the execution payload on candidate/variant membership, counts, statuses, geometry results, the deterministic canonical winner, and all ten selected-row projections before publication. Candidates without a successful variant keep selected ID/rank/path/formula/site/geometry/proxy/relaxation fields null and use the canonical `not_executed` or invalid-reference error final status. This prevents swapped, relabelled, arbitrary-status, or internally contradictory builder outputs from reaching a current bundle while retaining canonical inactive, empty, error, partial, full, failed-variant, custom-formula-column, custom-path, and non-first-winner outputs.
+For formula-grouped splits, seed formula row counts and target means are reconstructed from the complete BN frame and must match the builder's train+validation aggregate before publication; record-level seed evidence remains bound to the cached raw record.
 Ranking-stability, decision-policy, shortlist, and structure-seed gates control their declared outputs; disabling a layer removes stale files from prior runs, including case-equivalent CIF suffixes. Caller JSON and parity inputs are preflighted before mutation, CSV replacement is atomic, and successful fixed/optional/configured/CIF/plot writes feed one source-derived commitment. Any prior marker is invalidated before mutation; failed plotting/publication leaves no marker, while `artifact_provenance.json` is always the final action and excludes absent optional outputs.
 Each compact BN model-role row uses one canonical feature/model identity across diagnostic scopes; unavailable identity-matched metrics stay empty rather than borrowing a different model's best value.
 This now includes both shortlist CSVs, BN-slice benchmark artifacts, BN-family / stratified BN evaluation artifacts, the BN-centered alternative ranking artifact, the ranking-stability / abstention artifact, the BN candidate-compatible evaluation artifact, and the structure-generation bridge artifacts in addition to the full ranking artifact:

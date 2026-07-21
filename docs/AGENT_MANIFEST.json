@@ -126,6 +126,12 @@
       "expected_output": "JSON project state on stdout"
     },
     {
+      "name": "write_agent_state",
+      "command": "python3 main.py --write-agent-state /tmp/aiforbn-agent-state.json",
+      "writes_artifacts": true,
+      "expected_output": "JSON project state on stdout and at the requested output path"
+    },
+    {
       "name": "emit_agent_commands",
       "command": "python3 main.py --emit-agent-commands",
       "writes_artifacts": false,
@@ -259,6 +265,7 @@
       "name": "ui_edit",
       "commands": [
         "verify_agent_contract",
+        "focused_regression",
         "ui_render_smoke"
       ],
       "use_when": "Streamlit imports, rendering, artifact display, or UI dependency wiring changed"

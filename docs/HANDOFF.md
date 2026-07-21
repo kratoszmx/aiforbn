@@ -267,7 +267,8 @@
 - 本次 Reset Round 2（structure identity）修复成功 variant 的 payload atoms、generated formula/site count、结构摘要、几何诊断与实际发布 CIF bytes 可彼此矛盾却仍发布 current bundle 的缺口；builder 与 writer 现共用单一 materials identity preflight，并在 artifact root 创建、旧 marker 失效或任何写入前从 atoms 重建并核对全部结构证据。默认/自定义 formula column、自定义 nested path、有效重试恢复及原有 error/partial/full 分支均保持有效；未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - 本次 Reset Round 3（edit-plan identity）修复 variant 可协调伪造 relabel site/target、vacancy site 与 edit counts，同时保留内部一致的 final atoms/CIF 并发布 current bundle 的缺口；builder 与 writer 现共用唯一 edit-plan projection，writer 在任何 bundle mutation 前从 cached raw source 重建 deterministic plan 并核对 source、plan、final atoms 的逐位结构关系。reference reuse、relabel、vacancy、自定义 formula column、失败 variant 与有效重试恢复均有回归覆盖；未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - 本次 Reset Round 4（seed reference identity）修复 payload/summary/variants 可协调改挂到未被 builder 选中的另一 cached record，或 cached raw record 的显式 formula 与 seed claim/source atoms 不一致后仍发布 current bundle 的缺口；builder 与 writer 现共用 exact queue/follow-up selection context，formula multiplier 同时拒绝 source atoms 中未由 seed formula 声明的元素，writer 在任何 bundle mutation 前精确绑定 builder-selected record/formula、raw formula 与 source composition。默认/自定义 formula column、multiple seeds、reference reuse、vacancy、canonical-equivalent formula、旧 bundle 保全及有效重试均有回归覆盖；未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- 本次 Reset Round 5（seed evidence fields）修复 selected seed 的 record ID/formula/atoms 不变时，band gap、四个 reference property、has-structure-summary 与 11 个 structure-summary 字段仍可被协调改写并发布 current bundle 的缺口；public writer 现在复用 dataset normalizer，在任何 bundle mutation 前把所有已发出的 record-level evidence 精确绑定到 cached raw record，execution-disabled seed-only 发布也受同一预检。builder 同时把合法缺失的 optional target/property evidence 规范为 null；依赖 train+val mask 的 formula row-count/mean 保持为 planning context。默认/自定义 formula column、缺失 optional/structure、旧 bundle 保全及有效重试均有回归覆盖；未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
+- 本次 Reset Round 5（seed evidence fields）修复 selected seed 的 record ID/formula/atoms 不变时，band gap、四个 reference property、has-structure-summary 与 11 个 structure-summary 字段仍可被协调改写并发布 current bundle 的缺口；public writer 现在复用 dataset normalizer，在任何 bundle mutation 前把所有已发出的 record-level evidence 精确绑定到 cached raw record，execution-disabled seed-only 发布也受同一预检。builder 同时把合法缺失的 optional target/property evidence 规范为 null；依赖 train+val mask 的 formula aggregates 留待后续 split-aware 边界核对。默认/自定义 formula column、缺失 optional/structure、旧 bundle 保全及有效重试均有回归覆盖；未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
+- 本次 Reset Round 7（skeptical second-NO）推翻前轮 aggregate NO：默认 formula-grouped split 已使完整 `bn_df` 足以唯一重建 seed formula 的 train+val row-count/mean，writer 现于任何 bundle mutation 前核对这两项；非 formula-grouped split 仍保留为无法由当前输入重建的 planning context。同时修复公开 `--write-agent-state` 未进入 manifest/命令索引、根 Python summary 的两个 runtime schema 常量归错文件、UI edit profile 漏跑 public-surface/import guard，以及根 `main.py` import/CLI flag/summary symbol false-green。未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - contract verifier 现精确锁定 validation-profile 命令序列、三个 active project-skill 记录与七个 retired-guidance 路径；public-surface 测试同时核对模块摘要及根摘要的 callable 参数顺序和 keyword-only 边界
 - `--verify-agent-contract` 现会精确锁定六个 module 的 path/role/public-surface/agent-rules/local-utils/allowed-dependencies；公开 surface 测试逐个要求四个生产模块非空，并显式覆盖 import re-export
 
@@ -282,7 +283,7 @@
 
 3. 完整 src 测试：
 - `conda run -n quant python3 -m pytest -q src`
-- 结果：`672 passed, 1 warning`
+- 结果：`678 passed, 1 warning`
 - 剩余 warning 是 PyTorch nested-tensor prototype 提示，不是测试失败；原 sklearn feature-name warnings 已消除
 
 4. UI 文字化验证：

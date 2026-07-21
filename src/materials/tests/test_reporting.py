@@ -49,6 +49,7 @@ from materials.structure_helpers import (
 def _save_minimal_report_bundle(
     cfg,
     *,
+    bn_df=None,
     screened_df=None,
     structure_generation_seed_df=None,
     experiment_summary=None,
@@ -63,7 +64,7 @@ def _save_minimal_report_bundle(
     return save_metrics_and_predictions(
         {},
         empty_df if prediction_df is None else prediction_df,
-        empty_df,
+        empty_df if bn_df is None else bn_df,
         (
             pd.DataFrame(columns=['formula', 'ranking_rank'])
             if screened_df is None
@@ -1906,6 +1907,7 @@ def _real_builder_seed_evidence_writer_inputs(
     formula_col: str = 'formula',
     evidence_case: str = 'complete',
     execution_enabled: bool = True,
+    additional_formula_band_gaps: tuple[float, ...] = (),
 ):
     cfg, _unused_manual_kwargs = _canonical_structure_execution_writer_inputs(
         tmp_path,
@@ -1931,6 +1933,11 @@ def _real_builder_seed_evidence_writer_inputs(
         raw_record['atoms'] = {'elements': ['B', 'N']}
     elif evidence_case != 'complete':  # pragma: no cover - helper contract
         raise AssertionError(evidence_case)
+    for offset, band_gap in enumerate(additional_formula_band_gaps, start=2):
+        extra_record = copy.deepcopy(raw_record)
+        extra_record['jid'] = f'jid-{offset}'
+        extra_record['band_gap'] = band_gap
+        raw_records.append(extra_record)
     raw_path.write_text(
         json.dumps(raw_records),
         encoding='utf-8',
@@ -1968,7 +1975,11 @@ def _real_builder_seed_evidence_writer_inputs(
     seed_df = build_candidate_structure_generation_seeds(
         candidate_df,
         dataset_df,
-        {'train': [True], 'val': [False], 'test': [False]},
+        {
+            'train': [True] * len(dataset_df),
+            'val': [False] * len(dataset_df),
+            'test': [False] * len(dataset_df),
+        },
         cfg,
         formula_col=formula_col,
     )
@@ -1978,6 +1989,7 @@ def _real_builder_seed_evidence_writer_inputs(
         formula_col=formula_col,
     )
     return cfg, {
+        'bn_df': dataset_df,
         'structure_generation_seed_df': seed_df,
         'structure_payload': payload,
         'structure_summary_df': summary_df,
@@ -2201,6 +2213,57 @@ def test_reporting_seed_reference_evidence_rejection_is_atomic_and_recovers(
         formula_col=formula_col,
         execution_enabled=execution_enabled,
     )
+    invalid_kwargs = _mutate_seed_reference_evidence(
+        cfg,
+        canonical_kwargs,
+        field_name,
+        invalid_value,
+    )
+    manifest = {
+        'name': 'twod_matpd',
+        'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-22T00:00:00+00:00',
+        'target_column': 'band_gap',
+    }
+
+    _assert_structure_execution_rejection_is_atomic(
+        tmp_path,
+        cfg,
+        canonical_kwargs,
+        invalid_kwargs,
+        manifest,
+        expected_message='seed reference evidence',
+    )
+
+
+@pytest.mark.parametrize(
+    ('field_name', 'invalid_value', 'execution_enabled'),
+    [
+        ('seed_reference_formula_row_count', 999, False),
+        ('seed_reference_formula_mean_band_gap', 99.0, True),
+    ],
+)
+def test_reporting_rejects_grouped_formula_seed_aggregate_mismatch_atomically(
+    tmp_path,
+    monkeypatch,
+    field_name,
+    invalid_value,
+    execution_enabled,
+):
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    cfg, canonical_kwargs = _real_builder_seed_evidence_writer_inputs(
+        tmp_path,
+        additional_formula_band_gaps=(6.2,),
+        execution_enabled=execution_enabled,
+    )
+    cfg['split'] = {
+        'method': 'group_by_formula',
+        'group_column': 'formula',
+    }
     invalid_kwargs = _mutate_seed_reference_evidence(
         cfg,
         canonical_kwargs,
