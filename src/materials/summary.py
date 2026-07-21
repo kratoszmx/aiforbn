@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 
 from runtime.io_utils import make_json_safe, write_json_file
+from runtime.schema import STRUCTURE_EXECUTION_OUTPUT_ROLES
 from materials.data import load_cached_raw_record_lookup
 from materials.constants import *
 from materials.candidate_space import *
@@ -927,15 +928,12 @@ def build_experiment_summary(
             structure_first_pass_execution_payload
             and not structure_first_pass_execution_summary_df.empty
         ):
-            structure_generation_seed_summary['first_pass_execution_artifact'] = (
-                structure_first_pass_execution_payload.get('artifact')
-            )
-            structure_generation_seed_summary['first_pass_execution_summary_artifact'] = (
-                structure_first_pass_execution_payload.get('summary_artifact')
-            )
-            structure_generation_seed_summary['first_pass_execution_variants_artifact'] = (
-                structure_first_pass_execution_payload.get('variants_artifact')
-            )
+            for _artifact_key, summary_field, config_field, _suffix in (
+                STRUCTURE_EXECUTION_OUTPUT_ROLES
+            ):
+                structure_generation_seed_summary[summary_field] = (
+                    structure_first_pass_execution_payload.get(config_field)
+                )
             structure_generation_seed_summary['first_pass_execution_structure_dir'] = (
                 structure_first_pass_execution_payload.get('structure_dir')
             )

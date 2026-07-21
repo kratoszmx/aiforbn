@@ -256,6 +256,7 @@
 - Round 13 补齐 BN slice/family prediction 的四状态、双向同目录切换与 provenance 交叉验证，并修复 viewer 对畸形/legacy marker 或 viewer 二次降级 bundle 仍渲染 committed-looking 内容的 fail-open：现在只有最终 assessment 为 current 且存在明确 v2 committed-path set 时才渲染任何 report table；仍未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - Round 14 用 source-derived 30-section render inventory 和真实 AppTest 复核单一最终 render gate，并修复两条 dynamic execution 路径契约：custom execution 变为空时不再回退并误认 stale default 文件；summary 中 present 但无效、缺失、别名或未承诺的 JSON/CSV 路径会令最终 assessment fail closed。默认/custom/empty 同目录切换及三类 dynamic output 的 missing/byte-mismatch 均已回归覆盖；仍未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - Round 15 修复 current-v2 summary 的 nested object-shape 与 file-identity 漏洞：`screening`/`structure_generation_bridge` 的错误 JSON 类型不再崩溃或静默通过，三个 dynamic execution 声明必须指向各自配置并 guard 后的同一文件，不能把已承诺的 BN slice 或另一 execution CSV 重新贴标签；absent/null/empty container、规范化路径与本机真实 same-file 大小写别名仍保留有效。全报告仍只经过单一最终 render gate；未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
+- Round 16 将同一 dynamic execution role 契约前移到 public writer 的纯预检：错误 nested shape、缺失/错后缀/跨角色/固定输出别名及 inactive declaration 会在创建目录、失效旧 marker 或写删任何 bundle 文件前拒绝；summary builder、writer 与 viewer 共用 runtime role registry，viewer 继续独立防御持久化后的畸形状态。32 个拒绝状态均验证无 prior root 与同目录 prior-valid bundle 的字节级原子性，9 个 fallback/规范化/same-file 控制仍可成功发布 current v2；未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - contract verifier 现精确锁定 validation-profile 命令序列、三个 active project-skill 记录与七个 retired-guidance 路径；public-surface 测试同时核对模块摘要及根摘要的 callable 参数顺序和 keyword-only 边界
 - `--verify-agent-contract` 现会精确锁定六个 module 的 path/role/public-surface/agent-rules/local-utils/allowed-dependencies；公开 surface 测试逐个要求四个生产模块非空，并显式覆盖 import re-export
 
@@ -270,12 +271,12 @@
 
 3. 完整 src 测试：
 - `conda run -n quant python3 -m pytest -q src`
-- 结果：`405 passed, 1 warning`
+- 结果：`453 passed, 1 warning`
 - 剩余 warning 是 PyTorch nested-tensor prototype 提示，不是测试失败；原 sklearn feature-name warnings 已消除
 
 4. UI 文字化验证：
 - `conda run -n quant python3 -m pytest -q src/ui/tests/test_streamlit_app.py`
-- 结果：`92 passed`，包含真实 Streamlit renderer、source-derived 全 section gate、dynamic custom/empty 路径切换、nested object-shape 与 file-identity/role matrix、无效或未承诺 summary declaration fail-closed、三类 dynamic output 的 missing/byte-mismatch 交叉矩阵、completion/provenance matrix、BN slice/family 四状态及非对称 provenance cross-product、content-mixed bundle mutation matrix 与非 current committed-output 抑制
+- 结果：`99 passed`，包含真实 Streamlit renderer、source-derived 全 section gate、dynamic custom/empty 路径切换、nested object-shape 与 shared file-identity/role matrix、无效或未承诺 summary declaration fail-closed、三类 dynamic output 的 missing/byte-mismatch 交叉矩阵、completion/provenance matrix、BN slice/family 四状态及非对称 provenance cross-product、content-mixed bundle mutation matrix 与非 current committed-output 抑制
 - 有时限的 `streamlit run ... --server.headless=true` 启动后，`/_stcore/health` 与根页面均成功响应；验证后进程已终止
 
 5. 语法与 diff 卫生：

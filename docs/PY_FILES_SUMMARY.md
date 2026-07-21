@@ -184,6 +184,9 @@ Serializes the live state for stdout or log capture.
 ### `write_agent_state(state, path)`
 Serializes before parent creation, then writes the live state while refusing canonical, state-declared, or filesystem-equivalent user-owned `human_docs/` targets and multi-hardlink leaves; the payload cannot redirect the canonical guard.
 
+### `STRUCTURE_EXECUTION_OUTPUT_ROLES`
+Canonical runtime-schema mapping for the three structure-execution viewer roles, experiment-summary fields, configured output fields, and required suffixes. Materials publication and UI persisted-state validation consume the same records without importing one another.
+
 ---
 
 ## src/materials/data.py
@@ -890,6 +893,7 @@ Important:
 ### `save_metrics_and_predictions(metrics, prediction_df, bn_df, screened_df, benchmark_df, robustness_df, bn_slice_benchmark_df, bn_slice_prediction_df, bn_centered_screened_df, structure_generation_seed_df, experiment_summary, manifest, cfg, ...)`
 Writes the main artifact files under `artifacts/`.
 Every fixed, configurable, dynamic, and stale-cleanup CIF leaf is preflighted in its originally declared form before directory creation. Configurable structure-execution outputs must remain under that directory, use the expected JSON/CSV types, avoid core/pairwise/alias collisions, and place CIF files directly under the configured structure directory. Empty execution results remove only preflighted stale execution outputs from a previous run.
+The writer also preflights experiment-summary container shape and each declared dynamic output role against the shared runtime role mapping before artifact-directory creation or prior-marker invalidation. Semantically empty absent/null/empty containers and matching normalized or filesystem-identical same-role paths remain accepted.
 Ranking-stability, decision-policy, shortlist, and structure-seed gates control their declared outputs; disabling a layer removes stale files from prior runs, including case-equivalent CIF suffixes. Caller JSON and parity inputs are preflighted before mutation, CSV replacement is atomic, and successful fixed/optional/configured/CIF/plot writes feed one source-derived commitment. Any prior marker is invalidated before mutation; failed plotting/publication leaves no marker, while `artifact_provenance.json` is always the final action and excludes absent optional outputs.
 Each compact BN model-role row uses one canonical feature/model identity across diagnostic scopes; unavailable identity-matched metrics stay empty rather than borrowing a different model's best value.
 This now includes both shortlist CSVs, BN-slice benchmark artifacts, BN-family / stratified BN evaluation artifacts, the BN-centered alternative ranking artifact, the ranking-stability / abstention artifact, the BN candidate-compatible evaluation artifact, and the structure-generation bridge artifacts in addition to the full ranking artifact:
@@ -927,7 +931,7 @@ Guards and canonicalizes the Matplotlib cache before pyplot import, then preflig
 ## src/ui/streamlit_app.py
 
 ### `render_streamlit_app()`
-Renders the artifact viewer from the configured artifact root and guarded execution paths, reads JSON through the documented runtime helper, and verifies every v2 committed output digest before labeling provenance current. A summary-declared execution path is accepted only when it identifies the corresponding configured file; wrong-shaped nested summary objects, cross-role relabeling, invalid/missing paths, and uncommitted paths fail closed. Absent/null/empty nested containers retain the configured baseline so disabled execution cannot revive stale outputs. Report content requires the final viewer assessment to remain current with a concrete committed-path set; malformed or legacy markers, missing/changed content, incomplete bundles, and known viewer outputs absent from the successful-run inventory are non-green and fully suppressed. Unrelated extras remain ignored, and JSON/CSV parse failures warn instead of crashing.
+Renders the artifact viewer from the configured artifact root and guarded execution paths, reads JSON through the documented runtime helper, and verifies every v2 committed output digest before labeling provenance current. A summary-declared execution path is accepted only when it identifies the corresponding configured file under the same canonical role mapping used by publication; wrong-shaped nested summary objects, cross-role relabeling, invalid/missing paths, and uncommitted paths fail closed. Absent/null/empty nested containers retain the configured baseline so disabled execution cannot revive stale outputs. Report content requires the final viewer assessment to remain current with a concrete committed-path set; malformed or legacy markers, missing/changed content, incomplete bundles, and known viewer outputs absent from the successful-run inventory are non-green and fully suppressed. Unrelated extras remain ignored, and JSON/CSV parse failures warn instead of crashing.
 It displays:
 - `metrics.json`
 - `experiment_summary.json`

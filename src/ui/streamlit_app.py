@@ -16,6 +16,7 @@ from runtime.io_utils import (
     read_json_file,
     validate_runtime_output_path,
 )
+from runtime.schema import STRUCTURE_EXECUTION_OUTPUT_ROLES
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -59,14 +60,14 @@ ARTIFACT_PATHS = {
     'proposal_shortlist': Path('artifacts/demo_candidate_proposal_shortlist.csv'),
     'extrapolation_shortlist': Path('artifacts/demo_candidate_extrapolation_shortlist.csv'),
 }
+_EXECUTION_OUTPUT_ROLE_BY_ARTIFACT_KEY = {
+    artifact_key: (summary_field, config_field, suffix)
+    for artifact_key, summary_field, config_field, suffix
+    in STRUCTURE_EXECUTION_OUTPUT_ROLES
+}
 _SUMMARY_EXECUTION_PATH_FIELDS = {
-    'structure_generation_first_pass_execution': 'first_pass_execution_artifact',
-    'structure_generation_first_pass_execution_summary': (
-        'first_pass_execution_summary_artifact'
-    ),
-    'structure_generation_first_pass_execution_variants': (
-        'first_pass_execution_variants_artifact'
-    ),
+    artifact_key: role[0]
+    for artifact_key, role in _EXECUTION_OUTPUT_ROLE_BY_ARTIFACT_KEY.items()
 }
 _REQUIRED_COMPLETE_BUNDLE_KEYS = (
     'metrics',
@@ -124,8 +125,11 @@ def _build_artifact_paths(
         ((cfg.get('screening') or {}).get('structure_first_pass_execution'))
         or {}
     )
-    for key, summary_field_name in _SUMMARY_EXECUTION_PATH_FIELDS.items():
-        config_field_name = summary_field_name.removeprefix('first_pass_execution_')
+    for key, (
+        summary_field_name,
+        config_field_name,
+        expected_suffix,
+    ) in _EXECUTION_OUTPUT_ROLE_BY_ARTIFACT_KEY.items():
         configured_value = execution_cfg.get(config_field_name)
         if configured_value:
             paths[key] = _artifact_file_path(artifact_root, configured_value)
@@ -154,8 +158,7 @@ def _build_artifact_paths(
         if (
             summary_path is None
             or not matches_configured_path
-            or summary_path.suffix.casefold()
-            != ARTIFACT_PATHS[key].suffix.casefold()
+            or summary_path.suffix.casefold() != expected_suffix
         ):
             paths[key] = None
             invalid_summary_keys.add(key)

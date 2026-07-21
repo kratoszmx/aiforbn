@@ -47,6 +47,8 @@ Anything underscore-prefixed or omitted here should be treated as internal.
 
 ## schema.py
 
+- `STRUCTURE_EXECUTION_OUTPUT_ROLES`
+  - Canonical three-role mapping shared by materials publication and UI persisted-state validation: viewer artifact key, experiment-summary field, configured path field, and required suffix.
 - `DatasetManifest`
   - Pydantic-style schema for normalized dataset-manifest metadata, including the target column that defines processed-cache identity.
 - `MaterialRecord`

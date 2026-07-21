@@ -15,6 +15,7 @@ from runtime.io_utils import (
     validate_runtime_output_path,
     write_json_file,
 )
+from runtime.schema import STRUCTURE_EXECUTION_OUTPUT_ROLES
 from materials.data import load_cached_raw_record_lookup
 from materials.constants import *
 from materials.candidate_space import *
@@ -180,9 +181,9 @@ def _validate_structure_execution_output_paths(
     output_paths: dict[str, Path],
 ) -> None:
     expected_suffixes = {
-        'artifact': '.json',
-        'summary_artifact': '.csv',
-        'variants_artifact': '.csv',
+        config_field: suffix
+        for _artifact_key, _summary_field, config_field, suffix
+        in STRUCTURE_EXECUTION_OUTPUT_ROLES
     }
     for field_name, expected_suffix in expected_suffixes.items():
         if output_paths[field_name].suffix.lower() != expected_suffix:
@@ -239,6 +240,70 @@ def _validate_structure_execution_output_paths(
                     f'structure_first_pass_execution.{field_name} collides with a reserved '
                     'report artifact path'
                 )
+
+
+def _validate_experiment_summary_output_contract(
+    artifact_dir: Path,
+    experiment_summary: object,
+    configured_execution_paths: dict[str, Path],
+    *,
+    execution_outputs_will_publish: bool,
+) -> None:
+    if not isinstance(experiment_summary, dict):
+        raise ValueError('experiment_summary must be an object')
+    screening = experiment_summary.get('screening')
+    if screening is None:
+        return
+    if not isinstance(screening, dict):
+        raise ValueError('experiment_summary.screening must be an object or null')
+    bridge = screening.get('structure_generation_bridge')
+    if bridge is None:
+        return
+    if not isinstance(bridge, dict):
+        raise ValueError(
+            'experiment_summary.screening.structure_generation_bridge '
+            'must be an object or null'
+        )
+
+    for _artifact_key, summary_field, path_field, expected_suffix in (
+        STRUCTURE_EXECUTION_OUTPUT_ROLES
+    ):
+        if summary_field not in bridge:
+            continue
+        if not execution_outputs_will_publish:
+            raise ValueError(
+                f'experiment_summary {summary_field} may be declared only when '
+                'structure execution outputs will be published'
+            )
+        declared_value = bridge[summary_field]
+        if not isinstance(declared_value, (str, Path)) or not str(declared_value).strip():
+            raise ValueError(
+                f'experiment_summary {summary_field} must be a non-empty path string'
+            )
+        try:
+            declared_path = _resolve_and_validate_artifact_output_path(
+                artifact_dir,
+                declared_value,
+                field_name=f'experiment_summary.{summary_field}',
+                expected_output_kind='file',
+            )
+        except ValueError as exc:
+            raise ValueError(
+                f'experiment_summary {summary_field} is invalid: {exc}'
+            ) from exc
+        configured_path = configured_execution_paths[path_field]
+        if not (
+            declared_path == configured_path
+            or _same_existing_path(declared_path, configured_path)
+        ):
+            raise ValueError(
+                f'experiment_summary {summary_field} must identify the configured '
+                f'structure_first_pass_execution.{path_field} path'
+            )
+        if declared_path.suffix.casefold() != expected_suffix:
+            raise ValueError(
+                f'experiment_summary {summary_field} must use the configured file type'
+            )
 
 
 def save_metrics_and_predictions(
@@ -470,6 +535,15 @@ def save_metrics_and_predictions(
     validate_json_payload(metrics, indent=2)
     validate_json_payload(experiment_summary, ensure_ascii=False, indent=2)
     validate_json_payload(manifest, indent=2)
+    _validate_experiment_summary_output_contract(
+        artifact_dir,
+        experiment_summary,
+        structure_first_pass_execution_paths,
+        execution_outputs_will_publish=bool(
+            structure_first_pass_execution_payload
+            and not structure_first_pass_execution_summary_df.empty
+        ),
+    )
     if include_parity_plot:
         missing_plot_columns = {'target', 'prediction'} - set(prediction_df.columns)
         if missing_plot_columns:

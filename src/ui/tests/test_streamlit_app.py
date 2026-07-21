@@ -223,12 +223,6 @@ def _save_structure_execution_bundle(
         structure_first_pass_execution_summary_df=structure_summary_df,
         structure_first_pass_execution_payload=structure_payload,
     )
-    if summary_execution_overrides:
-        summary['screening']['structure_generation_bridge'].update(
-            summary_execution_overrides
-        )
-    if summary_mutator is not None:
-        summary_mutator(summary)
     manifest = {
         'name': 'twod_matpd',
         'source': 'jarvis-tools/figshare',
@@ -253,6 +247,36 @@ def _save_structure_execution_bundle(
         structure_first_pass_execution_summary_df=structure_summary_df,
         structure_first_pass_execution_payload=structure_payload,
     )
+    if summary_execution_overrides or summary_mutator is not None:
+        provenance_path = artifact_dir / 'artifact_provenance.json'
+        published_relative_paths = tuple(
+            io_utils.read_json_file(provenance_path)['published_outputs']
+        )
+        provenance_path.unlink()
+        if summary_execution_overrides:
+            summary['screening']['structure_generation_bridge'].update(
+                summary_execution_overrides
+            )
+        if summary_mutator is not None:
+            summary_mutator(summary)
+        io_utils.write_json_file(
+            summary,
+            artifact_dir / 'experiment_summary.json',
+            ensure_ascii=False,
+            indent=2,
+        )
+        io_utils.write_json_file(
+            io_utils.build_artifact_provenance(
+                cfg,
+                manifest,
+                published_output_paths=tuple(
+                    artifact_dir / relative_path
+                    for relative_path in published_relative_paths
+                ),
+            ),
+            provenance_path,
+            indent=2,
+        )
     return cfg, summary, execution_cfg
 
 
@@ -327,6 +351,32 @@ def _assert_only_provenance_rendered(app):
     assert {node.value for node in app.subheader} == {
         'Artifact bundle provenance'
     }
+
+
+def test_structure_execution_output_role_contract_is_nonvacuous():
+    from materials.structure_helpers import _structure_first_pass_execution_config
+    from runtime.schema import STRUCTURE_EXECUTION_OUTPUT_ROLES
+    from ui import streamlit_app
+
+    execution_cfg = _structure_first_pass_execution_config({})
+    assert len(STRUCTURE_EXECUTION_OUTPUT_ROLES) == 3
+    assert len({role[0] for role in STRUCTURE_EXECUTION_OUTPUT_ROLES}) == 3
+    assert len({role[1] for role in STRUCTURE_EXECUTION_OUTPUT_ROLES}) == 3
+    assert len({role[2] for role in STRUCTURE_EXECUTION_OUTPUT_ROLES}) == 3
+    assert streamlit_app._SUMMARY_EXECUTION_PATH_FIELDS == {
+        artifact_key: summary_field
+        for artifact_key, summary_field, _config_field, _suffix
+        in STRUCTURE_EXECUTION_OUTPUT_ROLES
+    }
+    assert all(
+        artifact_key in streamlit_app.ARTIFACT_PATHS
+        and streamlit_app.ARTIFACT_PATHS[artifact_key].suffix.casefold() == suffix
+        and streamlit_app.ARTIFACT_PATHS[artifact_key].relative_to(
+            streamlit_app.DEFAULT_ARTIFACT_ROOT
+        ).as_posix() == execution_cfg[config_field]
+        for artifact_key, _summary_field, config_field, suffix
+        in STRUCTURE_EXECUTION_OUTPUT_ROLES
+    )
 
 
 def test_streamlit_app_reads_generated_artifacts(tmp_path, monkeypatch):
@@ -885,11 +935,13 @@ def test_streamlit_rejects_wrong_shaped_nested_summary_containers(
 
 @pytest.mark.parametrize('empty_state', ['absent', 'null', 'empty-mapping'])
 @pytest.mark.parametrize('container_name', ['screening', 'structure-generation-bridge'])
+@pytest.mark.parametrize('execution_active', [False, True], ids=['inactive', 'active'])
 def test_streamlit_accepts_semantically_empty_nested_summary_containers(
     tmp_path,
     monkeypatch,
     container_name,
     empty_state,
+    execution_active,
 ):
     io_utils = _stub_current_source(monkeypatch)
 
@@ -910,7 +962,7 @@ def test_streamlit_accepts_semantically_empty_nested_summary_containers(
     cfg, _summary, _execution_cfg = _save_structure_execution_bundle(
         artifact_dir,
         execution_paths=None,
-        execution_active=False,
+        execution_active=execution_active,
         summary_mutator=mutate_summary,
     )
     _assert_saved_bundle_current(io_utils, artifact_dir, cfg, tmp_path)
@@ -925,9 +977,12 @@ def test_streamlit_accepts_semantically_empty_nested_summary_containers(
     assert len(app.success) == 1
     rendered_subheaders = {node.value for node in app.subheader}
     assert 'Metrics' in rendered_subheaders
-    assert 'Structure first-pass execution JSON' not in rendered_subheaders
-    assert 'Structure first-pass execution summary' not in rendered_subheaders
-    assert 'Structure first-pass execution variants' not in rendered_subheaders
+    for subheader in (
+        'Structure first-pass execution JSON',
+        'Structure first-pass execution summary',
+        'Structure first-pass execution variants',
+    ):
+        assert (subheader in rendered_subheaders) is execution_active
 
 
 @pytest.mark.parametrize('container_name', ['screening', 'structure-generation-bridge'])

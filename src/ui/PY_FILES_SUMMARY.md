@@ -12,6 +12,7 @@ Anything underscore-prefixed or omitted here should be treated as internal.
   - Includes BN model-role evidence, default-vs-BN-centered rank-stability evidence,
     and the unrelaxed structure follow-up handoff report; absent optional artifacts are skipped.
   - Resolves the configured artifact root and execution paths, then accepts a summary declaration only when it identifies that same guarded file. Wrong-shaped nested summary objects, cross-role relabeling, missing/invalid paths, and paths absent from the v2 commitment fail closed; absent/null/empty containers retain the configured baseline without reviving stale outputs.
+  - Shares the canonical three-role summary/config/suffix mapping with the materials writer while independently validating persisted or post-publication state.
   - Verifies v2 committed output bytes and renders report content only after the viewer's final assessment is current with a concrete committed-path set. Missing, changed, malformed, legacy, incomplete, or uncommitted-known bundles stay non-green and render no report tables; JSON/CSV read failures produce text warnings instead of renderer failures.
 
 ## utils.py

@@ -39,6 +39,7 @@ def _save_minimal_report_bundle(
     structure_variant_df=None,
     prediction_df=None,
     include_parity_plot=False,
+    manifest=None,
 ):
     empty_df = pd.DataFrame()
     return save_metrics_and_predictions(
@@ -61,7 +62,7 @@ def _save_minimal_report_bundle(
             else structure_generation_seed_df
         ),
         {} if experiment_summary is None else experiment_summary,
-        {},
+        {} if manifest is None else manifest,
         cfg,
         structure_first_pass_execution_variant_df=structure_variant_df,
         structure_first_pass_execution_summary_df=structure_summary_df,
@@ -1570,6 +1571,329 @@ def test_reporting_preflights_summary_before_mutating_existing_bundle(tmp_path):
         if path.is_file()
     }
     assert after == before
+
+
+def _report_bundle_snapshot(artifact_dir: Path):
+    if not artifact_dir.exists():
+        return None
+    snapshot = {}
+    for path in (artifact_dir, *artifact_dir.rglob('*')):
+        relative_path = path.relative_to(artifact_dir).as_posix() or '.'
+        if path.is_symlink():
+            snapshot[relative_path] = ('symlink', os.readlink(path))
+        elif path.is_dir():
+            snapshot[relative_path] = ('directory',)
+        else:
+            snapshot[relative_path] = ('file', path.read_bytes())
+    return snapshot
+
+
+def _structure_execution_writer_kwargs(cfg):
+    execution_cfg = _structure_first_pass_execution_config(cfg)
+    return {
+        'structure_payload': {
+            **execution_cfg,
+            'candidates': [],
+        },
+        'structure_summary_df': pd.DataFrame([{'formula': 'XBN'}]),
+        'structure_variant_df': pd.DataFrame(columns=['formula']),
+    }, execution_cfg
+
+
+def _assert_summary_preflight_rejection_is_atomic(
+    tmp_path,
+    invalid_summary,
+    *,
+    execution_active,
+    prepare_artifact_root=None,
+):
+    artifact_dir = tmp_path / 'artifacts'
+    cfg = {
+        'project': {'artifact_dir': str(artifact_dir)},
+        'data': {'formula_column': 'formula'},
+        'screening': {
+            'ranking_stability': {'enabled': False},
+            'decision_policy': {'enabled': False},
+            'structure_generation_seeds': {'enabled': False},
+        },
+    }
+    writer_kwargs = {}
+    if execution_active:
+        writer_kwargs, _execution_cfg = _structure_execution_writer_kwargs(cfg)
+    manifest = {
+        'name': 'twod_matpd',
+        'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-21T00:00:00+00:00',
+        'target_column': 'band_gap',
+    }
+    if prepare_artifact_root is not None:
+        prepare_artifact_root(artifact_dir)
+
+    before = _report_bundle_snapshot(artifact_dir)
+    with pytest.raises(ValueError, match='experiment_summary'):
+        _save_minimal_report_bundle(
+            cfg,
+            experiment_summary=invalid_summary,
+            manifest=manifest,
+            **writer_kwargs,
+        )
+    assert _report_bundle_snapshot(artifact_dir) == before
+
+    _save_minimal_report_bundle(cfg, manifest=manifest, **writer_kwargs)
+    provenance_path = artifact_dir / 'artifact_provenance.json'
+    provenance = io_utils.read_json_file(provenance_path)
+    assert io_utils.assess_artifact_provenance(
+        provenance,
+        cfg,
+        manifest,
+        project_root_path=tmp_path,
+    )['status'] == 'current'
+    valid_snapshot = _report_bundle_snapshot(artifact_dir)
+
+    with pytest.raises(ValueError, match='experiment_summary'):
+        _save_minimal_report_bundle(
+            cfg,
+            experiment_summary=invalid_summary,
+            manifest=manifest,
+            **writer_kwargs,
+        )
+    assert _report_bundle_snapshot(artifact_dir) == valid_snapshot
+    _save_minimal_report_bundle(cfg, manifest=manifest, **writer_kwargs)
+    assert io_utils.assess_artifact_provenance(
+        io_utils.read_json_file(provenance_path),
+        cfg,
+        manifest,
+        project_root_path=tmp_path,
+    )['status'] == 'current'
+
+
+@pytest.mark.parametrize(
+    'shape_value',
+    [
+        pytest.param('', id='empty-string'),
+        pytest.param('wrong-shape', id='nonempty-string'),
+        pytest.param([], id='empty-list'),
+        pytest.param([1], id='nonempty-list'),
+        pytest.param(0, id='zero'),
+        pytest.param(1, id='nonzero-number'),
+        pytest.param(False, id='false'),
+        pytest.param(True, id='true'),
+    ],
+)
+@pytest.mark.parametrize('container_name', ['screening', 'structure-generation-bridge'])
+def test_reporting_rejects_wrong_shaped_summary_before_any_bundle_mutation(
+    tmp_path,
+    monkeypatch,
+    container_name,
+    shape_value,
+):
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    invalid_summary = {'screening': shape_value}
+    if container_name == 'structure-generation-bridge':
+        invalid_summary = {
+            'screening': {'structure_generation_bridge': shape_value},
+        }
+    _assert_summary_preflight_rejection_is_atomic(
+        tmp_path,
+        invalid_summary,
+        execution_active=False,
+    )
+
+
+@pytest.mark.parametrize(
+    'override_case',
+    [
+        'blank',
+        'traversal',
+        'absolute',
+        'non-string-number',
+        'non-string-list',
+        'non-string-mapping',
+        'non-string-bool',
+        'null',
+        'directory',
+        'wrong-suffix',
+        'fixed-json-alias',
+        'summary-bn-slice-alias',
+        'variants-bn-slice-alias',
+        'missing',
+        'roles-swapped',
+        'inactive-declaration',
+    ],
+)
+def test_reporting_rejects_invalid_dynamic_summary_declaration_before_mutation(
+    tmp_path,
+    monkeypatch,
+    override_case,
+):
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    cfg = {
+        'project': {'artifact_dir': str(tmp_path / 'artifacts')},
+        'screening': {},
+    }
+    execution_cfg = _structure_first_pass_execution_config(cfg)
+    bridge = {
+        f'first_pass_execution_{field}': execution_cfg[field]
+        for field in ('artifact', 'summary_artifact', 'variants_artifact')
+    }
+    values = {
+        'blank': ' ',
+        'traversal': '../escape.json',
+        'absolute': str(tmp_path / 'outside.json'),
+        'non-string-number': 7,
+        'non-string-list': ['execution.json'],
+        'non-string-mapping': {'path': 'execution.json'},
+        'non-string-bool': False,
+        'null': None,
+        'directory': 'declared-directory.json',
+        'wrong-suffix': 'nested/execution.csv',
+        'fixed-json-alias': 'metrics.json',
+        'summary-bn-slice-alias': 'bn_slice.csv',
+        'variants-bn-slice-alias': 'bn_slice.csv',
+        'missing': 'nested/missing.json',
+    }
+    field_by_case = {
+        'summary-bn-slice-alias': 'first_pass_execution_summary_artifact',
+        'variants-bn-slice-alias': 'first_pass_execution_variants_artifact',
+    }
+    if override_case == 'roles-swapped':
+        bridge.update({
+            'first_pass_execution_summary_artifact': execution_cfg['variants_artifact'],
+            'first_pass_execution_variants_artifact': execution_cfg['summary_artifact'],
+        })
+    elif override_case != 'inactive-declaration':
+        bridge[field_by_case.get(override_case, 'first_pass_execution_artifact')] = (
+            values[override_case]
+        )
+
+    prepare_artifact_root = None
+    if override_case == 'directory':
+        def prepare_artifact_root(artifact_dir):
+            (artifact_dir / 'declared-directory.json').mkdir(parents=True)
+
+    _assert_summary_preflight_rejection_is_atomic(
+        tmp_path,
+        {'screening': {'structure_generation_bridge': bridge}},
+        execution_active=override_case != 'inactive-declaration',
+        prepare_artifact_root=prepare_artifact_root,
+    )
+
+
+@pytest.mark.parametrize(
+    'valid_case',
+    [
+        'screening-absent',
+        'screening-null',
+        'screening-empty',
+        'bridge-absent',
+        'bridge-null',
+        'bridge-empty',
+        'exact-paths',
+        'normalized-paths',
+        'case-only-samefile',
+    ],
+)
+def test_reporting_accepts_valid_summary_fallback_and_role_contracts(
+    tmp_path,
+    monkeypatch,
+    valid_case,
+):
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    artifact_dir = tmp_path / 'artifacts'
+    execution_overrides = {}
+    if valid_case == 'normalized-paths':
+        execution_overrides = {
+            'artifact': 'nested/a/../execution.json',
+            'summary_artifact': 'nested/a/../execution-summary.csv',
+            'variants_artifact': 'nested/a/../execution-variants.csv',
+            'structure_dir': 'nested/a/../cifs',
+        }
+    cfg = {
+        'project': {'artifact_dir': str(artifact_dir)},
+        'data': {'formula_column': 'formula'},
+        'screening': {
+            'ranking_stability': {'enabled': False},
+            'decision_policy': {'enabled': False},
+            'structure_generation_seeds': {'enabled': False},
+            'structure_first_pass_execution': execution_overrides,
+        },
+    }
+    writer_kwargs, execution_cfg = _structure_execution_writer_kwargs(cfg)
+    manifest = {
+        'name': 'twod_matpd',
+        'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-21T00:00:00+00:00',
+        'target_column': 'band_gap',
+    }
+    if valid_case.startswith('screening-'):
+        state = valid_case.removeprefix('screening-')
+        summary = {} if state == 'absent' else {
+            'screening': None if state == 'null' else {},
+        }
+    elif valid_case.startswith('bridge-'):
+        state = valid_case.removeprefix('bridge-')
+        bridge = None if state == 'null' else {}
+        summary = {'screening': {}}
+        if state != 'absent':
+            summary['screening']['structure_generation_bridge'] = bridge
+    else:
+        summary_paths = execution_cfg
+        if valid_case == 'normalized-paths':
+            summary_paths = {
+                'artifact': 'nested/execution.json',
+                'summary_artifact': 'nested/execution-summary.csv',
+                'variants_artifact': 'nested/execution-variants.csv',
+            }
+        if valid_case == 'case-only-samefile':
+            _save_minimal_report_bundle(cfg, manifest=manifest, **writer_kwargs)
+            case_only_value = execution_cfg['artifact'].upper()
+            case_only_path = artifact_dir / case_only_value
+            if not case_only_path.exists():
+                pytest.skip('local filesystem treats case-only names as distinct files')
+            assert (artifact_dir / execution_cfg['artifact']).samefile(case_only_path)
+            summary_paths = {**execution_cfg, 'artifact': case_only_value}
+        summary = {
+            'screening': {
+                'structure_generation_bridge': {
+                    f'first_pass_execution_{field}': summary_paths[field]
+                    for field in ('artifact', 'summary_artifact', 'variants_artifact')
+                },
+            },
+        }
+
+    _save_minimal_report_bundle(
+        cfg,
+        experiment_summary=summary,
+        manifest=manifest,
+        **writer_kwargs,
+    )
+    provenance = io_utils.read_json_file(
+        artifact_dir / 'artifact_provenance.json'
+    )
+    assert io_utils.assess_artifact_provenance(
+        provenance,
+        cfg,
+        manifest,
+        project_root_path=tmp_path,
+    )['status'] == 'current'
+    assert all(
+        (artifact_dir / execution_cfg[field]).resolve().relative_to(
+            artifact_dir.resolve()
+        ).as_posix() in provenance['published_outputs']
+        for field in ('artifact', 'summary_artifact', 'variants_artifact')
+    )
 
 
 @pytest.mark.parametrize('prior_bundle', [False, True], ids=['no-prior', 'known-good-prior'])
