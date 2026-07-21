@@ -1635,6 +1635,19 @@ def _structure_execution_writer_kwargs(cfg):
         [[0.0, 0.0, 0.5], [0.5, 0.5, 0.5]],
     )
     atoms = _structure_to_atoms(structure)
+    artifact_dir = Path(cfg['project']['artifact_dir'])
+    raw_dir = artifact_dir.parent / f'{artifact_dir.name}-raw'
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    data_cfg = cfg.setdefault('data', {})
+    data_cfg.update({
+        'dataset': 'twod_matpd',
+        'raw_dir': str(raw_dir),
+        'formula_column': data_cfg.get('formula_column', 'formula'),
+    })
+    (raw_dir / 'twod_matpd.json').write_text(
+        json.dumps([{'jid': 'jid-1', 'formula': 'BN', 'atoms': atoms}]),
+        encoding='utf-8',
+    )
     structure_summary = _structure_summary_from_atoms(atoms)
     (
         min_distance,
@@ -1653,11 +1666,17 @@ def _structure_execution_writer_kwargs(cfg):
         'execution_variant_rank': 1,
         'execution_status': 'ok',
         'execution_message': None,
+        'seed_reference_formula': 'BN',
+        'seed_reference_record_id': 'jid-1',
+        'execution_plan_type': 'reference_reuse',
+        'relabel_site_indices': '',
+        'relabel_target_elements': '',
+        'removed_site_indices': '',
         'relabeled_site_count': 0,
         'removed_site_count': 0,
         'formula_matches_candidate': True,
         'geometry_sanity_pass': True,
-        'execution_variant_selection_score': 1.0,
+        'execution_variant_selection_score': 0.0,
         'generated_structure_cif_path': (
             f"{execution_cfg['structure_dir']}/xbn__variant_01.cif"
         ),
@@ -1682,6 +1701,8 @@ def _structure_execution_writer_kwargs(cfg):
             'executed_formulas': ['BN'],
             'candidates': [{
                 'formula': 'BN',
+                'seed_reference_formula': 'BN',
+                'seed_reference_record_id': 'jid-1',
                 'candidate_status': 'executed',
                 'selected_variant_id': 'xbn__variant_01',
                 'variants': [{
@@ -1698,6 +1719,8 @@ def _structure_execution_writer_kwargs(cfg):
                 'first_pass_execution_successful_variant_count': 1,
                 'first_pass_execution_geometry_pass_variant_count': 1,
                 'first_pass_execution_status': 'executed',
+                'structure_followup_best_seed_reference_formula': 'BN',
+                'structure_followup_best_seed_reference_record_id': 'jid-1',
                 'first_pass_execution_selected_variant_id': 'xbn__variant_01',
                 'first_pass_execution_selected_variant_rank': 1,
                 'first_pass_execution_selected_cif_path': (
@@ -1744,7 +1767,7 @@ def _canonical_structure_execution_writer_inputs(
         'cartesian': False,
     }
     raw_formula = 'BN'
-    if baseline_case == 'multiple-success':
+    if baseline_case in {'multiple-success', 'vacancy'}:
         raw_formula = 'B2N'
         atoms = {
             'elements': ['B', 'B', 'N'],
@@ -1810,6 +1833,7 @@ def _canonical_structure_execution_writer_inputs(
             'multiple-donor': [('C', 'jid-1', 'BN')],
             'no-plan': [('AlBN', 'jid-1', 'BN')],
             'multiple-success': [('AlBN', 'jid-1', 'B2N')],
+            'vacancy': [('BN', 'jid-1', 'B2N')],
         }.get(baseline_case, [('BN', 'jid-1', 'BN')])
         if baseline_case == 'partial':
             seed_rows.append(('AlBN', 'missing-jid', 'BN'))
@@ -1842,6 +1866,7 @@ def _canonical_structure_execution_writer_inputs(
         formula_col=formula_col,
     )
     return cfg, {
+        'structure_generation_seed_df': seed_df,
         'structure_payload': payload,
         'structure_summary_df': summary_df,
         'structure_variant_df': variant_df,
@@ -1969,6 +1994,109 @@ def _assert_structure_execution_rejection_is_atomic(
         project_root_path=tmp_path,
     )
     assert assessment['status'] == 'current'
+
+
+_EDIT_PLAN_IDENTITY_CASES = (
+    ('reference-reuse-false-relabel', 'full', 'formula'),
+    ('relabel-site-index', 'multiple-success', 'formula'),
+    ('relabel-target-element', 'multiple-success', 'composition'),
+    ('removed-site-index', 'vacancy', 'formula'),
+)
+
+
+def _mutate_structure_execution_edit_plan_story(
+    canonical_kwargs,
+    mutation_kind,
+):
+    invalid_kwargs = copy.deepcopy(canonical_kwargs)
+    variant_df = invalid_kwargs['structure_variant_df']
+    variant_index = variant_df.index[0]
+    variant_id = variant_df.loc[variant_index, 'execution_variant_id']
+    payload_variant = next(
+        variant
+        for candidate in invalid_kwargs['structure_payload']['candidates']
+        for variant in candidate['variants']
+        if variant['execution_variant_id'] == variant_id
+    )
+
+    if mutation_kind == 'reference-reuse-false-relabel':
+        updates = {
+            'execution_plan_type': 'edited_structure',
+            'relabel_site_indices': '0',
+            'relabel_target_elements': 'Al',
+            'relabeled_site_count': 1,
+            'relaxation_status': 'not_run_unrelaxed_species_edit',
+            'final_status': 'ready_for_external_relaxation',
+        }
+        summary_updates = {
+            'first_pass_execution_selected_relaxation_status': (
+                'not_run_unrelaxed_species_edit'
+            ),
+            'first_pass_execution_selected_final_status': (
+                'ready_for_external_relaxation'
+            ),
+        }
+    elif mutation_kind == 'relabel-site-index':
+        current_index = int(variant_df.loc[variant_index, 'relabel_site_indices'])
+        updates = {'relabel_site_indices': str(1 - current_index)}
+        summary_updates = {}
+    elif mutation_kind == 'relabel-target-element':
+        updates = {'relabel_target_elements': 'C'}
+        summary_updates = {}
+    elif mutation_kind == 'removed-site-index':
+        current_index = int(variant_df.loc[variant_index, 'removed_site_indices'])
+        updates = {'removed_site_indices': str(1 - current_index)}
+        summary_updates = {}
+    else:  # pragma: no cover - parametrization contract
+        raise AssertionError(mutation_kind)
+
+    for field_name, value in updates.items():
+        variant_df.loc[variant_index, field_name] = value
+        payload_variant[field_name] = value
+    for field_name, value in summary_updates.items():
+        invalid_kwargs['structure_summary_df'].loc[0, field_name] = value
+    return invalid_kwargs
+
+
+@pytest.mark.parametrize(
+    ('mutation_kind', 'baseline_case', 'formula_col'),
+    _EDIT_PLAN_IDENTITY_CASES,
+)
+def test_reporting_rejects_noncanonical_edit_plan_identity_atomically(
+    tmp_path,
+    monkeypatch,
+    mutation_kind,
+    baseline_case,
+    formula_col,
+):
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    cfg, canonical_kwargs = _canonical_structure_execution_writer_inputs(
+        tmp_path,
+        baseline_case=baseline_case,
+        formula_col=formula_col,
+    )
+    invalid_kwargs = _mutate_structure_execution_edit_plan_story(
+        canonical_kwargs,
+        mutation_kind,
+    )
+    manifest = {
+        'name': 'twod_matpd',
+        'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-21T00:00:00+00:00',
+        'target_column': 'band_gap',
+    }
+
+    _assert_structure_execution_rejection_is_atomic(
+        tmp_path,
+        cfg,
+        canonical_kwargs,
+        invalid_kwargs,
+        manifest,
+    )
 
 
 @pytest.mark.parametrize(
@@ -2648,7 +2776,7 @@ def test_reporting_accepts_canonical_failed_variant_no_success_control(
 
 
 @pytest.mark.parametrize('formula_col', ['formula', 'composition'])
-def test_reporting_accepts_builder_formula_mismatch_variant_state(
+def test_reporting_rejects_nonapplied_builder_edit_plan(
     tmp_path,
     monkeypatch,
     formula_col,
@@ -2687,16 +2815,9 @@ def test_reporting_accepts_builder_formula_mismatch_variant_state(
         'target_column': 'band_gap',
     }
 
-    _save_minimal_report_bundle(cfg, manifest=manifest, **writer_kwargs)
-    assessment = io_utils.assess_artifact_provenance(
-        io_utils.read_json_file(
-            Path(cfg['project']['artifact_dir']) / 'artifact_provenance.json'
-        ),
-        cfg,
-        manifest,
-        project_root_path=tmp_path,
-    )
-    assert assessment['status'] == 'current'
+    with pytest.raises(ValueError, match='edit plan disagrees'):
+        _save_minimal_report_bundle(cfg, manifest=manifest, **writer_kwargs)
+    assert _report_bundle_snapshot(Path(cfg['project']['artifact_dir'])) is None
 
 
 def test_reporting_accepts_builder_mixed_variant_outcomes_and_diagnostics(

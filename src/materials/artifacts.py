@@ -57,12 +57,18 @@ from materials.structure_artifacts import (
 )
 from materials.structure_helpers import (
     _STRUCTURE_EXECUTION_CANDIDATE_STATUS_BY_BRANCH,
+    _STRUCTURE_EXECUTION_EDIT_PLAN_FIELDS,
     _STRUCTURE_EXECUTION_SELECTED_PROJECTION_FIELDS,
     _STRUCTURE_EXECUTION_VARIANT_SELECTION_FIELDS,
     _STRUCTURE_EXECUTION_ZERO_VARIANT_STATUSES,
+    _build_variant_plans,
+    _infer_reference_formula_multiplier,
+    _scaled_formula_counts,
     _select_structure_execution_variant,
+    _structure_from_atoms,
     _structure_first_pass_execution_config,
     _structure_execution_variant_expected_state,
+    _validate_structure_execution_edit_plan_identity,
 )
 from materials.summary import *
 
@@ -309,6 +315,8 @@ def _validate_structure_execution_frame_roles(
     formula_col: str,
     geometry_min_distance_ratio_pass_threshold: float,
     geometry_min_distance_ratio_overlap_threshold: float,
+    max_variants_per_candidate: int,
+    raw_record_lookup: dict[str, dict],
 ) -> None:
     def normalized(value):
         return make_json_safe(value)
@@ -357,6 +365,9 @@ def _validate_structure_execution_frame_roles(
         'geometry_mean_distance',
         'geometry_overlap_pair_count',
         'geometry_sanity_pass',
+        'seed_reference_formula',
+        'seed_reference_record_id',
+        *_STRUCTURE_EXECUTION_EDIT_PLAN_FIELDS,
         *selected_variant_fields,
         *_STRUCTURE_EXECUTION_VARIANT_SELECTION_FIELDS,
         *STRUCTURE_SUMMARY_COLUMNS,
@@ -367,6 +378,8 @@ def _validate_structure_execution_frame_roles(
         'first_pass_execution_successful_variant_count',
         'first_pass_execution_geometry_pass_variant_count',
         'first_pass_execution_status',
+        'structure_followup_best_seed_reference_formula',
+        'structure_followup_best_seed_reference_record_id',
         *selected_summary_fields,
     }
     variant_columns = set(variant_fields)
@@ -522,6 +535,89 @@ def _validate_structure_execution_frame_roles(
             row for row in variants.values()
             if normalized(row.get(formula_col)) == formula
         ]
+        if candidate_variants:
+            seed_formula = text(
+                candidate.get('seed_reference_formula'),
+                f'{formula} seed reference formula',
+            )
+            record_id = text(
+                candidate.get('seed_reference_record_id'),
+                f'{formula} seed reference record id',
+            )
+            for summary_field, expected_value in (
+                ('structure_followup_best_seed_reference_formula', seed_formula),
+                ('structure_followup_best_seed_reference_record_id', record_id),
+            ):
+                if text(summary.get(summary_field), f'{formula} {summary_field}') != (
+                    expected_value
+                ):
+                    reject(f'{formula} {summary_field}')
+            if any(
+                text(row.get('seed_reference_formula'), 'variant seed reference formula')
+                != seed_formula
+                or text(
+                    row.get('seed_reference_record_id'),
+                    'variant seed reference record id',
+                ) != record_id
+                for row in candidate_variants
+            ):
+                reject(f'{formula} variant source identity')
+
+            reference_record = raw_record_lookup.get(record_id)
+            reference_atoms = (
+                reference_record.get('atoms')
+                if isinstance(reference_record, dict)
+                else None
+            )
+            if not isinstance(reference_atoms, dict):
+                reject(f'{formula} source structure evidence')
+            try:
+                reference_structure = _structure_from_atoms(reference_atoms)
+            except Exception as exc:
+                reject(
+                    f'{formula} source structure evidence',
+                    f'cannot construct a structure: {type(exc).__name__}',
+                )
+            scale_factor = _infer_reference_formula_multiplier(
+                reference_atoms,
+                seed_formula,
+            )
+            target_counts = (
+                _scaled_formula_counts(formula, scale_factor)
+                if scale_factor is not None
+                else None
+            )
+            if target_counts is None:
+                reject(f'{formula} source structure edit scale')
+            expected_plans, plan_error = _build_variant_plans(
+                reference_structure,
+                Counter(site.specie.symbol for site in reference_structure),
+                target_counts,
+                max_variants=max_variants_per_candidate,
+            )
+            expected_ranks = list(range(1, len(expected_plans) + 1))
+            actual_ranks = sorted(
+                count(row.get('execution_variant_rank'), 'variant rank')
+                for row in candidate_variants
+            )
+            if plan_error or actual_ranks != expected_ranks:
+                reject(f'{formula} edit plan inventory')
+            for row in candidate_variants:
+                variant_rank = count(
+                    row.get('execution_variant_rank'),
+                    'variant rank',
+                )
+                variant_id = text(
+                    row.get('execution_variant_id'),
+                    'variant execution_variant_id',
+                )
+                _validate_structure_execution_edit_plan_identity(
+                    reference_structure=reference_structure,
+                    expected_plan=expected_plans[variant_rank - 1],
+                    variant_record=row,
+                    final_atoms=payload_variants[variant_id].get('atoms'),
+                    execution_status=row.get('execution_status'),
+                )
         successful = [
             row for row in candidate_variants
             if normalized(row.get('execution_status')) == 'ok'
@@ -869,6 +965,7 @@ def save_metrics_and_predictions(
         execution_outputs_will_publish=execution_outputs_will_publish,
     )
     if execution_outputs_will_publish:
+        raw_record_lookup = load_cached_raw_record_lookup(cfg)
         _validate_structure_execution_frame_roles(
             structure_first_pass_execution_summary_df,
             structure_first_pass_execution_variant_df,
@@ -884,6 +981,10 @@ def save_metrics_and_predictions(
                     'geometry_min_distance_ratio_overlap_threshold'
                 ]
             ),
+            max_variants_per_candidate=int(
+                structure_first_pass_execution_cfg['max_variants_per_candidate']
+            ),
+            raw_record_lookup=raw_record_lookup,
         )
     if include_parity_plot:
         missing_plot_columns = {'target', 'prediction'} - set(prediction_df.columns)

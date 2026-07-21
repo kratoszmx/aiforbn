@@ -168,6 +168,9 @@ def _save_structure_execution_bundle(
         cfg['screening'][gate]['enabled'] = False
     if execution_paths is not None:
         cfg['screening']['structure_first_pass_execution'].update(execution_paths)
+    cfg['screening']['structure_first_pass_execution'][
+        'max_variants_per_candidate'
+    ] = 1
 
     dataset_df = pd.DataFrame([{
         'formula': 'BN', 'target': 5.0, 'band_gap': 5.0,
@@ -178,7 +181,7 @@ def _save_structure_execution_bundle(
     }])
     structure_generation_seed_df = pd.DataFrame([{
         'formula': 'AlBN', 'structure_generation_seed_status': 'ok',
-        'seed_reference_formula': 'BN', 'seed_reference_record_id': 'jid-1',
+        'seed_reference_formula': 'B2N', 'seed_reference_record_id': 'jid-1',
     }])
     selection_summary = {
         'selected_feature_set': cfg['features']['feature_set'],
@@ -195,6 +198,25 @@ def _save_structure_execution_bundle(
         [[0.0, 0.0, 0.5], [0.5, 0.0, 0.5], [0.0, 0.5, 0.5]],
     )
     atoms = _structure_to_atoms(structure)
+    reference_structure = Structure(
+        structure.lattice,
+        ['B', 'B', 'N'],
+        structure.frac_coords,
+    )
+    raw_dir = artifact_dir.parent / f'{artifact_dir.name}-raw'
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    cfg['data'].update({
+        'dataset': 'twod_matpd',
+        'raw_dir': str(raw_dir),
+    })
+    (raw_dir / 'twod_matpd.json').write_text(
+        json.dumps([{
+            'jid': 'jid-1',
+            'formula': 'B2N',
+            'atoms': _structure_to_atoms(reference_structure),
+        }]),
+        encoding='utf-8',
+    )
     structure_summary = _structure_summary_from_atoms(atoms)
     (
         min_distance,
@@ -213,11 +235,17 @@ def _save_structure_execution_bundle(
         'execution_variant_rank': 1,
         'execution_status': 'ok',
         'execution_message': None,
+        'seed_reference_formula': 'B2N',
+        'seed_reference_record_id': 'jid-1',
+        'execution_plan_type': 'edited_structure',
+        'relabel_site_indices': '0',
+        'relabel_target_elements': 'Al',
+        'removed_site_indices': '',
         'relabeled_site_count': 1,
         'removed_site_count': 0,
         'formula_matches_candidate': True,
         'geometry_sanity_pass': True,
-        'execution_variant_selection_score': 1.0,
+        'execution_variant_selection_score': 0.0,
         'generated_structure_cif_path': (
             f"{execution_cfg['structure_dir']}/albn__variant_01.cif"
         ),
@@ -246,6 +274,8 @@ def _save_structure_execution_bundle(
         'executed_formulas': ['AlBN'] if execution_active else [],
         'candidates': ([{
             'formula': 'AlBN',
+            'seed_reference_formula': 'B2N',
+            'seed_reference_record_id': 'jid-1',
             'candidate_status': 'executed',
             'selected_variant_id': 'albn__variant_01',
             'variants': [{
@@ -262,6 +292,8 @@ def _save_structure_execution_bundle(
             'first_pass_execution_successful_variant_count': 1,
             'first_pass_execution_geometry_pass_variant_count': 1,
             'first_pass_execution_status': 'executed',
+            'structure_followup_best_seed_reference_formula': 'B2N',
+            'structure_followup_best_seed_reference_record_id': 'jid-1',
             **{
                 summary_field: variant_row[variant_field]
                 for summary_field, variant_field in (

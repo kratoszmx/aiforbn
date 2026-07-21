@@ -265,6 +265,7 @@
 - Reset Round 2 修复 zero-variant structure-execution candidate 可把 payload、summary 与 status counts 协调改成任意或 claim-like 状态后仍发布 current bundle 的缺口；builder、planner 与 writer 现共用 materials 内唯一有限状态词表，并在 artifact root 创建、旧 marker 失效或任何写入前拒绝未知、大小写/空白变体及非字符串状态。missing/invalid reference、unresolved scale、formula scale mismatch、planner error、自定义 formula column/路径、failed-only、partial/full 与 non-first winner 控制保持有效，invalid-reference 动态异常细节仍与机器状态分离；未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - Reset Round 1（variant-state integrity）修复 structure-execution variant 可协调使用未知/claim-like execution/final 状态、与 formula/geometry/edit/relaxation 证据矛盾的状态，或在 `ok` 时缺失 CIF bytes 后仍发布 current bundle 的缺口；builder 与 writer 现共用单一 materials 状态解析器，并在 artifact root 创建、旧 marker 失效或任何写入前核对 finite execution vocabulary、formula identity、geometry result、edit counts、generated structure、relaxation 与 final status。reference control、formula mismatch、geometry failure、external-relaxation handoff、error-only、混合 success/error、自定义 formula column/路径及自由诊断文本均保留有效；未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - 本次 Reset Round 2（structure identity）修复成功 variant 的 payload atoms、generated formula/site count、结构摘要、几何诊断与实际发布 CIF bytes 可彼此矛盾却仍发布 current bundle 的缺口；builder 与 writer 现共用单一 materials identity preflight，并在 artifact root 创建、旧 marker 失效或任何写入前从 atoms 重建并核对全部结构证据。默认/自定义 formula column、自定义 nested path、有效重试恢复及原有 error/partial/full 分支均保持有效；未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
+- 本次 Reset Round 3（edit-plan identity）修复 variant 可协调伪造 relabel site/target、vacancy site 与 edit counts，同时保留内部一致的 final atoms/CIF 并发布 current bundle 的缺口；builder 与 writer 现共用唯一 edit-plan projection，writer 在任何 bundle mutation 前从 cached raw source 重建 deterministic plan 并核对 source、plan、final atoms 的逐位结构关系。reference reuse、relabel、vacancy、自定义 formula column、失败 variant 与有效重试恢复均有回归覆盖；未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - contract verifier 现精确锁定 validation-profile 命令序列、三个 active project-skill 记录与七个 retired-guidance 路径；public-surface 测试同时核对模块摘要及根摘要的 callable 参数顺序和 keyword-only 边界
 - `--verify-agent-contract` 现会精确锁定六个 module 的 path/role/public-surface/agent-rules/local-utils/allowed-dependencies；公开 surface 测试逐个要求四个生产模块非空，并显式覆盖 import re-export
 
@@ -279,7 +280,7 @@
 
 3. 完整 src 测试：
 - `conda run -n quant python3 -m pytest -q src`
-- 结果：`639 passed, 1 warning`
+- 结果：`643 passed, 1 warning`
 - 剩余 warning 是 PyTorch nested-tensor prototype 提示，不是测试失败；原 sklearn feature-name warnings 已消除
 
 4. UI 文字化验证：

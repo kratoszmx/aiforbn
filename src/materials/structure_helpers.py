@@ -65,6 +65,15 @@ _STRUCTURE_EXECUTION_VARIANT_SELECTION_FIELDS = (
     'execution_variant_selection_score',
     'execution_variant_rank',
 )
+_STRUCTURE_EXECUTION_EDIT_PLAN_FIELDS = (
+    'execution_plan_type',
+    'execution_variant_selection_score',
+    'relabel_site_indices',
+    'relabel_target_elements',
+    'removed_site_indices',
+    'relabeled_site_count',
+    'removed_site_count',
+)
 _STRUCTURE_EXECUTION_CANDIDATE_STATUS_BY_BRANCH = {
     'missing_reference': 'missing_reference_record',
     'invalid_reference': 'invalid_reference_structure',
@@ -844,6 +853,28 @@ def _build_variant_plans(
     return ranked_plans[:max_variants], None
 
 
+def _structure_execution_plan_projection(
+    plan: dict[str, object],
+) -> dict[str, object]:
+    """Serialize one deterministic edit plan into its public variant fields."""
+
+    return {
+        'execution_plan_type': plan['plan_type'],
+        'execution_variant_selection_score': float(
+            plan['variant_selection_score']
+        ),
+        'relabel_site_indices': '|'.join(
+            str(index) for index in plan['relabel_indices']
+        ),
+        'relabel_target_elements': '|'.join(plan['relabel_targets']),
+        'removed_site_indices': '|'.join(
+            str(index) for index in plan['remove_indices']
+        ),
+        'relabeled_site_count': int(len(plan['relabel_indices'])),
+        'removed_site_count': int(len(plan['remove_indices'])),
+    }
+
+
 def _predict_structure_band_gap_proxy(
     *,
     candidate_formula: str,
@@ -897,6 +928,79 @@ def _apply_variant_plan(
     if remove_indices:
         structure.remove_sites(sorted(remove_indices, reverse=True))
     return structure
+
+
+def _validate_structure_execution_edit_plan_identity(
+    *,
+    reference_structure: Structure,
+    expected_plan: dict[str, object],
+    variant_record: dict[str, object],
+    final_atoms,
+    execution_status,
+) -> None:
+    """Bind a published edit history to the source and resulting structure."""
+
+    expected_projection = _structure_execution_plan_projection(expected_plan)
+    actual_projection = {
+        field_name: make_json_safe(variant_record.get(field_name))
+        for field_name in _STRUCTURE_EXECUTION_EDIT_PLAN_FIELDS
+    }
+    if actual_projection != expected_projection:
+        raise ValueError(
+            'structure_first_pass_execution edit plan must match the '
+            'builder-produced source-structure plan'
+        )
+    if make_json_safe(execution_status) != (
+        _STRUCTURE_EXECUTION_VARIANT_STATUS_BY_BRANCH['execution_ok']
+    ):
+        return
+
+    try:
+        expected_structure = _apply_variant_plan(
+            reference_structure,
+            relabel_indices=tuple(expected_plan['relabel_indices']),
+            relabel_targets=tuple(expected_plan['relabel_targets']),
+            remove_indices=tuple(expected_plan['remove_indices']),
+        )
+        actual_structure = _structure_from_atoms(final_atoms)
+    except Exception as exc:
+        raise ValueError(
+            'structure_first_pass_execution edit plan cannot reconstruct '
+            f'published atoms: {type(exc).__name__}'
+        ) from exc
+
+    expected_species = [site.species_string for site in expected_structure]
+    actual_species = [site.species_string for site in actual_structure]
+    if expected_species != actual_species or not np.allclose(
+        np.asarray(expected_structure.lattice.matrix),
+        np.asarray(actual_structure.lattice.matrix),
+        rtol=1e-8,
+        atol=1e-8,
+    ):
+        raise ValueError(
+            'structure_first_pass_execution edit plan disagrees with '
+            'published atoms evidence'
+        )
+    for expected_site, actual_site in zip(
+        expected_structure,
+        actual_structure,
+        strict=True,
+    ):
+        coordinate_delta = np.asarray(
+            expected_site.frac_coords - actual_site.frac_coords,
+            dtype=float,
+        )
+        coordinate_delta -= np.round(coordinate_delta)
+        if not np.allclose(
+            coordinate_delta,
+            np.zeros(3),
+            rtol=0.0,
+            atol=1e-8,
+        ):
+            raise ValueError(
+                'structure_first_pass_execution edit plan disagrees with '
+                'published atoms evidence'
+            )
 
 
 def _clean_variant_basename(candidate_formula: str, variant_rank: int) -> str:
