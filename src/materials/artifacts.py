@@ -292,6 +292,30 @@ def _validate_experiment_summary_output_contract(
             )
 
 
+def _validate_structure_execution_frame_roles(
+    summary_df: pd.DataFrame,
+    variant_df: pd.DataFrame,
+) -> None:
+    role_requirements = (
+        (
+            'structure_first_pass_execution_summary_df',
+            summary_df,
+            'first_pass_execution_status',
+        ),
+        (
+            'structure_first_pass_execution_variant_df',
+            variant_df,
+            'execution_variant_id',
+        ),
+    )
+    for role_name, frame, required_column in role_requirements:
+        if not frame.empty and required_column not in frame.columns:
+            raise ValueError(
+                f'{role_name} must contain canonical structure-execution column '
+                f'{required_column!r}'
+            )
+
+
 def save_metrics_and_predictions(
     metrics,
     prediction_df,
@@ -529,15 +553,21 @@ def save_metrics_and_predictions(
     validate_json_payload(metrics, indent=2)
     validate_json_payload(experiment_summary, ensure_ascii=False, indent=2)
     validate_json_payload(manifest, indent=2)
+    execution_outputs_will_publish = bool(
+        structure_first_pass_execution_payload
+        and not structure_first_pass_execution_summary_df.empty
+    )
     _validate_experiment_summary_output_contract(
         artifact_dir,
         experiment_summary,
         structure_first_pass_execution_paths,
-        execution_outputs_will_publish=bool(
-            structure_first_pass_execution_payload
-            and not structure_first_pass_execution_summary_df.empty
-        ),
+        execution_outputs_will_publish=execution_outputs_will_publish,
     )
+    if execution_outputs_will_publish:
+        _validate_structure_execution_frame_roles(
+            structure_first_pass_execution_summary_df,
+            structure_first_pass_execution_variant_df,
+        )
     if include_parity_plot:
         missing_plot_columns = {'target', 'prediction'} - set(prediction_df.columns)
         if missing_plot_columns:

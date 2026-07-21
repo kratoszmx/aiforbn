@@ -1128,8 +1128,12 @@ def test_reporting_clears_stale_optional_artifacts_on_disabled_second_run(tmp_pa
         cfg,
         screened_df=screened_df,
         structure_payload=structure_payload,
-        structure_summary_df=pd.DataFrame([{'formula': 'XBN'}]),
-        structure_variant_df=pd.DataFrame([{'formula': 'XBN'}]),
+        structure_summary_df=pd.DataFrame([
+            {'formula': 'XBN', 'first_pass_execution_status': 'executed'},
+        ]),
+        structure_variant_df=pd.DataFrame([
+            {'formula': 'XBN', 'execution_variant_id': 'xbn__variant_01'},
+        ]),
     )
     stale_paths = [
         artifact_dir / execution_cfg['artifact'],
@@ -1630,9 +1634,56 @@ def _structure_execution_writer_kwargs(cfg):
             **execution_cfg,
             'candidates': [],
         },
-        'structure_summary_df': pd.DataFrame([{'formula': 'XBN'}]),
+        'structure_summary_df': pd.DataFrame([
+            {'formula': 'XBN', 'first_pass_execution_status': 'executed'},
+        ]),
         'structure_variant_df': pd.DataFrame(columns=['formula']),
     }, execution_cfg
+
+
+@pytest.mark.parametrize(
+    ('invalid_role', 'expected_message'),
+    [
+        ('summary', 'structure_first_pass_execution_summary_df must contain'),
+        ('variants', 'structure_first_pass_execution_variant_df must contain'),
+    ],
+)
+def test_reporting_rejects_mislabeled_structure_execution_frames_before_mutation(
+    tmp_path,
+    invalid_role,
+    expected_message,
+):
+    artifact_dir = tmp_path / 'artifacts'
+    cfg = {
+        'project': {'artifact_dir': str(artifact_dir)},
+        'data': {'formula_column': 'formula'},
+        'screening': {
+            'ranking_stability': {'enabled': False},
+            'decision_policy': {'enabled': False},
+            'structure_generation_seeds': {'enabled': False},
+        },
+    }
+    writer_kwargs, _execution_cfg = _structure_execution_writer_kwargs(cfg)
+    writer_kwargs['structure_variant_df'] = pd.DataFrame([
+        {
+            'formula': 'XBN',
+            'execution_variant_id': 'xbn__variant_01',
+            'execution_status': 'ok',
+        },
+    ])
+    _save_minimal_report_bundle(cfg, **writer_kwargs)
+    before = _report_bundle_snapshot(artifact_dir)
+
+    invalid_writer_kwargs = dict(writer_kwargs)
+    invalid_writer_kwargs[
+        'structure_summary_df' if invalid_role == 'summary' else 'structure_variant_df'
+    ] = writer_kwargs[
+        'structure_variant_df' if invalid_role == 'summary' else 'structure_summary_df'
+    ]
+    with pytest.raises(ValueError, match=expected_message):
+        _save_minimal_report_bundle(cfg, **invalid_writer_kwargs)
+
+    assert _report_bundle_snapshot(artifact_dir) == before
 
 
 def _assert_summary_preflight_rejection_is_atomic(
@@ -1974,7 +2025,9 @@ def test_reporting_failure_after_publication_begins_leaves_no_completion_marker(
     }
     writer_kwargs = {
         'structure_payload': structure_payload,
-        'structure_summary_df': pd.DataFrame([{'formula': 'XBN'}]),
+        'structure_summary_df': pd.DataFrame([
+            {'formula': 'XBN', 'first_pass_execution_status': 'executed'},
+        ]),
         'structure_variant_df': pd.DataFrame(columns=['formula']),
     }
     completion_marker = artifact_dir / 'artifact_provenance.json'
