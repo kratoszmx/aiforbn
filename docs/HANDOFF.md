@@ -253,6 +253,7 @@
 - Round 10 修复 completion marker 在“写完后抛错”时仍可能把部分 bundle 标为 current 的故障；provenance 现在要求完整 marker 字段与 schema-valid dataset manifest，viewer 对缺失 core bundle 或畸形 provenance/summary/manifest fail closed；同时移除无消费者的 `screening.enabled` 假开关并补齐根 Python summary 对 runtime/UI callable 的非空验证，仍未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - Round 11 把 provenance 升级为实际成功发布文件的 v2 内容承诺：固定、可选、配置化、动态 CIF 与 parity plot 输出均在成功写入后登记并以相对路径及 SHA-256 固化，marker 严格最后发布；viewer 对缺失、篡改、畸形或未纳入本轮发布的已知输出 fail closed，同时继续忽略无关 extra/cache 文件；仍未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - Round 12 验证重复运行会让 marker 只承诺本轮实际成功输出，并修复三处相邻 truth-contract 缺口：viewer 不再渲染 provenance 非 current 的已承诺表格，BN slice/family 数据不足时 summary 不再崩溃或误报空 prediction 文件，candidate generator 会把当前 chemical-plausibility 配置传入注释器；同时让 control-plane 测试不依赖 checkout 目录名，仍未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
+- Round 13 补齐 BN slice/family prediction 的四状态、双向同目录切换与 provenance 交叉验证，并修复 viewer 对畸形/legacy marker 或 viewer 二次降级 bundle 仍渲染 committed-looking 内容的 fail-open：现在只有最终 assessment 为 current 且存在明确 v2 committed-path set 时才渲染任何 report table；仍未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - contract verifier 现精确锁定 validation-profile 命令序列、三个 active project-skill 记录与七个 retired-guidance 路径；public-surface 测试同时核对模块摘要及根摘要的 callable 参数顺序和 keyword-only 边界
 - `--verify-agent-contract` 现会精确锁定六个 module 的 path/role/public-surface/agent-rules/local-utils/allowed-dependencies；公开 surface 测试逐个要求四个生产模块非空，并显式覆盖 import re-export
 
@@ -267,12 +268,12 @@
 
 3. 完整 src 测试：
 - `conda run -n quant python3 -m pytest -q src`
-- 结果：`330 passed, 1 warning`
+- 结果：`357 passed, 1 warning`
 - 剩余 warning 是 PyTorch nested-tensor prototype 提示，不是测试失败；原 sklearn feature-name warnings 已消除
 
 4. UI 文字化验证：
 - `conda run -n quant python3 -m pytest -q src/ui/tests/test_streamlit_app.py`
-- 结果：`24 passed`，包含真实 Streamlit renderer、completion/provenance fail-closed matrix、content-mixed bundle mutation matrix 与非 current committed-output 抑制
+- 结果：`44 passed`，包含真实 Streamlit renderer、completion/provenance fail-closed matrix、BN slice/family 四状态及非对称 provenance cross-product、content-mixed bundle mutation matrix 与非 current committed-output 抑制
 - 有时限的 `streamlit run ... --server.headless=true` 启动后，`/_stcore/health` 与根页面均成功响应；验证后进程已终止
 
 5. 语法与 diff 卫生：

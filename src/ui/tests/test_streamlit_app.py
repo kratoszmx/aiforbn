@@ -17,6 +17,7 @@ class FakeStreamlit(types.ModuleType):
     def __init__(self):
         super().__init__('streamlit')
         self.calls: list[tuple[str, object]] = []
+        self.dataframes: list[pd.DataFrame] = []
         self.dataframe_kwargs: list[dict[str, object]] = []
 
     def set_page_config(self, **kwargs):
@@ -45,7 +46,113 @@ class FakeStreamlit(types.ModuleType):
 
     def dataframe(self, value, **kwargs):
         self.calls.append(('dataframe', getattr(value, 'shape', None)))
+        self.dataframes.append(value.copy())
         self.dataframe_kwargs.append(kwargs)
+
+
+def _save_bn_prediction_bundle(
+    artifact_dir: Path,
+    *,
+    slice_nonempty: bool,
+    family_nonempty: bool,
+):
+    cfg = {
+        'project': {'artifact_dir': str(artifact_dir)},
+        'data': {'formula_column': 'formula'},
+        'screening': {
+            'ranking_stability': {'enabled': False},
+            'decision_policy': {'enabled': False},
+            'structure_generation_seeds': {'enabled': False},
+        },
+    }
+    manifest = {
+        'name': 'twod_matpd',
+        'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-21T00:00:00+00:00',
+        'target_column': 'band_gap',
+    }
+    empty_df = pd.DataFrame()
+    slice_prediction_df = (
+        pd.DataFrame([{'formula': 'BN', 'target': 5.0, 'prediction': 4.8}])
+        if slice_nonempty
+        else empty_df
+    )
+    family_prediction_df = (
+        pd.DataFrame([{'formula': 'BCN', 'target': 4.0, 'prediction': 3.6}])
+        if family_nonempty
+        else empty_df
+    )
+
+    def _benchmark_frame(status):
+        metric = 0.5 if status == 'ok' else None
+        return pd.DataFrame([{
+            'benchmark_role': 'selected_model',
+            'benchmark_status': status,
+            'feature_set': 'basic_formula_composition',
+            'feature_family': 'composition_only',
+            'model_type': 'linear_regression',
+            'candidate_compatible': True,
+            'selected_by_validation': True,
+            'mae': metric,
+            'rmse': metric,
+            'r2': metric,
+        }])
+
+    slice_benchmark_df = _benchmark_frame(
+        'ok' if slice_nonempty else 'insufficient_bn_formulas'
+    )
+    family_benchmark_df = _benchmark_frame(
+        'ok' if family_nonempty else 'insufficient_bn_families'
+    )
+    summary = {
+        'bn_slice_benchmark': {
+            'benchmark_artifact': 'bn_slice_benchmark_results.csv',
+            'prediction_artifact': (
+                'bn_slice_predictions.csv' if slice_nonempty else None
+            ),
+            'family_benchmark_artifact': 'bn_family_benchmark_results.csv',
+            'family_prediction_artifact': (
+                'bn_family_predictions.csv' if family_nonempty else None
+            ),
+        },
+    }
+    save_metrics_and_predictions(
+        {'mae': 1.0},
+        pd.DataFrame([{'formula': 'BN', 'prediction': 5.0}]),
+        empty_df,
+        pd.DataFrame([{'formula': 'BN', 'ranking_rank': 1}]),
+        pd.DataFrame([{'model_type': 'linear', 'mae': 1.0}]),
+        empty_df,
+        slice_benchmark_df,
+        slice_prediction_df,
+        empty_df,
+        empty_df,
+        summary,
+        manifest,
+        cfg,
+        bn_family_benchmark_df=family_benchmark_df,
+        bn_family_prediction_df=family_prediction_df,
+    )
+    return cfg
+
+
+def _load_fake_streamlit_app(monkeypatch, tmp_path, cfg, module_name):
+    fake_streamlit = FakeStreamlit()
+    monkeypatch.setitem(sys.modules, 'streamlit', fake_streamlit)
+    monkeypatch.chdir(tmp_path)
+    from runtime import io_utils
+
+    monkeypatch.setattr(io_utils, 'load_config', lambda _path: cfg)
+    root = Path(__file__).resolve().parents[3]
+    spec = spec_from_file_location(
+        module_name,
+        root / 'src' / 'ui' / 'streamlit_app.py',
+    )
+    module = module_from_spec(spec)
+    assert spec is not None and spec.loader is not None
+    spec.loader.exec_module(module)
+    module.render_streamlit_app()
+    return fake_streamlit, module
 
 
 def test_streamlit_app_reads_generated_artifacts(tmp_path, monkeypatch):
@@ -91,20 +198,45 @@ def test_streamlit_app_reads_generated_artifacts(tmp_path, monkeypatch):
     (artifact_dir / 'demo_candidate_proposal_shortlist.csv').write_text('formula,proposal_shortlist_rank\nBN,1\n', encoding='utf-8')
     (artifact_dir / 'demo_candidate_extrapolation_shortlist.csv').write_text('formula,extrapolation_shortlist_rank\nBCN2,1\n', encoding='utf-8')
 
-    fake_streamlit = FakeStreamlit()
-    monkeypatch.setitem(sys.modules, 'streamlit', fake_streamlit)
-    monkeypatch.chdir(tmp_path)
+    root = Path(__file__).resolve().parents[3]
+    from runtime import io_utils
 
-    ROOT = Path(__file__).resolve().parents[3]
-    app_path = ROOT / 'src' / 'ui' / 'streamlit_app.py'
-    spec = spec_from_file_location('streamlit_app_test', app_path)
-    module = module_from_spec(spec)
-    assert spec is not None and spec.loader is not None
-    spec.loader.exec_module(module)
+    cfg = io_utils.load_config(root / 'src' / 'config.py')
+    cfg['project']['artifact_dir'] = str(artifact_dir)
+    manifest = {
+        'name': 'twod_matpd',
+        'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-21T00:00:00+00:00',
+        'target_column': 'band_gap',
+    }
+    (artifact_dir / 'manifest.json').write_text(json.dumps(manifest), encoding='utf-8')
+    monkeypatch.setattr(io_utils, 'load_config', lambda _path: cfg)
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    provenance = io_utils.build_artifact_provenance(
+        cfg,
+        manifest,
+        published_output_paths=tuple(
+            path for path in artifact_dir.rglob('*') if path.is_file()
+        ),
+    )
+    (artifact_dir / 'artifact_provenance.json').write_text(
+        json.dumps(provenance),
+        encoding='utf-8',
+    )
+
+    fake_streamlit, module = _load_fake_streamlit_app(
+        monkeypatch,
+        tmp_path,
+        cfg,
+        'streamlit_app_test',
+    )
     from runtime.io_utils import read_json_file as shared_read_json_file
 
     assert module.read_json_file is shared_read_json_file
-    module.render_streamlit_app()
 
     assert ('title', 'AI-Powered Boron Nitride Material Exploration') in fake_streamlit.calls
     assert ('subheader', 'Metrics') in fake_streamlit.calls
@@ -137,7 +269,8 @@ def test_streamlit_app_reads_generated_artifacts(tmp_path, monkeypatch):
     assert ('subheader', 'Structure follow-up handoff (unrelaxed evidence)') in fake_streamlit.calls
     assert ('subheader', 'Proposal shortlist') in fake_streamlit.calls
     assert ('subheader', 'Formula-level extrapolation shortlist') in fake_streamlit.calls
-    assert any(
+    assert any(call_name == 'success' for call_name, _value in fake_streamlit.calls)
+    assert not any(
         call_name == 'warning' and 'provenance' in str(value).lower()
         for call_name, value in fake_streamlit.calls
     )
@@ -159,6 +292,18 @@ def test_streamlit_app_uses_configured_artifact_root_and_summary_paths(
     )
     (configured_artifact_dir / 'metrics.json').write_text(
         json.dumps({'mae': 1.0}),
+        encoding='utf-8',
+    )
+    (configured_artifact_dir / 'benchmark_results.csv').write_text(
+        'model_type,mae\nlinear,1.0\n',
+        encoding='utf-8',
+    )
+    (configured_artifact_dir / 'predictions.csv').write_text(
+        'formula,prediction\nBN,5.0\n',
+        encoding='utf-8',
+    )
+    (configured_artifact_dir / 'demo_candidate_ranking.csv').write_text(
+        'formula,ranking_rank\nBN,1\n',
         encoding='utf-8',
     )
     summary_payload = {
@@ -186,27 +331,45 @@ def test_streamlit_app_uses_configured_artifact_root_and_summary_paths(
     )
     (nested_dir / 'variants.csv').write_text('', encoding='utf-8')
 
-    fake_streamlit = FakeStreamlit()
-    monkeypatch.setitem(sys.modules, 'streamlit', fake_streamlit)
-    monkeypatch.chdir(tmp_path)
     from runtime import io_utils
 
+    cfg = {
+        'project': {'artifact_dir': str(configured_artifact_dir)},
+        'screening': {},
+    }
+    manifest = {
+        'name': 'twod_matpd',
+        'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-21T00:00:00+00:00',
+        'target_column': 'band_gap',
+    }
+    (configured_artifact_dir / 'manifest.json').write_text(
+        json.dumps(manifest),
+        encoding='utf-8',
+    )
     monkeypatch.setattr(
         io_utils,
-        'load_config',
-        lambda _path: {
-            'project': {'artifact_dir': str(configured_artifact_dir)},
-            'screening': {},
-        },
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    provenance = io_utils.build_artifact_provenance(
+        cfg,
+        manifest,
+        published_output_paths=tuple(
+            path for path in configured_artifact_dir.rglob('*') if path.is_file()
+        ),
+    )
+    (configured_artifact_dir / 'artifact_provenance.json').write_text(
+        json.dumps(provenance),
+        encoding='utf-8',
     )
 
-    root = Path(__file__).resolve().parents[3]
-    app_path = root / 'src' / 'ui' / 'streamlit_app.py'
-    spec = spec_from_file_location('streamlit_app_configured_paths_test', app_path)
-    module = module_from_spec(spec)
-    assert spec is not None and spec.loader is not None
-    spec.loader.exec_module(module)
-    module.render_streamlit_app()
+    fake_streamlit, _module = _load_fake_streamlit_app(
+        monkeypatch,
+        tmp_path,
+        cfg,
+        'streamlit_app_configured_paths_test',
+    )
 
     json_values = [value for call_name, value in fake_streamlit.calls if call_name == 'json']
     assert {'mae': 1.0} in json_values
@@ -221,6 +384,156 @@ def test_streamlit_app_uses_configured_artifact_root_and_summary_paths(
 
 
 @pytest.mark.parametrize(
+    ('slice_nonempty', 'family_nonempty'),
+    [(True, False), (False, True), (False, False), (True, True)],
+    ids=['slice-only', 'family-only', 'neither', 'both'],
+)
+def test_streamlit_current_v2_renders_exact_bn_prediction_sections_and_rows(
+    tmp_path,
+    monkeypatch,
+    slice_nonempty,
+    family_nonempty,
+):
+    from runtime import io_utils
+
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    cfg = _save_bn_prediction_bundle(
+        tmp_path / 'artifacts',
+        slice_nonempty=slice_nonempty,
+        family_nonempty=family_nonempty,
+    )
+    fake_streamlit, _module = _load_fake_streamlit_app(
+        monkeypatch,
+        tmp_path,
+        cfg,
+        f'streamlit_app_bn_matrix_{slice_nonempty}_{family_nonempty}',
+    )
+
+    rendered_subheaders = {
+        value for name, value in fake_streamlit.calls if name == 'subheader'
+    }
+    assert 'BN-focused benchmark results' in rendered_subheaders
+    assert 'BN family holdout benchmark results' in rendered_subheaders
+    assert ('BN-focused benchmark predictions' in rendered_subheaders) is (
+        slice_nonempty
+    )
+    assert ('BN family holdout predictions' in rendered_subheaders) is (
+        family_nonempty
+    )
+    rendered_prediction_rows = {
+        (str(row['formula']), float(row['prediction']))
+        for frame in fake_streamlit.dataframes
+        if {'formula', 'prediction'}.issubset(frame.columns)
+        for _index, row in frame.iterrows()
+    }
+    assert (('BN', 4.8) in rendered_prediction_rows) is slice_nonempty
+    assert (('BCN', 3.6) in rendered_prediction_rows) is family_nonempty
+
+
+@pytest.mark.parametrize('prediction_kind', ['slice', 'family'])
+@pytest.mark.parametrize(
+    'provenance_case',
+    [
+        'current-v2',
+        'byte-mismatch',
+        'missing-committed',
+        'malformed-marker',
+        'malformed-manifest',
+        'legacy-v1',
+        'relocated-root',
+    ],
+)
+def test_streamlit_asymmetric_bn_predictions_require_current_v2_provenance(
+    tmp_path,
+    monkeypatch,
+    prediction_kind,
+    provenance_case,
+):
+    from runtime import io_utils
+    from streamlit.testing.v1 import AppTest
+
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    artifact_dir = tmp_path / 'artifacts'
+    cfg = _save_bn_prediction_bundle(
+        artifact_dir,
+        slice_nonempty=prediction_kind == 'slice',
+        family_nonempty=prediction_kind == 'family',
+    )
+    prediction_name = f'bn_{prediction_kind}_predictions.csv'
+    prediction_path = artifact_dir / prediction_name
+    provenance_path = artifact_dir / 'artifact_provenance.json'
+    manifest_path = artifact_dir / 'manifest.json'
+    if provenance_case == 'byte-mismatch':
+        prediction_path.write_text(
+            'formula,target,prediction\nolder,0.0,99.0\n',
+            encoding='utf-8',
+        )
+    elif provenance_case == 'missing-committed':
+        prediction_path.unlink()
+    elif provenance_case == 'malformed-marker':
+        provenance_path.write_text('{', encoding='utf-8')
+    elif provenance_case == 'malformed-manifest':
+        manifest_path.write_text('{', encoding='utf-8')
+    elif provenance_case == 'legacy-v1':
+        provenance = io_utils.read_json_file(provenance_path)
+        provenance.pop('published_outputs')
+        provenance['schema'] = 'aiforbn.artifact_provenance.v1'
+        provenance_path.write_text(json.dumps(provenance), encoding='utf-8')
+    elif provenance_case == 'relocated-root':
+        relocated_dir = tmp_path / 'relocated-artifacts'
+        shutil.copytree(artifact_dir, relocated_dir)
+        artifact_dir = relocated_dir
+        cfg['project']['artifact_dir'] = str(artifact_dir)
+
+    wrapper_path = tmp_path / f'{prediction_kind}_{provenance_case}.py'
+    wrapper_path.write_text(
+        'from runtime import io_utils\n'
+        '_original_source_reader = io_utils._read_local_source_state\n'
+        "io_utils._read_local_source_state = lambda _root: "
+        "{'revision': 'abc123', 'dirty': False}\n"
+        'from ui import streamlit_app\n'
+        '_original_config = streamlit_app.CONFIG\n'
+        f'streamlit_app.CONFIG = {cfg!r}\n'
+        'try:\n'
+        '    streamlit_app.render_streamlit_app()\n'
+        'finally:\n'
+        '    streamlit_app.CONFIG = _original_config\n'
+        '    io_utils._read_local_source_state = _original_source_reader\n',
+        encoding='utf-8',
+    )
+    app = AppTest.from_file(str(wrapper_path)).run(timeout=10)
+
+    expect_current = provenance_case == 'current-v2'
+    assert len(app.exception) == 0
+    assert (len(app.success) == 1) is expect_current
+    if not expect_current:
+        assert len(app.warning) >= 1
+    rendered_subheaders = {subheader.value for subheader in app.subheader}
+    assert ('Metrics' in rendered_subheaders) is expect_current
+    assert ('Benchmark results' in rendered_subheaders) is expect_current
+    expected_title = (
+        'BN-focused benchmark predictions'
+        if prediction_kind == 'slice'
+        else 'BN family holdout predictions'
+    )
+    opposite_title = (
+        'BN family holdout predictions'
+        if prediction_kind == 'slice'
+        else 'BN-focused benchmark predictions'
+    )
+    assert (expected_title in rendered_subheaders) is expect_current
+    assert opposite_title not in rendered_subheaders
+
+
+@pytest.mark.parametrize(
     ('case', 'expect_current'),
     [
         ('current', True),
@@ -228,6 +541,8 @@ def test_streamlit_app_uses_configured_artifact_root_and_summary_paths(
         ('malformed-manifest', False),
         ('manifest-mismatch', False),
         ('malformed-provenance', False),
+        ('non-object-provenance', False),
+        ('legacy-provenance', False),
         ('non-object-summary', False),
         ('missing-summary', False),
         ('marker-only', False),
@@ -308,7 +623,12 @@ def test_streamlit_provenance_never_marks_incomplete_or_malformed_bundle_current
     provenance_path = artifact_dir / 'artifact_provenance.json'
     if case == 'malformed-provenance':
         provenance_path.write_text('{', encoding='utf-8')
+    elif case == 'non-object-provenance':
+        provenance_path.write_text('[]', encoding='utf-8')
     else:
+        if case == 'legacy-provenance':
+            provenance.pop('published_outputs')
+            provenance['schema'] = 'aiforbn.artifact_provenance.v1'
         provenance_path.write_text(json.dumps(provenance), encoding='utf-8')
 
     root = Path(__file__).resolve().parents[3]
@@ -328,6 +648,13 @@ def test_streamlit_provenance_never_marks_incomplete_or_malformed_bundle_current
     else:
         assert success_calls == []
         assert any(name == 'warning' for name, _value in fake_streamlit.calls)
+        rendered_subheaders = [
+            value for name, value in fake_streamlit.calls if name == 'subheader'
+        ]
+        assert 'Metrics' not in rendered_subheaders
+        assert 'Benchmark results' not in rendered_subheaders
+        assert 'Prediction samples' not in rendered_subheaders
+        assert 'Top demo candidate ranking' not in rendered_subheaders
 
 
 @pytest.mark.parametrize(
@@ -479,6 +806,7 @@ def test_streamlit_real_renderer_never_marks_content_mixed_bundle_current(
         assert 'Metrics' not in rendered_subheaders
         assert 'Benchmark results' not in rendered_subheaders
     if case == 'uncommitted-known-optional':
+        assert 'Metrics' not in rendered_subheaders
         assert 'BN family holdout predictions' not in rendered_subheaders
 
 

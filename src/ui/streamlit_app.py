@@ -258,9 +258,6 @@ def render_streamlit_app() -> None:
                     CONFIG,
                     manifest_payload,
                 )
-                committed_outputs_verified = (
-                    provenance_assessment['status'] == 'current'
-                )
                 if provenance_assessment['status'] == 'current' and (
                     missing_bundle_keys
                     or summary_unreadable
@@ -270,6 +267,10 @@ def render_streamlit_app() -> None:
                         'status': 'unverified',
                         'reason': 'artifact_bundle_incomplete_unreadable_or_uncommitted',
                     }
+                committed_outputs_verified = (
+                    provenance_assessment['status'] == 'current'
+                    and committed_output_paths is not None
+                )
             st.subheader('Artifact bundle provenance')
             provenance_display = (
                 provenance_payload
@@ -300,13 +301,9 @@ def render_streamlit_app() -> None:
         return (
             path is not None
             and path.exists()
-            and (
-                committed_output_paths is None
-                or (
-                    committed_outputs_verified
-                    and path in committed_output_paths
-                )
-            )
+            and committed_outputs_verified
+            and committed_output_paths is not None
+            and path in committed_output_paths
         )
 
     metrics_path = artifact_paths['metrics']

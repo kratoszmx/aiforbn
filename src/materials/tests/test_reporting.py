@@ -1311,6 +1311,235 @@ def test_summary_handles_insufficient_bn_diagnostics_without_advertising_empty_p
     assert diagnostic_summary['family_selected_model_beats_global_dummy'] is None
 
 
+@pytest.mark.parametrize(
+    'diagnostic_states',
+    [
+        ((True, False),),
+        ((False, True),),
+        ((False, False),),
+        ((True, True),),
+        ((True, False), (False, True)),
+        ((False, True), (True, False)),
+        ((True, True), (False, False)),
+    ],
+    ids=[
+        'slice-only',
+        'family-only',
+        'neither',
+        'both',
+        'slice-to-family',
+        'family-to-slice',
+        'both-to-neither',
+    ],
+)
+def test_bn_prediction_summary_writer_and_provenance_align_across_repeat_runs(
+    tmp_path,
+    monkeypatch,
+    diagnostic_states,
+):
+    cfg = io_utils.load_config(Path(__file__).resolve().parents[2] / 'config.py')
+    artifact_dir = tmp_path / 'artifacts'
+    cfg['project']['artifact_dir'] = str(artifact_dir)
+    for gate in (
+        'ranking_stability',
+        'decision_policy',
+        'proposal_shortlist',
+        'extrapolation_shortlist',
+        'structure_generation_seeds',
+    ):
+        cfg['screening'][gate]['enabled'] = False
+    manifest = {
+        'name': 'twod_matpd',
+        'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-21T00:00:00+00:00',
+        'target_column': 'band_gap',
+    }
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    dataset_df = pd.DataFrame({
+        'formula': ['BN'],
+        'target': [5.0],
+        'band_gap': [5.0],
+    })
+    candidate_df = pd.DataFrame({
+        'formula': ['XBN'],
+        'ranking_rank': [1],
+        'ranking_score': [1.0],
+        'predicted_band_gap': [5.0],
+    })
+    split_masks = {
+        'train': [True],
+        'val': [False],
+        'test': [False],
+        'metadata': {'method': 'group_by_formula'},
+    }
+    selection_summary = {
+        'selected_feature_set': 'basic_formula_composition',
+        'selected_model_type': 'linear_regression',
+        'selected_feature_family': 'composition_only',
+        'screening_selected_feature_set': 'basic_formula_composition',
+        'screening_selected_model_type': 'linear_regression',
+        'screening_selected_feature_family': 'composition_only',
+    }
+
+    def benchmark_frame(kind, has_predictions):
+        status = 'ok' if has_predictions else f'insufficient_bn_{kind}'
+        metric_values = [0.5, 0.9] if has_predictions else [None, None]
+        frame = pd.DataFrame({
+            'feature_set': ['basic_formula_composition', 'feature_agnostic_dummy'],
+            'feature_family': ['composition_only', 'baseline'],
+            'model_type': ['linear_regression', 'dummy_mean'],
+            'benchmark_role': ['selected_model', 'global_dummy_mean_baseline'],
+            'benchmark_status': [status, status],
+            'candidate_compatible': [True, False],
+            'selected_by_validation': [True, False],
+            'mae': metric_values,
+            'rmse': metric_values,
+            'r2': metric_values,
+            'k_neighbors': [None, None],
+        })
+        if kind == 'formulas':
+            return frame.assign(
+                bn_slice_method='leave_one_bn_formula_out',
+                bn_slice_train_scope='full_dataset_minus_held_out_bn_formula',
+                bn_formula_count=1,
+                bn_row_count=1,
+                completed_holds=1 if has_predictions else 0,
+            )
+        return frame.assign(
+            bn_family_benchmark_method='leave_one_bn_family_out',
+            bn_family_grouping_method='reduced_bn_chemical_system',
+            bn_family_train_scope='full_dataset_minus_held_out_bn_family',
+            bn_family_count=1,
+            bn_formula_count=1,
+            bn_row_count=1,
+            completed_family_holds=1 if has_predictions else 0,
+            completed_formula_holds=1 if has_predictions else 0,
+        )
+
+    def prediction_frame(kind, has_predictions, run_index):
+        if not has_predictions:
+            return pd.DataFrame()
+        return pd.DataFrame([{
+            'formula': 'BN',
+            'target': 5.0,
+            'prediction': 4.0 + run_index + (0.1 if kind == 'family' else 0.0),
+            'benchmark_role': 'selected_model',
+        }])
+
+    for run_index, (slice_has_predictions, family_has_predictions) in enumerate(
+        diagnostic_states
+    ):
+        bn_slice_benchmark_df = benchmark_frame('formulas', slice_has_predictions)
+        bn_family_benchmark_df = benchmark_frame('families', family_has_predictions)
+        bn_slice_prediction_df = prediction_frame(
+            'slice', slice_has_predictions, run_index
+        )
+        bn_family_prediction_df = prediction_frame(
+            'family', family_has_predictions, run_index
+        )
+        summary = build_experiment_summary(
+            dataset_df,
+            dataset_df,
+            candidate_df,
+            split_masks,
+            selection_summary,
+            cfg,
+            bn_slice_benchmark_df=bn_slice_benchmark_df,
+            bn_slice_prediction_df=bn_slice_prediction_df,
+            bn_family_benchmark_df=bn_family_benchmark_df,
+            bn_family_prediction_df=bn_family_prediction_df,
+        )
+        save_metrics_and_predictions(
+            {'mae': 0.1},
+            dataset_df.assign(prediction=5.0),
+            dataset_df,
+            candidate_df,
+            pd.DataFrame([{
+                'feature_set': 'basic_formula_composition',
+                'model_type': 'linear_regression',
+                'mae': 0.1,
+            }]),
+            pd.DataFrame(),
+            bn_slice_benchmark_df,
+            bn_slice_prediction_df,
+            pd.DataFrame(),
+            pd.DataFrame(),
+            summary,
+            manifest,
+            cfg,
+            bn_family_benchmark_df=bn_family_benchmark_df,
+            bn_family_prediction_df=bn_family_prediction_df,
+        )
+
+        diagnostic_summary = summary['bn_slice_benchmark']
+        expected_slice_path = (
+            'bn_slice_predictions.csv' if slice_has_predictions else None
+        )
+        expected_family_path = (
+            'bn_family_predictions.csv' if family_has_predictions else None
+        )
+        assert diagnostic_summary['benchmark_artifact'] == (
+            'bn_slice_benchmark_results.csv'
+        )
+        assert diagnostic_summary['family_benchmark_artifact'] == (
+            'bn_family_benchmark_results.csv'
+        )
+        assert diagnostic_summary['prediction_artifact'] == expected_slice_path
+        assert diagnostic_summary['family_prediction_artifact'] == expected_family_path
+        assert diagnostic_summary['selected_model_metrics']['benchmark_status'] == (
+            'ok' if slice_has_predictions else 'insufficient_bn_formulas'
+        )
+        assert diagnostic_summary['family_selected_model_metrics']['benchmark_status'] == (
+            'ok' if family_has_predictions else 'insufficient_bn_families'
+        )
+        assert diagnostic_summary['selected_model_beats_global_dummy'] is (
+            True if slice_has_predictions else None
+        )
+        assert diagnostic_summary['family_selected_model_beats_global_dummy'] is (
+            True if family_has_predictions else None
+        )
+
+        provenance = io_utils.read_json_file(
+            artifact_dir / 'artifact_provenance.json'
+        )
+        for has_predictions, artifact_name in (
+            (slice_has_predictions, 'bn_slice_predictions.csv'),
+            (family_has_predictions, 'bn_family_predictions.csv'),
+        ):
+            output_path = artifact_dir / artifact_name
+            assert output_path.exists() is has_predictions
+            assert (artifact_name in provenance['published_outputs']) is has_predictions
+            if has_predictions:
+                assert provenance['published_outputs'][artifact_name] == hashlib.sha256(
+                    output_path.read_bytes()
+                ).hexdigest()
+        for artifact_name in (
+            'bn_slice_benchmark_results.csv',
+            'bn_family_benchmark_results.csv',
+        ):
+            output_path = artifact_dir / artifact_name
+            assert output_path.exists()
+            assert provenance['published_outputs'][artifact_name] == hashlib.sha256(
+                output_path.read_bytes()
+            ).hexdigest()
+        assert io_utils.read_json_file(
+            artifact_dir / 'experiment_summary.json'
+        )['bn_slice_benchmark'] == diagnostic_summary
+        assert io_utils.assess_artifact_provenance(
+            provenance,
+            cfg,
+            manifest,
+            project_root_path=tmp_path,
+        ) == {
+            'status': 'current',
+            'reason': 'source_config_dataset_and_outputs_match',
+        }
+
+
 def test_reporting_preflights_summary_before_mutating_existing_bundle(tmp_path):
     artifact_dir = tmp_path / 'artifacts'
     cfg = {
