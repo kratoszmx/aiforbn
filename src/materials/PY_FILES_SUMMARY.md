@@ -125,7 +125,7 @@ No callable public surface. The following non-callable contracts are imported ac
 ## screening.py
 
 - `build_candidate_structure_generation_seeds(candidate_df, dataset_df, split_masks, cfg, ...)`
-  - Build prototype-seed records for structure follow-up; a disabled seed stage returns an empty schema and cannot enter downstream structure execution.
+  - Build prototype-seed records for structure follow-up; preserve normalized null optional target/property evidence, while a disabled seed stage returns an empty schema and cannot enter downstream structure execution.
 - `build_candidate_prediction_ensemble(candidate_df, feature_tables, split_masks, cfg, ...)`
   - Build ensemble candidate predictions.
 - `build_candidate_prediction_members(candidate_df, feature_tables, split_masks, cfg, ...)`
@@ -162,6 +162,7 @@ No callable public surface. The following non-callable contracts are imported ac
   - Preflight caller JSON and optional parity-plot inputs, replace CSV files atomically, invalidate any prior completion marker before the first bundle mutation, record only successfully emitted fixed/optional/configured/CIF/plot paths, and publish their v2 SHA-256 commitment in `artifact_provenance.json` as the final action; failed plotting or marker publication leaves no completion marker.
   - Reject wrong-shaped screening/structure-bridge containers and mismatched dynamic output declarations before artifact-directory creation, marker invalidation, or any bundle write; absent/null/empty containers and matching normalized/same-file roles remain valid.
   - Reject nonempty structure-execution summary or variants tables that lack their canonical fields, use a candidate or variant status outside the builder-owned finite vocabularies, relabel the exact builder-selected seed record/formula, disagree with the cached raw record formula or source-atom composition, contradict the builder-produced relabel/vacancy plan or structure reconstructed from that plan, contradict atoms/formula/site-count/structure-summary/geometry/CIF/edit-count/relaxation evidence, or disagree across payload/summary/variants on membership, counts, statuses, geometry results, deterministic selected winner, or any of the ten selected-row projections, before mutation; free-form execution diagnostics remain descriptive and no-selection candidates keep every selected projection null except the canonical `not_executed` or invalid-reference error status.
+  - Before publishing seed artifacts, bind every emitted record-level source, band-gap, property, has-summary, and structure-summary value to the selected cached raw record through the dataset normalizer; train+val-dependent formula row-count/mean fields remain explicit builder planning context.
   - Keep each compact BN model-role comparison row bound to one feature/model identity across slice, family, and stratified diagnostics instead of splicing per-scope winners.
   - Preflight every fixed, configurable, dynamic, and stale-cleanup CIF leaf in its originally declared form before directory creation; contain structure-execution paths beneath their configured roots, reject kind/parent-chain/fixed-name/pairwise/cross-role-default/filesystem-alias collisions before mutation, and remove valid stale execution artifacts when the current run produces no execution payload.
 
@@ -187,5 +188,5 @@ These files currently expose no supported external call surface:
 ## tests/
 
 - `test_diagnostic_edge_cases.py` locks disabled and insufficient-data status semantics for BN diagnostics and alternative screening selection.
-- `test_reporting.py` locks artifact publication, provenance, finite candidate/variant structure-execution status vocabularies, exact builder-selected seed/raw-formula/source-atom identity, raw-source/edit-plan/final-structure identity, atom/metadata/CIF identity, evidence-compatible variant states, role-schema preflight, repeat-run cleanup, and failure-order behavior.
+- `test_reporting.py` locks artifact publication, provenance, finite candidate/variant structure-execution status vocabularies, exact builder-selected seed/raw-formula/source-atom and record-level normalized evidence identity, raw-source/edit-plan/final-structure identity, atom/metadata/CIF identity, evidence-compatible variant states, role-schema preflight, repeat-run cleanup, and failure-order behavior.
 - `test_structure_execution_contracts.py` locks relabel, vacancy, unsupported edit, and structure-aware proxy execution behavior.

@@ -241,8 +241,14 @@ def build_candidate_structure_generation_seeds(
             'seed_reference_record_id': row['record_id'] if 'record_id' in row else None,
             'seed_reference_source': row['source'] if 'source' in row else None,
             'seed_reference_formula_row_count': int(row['reference_formula_row_count']),
-            'seed_reference_formula_mean_band_gap': float(row['reference_formula_mean_band_gap']),
-            'seed_reference_band_gap': float(row[target_col]),
+            'seed_reference_formula_mean_band_gap': (
+                float(row['reference_formula_mean_band_gap'])
+                if pd.notna(row['reference_formula_mean_band_gap'])
+                else None
+            ),
+            'seed_reference_band_gap': (
+                float(row[target_col]) if pd.notna(row[target_col]) else None
+            ),
             'seed_reference_has_structure_summary': bool(row['reference_has_structure_summary']),
         }
         for column_name in REFERENCE_PROPERTY_COLUMNS:

@@ -21,8 +21,10 @@ from runtime.schema import (
     STRUCTURE_EXECUTION_OUTPUT_ROLES,
 )
 from materials.data import (
+    REFERENCE_PROPERTY_COLUMNS,
     STRUCTURE_SUMMARY_COLUMNS,
     _basic_formula_from_entry,
+    _normalize,
     load_cached_raw_record_lookup,
 )
 from materials.constants import *
@@ -311,6 +313,74 @@ def _validate_experiment_summary_output_contract(
             raise ValueError(
                 f'experiment_summary {summary_field} must use the configured file type'
             )
+
+
+def _validate_structure_generation_seed_reference_evidence(
+    seed_df: pd.DataFrame,
+    *,
+    cfg: dict,
+    raw_record_lookup: dict[str, dict],
+) -> None:
+    if (
+        seed_df is None
+        or seed_df.empty
+        or 'seed_reference_record_id' not in seed_df.columns
+    ):
+        return
+
+    target_col = ((cfg.get('data') or {}).get('target_column') or 'target')
+    # Formula row-count/mean fields depend on the builder's train+val mask. Keep
+    # them as planning context; only record-level evidence is exactly
+    # reconstructable at this writer boundary.
+    field_map = {
+        'seed_reference_source': 'source',
+        'seed_reference_band_gap': 'target',
+        **{
+            f'seed_reference_{field_name}': field_name
+            for field_name in REFERENCE_PROPERTY_COLUMNS
+        },
+        **{
+            f'seed_reference_{field_name}': field_name
+            for field_name in STRUCTURE_SUMMARY_COLUMNS
+        },
+    }
+    record_rows = seed_df.loc[
+        seed_df['seed_reference_record_id'].notna()
+    ]
+    for _, row in record_rows.iterrows():
+        record_id = str(row['seed_reference_record_id'])
+        raw_record = raw_record_lookup.get(record_id)
+        if not isinstance(raw_record, dict):
+            continue
+        normalized_df = _normalize([raw_record], target_col)
+        if normalized_df.empty:
+            continue
+        normalized_record = normalized_df.iloc[0]
+        for seed_field, normalized_field in field_map.items():
+            if seed_field not in row.index:
+                continue
+            actual = make_json_safe(row.get(seed_field))
+            expected = make_json_safe(normalized_record.get(normalized_field))
+            if actual != expected:
+                raise ValueError(
+                    'structure_generation seed reference evidence '
+                    f'{seed_field} must match cached raw record {record_id}'
+                )
+
+        if 'seed_reference_has_structure_summary' in row.index:
+            actual_has_summary = make_json_safe(
+                row.get('seed_reference_has_structure_summary')
+            )
+            expected_has_summary = any(
+                pd.notna(normalized_record.get(field_name))
+                for field_name in STRUCTURE_SUMMARY_COLUMNS
+            )
+            if actual_has_summary != expected_has_summary:
+                raise ValueError(
+                    'structure_generation seed reference evidence '
+                    'seed_reference_has_structure_summary must match cached raw '
+                    f'record {record_id}'
+                )
 
 
 def _validate_structure_execution_frame_roles(
@@ -992,8 +1062,23 @@ def save_metrics_and_predictions(
         structure_first_pass_execution_paths,
         execution_outputs_will_publish=execution_outputs_will_publish,
     )
+    structure_seed_outputs_will_publish = bool(
+        structure_generation_seed_cfg['enabled']
+        and structure_generation_seed_df is not None
+        and not structure_generation_seed_df.empty
+    )
+    raw_record_lookup = (
+        load_cached_raw_record_lookup(cfg)
+        if structure_seed_outputs_will_publish or execution_outputs_will_publish
+        else {}
+    )
+    if structure_seed_outputs_will_publish:
+        _validate_structure_generation_seed_reference_evidence(
+            structure_generation_seed_df,
+            cfg=cfg,
+            raw_record_lookup=raw_record_lookup,
+        )
     if execution_outputs_will_publish:
-        raw_record_lookup = load_cached_raw_record_lookup(cfg)
         _, selected_execution_followup_df = (
             _build_structure_execution_selection_context(
                 structure_generation_seed_df,

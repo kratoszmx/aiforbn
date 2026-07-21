@@ -20,7 +20,12 @@ from materials import structure_execution as structure_execution_module
 from materials.artifacts import save_metrics_and_predictions
 from materials.benchmarking import benchmark_bn_family_holdout, benchmark_bn_slice
 from materials.constants import NOVELTY_BUCKET_FORMULA_LEVEL_EXTRAPOLATION
-from materials.data import _structure_summary_from_atoms
+from materials.data import (
+    REFERENCE_PROPERTY_COLUMNS,
+    STRUCTURE_SUMMARY_COLUMNS,
+    _normalize,
+    _structure_summary_from_atoms,
+)
 from materials.plots import save_basic_plots
 from materials.ranking_tables import (
     _build_bn_model_role_comparison_table,
@@ -1895,6 +1900,123 @@ def _canonical_structure_execution_writer_inputs(
     }
 
 
+def _real_builder_seed_evidence_writer_inputs(
+    tmp_path: Path,
+    *,
+    formula_col: str = 'formula',
+    evidence_case: str = 'complete',
+    execution_enabled: bool = True,
+):
+    cfg, _unused_manual_kwargs = _canonical_structure_execution_writer_inputs(
+        tmp_path,
+        formula_col=formula_col,
+    )
+    raw_path = Path(cfg['data']['raw_dir']) / 'twod_matpd.json'
+    raw_records = json.loads(raw_path.read_text(encoding='utf-8'))
+    raw_record = raw_records[0]
+    raw_record.update({
+        'energy_per_atom': -2.5,
+        'exfoliation_energy_per_atom': 0.12,
+        'total_magnetization': -0.25,
+    })
+    if evidence_case == 'missing_optional':
+        for field_name in (
+            'band_gap',
+            'energy_per_atom',
+            'exfoliation_energy_per_atom',
+            'total_magnetization',
+        ):
+            raw_record.pop(field_name)
+    elif evidence_case == 'missing_structure':
+        raw_record['atoms'] = {'elements': ['B', 'N']}
+    elif evidence_case != 'complete':  # pragma: no cover - helper contract
+        raise AssertionError(evidence_case)
+    raw_path.write_text(
+        json.dumps(raw_records),
+        encoding='utf-8',
+    )
+    cfg['screening']['structure_generation_seeds'] = {
+        'enabled': True,
+        'per_candidate_seed_limit': 1,
+        'bn_centered_top_n': 1,
+    }
+    cfg['screening']['structure_followup_shortlist'] = {
+        'enabled': True,
+        'shortlist_size': 1,
+    }
+    cfg['screening']['structure_first_pass_execution']['enabled'] = execution_enabled
+    cfg['screening']['structure_first_pass_execution']['max_candidates'] = 1
+    cfg['screening']['structure_first_pass_execution']['max_variants_per_candidate'] = 1
+    dataset_df = _normalize(raw_records, 'band_gap')
+    if formula_col != 'formula':
+        dataset_df[formula_col] = dataset_df['formula']
+    candidate_df = pd.DataFrame([{
+        formula_col: 'BN',
+        'candidate_family': 'bn_binary_anchor',
+        'candidate_template': 'B1N1',
+        'candidate_novelty_bucket': 'train_plus_val_rediscovery',
+        'chemical_plausibility_pass': True,
+        'ranking_rank': 1,
+        'proposal_shortlist_selected': True,
+        'proposal_shortlist_rank': 1,
+        'extrapolation_shortlist_selected': False,
+        'extrapolation_shortlist_rank': pd.NA,
+        'bn_analog_neighbor_formulas': 'BN',
+        'bn_analog_nearest_formula': 'BN',
+        'bn_support_neighbor_formulas': 'BN',
+    }])
+    seed_df = build_candidate_structure_generation_seeds(
+        candidate_df,
+        dataset_df,
+        {'train': [True], 'val': [False], 'test': [False]},
+        cfg,
+        formula_col=formula_col,
+    )
+    variant_df, summary_df, payload = build_structure_first_pass_execution_artifacts(
+        seed_df,
+        cfg=cfg,
+        formula_col=formula_col,
+    )
+    return cfg, {
+        'structure_generation_seed_df': seed_df,
+        'structure_payload': payload,
+        'structure_summary_df': summary_df,
+        'structure_variant_df': variant_df,
+    }
+
+
+def _mutate_seed_reference_evidence(
+    cfg,
+    canonical_kwargs,
+    field_name,
+    invalid_value,
+):
+    invalid_kwargs = copy.deepcopy(canonical_kwargs)
+    seed_df = invalid_kwargs['structure_generation_seed_df']
+    seed_df.loc[seed_df.index[0], field_name] = invalid_value
+    formula_col = cfg['data']['formula_column']
+    variant_df, summary_df, payload = build_structure_first_pass_execution_artifacts(
+        seed_df,
+        cfg=cfg,
+        formula_col=formula_col,
+    )
+    invalid_kwargs.update({
+        'structure_payload': payload,
+        'structure_summary_df': summary_df,
+        'structure_variant_df': variant_df,
+    })
+    return invalid_kwargs
+
+
+_SEED_REFERENCE_EVIDENCE_MUTATIONS = (
+    ('seed_reference_source', 'forged_source'),
+    ('seed_reference_band_gap', 99.0),
+    *((f'seed_reference_{field_name}', 99.0) for field_name in REFERENCE_PROPERTY_COLUMNS),
+    ('seed_reference_has_structure_summary', False),
+    *((f'seed_reference_{field_name}', 99.0) for field_name in STRUCTURE_SUMMARY_COLUMNS),
+)
+
+
 _SELECTED_PROJECTION_INVALID_VALUES = {
     'execution_variant_rank': 99,
     'generated_structure_cif_path': (
@@ -1996,19 +2118,141 @@ def _assert_structure_execution_rejection_is_atomic(
     canonical_kwargs,
     invalid_kwargs,
     manifest,
+    expected_message='structure_first_pass_execution',
 ):
     artifact_dir = Path(cfg['project']['artifact_dir'])
-    with pytest.raises(ValueError, match='structure_first_pass_execution'):
+    with pytest.raises(ValueError, match=expected_message):
         _save_minimal_report_bundle(cfg, manifest=manifest, **invalid_kwargs)
     assert _report_bundle_snapshot(artifact_dir) is None
 
     _save_minimal_report_bundle(cfg, manifest=manifest, **canonical_kwargs)
     valid_snapshot = _report_bundle_snapshot(artifact_dir)
-    with pytest.raises(ValueError, match='structure_first_pass_execution'):
+    with pytest.raises(ValueError, match=expected_message):
         _save_minimal_report_bundle(cfg, manifest=manifest, **invalid_kwargs)
     assert _report_bundle_snapshot(artifact_dir) == valid_snapshot
 
     _save_minimal_report_bundle(cfg, manifest=manifest, **canonical_kwargs)
+    assessment = io_utils.assess_artifact_provenance(
+        io_utils.read_json_file(artifact_dir / 'artifact_provenance.json'),
+        cfg,
+        manifest,
+        project_root_path=tmp_path,
+    )
+    assert assessment['status'] == 'current'
+
+
+@pytest.mark.parametrize(
+    ('field_name', 'invalid_value'),
+    _SEED_REFERENCE_EVIDENCE_MUTATIONS,
+)
+def test_reporting_rejects_builder_seed_reference_evidence_mismatch(
+    tmp_path,
+    monkeypatch,
+    field_name,
+    invalid_value,
+):
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    cfg, canonical_kwargs = _real_builder_seed_evidence_writer_inputs(tmp_path)
+    invalid_kwargs = _mutate_seed_reference_evidence(
+        cfg,
+        canonical_kwargs,
+        field_name,
+        invalid_value,
+    )
+    manifest = {
+        'name': 'twod_matpd',
+        'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-22T00:00:00+00:00',
+        'target_column': 'band_gap',
+    }
+
+    with pytest.raises(ValueError, match='seed reference evidence'):
+        _save_minimal_report_bundle(cfg, manifest=manifest, **invalid_kwargs)
+    assert _report_bundle_snapshot(Path(cfg['project']['artifact_dir'])) is None
+
+
+@pytest.mark.parametrize(
+    ('field_name', 'invalid_value', 'formula_col', 'execution_enabled'),
+    [
+        ('seed_reference_band_gap', 99.0, 'formula', True),
+        ('seed_reference_structure_lattice_a', 99.0, 'composition', True),
+        ('seed_reference_source', 'forged_source', 'formula', False),
+    ],
+)
+def test_reporting_seed_reference_evidence_rejection_is_atomic_and_recovers(
+    tmp_path,
+    monkeypatch,
+    field_name,
+    invalid_value,
+    formula_col,
+    execution_enabled,
+):
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    cfg, canonical_kwargs = _real_builder_seed_evidence_writer_inputs(
+        tmp_path,
+        formula_col=formula_col,
+        execution_enabled=execution_enabled,
+    )
+    invalid_kwargs = _mutate_seed_reference_evidence(
+        cfg,
+        canonical_kwargs,
+        field_name,
+        invalid_value,
+    )
+    manifest = {
+        'name': 'twod_matpd',
+        'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-22T00:00:00+00:00',
+        'target_column': 'band_gap',
+    }
+
+    _assert_structure_execution_rejection_is_atomic(
+        tmp_path,
+        cfg,
+        canonical_kwargs,
+        invalid_kwargs,
+        manifest,
+        expected_message='seed reference evidence',
+    )
+
+
+@pytest.mark.parametrize(
+    ('evidence_case', 'formula_col'),
+    [('missing_optional', 'formula'), ('missing_structure', 'composition')],
+)
+def test_reporting_accepts_builder_normalized_missing_seed_reference_evidence(
+    tmp_path,
+    monkeypatch,
+    evidence_case,
+    formula_col,
+):
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    cfg, canonical_kwargs = _real_builder_seed_evidence_writer_inputs(
+        tmp_path,
+        formula_col=formula_col,
+        evidence_case=evidence_case,
+    )
+    manifest = {
+        'name': 'twod_matpd',
+        'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-22T00:00:00+00:00',
+        'target_column': 'band_gap',
+    }
+
+    _save_minimal_report_bundle(cfg, manifest=manifest, **canonical_kwargs)
+    artifact_dir = Path(cfg['project']['artifact_dir'])
     assessment = io_utils.assess_artifact_provenance(
         io_utils.read_json_file(artifact_dir / 'artifact_provenance.json'),
         cfg,
