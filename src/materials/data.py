@@ -397,9 +397,13 @@ def load_or_build_dataset(cfg: dict) -> tuple[pd.DataFrame, dict]:
                 store_dir=str(raw_dir),
             )
         )
-    except Exception:
-        if not archive_existed and archive_path.is_file():
-            archive_path.unlink()
+    except BaseException:
+        if not archive_existed:
+            try:
+                if archive_path.is_file():
+                    archive_path.unlink()
+            except OSError:
+                pass
         raise
     if cfg['data'].get('cache_raw_json', True):
         write_json_file(raw, raw_path, indent=None)

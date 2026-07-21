@@ -186,14 +186,23 @@ def _install_fake_jarvis(
 
 
 class _JarvisResponse:
-    def __init__(self, body: bytes, status_code: int = 200):
+    def __init__(
+        self,
+        body: bytes,
+        status_code: int = 200,
+        *,
+        stream_error: BaseException | None = None,
+    ):
         self.body = body
         self.status_code = status_code
+        self.stream_error = stream_error
         self.headers = {'content-length': str(len(body))}
 
     def iter_content(self, block_size: int):
         for start in range(0, len(self.body), block_size):
             yield self.body[start:start + block_size]
+        if self.stream_error is not None:
+            raise self.stream_error
 
 
 def _jarvis_archive_bytes(
@@ -564,54 +573,82 @@ def test_load_or_build_dataset_uses_installed_jarvis_request_implementation(
 
 
 @pytest.mark.parametrize(
-    ('failure_kind', 'expected_error'),
+    'failure_kind',
     [
-        ('http-error', zipfile.BadZipFile),
-        ('empty-response', zipfile.BadZipFile),
-        ('non-archive', zipfile.BadZipFile),
-        ('missing-member', KeyError),
-        ('malformed-json', json.JSONDecodeError),
-        ('wrong-top-level', ValueError),
-        ('empty-payload', ValueError),
-        ('non-object-record', ValueError),
+        'http-error',
+        'empty-response',
+        'non-archive',
+        'missing-member',
+        'malformed-json',
+        'wrong-top-level',
+        'empty-payload',
+        'non-object-record',
+        'stream-connection-error',
+        'stream-runtime-error',
+        'stream-keyboard-interrupt',
+        'stream-os-error',
     ],
 )
 def test_load_or_build_dataset_cleans_new_invalid_installed_jarvis_archive(
     tmp_path,
     monkeypatch,
     failure_kind,
-    expected_error,
 ):
     installed_figshare, cfg, raw_dir, processed_dir, metadata = (
         _installed_jarvis_case(tmp_path, monkeypatch)
     )
     json_tag = metadata[1]
+    stream_error = None
     if failure_kind == 'http-error':
         invalid_response = _JarvisResponse(b'service unavailable', status_code=503)
+        expected_error = zipfile.BadZipFile
     elif failure_kind == 'empty-response':
         invalid_response = _JarvisResponse(b'')
+        expected_error = zipfile.BadZipFile
     elif failure_kind == 'non-archive':
         invalid_response = _JarvisResponse(b'not a zip archive')
+        expected_error = zipfile.BadZipFile
     elif failure_kind == 'missing-member':
         invalid_response = _JarvisResponse(
             _jarvis_archive_bytes('other.json', '[]')
         )
+        expected_error = KeyError
     elif failure_kind == 'malformed-json':
         invalid_response = _JarvisResponse(
             _jarvis_archive_bytes(json_tag, '{broken')
         )
+        expected_error = json.JSONDecodeError
     elif failure_kind == 'empty-payload':
         invalid_response = _JarvisResponse(
             _jarvis_archive_bytes(json_tag, '[]')
         )
+        expected_error = ValueError
     elif failure_kind == 'non-object-record':
         invalid_response = _JarvisResponse(
             _jarvis_archive_bytes(json_tag, '[1]')
         )
-    else:
+        expected_error = ValueError
+    elif failure_kind == 'wrong-top-level':
         invalid_response = _JarvisResponse(
             _jarvis_archive_bytes(json_tag, json.dumps({'unexpected': 'mapping'}))
         )
+        expected_error = ValueError
+    else:
+        if failure_kind == 'stream-connection-error':
+            stream_error = installed_figshare.requests.ConnectionError(
+                'offline stream interruption'
+            )
+        elif failure_kind == 'stream-runtime-error':
+            stream_error = RuntimeError('offline stream interruption')
+        elif failure_kind == 'stream-keyboard-interrupt':
+            stream_error = KeyboardInterrupt('offline stream interruption')
+        else:
+            stream_error = OSError('offline stream interruption')
+        invalid_response = _JarvisResponse(
+            b'partial archive chunk',
+            stream_error=stream_error,
+        )
+        expected_error = type(stream_error)
     valid_response = _JarvisResponse(
         _jarvis_archive_bytes(
             json_tag,
@@ -631,13 +668,18 @@ def test_load_or_build_dataset_cleans_new_invalid_installed_jarvis_archive(
     processed_path = processed_dir / 'twod_matpd.parquet'
     manifest_path = processed_dir / 'manifest.json'
 
-    with pytest.raises(expected_error):
+    with pytest.raises(expected_error) as exc_info:
         load_or_build_dataset(cfg)
 
+    if stream_error is not None:
+        assert exc_info.value is stream_error
     assert not archive_path.exists()
     assert not raw_json_path.exists()
     assert not processed_path.exists()
     assert not manifest_path.exists()
+    assert not (tmp_path / 'agent_state.json').exists()
+    assert not (tmp_path / 'reports').exists()
+    assert not (tmp_path / 'artifacts').exists()
     assert not (tmp_path / 'human_docs').exists()
 
     dataset_df, manifest = load_or_build_dataset(cfg)
@@ -658,6 +700,7 @@ def test_load_or_build_dataset_preserves_preexisting_invalid_jarvis_archive(
     json_tag = metadata[1]
     archive_path = raw_dir / f'{json_tag}.zip'
     archive_path.write_bytes(b'preexisting invalid cache')
+    initial_stat = archive_path.stat()
 
     def reject_request(*_args, **_kwargs):
         raise AssertionError('An existing archive must not trigger a request')
@@ -668,9 +711,56 @@ def test_load_or_build_dataset_preserves_preexisting_invalid_jarvis_archive(
         load_or_build_dataset(cfg)
 
     assert archive_path.read_bytes() == b'preexisting invalid cache'
+    final_stat = archive_path.stat()
+    assert (final_stat.st_dev, final_stat.st_ino, final_stat.st_mode) == (
+        initial_stat.st_dev,
+        initial_stat.st_ino,
+        initial_stat.st_mode,
+    )
     assert not (raw_dir / 'twod_matpd.json').exists()
     assert not (processed_dir / 'twod_matpd.parquet').exists()
     assert not (processed_dir / 'manifest.json').exists()
+
+
+def test_load_or_build_dataset_preserves_stream_error_if_cleanup_fails(
+    tmp_path,
+    monkeypatch,
+):
+    installed_figshare, cfg, raw_dir, processed_dir, metadata = (
+        _installed_jarvis_case(tmp_path, monkeypatch)
+    )
+    json_tag = metadata[1]
+    stream_error = RuntimeError('offline stream interruption')
+    cleanup_error = PermissionError('partial archive cleanup failed')
+    response = _JarvisResponse(
+        b'partial archive chunk',
+        stream_error=stream_error,
+    )
+    monkeypatch.setattr(
+        installed_figshare.requests,
+        'get',
+        lambda *_args, **_kwargs: response,
+    )
+    archive_path = raw_dir / f'{json_tag}.zip'
+    path_type = type(archive_path)
+    original_unlink = path_type.unlink
+
+    def reject_archive_unlink(path, *args, **kwargs):
+        if path == archive_path:
+            raise cleanup_error
+        return original_unlink(path, *args, **kwargs)
+
+    with monkeypatch.context() as cleanup_patch:
+        cleanup_patch.setattr(path_type, 'unlink', reject_archive_unlink)
+        with pytest.raises(RuntimeError) as exc_info:
+            load_or_build_dataset(cfg)
+
+    assert exc_info.value is stream_error
+    assert archive_path.read_bytes() == b'partial archive chunk'
+    assert not (raw_dir / 'twod_matpd.json').exists()
+    assert not (processed_dir / 'twod_matpd.parquet').exists()
+    assert not (processed_dir / 'manifest.json').exists()
+    assert not (tmp_path / 'human_docs').exists()
 
 
 def test_load_or_build_dataset_builds_normalized_cache_and_reuses_it(tmp_path, monkeypatch):
