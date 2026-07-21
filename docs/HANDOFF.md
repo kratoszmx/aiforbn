@@ -261,6 +261,7 @@
 - Round 18 证明 provenance v2 已通过 effective config、已承诺 experiment summary 与 path-to-SHA-256 output inventory 传递绑定三个 execution 路径，单独增加 v3 role map 没有新的拒绝能力；同时修复 public writer 可把 canonical summary/variants DataFrame 对调后仍发布 current bundle 的语义缺口，现会在目录创建、旧 marker 失效或任何输出写入前按 builder-owned role column 拒绝错位表格。未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - Round 19 修复 structure-execution public writer 对 builder-owned 跨表关系只验角色、不验内容的缺口：payload、summary 与 variants 的 candidate/variant membership、聚合与逐候选 counts、status、geometry result、selected ID/final status 现在会在 artifact root 创建、旧 marker 失效或任何输出写入前完成一致性预检；canonical inactive、empty、error、partial、full 与 custom-path 输出保持有效。未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - Round 20 修复 zero-variant structure-execution candidate 可协调伪装成 `executed`、`no_successful_variant` 或成功 selected-final status 并发布 current bundle 的缺口；public writer 现在会在 artifact root 创建、旧 marker 失效或任何输出写入前拒绝这些 post-attempt 状态，同时保留 inactive、empty、missing/invalid reference、unresolved scale、planner error、自定义 formula column 与实际 failed-variant/no-success 输出。未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
+- Round 21 修复 structure-execution selected summary 只绑定 ID/final status 的缺口：builder 与 writer 现在共用确定性的成功 variant 排序与十字段 selected-row 投影契约，payload/summary/variants 任一 rank、CIF path、formula、site/geometry/proxy、relaxation 或 winner relabel 不一致都会在 artifact root 创建、旧 marker 失效或任何写入前拒绝；无成功 variant 时全部 selected 投影保持空值，并保留 canonical `not_executed` 或 invalid-reference error 语义。默认/自定义 formula column、nested path、partial、failed-only、zero-variant 与实际 non-first winner 均有原子回归；未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - contract verifier 现精确锁定 validation-profile 命令序列、三个 active project-skill 记录与七个 retired-guidance 路径；public-surface 测试同时核对模块摘要及根摘要的 callable 参数顺序和 keyword-only 边界
 - `--verify-agent-contract` 现会精确锁定六个 module 的 path/role/public-surface/agent-rules/local-utils/allowed-dependencies；公开 surface 测试逐个要求四个生产模块非空，并显式覆盖 import re-export
 
@@ -275,7 +276,7 @@
 
 3. 完整 src 测试：
 - `conda run -n quant python3 -m pytest -q src`
-- 结果：`525 passed, 1 warning`
+- 结果：`565 passed, 1 warning`
 - 剩余 warning 是 PyTorch nested-tensor prototype 提示，不是测试失败；原 sklearn feature-name warnings 已消除
 
 4. UI 文字化验证：

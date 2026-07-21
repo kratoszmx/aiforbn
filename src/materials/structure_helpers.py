@@ -40,6 +40,49 @@ _STRUCTURE_FIRST_PASS_EXECUTION_OUTPUT_DEFAULTS = {
 DEFAULT_STRUCTURE_FIRST_PASS_EXECUTION_STRUCTURE_DIR = (
     'demo_candidate_structure_generation_first_pass_structures'
 )
+_STRUCTURE_EXECUTION_SELECTED_PROJECTION_FIELDS = (
+    ('first_pass_execution_selected_variant_id', 'execution_variant_id'),
+    ('first_pass_execution_selected_variant_rank', 'execution_variant_rank'),
+    ('first_pass_execution_selected_cif_path', 'generated_structure_cif_path'),
+    ('first_pass_execution_selected_generated_formula', 'generated_formula'),
+    (
+        'first_pass_execution_selected_structure_n_sites',
+        'generated_structure_n_sites',
+    ),
+    ('first_pass_execution_selected_min_distance', 'geometry_min_distance'),
+    (
+        'first_pass_execution_selected_min_distance_ratio',
+        'geometry_min_distance_ratio',
+    ),
+    ('first_pass_execution_selected_band_gap_proxy', 'structure_band_gap_proxy'),
+    ('first_pass_execution_selected_relaxation_status', 'relaxation_status'),
+    ('first_pass_execution_selected_final_status', 'final_status'),
+)
+_STRUCTURE_EXECUTION_VARIANT_SELECTION_FIELDS = (
+    'geometry_sanity_pass',
+    'formula_matches_candidate',
+    'structure_band_gap_proxy',
+    'execution_variant_selection_score',
+    'execution_variant_rank',
+)
+
+
+def _select_structure_execution_variant(
+    variant_df: pd.DataFrame,
+) -> pd.Series | None:
+    if variant_df.empty:
+        return None
+    successful_variant_df = variant_df.loc[
+        variant_df['execution_status'].astype(str).eq('ok')
+    ].copy()
+    if successful_variant_df.empty:
+        return None
+    return successful_variant_df.sort_values(
+        list(_STRUCTURE_EXECUTION_VARIANT_SELECTION_FIELDS),
+        ascending=[False, False, False, False, True],
+        kind='stable',
+        na_position='last',
+    ).iloc[0]
 
 
 def _structure_first_pass_execution_config(cfg: dict | None = None) -> dict[str, object]:

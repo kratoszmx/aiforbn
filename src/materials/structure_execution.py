@@ -21,6 +21,7 @@ from materials.structure_artifacts import (
     _build_structure_generation_reference_record_payload,
 )
 from materials.structure_helpers import (
+    _STRUCTURE_EXECUTION_SELECTED_PROJECTION_FIELDS,
     _apply_variant_plan,
     _build_variant_plans,
     _canonical_formula,
@@ -30,6 +31,7 @@ from materials.structure_helpers import (
     _pair_distance_statistics,
     _predict_structure_band_gap_proxy,
     _scaled_formula_counts,
+    _select_structure_execution_variant,
     _structure_first_pass_execution_config,
     _structure_from_atoms,
     _structure_to_atoms,
@@ -467,21 +469,7 @@ def build_structure_first_pass_execution_artifacts(
             successful_variant_df['geometry_sanity_pass'].fillna(False).astype(bool)
         ].copy() if not successful_variant_df.empty else pd.DataFrame()
 
-        selected_variant = None
-        if not successful_variant_df.empty:
-            ranked_successful = successful_variant_df.sort_values(
-                [
-                    'geometry_sanity_pass',
-                    'formula_matches_candidate',
-                    'structure_band_gap_proxy',
-                    'execution_variant_selection_score',
-                    'execution_variant_rank',
-                ],
-                ascending=[False, False, False, False, True],
-                kind='stable',
-                na_position='last',
-            )
-            selected_variant = ranked_successful.iloc[0]
+        selected_variant = _select_structure_execution_variant(candidate_variant_df)
 
         candidate_status = 'executed' if selected_variant is not None else 'no_successful_variant'
         summary_rows.append(
@@ -497,56 +485,19 @@ def build_structure_first_pass_execution_artifacts(
                 'first_pass_execution_successful_variant_count': int(len(successful_variant_df)),
                 'first_pass_execution_geometry_pass_variant_count': int(len(geometry_pass_variant_df)),
                 'first_pass_execution_status': candidate_status,
-                'first_pass_execution_selected_variant_id': (
-                    _json_safe_value(selected_variant.get('execution_variant_id'))
-                    if selected_variant is not None
-                    else None
-                ),
-                'first_pass_execution_selected_variant_rank': (
-                    _json_safe_value(selected_variant.get('execution_variant_rank'))
-                    if selected_variant is not None
-                    else None
-                ),
-                'first_pass_execution_selected_cif_path': (
-                    _json_safe_value(selected_variant.get('generated_structure_cif_path'))
-                    if selected_variant is not None
-                    else None
-                ),
-                'first_pass_execution_selected_generated_formula': (
-                    _json_safe_value(selected_variant.get('generated_formula'))
-                    if selected_variant is not None
-                    else None
-                ),
-                'first_pass_execution_selected_structure_n_sites': (
-                    _json_safe_value(selected_variant.get('generated_structure_n_sites'))
-                    if selected_variant is not None
-                    else None
-                ),
-                'first_pass_execution_selected_min_distance': (
-                    _json_safe_value(selected_variant.get('geometry_min_distance'))
-                    if selected_variant is not None
-                    else None
-                ),
-                'first_pass_execution_selected_min_distance_ratio': (
-                    _json_safe_value(selected_variant.get('geometry_min_distance_ratio'))
-                    if selected_variant is not None
-                    else None
-                ),
-                'first_pass_execution_selected_band_gap_proxy': (
-                    _json_safe_value(selected_variant.get('structure_band_gap_proxy'))
-                    if selected_variant is not None
-                    else None
-                ),
-                'first_pass_execution_selected_relaxation_status': (
-                    _json_safe_value(selected_variant.get('relaxation_status'))
-                    if selected_variant is not None
-                    else None
-                ),
-                'first_pass_execution_selected_final_status': (
-                    _json_safe_value(selected_variant.get('final_status'))
-                    if selected_variant is not None
-                    else 'not_executed'
-                ),
+                **{
+                    summary_field: (
+                        _json_safe_value(selected_variant.get(variant_field))
+                        if selected_variant is not None
+                        else (
+                            'not_executed'
+                            if variant_field == 'final_status'
+                            else None
+                        )
+                    )
+                    for summary_field, variant_field
+                    in _STRUCTURE_EXECUTION_SELECTED_PROJECTION_FIELDS
+                },
             }
         )
         candidate_payload['candidate_status'] = candidate_status

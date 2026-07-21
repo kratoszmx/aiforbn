@@ -27,7 +27,11 @@ from materials.ranking_tables import (
 from materials.screening import build_candidate_structure_generation_seeds
 from materials.summary import build_experiment_summary
 from materials.structure_execution import build_structure_first_pass_execution_artifacts
-from materials.structure_helpers import _structure_first_pass_execution_config
+from materials.structure_helpers import (
+    _STRUCTURE_EXECUTION_SELECTED_PROJECTION_FIELDS,
+    _select_structure_execution_variant,
+    _structure_first_pass_execution_config,
+)
 
 
 def _save_minimal_report_bundle(
@@ -1113,6 +1117,12 @@ def test_reporting_clears_stale_optional_artifacts_on_disabled_second_run(tmp_pa
         'generated_structure_cif_path': cif_relative_path,
         '_cif_text': 'data_XBN\n',
     })
+    writer_kwargs['structure_variant_df'].loc[
+        0, 'generated_structure_cif_path'
+    ] = cif_relative_path
+    writer_kwargs['structure_summary_df'].loc[
+        0, 'first_pass_execution_selected_cif_path'
+    ] = cif_relative_path
 
     _save_minimal_report_bundle(
         cfg,
@@ -1616,8 +1626,21 @@ def _structure_execution_writer_kwargs(cfg):
     variant_row = {
         'formula': 'XBN',
         'execution_variant_id': 'xbn__variant_01',
+        'execution_variant_rank': 1,
         'execution_status': 'ok',
+        'formula_matches_candidate': True,
         'geometry_sanity_pass': True,
+        'execution_variant_selection_score': 1.0,
+        'generated_structure_cif_path': (
+            'demo_candidate_structure_generation_first_pass_structures/'
+            'xbn__variant_01.cif'
+        ),
+        'generated_formula': 'XBN',
+        'generated_structure_n_sites': 2,
+        'geometry_min_distance': 1.5,
+        'geometry_min_distance_ratio': 0.8,
+        'structure_band_gap_proxy': None,
+        'relaxation_status': 'not_run_reference_geometry_reused',
         'final_status': 'ready_for_external_relaxation',
     }
     return {
@@ -1643,6 +1666,19 @@ def _structure_execution_writer_kwargs(cfg):
                 'first_pass_execution_geometry_pass_variant_count': 1,
                 'first_pass_execution_status': 'executed',
                 'first_pass_execution_selected_variant_id': 'xbn__variant_01',
+                'first_pass_execution_selected_variant_rank': 1,
+                'first_pass_execution_selected_cif_path': (
+                    'demo_candidate_structure_generation_first_pass_structures/'
+                    'xbn__variant_01.cif'
+                ),
+                'first_pass_execution_selected_generated_formula': 'XBN',
+                'first_pass_execution_selected_structure_n_sites': 2,
+                'first_pass_execution_selected_min_distance': 1.5,
+                'first_pass_execution_selected_min_distance_ratio': 0.8,
+                'first_pass_execution_selected_band_gap_proxy': None,
+                'first_pass_execution_selected_relaxation_status': (
+                    'not_run_reference_geometry_reused'
+                ),
                 'first_pass_execution_selected_final_status': (
                     'ready_for_external_relaxation'
                 ),
@@ -1673,13 +1709,28 @@ def _canonical_structure_execution_writer_inputs(
         'angles': [90.0, 90.0, 120.0],
         'cartesian': False,
     }
+    raw_formula = 'BN'
+    if baseline_case == 'multiple-success':
+        raw_formula = 'B2N'
+        atoms = {
+            'elements': ['B', 'B', 'N'],
+            'coords': [[0.0, 0.0, 0.0], [5.0, 0.0, 0.0], [1.2, 0.0, 0.0]],
+            'lattice_mat': [
+                [10.0, 0.0, 0.0],
+                [0.0, 10.0, 0.0],
+                [0.0, 0.0, 10.0],
+            ],
+            'abc': [10.0, 10.0, 10.0],
+            'angles': [90.0, 90.0, 90.0],
+            'cartesian': True,
+        }
     if baseline_case == 'invalid-reference':
         atoms = {'elements': ['B', 'N']}
     (raw_dir / 'twod_matpd.json').write_text(
         json.dumps([
             {
                 'jid': 'jid-1',
-                'formula': 'BN',
+                'formula': raw_formula,
                 'band_gap': 5.8,
                 'atoms': atoms,
             },
@@ -1721,6 +1772,7 @@ def _canonical_structure_execution_writer_inputs(
             'invalid-reference': [('BN', 'jid-1', 'BN')],
             'unresolved-scale': [('BN', 'jid-1', 'C')],
             'no-plan': [('AlBN', 'jid-1', 'BN')],
+            'multiple-success': [('AlBN', 'jid-1', 'B2N')],
         }.get(baseline_case, [('BN', 'jid-1', 'BN')])
         if baseline_case == 'partial':
             seed_rows.append(('AlBN', 'missing-jid', 'BN'))
@@ -1759,6 +1811,27 @@ def _canonical_structure_execution_writer_inputs(
     }
 
 
+_SELECTED_PROJECTION_INVALID_VALUES = {
+    'execution_variant_rank': 99,
+    'generated_structure_cif_path': (
+        'demo_candidate_structure_generation_first_pass_structures/'
+        'forged__variant_99.cif'
+    ),
+    'generated_formula': 'AlBN',
+    'generated_structure_n_sites': 99,
+    'geometry_min_distance': 99.0,
+    'geometry_min_distance_ratio': 99.0,
+    'structure_band_gap_proxy': 99.0,
+    'relaxation_status': 'forged_relaxation_status',
+}
+_SELECTED_PROJECTION_MUTATIONS = tuple(
+    (summary_field, variant_field, _SELECTED_PROJECTION_INVALID_VALUES[variant_field])
+    for summary_field, variant_field
+    in _STRUCTURE_EXECUTION_SELECTED_PROJECTION_FIELDS
+    if variant_field in _SELECTED_PROJECTION_INVALID_VALUES
+)
+
+
 _STRUCTURE_EXECUTION_RELATION_MUTATIONS = {
     'payload-enabled': ('payload', 'enabled', False),
     'payload-candidate-count': ('payload', 'candidate_count', 2),
@@ -1771,6 +1844,12 @@ _STRUCTURE_EXECUTION_RELATION_MUTATIONS = {
     'payload-selected-variant-id': ('candidate', 'selected_variant_id', 'wrong__variant_99'),
     'payload-variant-id': ('payload-variant', 'execution_variant_id', 'wrong__variant_99'),
     'payload-variant-status': ('payload-variant', 'execution_status', 'error'),
+    'payload-variant-formula-match': (
+        'payload-variant', 'formula_matches_candidate', False,
+    ),
+    'payload-variant-selection-score': (
+        'payload-variant', 'execution_variant_selection_score', 99.0,
+    ),
     'summary-variant-count': ('summary', 'first_pass_execution_variant_count', 2),
     'summary-successful-variant-count': (
         'summary', 'first_pass_execution_successful_variant_count', 0,
@@ -1789,7 +1868,26 @@ _STRUCTURE_EXECUTION_RELATION_MUTATIONS = {
     'variant-id': ('variant', 'execution_variant_id', 'wrong__variant_99'),
     'variant-status': ('variant', 'execution_status', 'error'),
     'variant-geometry-status': ('variant', 'geometry_sanity_pass', False),
+    'variant-formula-match': ('variant', 'formula_matches_candidate', False),
+    'variant-selection-score': (
+        'variant', 'execution_variant_selection_score', 99.0,
+    ),
     'variant-final-status': ('variant', 'final_status', 'execution_error'),
+    **{
+        f'summary-selected-{variant_field}': ('summary', summary_field, invalid_value)
+        for summary_field, variant_field, invalid_value
+        in _SELECTED_PROJECTION_MUTATIONS
+    },
+    **{
+        f'payload-selected-{variant_field}': ('payload-variant', variant_field, invalid_value)
+        for _summary_field, variant_field, invalid_value
+        in _SELECTED_PROJECTION_MUTATIONS
+    },
+    **{
+        f'variant-selected-{variant_field}': ('variant', variant_field, invalid_value)
+        for _summary_field, variant_field, invalid_value
+        in _SELECTED_PROJECTION_MUTATIONS
+    },
 }
 
 
@@ -1806,6 +1904,34 @@ def _mutate_structure_execution_relation(writer_kwargs, mismatch_case):
     else:
         frame = writer_kwargs[f'structure_{target_name}_df']
         frame.loc[0, field_name] = value
+
+
+def _assert_structure_execution_rejection_is_atomic(
+    tmp_path,
+    cfg,
+    canonical_kwargs,
+    invalid_kwargs,
+    manifest,
+):
+    artifact_dir = Path(cfg['project']['artifact_dir'])
+    with pytest.raises(ValueError, match='structure_first_pass_execution'):
+        _save_minimal_report_bundle(cfg, manifest=manifest, **invalid_kwargs)
+    assert _report_bundle_snapshot(artifact_dir) is None
+
+    _save_minimal_report_bundle(cfg, manifest=manifest, **canonical_kwargs)
+    valid_snapshot = _report_bundle_snapshot(artifact_dir)
+    with pytest.raises(ValueError, match='structure_first_pass_execution'):
+        _save_minimal_report_bundle(cfg, manifest=manifest, **invalid_kwargs)
+    assert _report_bundle_snapshot(artifact_dir) == valid_snapshot
+
+    _save_minimal_report_bundle(cfg, manifest=manifest, **canonical_kwargs)
+    assessment = io_utils.assess_artifact_provenance(
+        io_utils.read_json_file(artifact_dir / 'artifact_provenance.json'),
+        cfg,
+        manifest,
+        project_root_path=tmp_path,
+    )
+    assert assessment['status'] == 'current'
 
 
 @pytest.mark.parametrize(
@@ -1856,6 +1982,7 @@ _CANONICAL_STRUCTURE_EXECUTION_CASES = (
     ('partial', 'formula', ('executed', 'missing_reference_record')),
     ('full', 'formula', ('executed',)),
     ('custom-paths', 'formula', ('executed',)),
+    ('custom-paths', 'composition', ('executed',)),
     ('error', 'composition', ('missing_reference_record',)),
     ('invalid-reference', 'composition', ('invalid_reference_structure',)),
     ('unresolved-scale', 'composition', ('unresolved_reference_scale_factor',)),
@@ -2062,8 +2189,83 @@ def test_reporting_accepts_canonical_failed_variant_no_success_control(
     assert assessment['status'] == 'current'
 
 
+_NO_SELECTION_SELECTED_MUTATIONS = (
+    ('first_pass_execution_selected_variant_id', 'ghost__variant_01'),
+    *(entry[::2] for entry in _SELECTED_PROJECTION_MUTATIONS),
+    (
+        'first_pass_execution_selected_final_status',
+        'ready_for_external_relaxation',
+    ),
+)
+_NO_SELECTION_BRANCH_CASES = (
+    *_ZERO_VARIANT_BRANCH_CASES,
+    ('failed-variant', 'formula'),
+    ('failed-variant', 'composition'),
+)
+
+
+@pytest.mark.parametrize(('baseline_case', 'formula_col'), _NO_SELECTION_BRANCH_CASES)
+def test_reporting_rejects_nonnull_selected_projections_without_selection(
+    tmp_path,
+    monkeypatch,
+    baseline_case,
+    formula_col,
+):
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    if baseline_case == 'failed-variant':
+        monkeypatch.setattr(
+            structure_execution_module,
+            '_apply_variant_plan',
+            lambda *_args, **_kwargs: (
+                _ for _ in ()
+            ).throw(RuntimeError('synthetic failure')),
+        )
+    manifest = {
+        'name': 'twod_matpd',
+        'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-21T00:00:00+00:00',
+        'target_column': 'band_gap',
+    }
+    for index, (summary_field, invalid_value) in enumerate(
+        _NO_SELECTION_SELECTED_MUTATIONS
+    ):
+        case_root = tmp_path / str(index)
+        case_root.mkdir()
+        cfg, canonical_kwargs = _canonical_structure_execution_writer_inputs(
+            case_root,
+            baseline_case=(
+                'full' if baseline_case == 'failed-variant' else baseline_case
+            ),
+            formula_col=formula_col,
+        )
+        invalid_kwargs = copy.deepcopy(canonical_kwargs)
+        if (
+            baseline_case == 'invalid-reference'
+            and summary_field == 'first_pass_execution_selected_final_status'
+        ):
+            invalid_value = 'not_executed'
+        if summary_field == 'first_pass_execution_selected_variant_id':
+            invalid_kwargs['structure_payload']['candidates'][0][
+                'selected_variant_id'
+            ] = invalid_value
+        invalid_kwargs['structure_summary_df'].loc[
+            0, summary_field
+        ] = invalid_value
+        _assert_structure_execution_rejection_is_atomic(
+            case_root,
+            cfg,
+            canonical_kwargs,
+            invalid_kwargs,
+            manifest,
+        )
+
+
 @pytest.mark.parametrize('formula_col', ['formula', 'composition'])
-def test_reporting_rejects_coordinated_selected_id_without_variants(
+def test_reporting_rejects_noncanonical_successful_variant_selection_atomically(
     tmp_path,
     monkeypatch,
     formula_col,
@@ -2073,44 +2275,49 @@ def test_reporting_rejects_coordinated_selected_id_without_variants(
         '_read_local_source_state',
         lambda _root: {'revision': 'abc123', 'dirty': False},
     )
-    cfg, writer_kwargs = _canonical_structure_execution_writer_inputs(
+    cfg, canonical_kwargs = _canonical_structure_execution_writer_inputs(
         tmp_path,
-        baseline_case='error',
+        baseline_case='multiple-success',
         formula_col=formula_col,
     )
+    variant_df = canonical_kwargs['structure_variant_df']
+    summary_df = canonical_kwargs['structure_summary_df']
+    assert variant_df['execution_status'].tolist() == ['ok', 'ok']
+    assert summary_df['first_pass_execution_selected_variant_rank'].tolist() == [2]
+    invalid_kwargs = copy.deepcopy(canonical_kwargs)
+    noncanonical_variant = variant_df.iloc[0]
+    invalid_kwargs['structure_payload']['candidates'][0][
+        'selected_variant_id'
+    ] = noncanonical_variant['execution_variant_id']
+    for summary_field, variant_field in (
+        (
+            'first_pass_execution_selected_variant_id',
+            'execution_variant_id',
+        ),
+        *((summary_field, variant_field)
+          for summary_field, variant_field, _invalid_value
+          in _SELECTED_PROJECTION_MUTATIONS),
+        (
+            'first_pass_execution_selected_final_status',
+            'final_status',
+        ),
+    ):
+        invalid_kwargs['structure_summary_df'].loc[
+            0, summary_field
+        ] = noncanonical_variant[variant_field]
     manifest = {
         'name': 'twod_matpd',
         'source': 'jarvis-tools/figshare',
         'retrieved_at': '2026-07-21T00:00:00+00:00',
         'target_column': 'band_gap',
     }
-    canonical_kwargs = copy.deepcopy(writer_kwargs)
-    writer_kwargs['structure_payload']['candidates'][0][
-        'selected_variant_id'
-    ] = 'ghost__variant_01'
-    writer_kwargs['structure_summary_df'].loc[
-        0, 'first_pass_execution_selected_variant_id'
-    ] = 'ghost__variant_01'
-
-    with pytest.raises(ValueError, match='absent selected variant'):
-        _save_minimal_report_bundle(cfg, manifest=manifest, **writer_kwargs)
-    artifact_dir = Path(cfg['project']['artifact_dir'])
-    assert _report_bundle_snapshot(artifact_dir) is None
-
-    _save_minimal_report_bundle(cfg, manifest=manifest, **canonical_kwargs)
-    valid_snapshot = _report_bundle_snapshot(artifact_dir)
-    with pytest.raises(ValueError, match='absent selected variant'):
-        _save_minimal_report_bundle(cfg, manifest=manifest, **writer_kwargs)
-    assert _report_bundle_snapshot(artifact_dir) == valid_snapshot
-
-    _save_minimal_report_bundle(cfg, manifest=manifest, **canonical_kwargs)
-    assessment = io_utils.assess_artifact_provenance(
-        io_utils.read_json_file(artifact_dir / 'artifact_provenance.json'),
+    _assert_structure_execution_rejection_is_atomic(
+        tmp_path,
         cfg,
+        canonical_kwargs,
+        invalid_kwargs,
         manifest,
-        project_root_path=tmp_path,
     )
-    assert assessment['status'] == 'current'
 
 
 @pytest.mark.parametrize(
@@ -2128,7 +2335,6 @@ def test_reporting_rejects_structure_execution_relational_mismatches_atomically(
         lambda _root: {'revision': 'abc123', 'dirty': False},
     )
     cfg, canonical_kwargs = _canonical_structure_execution_writer_inputs(tmp_path)
-    artifact_dir = Path(cfg['project']['artifact_dir'])
     manifest = {
         'name': 'twod_matpd',
         'source': 'jarvis-tools/figshare',
@@ -2138,26 +2344,105 @@ def test_reporting_rejects_structure_execution_relational_mismatches_atomically(
 
     invalid_kwargs = copy.deepcopy(canonical_kwargs)
     _mutate_structure_execution_relation(invalid_kwargs, mismatch_case)
-    with pytest.raises(ValueError, match='structure_first_pass_execution'):
-        _save_minimal_report_bundle(cfg, manifest=manifest, **invalid_kwargs)
-    assert _report_bundle_snapshot(artifact_dir) is None
+    _assert_structure_execution_rejection_is_atomic(
+        tmp_path,
+        cfg,
+        canonical_kwargs,
+        invalid_kwargs,
+        manifest,
+    )
+
+
+def test_structure_execution_selected_projection_contract_is_nonvacuous_and_atomic(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    projection_fields = _STRUCTURE_EXECUTION_SELECTED_PROJECTION_FIELDS
+    assert projection_fields == (
+        ('first_pass_execution_selected_variant_id', 'execution_variant_id'),
+        ('first_pass_execution_selected_variant_rank', 'execution_variant_rank'),
+        ('first_pass_execution_selected_cif_path', 'generated_structure_cif_path'),
+        ('first_pass_execution_selected_generated_formula', 'generated_formula'),
+        (
+            'first_pass_execution_selected_structure_n_sites',
+            'generated_structure_n_sites',
+        ),
+        ('first_pass_execution_selected_min_distance', 'geometry_min_distance'),
+        (
+            'first_pass_execution_selected_min_distance_ratio',
+            'geometry_min_distance_ratio',
+        ),
+        ('first_pass_execution_selected_band_gap_proxy', 'structure_band_gap_proxy'),
+        ('first_pass_execution_selected_relaxation_status', 'relaxation_status'),
+        ('first_pass_execution_selected_final_status', 'final_status'),
+    )
+    assert len({summary_field for summary_field, _variant_field in projection_fields}) == 10
+    assert len({variant_field for _summary_field, variant_field in projection_fields}) == 10
+
+    cfg, canonical_kwargs = _canonical_structure_execution_writer_inputs(tmp_path)
+    summary = canonical_kwargs['structure_summary_df'].iloc[0]
+    selected_variant = _select_structure_execution_variant(
+        canonical_kwargs['structure_variant_df']
+    )
+    assert selected_variant is not None
+    for summary_field, variant_field in projection_fields:
+        assert io_utils.make_json_safe(summary[summary_field]) == io_utils.make_json_safe(
+            selected_variant[variant_field]
+        )
+
+    artifact_dir = Path(cfg['project']['artifact_dir'])
+    manifest = {
+        'name': 'twod_matpd',
+        'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-21T00:00:00+00:00',
+        'target_column': 'band_gap',
+    }
+    missing_field_cases = (
+        *(('structure_summary_df', summary_field)
+          for summary_field, _variant_field in projection_fields),
+        *(('structure_variant_df', variant_field)
+          for _summary_field, variant_field in projection_fields),
+        *(('structure_payload', variant_field)
+          for _summary_field, variant_field in projection_fields),
+    )
+    def without_field(role_name, field_name):
+        invalid = copy.deepcopy(canonical_kwargs)
+        if role_name == 'structure_payload':
+            invalid[role_name]['candidates'][0]['variants'][0].pop(field_name)
+        else:
+            invalid[role_name] = invalid[role_name].drop(columns=[field_name])
+        return invalid
+
+    for role_name, missing_field in missing_field_cases:
+        with pytest.raises(ValueError, match='structure_first_pass_execution'):
+            _save_minimal_report_bundle(
+                cfg,
+                manifest=manifest,
+                **without_field(role_name, missing_field),
+            )
+        assert _report_bundle_snapshot(artifact_dir) is None
 
     _save_minimal_report_bundle(cfg, manifest=manifest, **canonical_kwargs)
     valid_snapshot = _report_bundle_snapshot(artifact_dir)
-    invalid_kwargs = copy.deepcopy(canonical_kwargs)
-    _mutate_structure_execution_relation(invalid_kwargs, mismatch_case)
-    with pytest.raises(ValueError, match='structure_first_pass_execution'):
-        _save_minimal_report_bundle(cfg, manifest=manifest, **invalid_kwargs)
-    assert _report_bundle_snapshot(artifact_dir) == valid_snapshot
-
-    _save_minimal_report_bundle(cfg, manifest=manifest, **canonical_kwargs)
-    assessment = io_utils.assess_artifact_provenance(
+    for role_name, missing_field in missing_field_cases:
+        with pytest.raises(ValueError, match='structure_first_pass_execution'):
+            _save_minimal_report_bundle(
+                cfg,
+                manifest=manifest,
+                **without_field(role_name, missing_field),
+            )
+        assert _report_bundle_snapshot(artifact_dir) == valid_snapshot
+    assert io_utils.assess_artifact_provenance(
         io_utils.read_json_file(artifact_dir / 'artifact_provenance.json'),
         cfg,
         manifest,
         project_root_path=tmp_path,
-    )
-    assert assessment['status'] == 'current'
+    )['status'] == 'current'
 
 
 def _assert_summary_preflight_rejection_is_atomic(
@@ -2560,6 +2845,12 @@ def test_completion_marker_commits_exact_successful_bundle_outputs(
         'generated_structure_cif_path': 'nested/cifs/xbn__variant_01.cif',
         '_cif_text': 'data_XBN\n',
     })
+    writer_kwargs['structure_variant_df'].loc[
+        0, 'generated_structure_cif_path'
+    ] = 'nested/cifs/xbn__variant_01.cif'
+    writer_kwargs['structure_summary_df'].loc[
+        0, 'first_pass_execution_selected_cif_path'
+    ] = 'nested/cifs/xbn__variant_01.cif'
     manifest = {
         'name': 'twod_matpd',
         'source': 'jarvis-tools/figshare',

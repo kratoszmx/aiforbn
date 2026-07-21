@@ -55,7 +55,12 @@ from materials.structure_artifacts import (
     _build_structure_generation_job_plan_payload,
     _build_structure_generation_reference_record_payload,
 )
-from materials.structure_helpers import _structure_first_pass_execution_config
+from materials.structure_helpers import (
+    _STRUCTURE_EXECUTION_SELECTED_PROJECTION_FIELDS,
+    _STRUCTURE_EXECUTION_VARIANT_SELECTION_FIELDS,
+    _select_structure_execution_variant,
+    _structure_first_pass_execution_config,
+)
 from materials.summary import *
 
 
@@ -320,22 +325,40 @@ def _validate_structure_execution_frame_roles(
             reject(field_name, 'must be a non-negative integer')
         return value
 
+    def number(value, field_name, *, nullable=False):
+        value = normalized(value)
+        if nullable and value is None:
+            return None
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            reject(field_name, 'must be numeric')
+        return value
+
+    selected_summary_fields = tuple(
+        summary_field
+        for summary_field, _variant_field
+        in _STRUCTURE_EXECUTION_SELECTED_PROJECTION_FIELDS
+    )
+    selected_variant_fields = tuple(
+        variant_field
+        for _summary_field, variant_field
+        in _STRUCTURE_EXECUTION_SELECTED_PROJECTION_FIELDS
+    )
+    variant_fields = tuple(dict.fromkeys((
+        formula_col,
+        'execution_status',
+        'geometry_sanity_pass',
+        *selected_variant_fields,
+        *_STRUCTURE_EXECUTION_VARIANT_SELECTION_FIELDS,
+    )))
     summary_columns = {
         formula_col,
         'first_pass_execution_variant_count',
         'first_pass_execution_successful_variant_count',
         'first_pass_execution_geometry_pass_variant_count',
         'first_pass_execution_status',
-        'first_pass_execution_selected_variant_id',
-        'first_pass_execution_selected_final_status',
+        *selected_summary_fields,
     }
-    variant_columns = {
-        formula_col,
-        'execution_variant_id',
-        'execution_status',
-        'geometry_sanity_pass',
-        'final_status',
-    }
+    variant_columns = set(variant_fields)
     for role_name, frame, required in (
         ('structure_first_pass_execution_summary_df', summary_df, summary_columns),
         ('structure_first_pass_execution_variant_df', variant_df, variant_columns),
@@ -380,6 +403,16 @@ def _validate_structure_execution_frame_roles(
         text(row.get('final_status'), 'variant final_status')
         if not isinstance(normalized(row.get('geometry_sanity_pass')), bool):
             reject('variant geometry_sanity_pass', 'must be boolean')
+        if not isinstance(normalized(row.get('formula_matches_candidate')), bool):
+            reject('variant formula_matches_candidate', 'must be boolean')
+        if count(row.get('execution_variant_rank'), 'variant rank') < 1:
+            reject('variant rank', 'must be a positive integer')
+        number(row.get('execution_variant_selection_score'), 'variant selection score')
+        number(
+            row.get('structure_band_gap_proxy'),
+            'variant band-gap proxy',
+            nullable=True,
+        )
 
     candidate_rows = payload['candidates']
     if not isinstance(candidate_rows, list):
@@ -393,6 +426,12 @@ def _validate_structure_execution_frame_roles(
         for variant_id, row in index_records(
             rows, 'execution_variant_id', f'{formula} payload variants'
         ).items():
+            missing_variant_fields = variant_columns - set(row)
+            if missing_variant_fields:
+                reject(
+                    f'{formula} payload variants',
+                    f'are missing canonical fields: {sorted(missing_variant_fields)}',
+                )
             if text(row.get(formula_col), f'payload variant {formula_col}') != formula:
                 reject('payload variant candidate membership')
             if variant_id in payload_variants:
@@ -426,10 +465,6 @@ def _validate_structure_execution_frame_roles(
     if normalized(payload['executed_formulas']) != executed_formulas:
         reject('executed_formulas')
 
-    variant_fields = (
-        formula_col, 'execution_variant_id', 'execution_status',
-        'geometry_sanity_pass', 'final_status',
-    )
     for variant_id, row in variants.items():
         if any(
             normalized(row.get(field)) != normalized(payload_variants[variant_id].get(field))
@@ -463,18 +498,6 @@ def _validate_structure_execution_frame_roles(
             reject(f'{formula} candidate status')
         if not candidate_variants and status in {'executed', 'no_successful_variant'}:
             reject(f'{formula} zero-variant status')
-        if not candidate_variants:
-            selected_final_status = text(
-                summary.get('first_pass_execution_selected_final_status'),
-                f'{formula} selected final status',
-            )
-            valid_unattempted_status = (
-                ': ' in selected_final_status
-                if status == 'invalid_reference_structure'
-                else selected_final_status == 'not_executed'
-            )
-            if not valid_unattempted_status:
-                reject(f'{formula} selected final status')
         if successful and status != 'executed':
             reject(f'{formula} executed status')
         if candidate_variants and not successful and status != 'no_successful_variant':
@@ -491,19 +514,50 @@ def _validate_structure_execution_frame_roles(
             nullable=True,
         ) != selected_id:
             reject(f'{formula} selected variant')
-        successful_ids = {
-            text(row.get('execution_variant_id'), 'successful variant id')
-            for row in successful
-        }
-        if successful_ids:
-            if selected_id not in successful_ids:
-                reject(f'{formula} selected variant membership')
-            if normalized(summary.get('first_pass_execution_selected_final_status')) != normalized(
-                variants[selected_id].get('final_status')
+        canonical_selected = _select_structure_execution_variant(
+            pd.DataFrame(candidate_variants)
+        )
+        if canonical_selected is not None:
+            canonical_selected_id = text(
+                canonical_selected.get('execution_variant_id'),
+                f'{formula} canonical selected variant',
+            )
+            if selected_id != canonical_selected_id:
+                reject(f'{formula} canonical selected variant')
+            for summary_field, variant_field in (
+                _STRUCTURE_EXECUTION_SELECTED_PROJECTION_FIELDS
             ):
-                reject(f'{formula} selected final status')
-        elif selected_id is not None:
-            reject(f'{formula} absent selected variant')
+                if normalized(summary.get(summary_field)) != normalized(
+                    canonical_selected.get(variant_field)
+                ):
+                    reject(f'{formula} {summary_field}')
+        else:
+            for summary_field, variant_field in (
+                _STRUCTURE_EXECUTION_SELECTED_PROJECTION_FIELDS
+            ):
+                selected_value = normalized(summary.get(summary_field))
+                if variant_field == 'final_status':
+                    if (
+                        not candidate_variants
+                        and status == 'invalid_reference_structure'
+                    ):
+                        valid_unattempted_status = (
+                            isinstance(selected_value, str)
+                            and ': ' in selected_value
+                        )
+                    else:
+                        valid_unattempted_status = selected_value == 'not_executed'
+                    if not valid_unattempted_status:
+                        reject(f'{formula} selected final status')
+                elif selected_value is not None:
+                    reject(
+                        f'{formula} '
+                        + (
+                            'absent selected variant'
+                            if variant_field == 'execution_variant_id'
+                            else 'absent selected projection'
+                        )
+                    )
 
 
 def save_metrics_and_predictions(

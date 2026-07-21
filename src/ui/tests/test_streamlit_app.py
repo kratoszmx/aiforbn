@@ -146,7 +146,10 @@ def _save_structure_execution_bundle(
 ):
     from runtime import io_utils
     from materials.summary import build_experiment_summary
-    from materials.structure_helpers import _structure_first_pass_execution_config
+    from materials.structure_helpers import (
+        _STRUCTURE_EXECUTION_SELECTED_PROJECTION_FIELDS,
+        _structure_first_pass_execution_config,
+    )
 
     root = Path(__file__).resolve().parents[3]
     cfg = io_utils.load_config(root / 'src' / 'config.py')
@@ -184,8 +187,20 @@ def _save_structure_execution_bundle(
     variant_row = {
         'formula': 'AlBN',
         'execution_variant_id': 'albn__variant_01',
+        'execution_variant_rank': 1,
         'execution_status': 'ok',
+        'formula_matches_candidate': True,
         'geometry_sanity_pass': True,
+        'execution_variant_selection_score': 1.0,
+        'generated_structure_cif_path': (
+            f"{execution_cfg['structure_dir']}/albn__variant_01.cif"
+        ),
+        'generated_formula': 'AlBN',
+        'generated_structure_n_sites': 2,
+        'geometry_min_distance': 1.5,
+        'geometry_min_distance_ratio': 0.8,
+        'structure_band_gap_proxy': None,
+        'relaxation_status': 'not_run_reference_geometry_reused',
         'final_status': 'ready_for_external_relaxation',
     }
     structure_payload = {
@@ -214,10 +229,12 @@ def _save_structure_execution_bundle(
             'first_pass_execution_successful_variant_count': 1,
             'first_pass_execution_geometry_pass_variant_count': 1,
             'first_pass_execution_status': 'executed',
-            'first_pass_execution_selected_variant_id': 'albn__variant_01',
-            'first_pass_execution_selected_final_status': (
-                'ready_for_external_relaxation'
-            ),
+            **{
+                summary_field: variant_row[variant_field]
+                for summary_field, variant_field in (
+                    _STRUCTURE_EXECUTION_SELECTED_PROJECTION_FIELDS
+                )
+            },
         }])
         if execution_active
         else pd.DataFrame()
