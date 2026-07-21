@@ -20,7 +20,11 @@ from runtime.schema import (
     FIXED_REPORT_ARTIFACT_NAMES as _RESERVED_REPORT_ARTIFACT_NAMES,
     STRUCTURE_EXECUTION_OUTPUT_ROLES,
 )
-from materials.data import STRUCTURE_SUMMARY_COLUMNS, load_cached_raw_record_lookup
+from materials.data import (
+    STRUCTURE_SUMMARY_COLUMNS,
+    _basic_formula_from_entry,
+    load_cached_raw_record_lookup,
+)
 from materials.constants import *
 from materials.candidate_space import *
 from materials.candidate_space import (
@@ -54,6 +58,7 @@ from materials.structure_artifacts import (
     _build_structure_generation_handoff_payload,
     _build_structure_generation_job_plan_payload,
     _build_structure_generation_reference_record_payload,
+    _build_structure_execution_selection_context,
 )
 from materials.structure_helpers import (
     _STRUCTURE_EXECUTION_CANDIDATE_STATUS_BY_BRANCH,
@@ -62,6 +67,7 @@ from materials.structure_helpers import (
     _STRUCTURE_EXECUTION_VARIANT_SELECTION_FIELDS,
     _STRUCTURE_EXECUTION_ZERO_VARIANT_STATUSES,
     _build_variant_plans,
+    _canonical_formula,
     _infer_reference_formula_multiplier,
     _scaled_formula_counts,
     _select_structure_execution_variant,
@@ -317,6 +323,7 @@ def _validate_structure_execution_frame_roles(
     geometry_min_distance_ratio_overlap_threshold: float,
     max_variants_per_candidate: int,
     raw_record_lookup: dict[str, dict],
+    expected_seed_reference_by_formula: dict[str, tuple[object, object]],
 ) -> None:
     def normalized(value):
         return make_json_safe(value)
@@ -535,23 +542,32 @@ def _validate_structure_execution_frame_roles(
             row for row in variants.values()
             if normalized(row.get(formula_col)) == formula
         ]
+        expected_seed_reference = expected_seed_reference_by_formula.get(formula)
+        if expected_seed_reference is None:
+            reject(f'{formula} builder seed reference identity')
+        expected_seed_formula, expected_record_id = expected_seed_reference
+        seed_formula = normalized(candidate.get('seed_reference_formula'))
+        record_id = normalized(candidate.get('seed_reference_record_id'))
+        if (
+            seed_formula != expected_seed_formula
+            or record_id != expected_record_id
+        ):
+            reject(f'{formula} builder seed reference identity')
+        for summary_field, expected_value in (
+            ('structure_followup_best_seed_reference_formula', seed_formula),
+            ('structure_followup_best_seed_reference_record_id', record_id),
+        ):
+            if normalized(summary.get(summary_field)) != expected_value:
+                reject(f'{formula} {summary_field}')
         if candidate_variants:
             seed_formula = text(
-                candidate.get('seed_reference_formula'),
+                seed_formula,
                 f'{formula} seed reference formula',
             )
             record_id = text(
-                candidate.get('seed_reference_record_id'),
+                record_id,
                 f'{formula} seed reference record id',
             )
-            for summary_field, expected_value in (
-                ('structure_followup_best_seed_reference_formula', seed_formula),
-                ('structure_followup_best_seed_reference_record_id', record_id),
-            ):
-                if text(summary.get(summary_field), f'{formula} {summary_field}') != (
-                    expected_value
-                ):
-                    reject(f'{formula} {summary_field}')
             if any(
                 text(row.get('seed_reference_formula'), 'variant seed reference formula')
                 != seed_formula
@@ -571,6 +587,18 @@ def _validate_structure_execution_frame_roles(
             )
             if not isinstance(reference_atoms, dict):
                 reject(f'{formula} source structure evidence')
+            try:
+                raw_formula = _canonical_formula(
+                    _basic_formula_from_entry(reference_record)
+                )
+                claimed_seed_formula = _canonical_formula(seed_formula)
+            except Exception as exc:
+                reject(
+                    f'{formula} cached raw formula identity',
+                    f'cannot canonicalize formula: {type(exc).__name__}',
+                )
+            if raw_formula != claimed_seed_formula:
+                reject(f'{formula} cached raw formula identity')
             try:
                 reference_structure = _structure_from_atoms(reference_atoms)
             except Exception as exc:
@@ -966,6 +994,28 @@ def save_metrics_and_predictions(
     )
     if execution_outputs_will_publish:
         raw_record_lookup = load_cached_raw_record_lookup(cfg)
+        _, selected_execution_followup_df = (
+            _build_structure_execution_selection_context(
+                structure_generation_seed_df,
+                formula_col=formula_col,
+                seed_cfg=structure_generation_seed_cfg,
+                followup_cfg=_structure_followup_shortlist_config(cfg),
+                max_candidates=int(
+                    structure_first_pass_execution_cfg['max_candidates']
+                ),
+            )
+        )
+        expected_seed_reference_by_formula = {
+            str(row[formula_col]): (
+                make_json_safe(
+                    row.get('structure_followup_best_seed_reference_formula')
+                ),
+                make_json_safe(
+                    row.get('structure_followup_best_seed_reference_record_id')
+                ),
+            )
+            for _, row in selected_execution_followup_df.iterrows()
+        }
         _validate_structure_execution_frame_roles(
             structure_first_pass_execution_summary_df,
             structure_first_pass_execution_variant_df,
@@ -985,6 +1035,9 @@ def save_metrics_and_predictions(
                 structure_first_pass_execution_cfg['max_variants_per_candidate']
             ),
             raw_record_lookup=raw_record_lookup,
+            expected_seed_reference_by_formula=(
+                expected_seed_reference_by_formula
+            ),
         )
     if include_parity_plot:
         missing_plot_columns = {'target', 'prediction'} - set(prediction_df.columns)

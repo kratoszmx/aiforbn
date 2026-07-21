@@ -16,9 +16,8 @@ from materials.candidate_space import _formula_amount_map, _structure_generation
 from materials.feature_building import build_feature_table
 from materials.common import _structure_followup_shortlist_config
 from materials.structure_artifacts import (
-    _build_structure_generation_first_pass_queue_payload,
-    _build_structure_generation_followup_shortlist_df,
     _build_structure_generation_reference_record_payload,
+    _build_structure_execution_selection_context,
 )
 from materials.structure_helpers import (
     _STRUCTURE_EXECUTION_CANDIDATE_STATUS_BY_BRANCH,
@@ -92,30 +91,17 @@ def build_structure_first_pass_execution_artifacts(
         structure_generation_seed_df,
         cfg=cfg,
     )
-    queue_payload = _build_structure_generation_first_pass_queue_payload(
-        structure_generation_seed_df,
-        formula_col=formula_col,
-        cfg_defaults=seed_cfg,
+    queue_payload, selected_followup_df = (
+        _build_structure_execution_selection_context(
+            structure_generation_seed_df,
+            formula_col=formula_col,
+            seed_cfg=seed_cfg,
+            followup_cfg=followup_cfg,
+            max_candidates=int(execution_cfg['max_candidates']),
+        )
     )
-    followup_df = _build_structure_generation_followup_shortlist_df(
-        queue_payload,
-        formula_col=formula_col,
-        cfg_defaults=followup_cfg,
-    )
-    if followup_df.empty:
-        return empty_variant_df, empty_summary_df, empty_payload
-
-    selected_followup_df = followup_df.loc[
-        followup_df['structure_followup_shortlist_selected'].fillna(False).astype(bool)
-    ].copy()
     if selected_followup_df.empty:
         return empty_variant_df, empty_summary_df, empty_payload
-
-    selected_followup_df = selected_followup_df.sort_values(
-        'structure_followup_shortlist_rank',
-        ascending=True,
-        kind='stable',
-    ).head(int(execution_cfg['max_candidates']))
     queue_rows = pd.DataFrame(queue_payload.get('queue', [])).copy()
     reference_records = {
         str(record['record_id']): record

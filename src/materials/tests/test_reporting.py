@@ -1692,6 +1692,14 @@ def _structure_execution_writer_kwargs(cfg):
         **structure_summary,
     }
     return {
+        'structure_generation_seed_df': pd.DataFrame([{
+            'formula': 'BN',
+            'ranking_rank': 1,
+            'structure_generation_seed_rank': 1,
+            'structure_generation_seed_status': 'ok',
+            'seed_reference_formula': 'BN',
+            'seed_reference_record_id': 'jid-1',
+        }]),
         'structure_payload': {
             **execution_cfg,
             'candidate_count': 1,
@@ -1772,6 +1780,20 @@ def _canonical_structure_execution_writer_inputs(
         atoms = {
             'elements': ['B', 'B', 'N'],
             'coords': [[0.0, 0.0, 0.0], [5.0, 0.0, 0.0], [1.2, 0.0, 0.0]],
+            'lattice_mat': [
+                [10.0, 0.0, 0.0],
+                [0.0, 10.0, 0.0],
+                [0.0, 0.0, 10.0],
+            ],
+            'abc': [10.0, 10.0, 10.0],
+            'angles': [90.0, 90.0, 90.0],
+            'cartesian': True,
+        }
+    if baseline_case == 'source-formula-structure-mismatch':
+        raw_formula = 'BN'
+        atoms = {
+            'elements': ['B', 'N', 'C'],
+            'coords': [[0.0, 0.0, 0.0], [1.2, 0.0, 0.0], [5.0, 0.0, 0.0]],
             'lattice_mat': [
                 [10.0, 0.0, 0.0],
                 [0.0, 10.0, 0.0],
@@ -2097,6 +2119,180 @@ def test_reporting_rejects_noncanonical_edit_plan_identity_atomically(
         invalid_kwargs,
         manifest,
     )
+
+
+@pytest.mark.parametrize(
+    ('baseline_case', 'formula_col'),
+    [('full', 'formula'), ('multiple-success', 'composition')],
+)
+def test_reporting_rejects_seed_record_relabel_atomically(
+    tmp_path,
+    monkeypatch,
+    baseline_case,
+    formula_col,
+):
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    cfg, canonical_kwargs = _canonical_structure_execution_writer_inputs(
+        tmp_path,
+        baseline_case=baseline_case,
+        formula_col=formula_col,
+    )
+    raw_path = Path(cfg['data']['raw_dir']) / 'twod_matpd.json'
+    raw_records = json.loads(raw_path.read_text(encoding='utf-8'))
+    second_record = copy.deepcopy(raw_records[0])
+    second_record['jid'] = 'jid-2'
+    raw_records.append(second_record)
+    raw_path.write_text(json.dumps(raw_records), encoding='utf-8')
+    second_seed = canonical_kwargs['structure_generation_seed_df'].iloc[[0]].copy()
+    second_seed.loc[:, 'structure_generation_seed_rank'] = 2
+    second_seed.loc[:, 'seed_reference_record_id'] = 'jid-2'
+    canonical_kwargs['structure_generation_seed_df'] = pd.concat(
+        [canonical_kwargs['structure_generation_seed_df'], second_seed],
+        ignore_index=True,
+    )
+
+    invalid_kwargs = copy.deepcopy(canonical_kwargs)
+    invalid_kwargs['structure_payload']['candidates'][0][
+        'seed_reference_record_id'
+    ] = 'jid-2'
+    for variant in invalid_kwargs['structure_payload']['candidates'][0]['variants']:
+        variant['seed_reference_record_id'] = 'jid-2'
+    invalid_kwargs['structure_summary_df'].loc[
+        0, 'structure_followup_best_seed_reference_record_id'
+    ] = 'jid-2'
+    invalid_kwargs['structure_variant_df'].loc[
+        :, 'seed_reference_record_id'
+    ] = 'jid-2'
+    manifest = {
+        'name': 'twod_matpd',
+        'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-21T00:00:00+00:00',
+        'target_column': 'band_gap',
+    }
+
+    _assert_structure_execution_rejection_is_atomic(
+        tmp_path,
+        cfg,
+        canonical_kwargs,
+        invalid_kwargs,
+        manifest,
+    )
+
+
+@pytest.mark.parametrize(
+    (
+        'baseline_case',
+        'formula_col',
+        'invalid_raw_formula',
+        'equivalent_raw_formula',
+    ),
+    [
+        ('full', 'formula', 'AlBN', 'NB'),
+        ('vacancy', 'composition', 'BN', 'NB2'),
+    ],
+)
+def test_reporting_rejects_cached_raw_formula_mismatch_atomically(
+    tmp_path,
+    monkeypatch,
+    baseline_case,
+    formula_col,
+    invalid_raw_formula,
+    equivalent_raw_formula,
+):
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    cfg, canonical_kwargs = _canonical_structure_execution_writer_inputs(
+        tmp_path,
+        baseline_case=baseline_case,
+        formula_col=formula_col,
+    )
+    raw_path = Path(cfg['data']['raw_dir']) / 'twod_matpd.json'
+    valid_raw_bytes = raw_path.read_bytes()
+    invalid_raw = json.loads(valid_raw_bytes)
+    invalid_raw[0]['formula'] = invalid_raw_formula
+    invalid_raw_bytes = json.dumps(invalid_raw).encode()
+    manifest = {
+        'name': 'twod_matpd',
+        'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-21T00:00:00+00:00',
+        'target_column': 'band_gap',
+    }
+    artifact_dir = Path(cfg['project']['artifact_dir'])
+
+    raw_path.write_bytes(invalid_raw_bytes)
+    with pytest.raises(ValueError, match='structure_first_pass_execution'):
+        _save_minimal_report_bundle(
+            cfg,
+            manifest=manifest,
+            **canonical_kwargs,
+        )
+    assert _report_bundle_snapshot(artifact_dir) is None
+
+    raw_path.write_bytes(valid_raw_bytes)
+    _save_minimal_report_bundle(cfg, manifest=manifest, **canonical_kwargs)
+    valid_snapshot = _report_bundle_snapshot(artifact_dir)
+
+    raw_path.write_bytes(invalid_raw_bytes)
+    with pytest.raises(ValueError, match='structure_first_pass_execution'):
+        _save_minimal_report_bundle(
+            cfg,
+            manifest=manifest,
+            **canonical_kwargs,
+        )
+    assert _report_bundle_snapshot(artifact_dir) == valid_snapshot
+
+    raw_path.write_bytes(valid_raw_bytes)
+    _save_minimal_report_bundle(cfg, manifest=manifest, **canonical_kwargs)
+    assessment = io_utils.assess_artifact_provenance(
+        io_utils.read_json_file(artifact_dir / 'artifact_provenance.json'),
+        cfg,
+        manifest,
+        project_root_path=tmp_path,
+    )
+    assert assessment['status'] == 'current'
+
+    raw_records = json.loads(valid_raw_bytes)
+    raw_records[0]['formula'] = equivalent_raw_formula
+    raw_path.write_text(json.dumps(raw_records), encoding='utf-8')
+    _save_minimal_report_bundle(cfg, manifest=manifest, **canonical_kwargs)
+    equivalent_assessment = io_utils.assess_artifact_provenance(
+        io_utils.read_json_file(
+            Path(cfg['project']['artifact_dir']) / 'artifact_provenance.json'
+        ),
+        cfg,
+        manifest,
+        project_root_path=tmp_path,
+    )
+    assert equivalent_assessment['status'] == 'current'
+
+
+@pytest.mark.parametrize('formula_col', ['formula', 'composition'])
+def test_builder_rejects_seed_formula_with_unclaimed_source_elements(
+    tmp_path,
+    formula_col,
+):
+    cfg, writer_kwargs = _canonical_structure_execution_writer_inputs(
+        tmp_path,
+        baseline_case='source-formula-structure-mismatch',
+        formula_col=formula_col,
+    )
+
+    assert writer_kwargs['structure_variant_df'].empty
+    assert writer_kwargs['structure_payload']['variant_count'] == 0
+    assert writer_kwargs['structure_payload']['candidates'][0][
+        'candidate_status'
+    ] == 'unresolved_reference_scale_factor'
+    assert writer_kwargs['structure_summary_df'].loc[
+        0, 'first_pass_execution_status'
+    ] == 'unresolved_reference_scale_factor'
+    assert not Path(cfg['project']['artifact_dir']).exists()
 
 
 @pytest.mark.parametrize(
@@ -3582,7 +3778,7 @@ def test_completion_marker_commits_exact_successful_bundle_outputs(
         empty_df,
         empty_df,
         empty_df,
-        empty_df,
+        writer_kwargs['structure_generation_seed_df'],
         {'dataset': {'rows': 1}},
         manifest,
         cfg,

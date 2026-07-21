@@ -696,6 +696,8 @@ def _infer_reference_formula_multiplier(atoms: dict, seed_formula: str) -> int |
     reduced_counts = _formula_amount_map(seed_formula)
     if not reduced_counts:
         return None
+    if set(actual_counts) != set(reduced_counts):
+        return None
 
     ratios = []
     for element, amount in reduced_counts.items():

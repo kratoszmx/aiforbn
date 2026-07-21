@@ -705,6 +705,44 @@ def _build_structure_generation_followup_shortlist_df(
     return shortlist_df[columns]
 
 
+def _build_structure_execution_selection_context(
+    structure_generation_seed_df: pd.DataFrame,
+    *,
+    formula_col: str,
+    seed_cfg: dict[str, object],
+    followup_cfg: dict[str, object],
+    max_candidates: int,
+) -> tuple[dict[str, object], pd.DataFrame]:
+    """Derive the exact queue and selected seed rows consumed by execution."""
+
+    queue_payload = _build_structure_generation_first_pass_queue_payload(
+        structure_generation_seed_df,
+        formula_col=formula_col,
+        cfg_defaults=seed_cfg,
+    )
+    followup_df = _build_structure_generation_followup_shortlist_df(
+        queue_payload,
+        formula_col=formula_col,
+        cfg_defaults=followup_cfg,
+    )
+    if followup_df.empty:
+        return queue_payload, followup_df
+
+    selected_followup_df = followup_df.loc[
+        followup_df['structure_followup_shortlist_selected']
+        .fillna(False)
+        .astype(bool)
+    ].copy()
+    if selected_followup_df.empty:
+        return queue_payload, selected_followup_df
+    selected_followup_df = selected_followup_df.sort_values(
+        'structure_followup_shortlist_rank',
+        ascending=True,
+        kind='stable',
+    ).head(int(max_candidates))
+    return queue_payload, selected_followup_df
+
+
 def _build_structure_generation_followup_extrapolation_shortlist_df(
     structure_followup_shortlist_df: pd.DataFrame,
     *,
