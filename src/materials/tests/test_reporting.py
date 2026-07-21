@@ -607,6 +607,20 @@ def test_structure_first_pass_config_preserves_contained_relative_paths():
             'artifact': 'nested/execution.json',
             'structure_dir': 'nested/execution.json/structures',
         },
+        {
+            'summary_artifact': (
+                'demo_candidate_structure_generation_first_pass_execution_variants.csv'
+            ),
+            'variants_artifact': (
+                'demo_candidate_structure_generation_first_pass_execution_summary.csv'
+            ),
+        },
+        {
+            'summary_artifact': (
+                'DEMO_CANDIDATE_STRUCTURE_GENERATION_FIRST_PASS_EXECUTION_VARIANTS.CSV'
+            ),
+            'variants_artifact': 'nested/custom-variants.csv',
+        },
     ],
     ids=[
         'core-json-collision',
@@ -619,6 +633,8 @@ def test_structure_first_pass_config_preserves_contained_relative_paths():
         'unicode-normalized-pairwise-file-collision',
         'file-path-contains-file-path',
         'structure-dir-beneath-configured-file',
+        'cross-role-canonical-default-swap',
+        'casefolded-cross-role-canonical-default',
     ],
 )
 def test_reporting_rejects_structure_execution_output_path_collisions(
@@ -1230,6 +1246,25 @@ def test_empty_structure_generation_bridge_does_not_advertise_absent_artifacts()
         'first_pass_execution_variants_artifact',
     ):
         assert bridge.get(artifact_field) is None
+
+    summary_without_execution_payload = build_experiment_summary(
+        dataset_df,
+        dataset_df,
+        candidate_df,
+        {'train': [True], 'val': [False], 'test': [False], 'metadata': {}},
+        selection_summary,
+        cfg,
+        structure_generation_seed_df=pd.DataFrame(),
+        structure_first_pass_execution_summary_df=pd.DataFrame([
+            {'formula': 'XBN', 'first_pass_execution_status': 'executed'},
+        ]),
+    )
+    assert (
+        summary_without_execution_payload['screening'][
+            'structure_generation_bridge'
+        ]['first_pass_execution_followup_report_artifact']
+        is None
+    )
 
 
 def test_summary_handles_insufficient_bn_diagnostics_without_advertising_empty_predictions():
@@ -1863,6 +1898,10 @@ def test_reporting_accepts_valid_summary_fallback_and_role_contracts(
             if not case_only_path.exists():
                 pytest.skip('local filesystem treats case-only names as distinct files')
             assert (artifact_dir / execution_cfg['artifact']).samefile(case_only_path)
+            writer_kwargs['structure_payload'] = {
+                **writer_kwargs['structure_payload'],
+                'artifact': case_only_value,
+            }
             summary_paths = {**execution_cfg, 'artifact': case_only_value}
         summary = {
             'screening': {

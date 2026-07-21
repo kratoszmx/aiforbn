@@ -9,6 +9,7 @@ import pandas as pd
 from pymatgen.core import Composition, Element, Structure
 
 from runtime.io_utils import make_json_safe
+from runtime.schema import STRUCTURE_EXECUTION_OUTPUT_ROLES
 from materials.data import STRUCTURE_SUMMARY_COLUMNS, _structure_summary_from_atoms
 from materials.candidate_space import _formula_amount_map, _structure_generation_seed_config
 from materials.constants import STRUCTURE_AWARE_FEATURE_SET
@@ -31,15 +32,11 @@ DEFAULT_STRUCTURE_FIRST_PASS_EXECUTION_NOTE = (
     'scales cleanly to the reference record. This is first-pass prototype execution only. No '
     'ionic/cell relaxation, stability calculation, or discovery claim is made here.'
 )
-DEFAULT_STRUCTURE_FIRST_PASS_EXECUTION_ARTIFACT = (
-    'demo_candidate_structure_generation_first_pass_execution.json'
-)
-DEFAULT_STRUCTURE_FIRST_PASS_EXECUTION_SUMMARY_ARTIFACT = (
-    'demo_candidate_structure_generation_first_pass_execution_summary.csv'
-)
-DEFAULT_STRUCTURE_FIRST_PASS_EXECUTION_VARIANTS_ARTIFACT = (
-    'demo_candidate_structure_generation_first_pass_execution_variants.csv'
-)
+_STRUCTURE_FIRST_PASS_EXECUTION_OUTPUT_DEFAULTS = {
+    config_field: default_path
+    for _artifact_key, _summary_field, config_field, _suffix, default_path
+    in STRUCTURE_EXECUTION_OUTPUT_ROLES
+}
 DEFAULT_STRUCTURE_FIRST_PASS_EXECUTION_STRUCTURE_DIR = (
     'demo_candidate_structure_generation_first_pass_structures'
 )
@@ -79,19 +76,19 @@ def _structure_first_pass_execution_config(cfg: dict | None = None) -> dict[str,
         'artifact': str(
             execution_cfg.get(
                 'artifact',
-                DEFAULT_STRUCTURE_FIRST_PASS_EXECUTION_ARTIFACT,
+                _STRUCTURE_FIRST_PASS_EXECUTION_OUTPUT_DEFAULTS['artifact'],
             )
         ),
         'summary_artifact': str(
             execution_cfg.get(
                 'summary_artifact',
-                DEFAULT_STRUCTURE_FIRST_PASS_EXECUTION_SUMMARY_ARTIFACT,
+                _STRUCTURE_FIRST_PASS_EXECUTION_OUTPUT_DEFAULTS['summary_artifact'],
             )
         ),
         'variants_artifact': str(
             execution_cfg.get(
                 'variants_artifact',
-                DEFAULT_STRUCTURE_FIRST_PASS_EXECUTION_VARIANTS_ARTIFACT,
+                _STRUCTURE_FIRST_PASS_EXECUTION_OUTPUT_DEFAULTS['variants_artifact'],
             )
         ),
         'structure_dir': str(

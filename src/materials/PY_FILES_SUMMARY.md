@@ -162,7 +162,7 @@ No callable public surface. The following non-callable contracts are imported ac
   - Preflight caller JSON and optional parity-plot inputs, replace CSV files atomically, invalidate any prior completion marker before the first bundle mutation, record only successfully emitted fixed/optional/configured/CIF/plot paths, and publish their v2 SHA-256 commitment in `artifact_provenance.json` as the final action; failed plotting or marker publication leaves no completion marker.
   - Reject wrong-shaped screening/structure-bridge containers and mismatched dynamic output declarations before artifact-directory creation, marker invalidation, or any bundle write; absent/null/empty containers and matching normalized/same-file roles remain valid.
   - Keep each compact BN model-role comparison row bound to one feature/model identity across slice, family, and stratified diagnostics instead of splicing per-scope winners.
-  - Preflight every fixed, configurable, dynamic, and stale-cleanup CIF leaf in its originally declared form before directory creation; contain structure-execution paths beneath their configured roots, reject kind/parent-chain/reserved/pairwise/filesystem-alias collisions before mutation, and remove valid stale execution artifacts when the current run produces no execution payload.
+  - Preflight every fixed, configurable, dynamic, and stale-cleanup CIF leaf in its originally declared form before directory creation; contain structure-execution paths beneath their configured roots, reject kind/parent-chain/fixed-name/pairwise/cross-role-default/filesystem-alias collisions before mutation, and remove valid stale execution artifacts when the current run produces no execution payload.
 
 ## plots.py
 

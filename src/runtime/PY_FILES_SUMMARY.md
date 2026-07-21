@@ -47,8 +47,10 @@ Anything underscore-prefixed or omitted here should be treated as internal.
 
 ## schema.py
 
+- `FIXED_REPORT_ARTIFACT_NAMES`
+  - Canonical fixed report filename set shared by materials collision preflight and UI persisted-state role validation; configurable structure-execution outputs may not relabel these files.
 - `STRUCTURE_EXECUTION_OUTPUT_ROLES`
-  - Canonical three-role mapping shared by materials publication and UI persisted-state validation: viewer artifact key, experiment-summary field, configured path field, and required suffix.
+  - Canonical three-role mapping shared by structure building, materials publication, and UI persisted-state validation: viewer artifact key, experiment-summary field, configured path field, required suffix, and canonical default filename.
 - `DatasetManifest`
   - Pydantic-style schema for normalized dataset-manifest metadata, including the target column that defines processed-cache identity.
 - `MaterialRecord`

@@ -9,6 +9,7 @@ import pandas as pd
 from pymatgen.core import Composition, Element, Structure
 
 from runtime.io_utils import make_json_safe
+from runtime.schema import STRUCTURE_EXECUTION_OUTPUT_ROLES
 from materials.data import STRUCTURE_SUMMARY_COLUMNS, _structure_summary_from_atoms
 from materials.constants import STRUCTURE_AWARE_FEATURE_SET
 from materials.candidate_space import _formula_amount_map, _structure_generation_seed_config
@@ -52,9 +53,11 @@ def build_structure_first_pass_execution_artifacts(
         'label': execution_cfg['label'],
         'method': execution_cfg['method'],
         'note': execution_cfg['note'],
-        'artifact': execution_cfg['artifact'],
-        'summary_artifact': execution_cfg['summary_artifact'],
-        'variants_artifact': execution_cfg['variants_artifact'],
+        **{
+            config_field: execution_cfg[config_field]
+            for _artifact_key, _summary_field, config_field, _suffix, _default_path
+            in STRUCTURE_EXECUTION_OUTPUT_ROLES
+        },
         'structure_dir': execution_cfg['structure_dir'],
         'candidate_count': 0,
         'variant_count': 0,
@@ -570,9 +573,11 @@ def build_structure_first_pass_execution_artifacts(
         'label': execution_cfg['label'],
         'method': execution_cfg['method'],
         'note': execution_cfg['note'],
-        'artifact': execution_cfg['artifact'],
-        'summary_artifact': execution_cfg['summary_artifact'],
-        'variants_artifact': execution_cfg['variants_artifact'],
+        **{
+            config_field: execution_cfg[config_field]
+            for _artifact_key, _summary_field, config_field, _suffix, _default_path
+            in STRUCTURE_EXECUTION_OUTPUT_ROLES
+        },
         'structure_dir': execution_cfg['structure_dir'],
         'candidate_count': int(len(summary_df)),
         'variant_count': int(len(variant_df)),
@@ -592,4 +597,3 @@ def build_structure_first_pass_execution_artifacts(
         'candidates': payload_candidates,
     }
     return variant_df, summary_df, payload
-

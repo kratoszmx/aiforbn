@@ -185,7 +185,10 @@ Serializes the live state for stdout or log capture.
 Serializes before parent creation, then writes the live state while refusing canonical, state-declared, or filesystem-equivalent user-owned `human_docs/` targets and multi-hardlink leaves; the payload cannot redirect the canonical guard.
 
 ### `STRUCTURE_EXECUTION_OUTPUT_ROLES`
-Canonical runtime-schema mapping for the three structure-execution viewer roles, experiment-summary fields, configured output fields, and required suffixes. Materials publication and UI persisted-state validation consume the same records without importing one another.
+Canonical runtime-schema mapping for the three structure-execution viewer roles, experiment-summary fields, configured output fields, required suffixes, and canonical default filenames. Structure building, materials publication, and UI persisted-state validation consume the same records without importing one another.
+
+### `FIXED_REPORT_ARTIFACT_NAMES`
+Canonical fixed report filename set shared by materials collision preflight and UI persisted-state role validation so configurable structure-execution outputs cannot relabel fixed bundle files.
 
 ---
 

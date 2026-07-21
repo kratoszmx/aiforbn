@@ -15,7 +15,10 @@ from runtime.io_utils import (
     validate_runtime_output_path,
     write_json_file,
 )
-from runtime.schema import STRUCTURE_EXECUTION_OUTPUT_ROLES
+from runtime.schema import (
+    FIXED_REPORT_ARTIFACT_NAMES as _RESERVED_REPORT_ARTIFACT_NAMES,
+    STRUCTURE_EXECUTION_OUTPUT_ROLES,
+)
 from materials.data import load_cached_raw_record_lookup
 from materials.constants import *
 from materials.candidate_space import *
@@ -53,42 +56,6 @@ from materials.structure_artifacts import (
 )
 from materials.structure_helpers import _structure_first_pass_execution_config
 from materials.summary import *
-
-
-_RESERVED_REPORT_ARTIFACT_NAMES = frozenset({
-    'artifact_provenance.json',
-    'benchmark_results.csv',
-    'bn_candidate_compatible_evaluation.csv',
-    'bn_evaluation_matrix.csv',
-    'bn_family_benchmark_results.csv',
-    'bn_family_predictions.csv',
-    'bn_model_role_comparison.csv',
-    'bn_slice.csv',
-    'bn_slice_benchmark_results.csv',
-    'bn_slice_predictions.csv',
-    'bn_stratified_error_results.csv',
-    'demo_candidate_bn_centered_ranking.csv',
-    'demo_candidate_extrapolation_shortlist.csv',
-    'demo_candidate_proposal_shortlist.csv',
-    'demo_candidate_rank_stability_summary.csv',
-    'demo_candidate_ranking.csv',
-    'demo_candidate_ranking_uncertainty.csv',
-    'demo_candidate_structure_followup_report.csv',
-    'demo_candidate_structure_generation_first_pass_queue.json',
-    'demo_candidate_structure_generation_followup_extrapolation_shortlist.csv',
-    'demo_candidate_structure_generation_followup_shortlist.csv',
-    'demo_candidate_structure_generation_handoff.json',
-    'demo_candidate_structure_generation_job_plan.json',
-    'demo_candidate_structure_generation_reference_records.json',
-    'demo_candidate_structure_generation_seeds.csv',
-    'experiment_summary.json',
-    'manifest.json',
-    'metrics.json',
-    'parity_plot.png',
-    'predictions.csv',
-    'robustness_results.csv',
-    'screened_candidates.csv',
-})
 
 
 def _write_csv_file(frame: pd.DataFrame, path: str | Path) -> None:
@@ -182,7 +149,7 @@ def _validate_structure_execution_output_paths(
 ) -> None:
     expected_suffixes = {
         config_field: suffix
-        for _artifact_key, _summary_field, config_field, suffix
+        for _artifact_key, _summary_field, config_field, suffix, _default_path
         in STRUCTURE_EXECUTION_OUTPUT_ROLES
     }
     for field_name, expected_suffix in expected_suffixes.items():
@@ -225,7 +192,26 @@ def _validate_structure_execution_output_paths(
         (artifact_root / artifact_name).resolve(strict=False)
         for artifact_name in _RESERVED_REPORT_ARTIFACT_NAMES
     }
+    role_default_paths = {
+        config_field: (artifact_root / default_path).resolve(strict=False)
+        for _artifact_key, _summary_field, config_field, _suffix, default_path
+        in STRUCTURE_EXECUTION_OUTPUT_ROLES
+    }
     for field_name, output_path in output_paths.items():
+        if field_name in role_default_paths:
+            for other_field_name, other_default_path in role_default_paths.items():
+                if (
+                    other_field_name != field_name
+                    and (
+                        _canonical_path_parts(output_path)
+                        == _canonical_path_parts(other_default_path)
+                        or _same_existing_path(output_path, other_default_path)
+                    )
+                ):
+                    raise ValueError(
+                        f'structure_first_pass_execution.{field_name} collides with '
+                        f'the canonical {other_field_name} output role'
+                    )
         for reserved_path in reserved_paths:
             collides_with_reserved_file = (
                 _same_or_descendant_path(output_path, reserved_path)
@@ -265,7 +251,7 @@ def _validate_experiment_summary_output_contract(
             'must be an object or null'
         )
 
-    for _artifact_key, summary_field, path_field, expected_suffix in (
+    for _artifact_key, summary_field, path_field, expected_suffix, _default_path in (
         STRUCTURE_EXECUTION_OUTPUT_ROLES
     ):
         if summary_field not in bridge:
@@ -414,7 +400,12 @@ def save_metrics_and_predictions(
     )
     structure_first_pass_execution_cfg = _structure_first_pass_execution_config(cfg)
     structure_first_pass_execution_paths = {}
-    for path_field in ('artifact', 'summary_artifact', 'variants_artifact', 'structure_dir'):
+    execution_path_fields = tuple(
+        config_field
+        for _artifact_key, _summary_field, config_field, _suffix, _default_path
+        in STRUCTURE_EXECUTION_OUTPUT_ROLES
+    ) + ('structure_dir',)
+    for path_field in execution_path_fields:
         output_kind = 'directory' if path_field == 'structure_dir' else 'file'
         configured_path = _resolve_and_validate_artifact_output_path(
             artifact_dir,
@@ -430,7 +421,10 @@ def save_metrics_and_predictions(
                 field_name=f'structure_first_pass_execution.{path_field}',
                 expected_output_kind=output_kind,
             )
-            if payload_path != configured_path:
+            if not (
+                payload_path == configured_path
+                or _same_existing_path(payload_path, configured_path)
+            ):
                 raise ValueError(
                     f'structure_first_pass_execution.{path_field} must match the configured '
                     'artifact path'

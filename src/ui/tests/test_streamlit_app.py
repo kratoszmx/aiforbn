@@ -354,18 +354,25 @@ def _assert_only_provenance_rendered(app):
 
 
 def test_structure_execution_output_role_contract_is_nonvacuous():
+    from materials.structure_execution import (
+        build_structure_first_pass_execution_artifacts,
+    )
     from materials.structure_helpers import _structure_first_pass_execution_config
     from runtime.schema import STRUCTURE_EXECUTION_OUTPUT_ROLES
     from ui import streamlit_app
 
     execution_cfg = _structure_first_pass_execution_config({})
+    _variant_df, _summary_df, builder_payload = (
+        build_structure_first_pass_execution_artifacts(pd.DataFrame(), cfg={})
+    )
     assert len(STRUCTURE_EXECUTION_OUTPUT_ROLES) == 3
+    assert all(len(role) == 5 for role in STRUCTURE_EXECUTION_OUTPUT_ROLES)
     assert len({role[0] for role in STRUCTURE_EXECUTION_OUTPUT_ROLES}) == 3
     assert len({role[1] for role in STRUCTURE_EXECUTION_OUTPUT_ROLES}) == 3
     assert len({role[2] for role in STRUCTURE_EXECUTION_OUTPUT_ROLES}) == 3
     assert streamlit_app._SUMMARY_EXECUTION_PATH_FIELDS == {
         artifact_key: summary_field
-        for artifact_key, summary_field, _config_field, _suffix
+        for artifact_key, summary_field, _config_field, _suffix, _default_path
         in STRUCTURE_EXECUTION_OUTPUT_ROLES
     }
     assert all(
@@ -373,8 +380,15 @@ def test_structure_execution_output_role_contract_is_nonvacuous():
         and streamlit_app.ARTIFACT_PATHS[artifact_key].suffix.casefold() == suffix
         and streamlit_app.ARTIFACT_PATHS[artifact_key].relative_to(
             streamlit_app.DEFAULT_ARTIFACT_ROOT
-        ).as_posix() == execution_cfg[config_field]
-        for artifact_key, _summary_field, config_field, suffix
+        ).as_posix() == execution_cfg[config_field] == default_path
+        for artifact_key, _summary_field, config_field, suffix, default_path
+        in STRUCTURE_EXECUTION_OUTPUT_ROLES
+    )
+    assert all(
+        builder_payload[config_field]
+        == execution_cfg[config_field]
+        == default_path
+        for _artifact_key, _summary_field, config_field, _suffix, default_path
         in STRUCTURE_EXECUTION_OUTPUT_ROLES
     )
 
@@ -815,6 +829,95 @@ def test_streamlit_rejects_relabelled_committed_dynamic_output_identity(
         tmp_path,
         cfg,
         'relabelled_dynamic_output_identity',
+    )
+
+    _assert_only_provenance_rendered(app)
+
+
+@pytest.mark.parametrize(
+    'execution_config_overrides',
+    [
+        pytest.param(
+            {'artifact': 'metrics.json'},
+            id='json-role-relabels-fixed-json',
+        ),
+        pytest.param(
+            {'summary_artifact': 'bn_slice.csv'},
+            id='summary-role-relabels-fixed-csv',
+        ),
+        pytest.param(
+            {'summary_artifact': 'BN_SLICE.CSV'},
+            id='summary-role-casefolds-to-fixed-csv',
+        ),
+        pytest.param(
+            {
+                'summary_artifact': 'bn_slice.csv',
+                'variants_artifact': 'bn_slice.csv',
+            },
+            id='two-roles-identify-the-same-file',
+        ),
+        pytest.param(
+            {'artifact': 'nested/execution.csv'},
+            id='configured-role-has-wrong-suffix',
+        ),
+    ],
+)
+def test_streamlit_rejects_invalid_configured_dynamic_output_identity_without_summary_declarations(
+    tmp_path,
+    monkeypatch,
+    execution_config_overrides,
+):
+    from runtime.schema import STRUCTURE_EXECUTION_OUTPUT_ROLES
+
+    io_utils = _stub_current_source(monkeypatch)
+    artifact_dir = tmp_path / 'artifacts'
+
+    def remove_execution_declarations(summary):
+        summary['screening']['structure_generation_bridge'] = {}
+
+    cfg, _summary, execution_cfg = _save_structure_execution_bundle(
+        artifact_dir,
+        execution_paths=None,
+        execution_active=True,
+        summary_mutator=remove_execution_declarations,
+    )
+    cfg['screening']['structure_first_pass_execution'].update(
+        execution_config_overrides
+    )
+    provenance_path = artifact_dir / 'artifact_provenance.json'
+    superseded_role_paths = {
+        execution_cfg[config_field]
+        for _artifact_key, _summary_field, config_field, _suffix, _default_path
+        in STRUCTURE_EXECUTION_OUTPUT_ROLES
+        if config_field in execution_config_overrides
+    }
+    published_relative_paths = tuple(
+        relative_path
+        for relative_path in io_utils.read_json_file(provenance_path)[
+            'published_outputs'
+        ]
+        if relative_path not in superseded_role_paths
+    )
+    provenance_path.unlink()
+    manifest = io_utils.read_json_file(artifact_dir / 'manifest.json')
+    io_utils.write_json_file(
+        io_utils.build_artifact_provenance(
+            cfg,
+            manifest,
+            published_output_paths=tuple(
+                artifact_dir / relative_path
+                for relative_path in published_relative_paths
+            ),
+        ),
+        provenance_path,
+        indent=2,
+    )
+    _assert_saved_bundle_current(io_utils, artifact_dir, cfg, tmp_path)
+
+    app = _run_real_streamlit_app(
+        tmp_path,
+        cfg,
+        'invalid_configured_dynamic_output_identity',
     )
 
     _assert_only_provenance_rendered(app)

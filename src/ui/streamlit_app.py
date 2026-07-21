@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import sys
+import unicodedata
 
 import pandas as pd
 import streamlit as st
@@ -16,7 +17,10 @@ from runtime.io_utils import (
     read_json_file,
     validate_runtime_output_path,
 )
-from runtime.schema import STRUCTURE_EXECUTION_OUTPUT_ROLES
+from runtime.schema import (
+    FIXED_REPORT_ARTIFACT_NAMES,
+    STRUCTURE_EXECUTION_OUTPUT_ROLES,
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -51,18 +55,20 @@ ARTIFACT_PATHS = {
     'structure_generation_first_pass_queue': Path('artifacts/demo_candidate_structure_generation_first_pass_queue.json'),
     'structure_generation_followup_shortlist': Path('artifacts/demo_candidate_structure_generation_followup_shortlist.csv'),
     'structure_generation_followup_extrapolation_shortlist': Path('artifacts/demo_candidate_structure_generation_followup_extrapolation_shortlist.csv'),
-    'structure_generation_first_pass_execution': Path('artifacts/demo_candidate_structure_generation_first_pass_execution.json'),
-    'structure_generation_first_pass_execution_summary': Path('artifacts/demo_candidate_structure_generation_first_pass_execution_summary.csv'),
-    'structure_generation_first_pass_execution_variants': Path('artifacts/demo_candidate_structure_generation_first_pass_execution_variants.csv'),
     'candidate_structure_followup_report': Path(
         'artifacts/demo_candidate_structure_followup_report.csv'
     ),
     'proposal_shortlist': Path('artifacts/demo_candidate_proposal_shortlist.csv'),
     'extrapolation_shortlist': Path('artifacts/demo_candidate_extrapolation_shortlist.csv'),
 }
+ARTIFACT_PATHS.update({
+    artifact_key: DEFAULT_ARTIFACT_ROOT / default_path
+    for artifact_key, _summary_field, _config_field, _suffix, default_path
+    in STRUCTURE_EXECUTION_OUTPUT_ROLES
+})
 _EXECUTION_OUTPUT_ROLE_BY_ARTIFACT_KEY = {
-    artifact_key: (summary_field, config_field, suffix)
-    for artifact_key, summary_field, config_field, suffix
+    artifact_key: (summary_field, config_field, suffix, default_path)
+    for artifact_key, summary_field, config_field, suffix, default_path
     in STRUCTURE_EXECUTION_OUTPUT_ROLES
 }
 _SUMMARY_EXECUTION_PATH_FIELDS = {
@@ -90,6 +96,29 @@ def _artifact_file_path(artifact_root: Path, value: object) -> Path | None:
         )
     except ValueError:
         return None
+
+
+def _paths_identify_same_file(first_path: Path, second_path: Path) -> bool:
+    if first_path == second_path:
+        return True
+    try:
+        return first_path.samefile(second_path)
+    except OSError:
+        return False
+
+
+def _paths_conflict_across_roles(first_path: Path, second_path: Path) -> bool:
+    return (
+        tuple(
+            unicodedata.normalize('NFC', part).casefold()
+            for part in first_path.parts
+        )
+        == tuple(
+            unicodedata.normalize('NFC', part).casefold()
+            for part in second_path.parts
+        )
+        or _paths_identify_same_file(first_path, second_path)
+    )
 
 
 def _build_artifact_paths(
@@ -122,18 +151,28 @@ def _build_artifact_paths(
         declared_summary_keys.update(_SUMMARY_EXECUTION_PATH_FIELDS)
         invalid_summary_keys.update(_SUMMARY_EXECUTION_PATH_FIELDS)
     execution_cfg = (
-        ((cfg.get('screening') or {}).get('structure_first_pass_execution'))
-        or {}
+        (cfg.get('screening') or {}).get('structure_first_pass_execution')
     )
+    if execution_cfg is None:
+        execution_cfg = {}
+    elif not isinstance(execution_cfg, dict):
+        execution_cfg = {}
+        invalid_summary_keys.update(_SUMMARY_EXECUTION_PATH_FIELDS)
     for key, (
         summary_field_name,
         config_field_name,
         expected_suffix,
+        _default_path,
     ) in _EXECUTION_OUTPUT_ROLE_BY_ARTIFACT_KEY.items():
-        configured_value = execution_cfg.get(config_field_name)
-        if configured_value:
+        if config_field_name in execution_cfg:
+            configured_value = execution_cfg[config_field_name]
             paths[key] = _artifact_file_path(artifact_root, configured_value)
         configured_path = paths[key]
+        if (
+            configured_path is None
+            or configured_path.suffix.casefold() != expected_suffix
+        ):
+            invalid_summary_keys.add(key)
         if summary_field_name not in bridge:
             continue
         declared_summary_keys.add(key)
@@ -164,9 +203,34 @@ def _build_artifact_paths(
             invalid_summary_keys.add(key)
         else:
             paths[key] = configured_path
-    for key in declared_summary_keys - invalid_summary_keys:
+    fixed_report_paths = {
+        fixed_path
+        for artifact_name in FIXED_REPORT_ARTIFACT_NAMES
+        if (
+            fixed_path := _artifact_file_path(artifact_root, artifact_name)
+        ) is not None
+    }
+    role_default_paths = {
+        key: _artifact_file_path(artifact_root, role[3])
+        for key, role in _EXECUTION_OUTPUT_ROLE_BY_ARTIFACT_KEY.items()
+    }
+    for key in _SUMMARY_EXECUTION_PATH_FIELDS.keys() - invalid_summary_keys:
         if any(
-            other_key != key and other_path == paths[key]
+            _paths_conflict_across_roles(paths[key], fixed_path)
+            for fixed_path in fixed_report_paths
+        ) or any(
+            other_key != key
+            and other_default_path is not None
+            and _paths_conflict_across_roles(paths[key], other_default_path)
+            for other_key, other_default_path in role_default_paths.items()
+        ):
+            invalid_summary_keys.add(key)
+            continue
+        if any(
+            other_key != key
+            and other_path is not None
+            and paths[key] is not None
+            and _paths_conflict_across_roles(other_path, paths[key])
             for other_key, other_path in paths.items()
         ):
             invalid_summary_keys.add(key)
@@ -312,14 +376,17 @@ def render_streamlit_app() -> None:
                             )
                         ]
                         invalid_or_uncommitted_declared_artifact_keys = sorted(
-                            key
-                            for key in declared_summary_artifact_keys
-                            if (
-                                key in invalid_summary_artifact_keys
-                                or artifact_paths.get(key) is None
-                                or not artifact_paths[key].exists()
-                                or artifact_paths[key] not in committed_output_paths
-                            )
+                            invalid_summary_artifact_keys
+                            | {
+                                key
+                                for key in declared_summary_artifact_keys
+                                if (
+                                    artifact_paths.get(key) is None
+                                    or not artifact_paths[key].exists()
+                                    or artifact_paths[key]
+                                    not in committed_output_paths
+                                )
+                            }
                         )
                 manifest_payload = None
                 if manifest_path is not None and manifest_path.exists():

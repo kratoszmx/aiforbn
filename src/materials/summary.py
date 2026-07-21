@@ -928,7 +928,7 @@ def build_experiment_summary(
             structure_first_pass_execution_payload
             and not structure_first_pass_execution_summary_df.empty
         ):
-            for _artifact_key, summary_field, config_field, _suffix in (
+            for _artifact_key, summary_field, config_field, _suffix, _default_path in (
                 STRUCTURE_EXECUTION_OUTPUT_ROLES
             ):
                 structure_generation_seed_summary[summary_field] = (
@@ -975,7 +975,10 @@ def build_experiment_summary(
             )
     structure_generation_seed_summary['first_pass_execution_followup_report_artifact'] = (
         'demo_candidate_structure_followup_report.csv'
-        if not structure_first_pass_execution_summary_df.empty
+        if (
+            structure_first_pass_execution_payload
+            and not structure_first_pass_execution_summary_df.empty
+        )
         else None
     )
     structure_generation_seed_summary['first_pass_execution_followup_report_row_count'] = int(
