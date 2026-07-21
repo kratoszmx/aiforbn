@@ -181,29 +181,49 @@ def _save_structure_execution_bundle(
         'screening_selected_feature_family': 'composition_only',
     }
     execution_cfg = _structure_first_pass_execution_config(cfg)
+    variant_row = {
+        'formula': 'AlBN',
+        'execution_variant_id': 'albn__variant_01',
+        'execution_status': 'ok',
+        'geometry_sanity_pass': True,
+        'final_status': 'ready_for_external_relaxation',
+    }
     structure_payload = {
         field: execution_cfg[field]
         for field in (
-            'artifact', 'summary_artifact', 'variants_artifact', 'structure_dir',
+            'enabled', 'artifact', 'summary_artifact', 'variants_artifact', 'structure_dir',
         )
     }
     structure_payload.update({
         'candidate_count': int(execution_active),
         'variant_count': int(execution_active),
         'successful_variant_count': int(execution_active),
-        'candidates': [],
+        'status_counts': {'executed': 1} if execution_active else {},
+        'executed_formulas': ['AlBN'] if execution_active else [],
+        'candidates': ([{
+            'formula': 'AlBN',
+            'candidate_status': 'executed',
+            'selected_variant_id': 'albn__variant_01',
+            'variants': [variant_row.copy()],
+        }] if execution_active else []),
     })
     structure_summary_df = (
         pd.DataFrame([{
-            'formula': 'AlBN', 'first_pass_execution_status': 'executed',
+            'formula': 'AlBN',
+            'first_pass_execution_variant_count': 1,
+            'first_pass_execution_successful_variant_count': 1,
+            'first_pass_execution_geometry_pass_variant_count': 1,
+            'first_pass_execution_status': 'executed',
+            'first_pass_execution_selected_variant_id': 'albn__variant_01',
+            'first_pass_execution_selected_final_status': (
+                'ready_for_external_relaxation'
+            ),
         }])
         if execution_active
         else pd.DataFrame()
     )
     structure_variant_df = (
-        pd.DataFrame([{
-            'formula': 'AlBN', 'execution_variant_id': 'albn__variant_01',
-        }])
+        pd.DataFrame([variant_row])
         if execution_active
         else pd.DataFrame()
     )

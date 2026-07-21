@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 from pathlib import Path
 import re
 import tempfile
@@ -295,25 +296,200 @@ def _validate_experiment_summary_output_contract(
 def _validate_structure_execution_frame_roles(
     summary_df: pd.DataFrame,
     variant_df: pd.DataFrame,
+    payload: dict[str, object],
+    *,
+    formula_col: str,
 ) -> None:
-    role_requirements = (
-        (
-            'structure_first_pass_execution_summary_df',
-            summary_df,
-            'first_pass_execution_status',
-        ),
-        (
-            'structure_first_pass_execution_variant_df',
-            variant_df,
-            'execution_variant_id',
-        ),
-    )
-    for role_name, frame, required_column in role_requirements:
-        if not frame.empty and required_column not in frame.columns:
+    def normalized(value):
+        return make_json_safe(value)
+
+    def reject(field_name, detail='must match the canonical summary and variants frames'):
+        raise ValueError(f'structure_first_pass_execution {field_name} {detail}')
+
+    def text(value, field_name, *, nullable=False):
+        value = normalized(value)
+        if nullable and value is None:
+            return None
+        if not isinstance(value, str) or not value:
+            reject(field_name, 'must be a non-empty string')
+        return value
+
+    def count(value, field_name):
+        value = normalized(value)
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            reject(field_name, 'must be a non-negative integer')
+        return value
+
+    summary_columns = {
+        formula_col,
+        'first_pass_execution_variant_count',
+        'first_pass_execution_successful_variant_count',
+        'first_pass_execution_geometry_pass_variant_count',
+        'first_pass_execution_status',
+        'first_pass_execution_selected_variant_id',
+        'first_pass_execution_selected_final_status',
+    }
+    variant_columns = {
+        formula_col,
+        'execution_variant_id',
+        'execution_status',
+        'geometry_sanity_pass',
+        'final_status',
+    }
+    for role_name, frame, required in (
+        ('structure_first_pass_execution_summary_df', summary_df, summary_columns),
+        ('structure_first_pass_execution_variant_df', variant_df, variant_columns),
+    ):
+        missing = required - set(frame.columns)
+        if not frame.empty and missing:
             raise ValueError(
-                f'{role_name} must contain canonical structure-execution column '
-                f'{required_column!r}'
+                f'{role_name} must contain canonical structure-execution columns: '
+                f'{sorted(missing)}'
             )
+
+    payload_fields = {
+        'enabled', 'candidate_count', 'variant_count', 'successful_variant_count',
+        'status_counts', 'executed_formulas', 'candidates',
+    }
+    missing = payload_fields - set(payload)
+    if missing:
+        reject('payload', f'is missing canonical relational fields: {sorted(missing)}')
+    if normalized(payload['enabled']) is not True:
+        reject('enabled state')
+
+    def index_records(records, key, label):
+        indexed = {}
+        for record in records:
+            if not isinstance(record, dict):
+                reject(label, 'entries must be objects')
+            identity = text(record.get(key), f'{label} {key}')
+            if identity in indexed:
+                reject(label, f'{key} values must be unique')
+            indexed[identity] = record
+        return indexed
+
+    summary_records = summary_df.to_dict(orient='records')
+    variant_records = variant_df.to_dict(orient='records')
+    summaries = index_records(summary_records, formula_col, 'summary')
+    variants = index_records(variant_records, 'execution_variant_id', 'variant')
+    for row in variants.values():
+        formula = text(row.get(formula_col), f'variant {formula_col}')
+        if formula not in summaries:
+            reject('variant candidate membership')
+        text(row.get('execution_status'), 'variant execution_status')
+        text(row.get('final_status'), 'variant final_status')
+        if not isinstance(normalized(row.get('geometry_sanity_pass')), bool):
+            reject('variant geometry_sanity_pass', 'must be boolean')
+
+    candidate_rows = payload['candidates']
+    if not isinstance(candidate_rows, list):
+        reject('candidates', 'must be a list')
+    candidates = index_records(candidate_rows, formula_col, 'candidate')
+    payload_variants = {}
+    for formula, candidate in candidates.items():
+        rows = candidate.get('variants')
+        if not isinstance(rows, list):
+            reject(f'{formula} variants', 'must be a list')
+        for variant_id, row in index_records(
+            rows, 'execution_variant_id', f'{formula} payload variants'
+        ).items():
+            if text(row.get(formula_col), f'payload variant {formula_col}') != formula:
+                reject('payload variant candidate membership')
+            if variant_id in payload_variants:
+                reject('payload variants', 'execution_variant_id values must be unique')
+            payload_variants[variant_id] = row
+
+    if set(candidates) != set(summaries):
+        reject('candidate membership')
+    if set(payload_variants) != set(variants):
+        reject('variant membership')
+
+    statuses = [text(row.get('first_pass_execution_status'), 'summary status')
+                for row in summary_records]
+    executed_formulas = [
+        text(row.get(formula_col), f'summary {formula_col}')
+        for row, status in zip(summary_records, statuses)
+        if status == 'executed'
+    ]
+    aggregate_relations = {
+        'candidate_count': len(summary_records),
+        'variant_count': len(variant_records),
+        'successful_variant_count': sum(
+            normalized(row.get('execution_status')) == 'ok' for row in variant_records
+        ),
+    }
+    for field_name, expected in aggregate_relations.items():
+        if count(payload[field_name], field_name) != expected:
+            reject(field_name)
+    if normalized(payload['status_counts']) != dict(Counter(statuses)):
+        reject('status_counts')
+    if normalized(payload['executed_formulas']) != executed_formulas:
+        reject('executed_formulas')
+
+    variant_fields = (
+        formula_col, 'execution_variant_id', 'execution_status',
+        'geometry_sanity_pass', 'final_status',
+    )
+    for variant_id, row in variants.items():
+        if any(
+            normalized(row.get(field)) != normalized(payload_variants[variant_id].get(field))
+            for field in variant_fields
+        ):
+            reject(f'payload variant {variant_id}')
+
+    for formula, summary in summaries.items():
+        candidate = candidates[formula]
+        candidate_variants = [
+            row for row in variants.values()
+            if normalized(row.get(formula_col)) == formula
+        ]
+        successful = [
+            row for row in candidate_variants
+            if normalized(row.get('execution_status')) == 'ok'
+        ]
+        expected_counts = {
+            'first_pass_execution_variant_count': len(candidate_variants),
+            'first_pass_execution_successful_variant_count': len(successful),
+            'first_pass_execution_geometry_pass_variant_count': sum(
+                normalized(row.get('geometry_sanity_pass')) is True for row in successful
+            ),
+        }
+        for field_name, expected in expected_counts.items():
+            if count(summary.get(field_name), field_name) != expected:
+                reject(f'{formula} {field_name}')
+
+        status = text(summary.get('first_pass_execution_status'), f'{formula} status')
+        if text(candidate.get('candidate_status'), f'{formula} candidate status') != status:
+            reject(f'{formula} candidate status')
+        if successful and status != 'executed':
+            reject(f'{formula} executed status')
+        if candidate_variants and not successful and status != 'no_successful_variant':
+            reject(f'{formula} unsuccessful status')
+
+        selected_id = text(
+            summary.get('first_pass_execution_selected_variant_id'),
+            f'{formula} selected variant',
+            nullable=True,
+        )
+        if text(
+            candidate.get('selected_variant_id'),
+            f'{formula} payload selected variant',
+            nullable=True,
+        ) != selected_id:
+            reject(f'{formula} selected variant')
+        successful_ids = {
+            text(row.get('execution_variant_id'), 'successful variant id')
+            for row in successful
+        }
+        if successful_ids:
+            if selected_id not in successful_ids:
+                reject(f'{formula} selected variant membership')
+            if normalized(summary.get('first_pass_execution_selected_final_status')) != normalized(
+                variants[selected_id].get('final_status')
+            ):
+                reject(f'{formula} selected final status')
+        elif selected_id is not None:
+            reject(f'{formula} absent selected variant')
 
 
 def save_metrics_and_predictions(
@@ -567,6 +743,8 @@ def save_metrics_and_predictions(
         _validate_structure_execution_frame_roles(
             structure_first_pass_execution_summary_df,
             structure_first_pass_execution_variant_df,
+            structure_first_pass_execution_payload,
+            formula_col=formula_col,
         )
     if include_parity_plot:
         missing_plot_columns = {'target', 'prediction'} - set(prediction_df.columns)

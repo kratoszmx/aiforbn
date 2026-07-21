@@ -259,6 +259,7 @@
 - Round 16 将同一 dynamic execution role 契约前移到 public writer 的纯预检：错误 nested shape、缺失/错后缀/跨角色/固定输出别名及 inactive declaration 会在创建目录、失效旧 marker 或写删任何 bundle 文件前拒绝；summary builder、writer 与 viewer 共用 runtime role registry，viewer 继续独立防御持久化后的畸形状态。32 个拒绝状态均验证无 prior root 与同目录 prior-valid bundle 的字节级原子性，9 个 fallback/规范化/same-file 控制仍可成功发布 current v2；未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - Round 17 把三个 dynamic execution 默认文件名及固定 report 文件名收敛到 runtime 单一契约，structure builder、summary、writer 与 viewer 均从该契约派生；public writer 现接受真实 same-file 的同角色 payload 别名，但拒绝固定文件、跨角色 canonical default 与大小写等价冲突，viewer 对 absent/null/empty bridge 的配置路径也执行同一 fail-closed 检查。无 execution payload 时 summary 不再声明不会发布的 follow-up report；未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - Round 18 证明 provenance v2 已通过 effective config、已承诺 experiment summary 与 path-to-SHA-256 output inventory 传递绑定三个 execution 路径，单独增加 v3 role map 没有新的拒绝能力；同时修复 public writer 可把 canonical summary/variants DataFrame 对调后仍发布 current bundle 的语义缺口，现会在目录创建、旧 marker 失效或任何输出写入前按 builder-owned role column 拒绝错位表格。未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
+- Round 19 修复 structure-execution public writer 对 builder-owned 跨表关系只验角色、不验内容的缺口：payload、summary 与 variants 的 candidate/variant membership、聚合与逐候选 counts、status、geometry result、selected ID/final status 现在会在 artifact root 创建、旧 marker 失效或任何输出写入前完成一致性预检；canonical inactive、empty、error、partial、full 与 custom-path 输出保持有效。未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - contract verifier 现精确锁定 validation-profile 命令序列、三个 active project-skill 记录与七个 retired-guidance 路径；public-surface 测试同时核对模块摘要及根摘要的 callable 参数顺序和 keyword-only 边界
 - `--verify-agent-contract` 现会精确锁定六个 module 的 path/role/public-surface/agent-rules/local-utils/allowed-dependencies；公开 surface 测试逐个要求四个生产模块非空，并显式覆盖 import re-export
 
@@ -273,7 +274,7 @@
 
 3. 完整 src 测试：
 - `conda run -n quant python3 -m pytest -q src`
-- 结果：`462 passed, 1 warning`
+- 结果：`490 passed, 1 warning`
 - 剩余 warning 是 PyTorch nested-tensor prototype 提示，不是测试失败；原 sklearn feature-name warnings 已消除
 
 4. UI 文字化验证：

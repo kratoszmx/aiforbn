@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import copy
 import hashlib
 import json
 import os
@@ -1106,34 +1107,16 @@ def test_reporting_clears_stale_optional_artifacts_on_disabled_second_run(tmp_pa
     })
     execution_cfg = _structure_first_pass_execution_config(cfg)
     cif_relative_path = f"{execution_cfg['structure_dir']}/xbn__variant_1.CIF"
-    structure_payload = {
-        **{
-            field: execution_cfg[field]
-            for field in ('artifact', 'summary_artifact', 'variants_artifact', 'structure_dir')
-        },
-        'candidates': [
-            {
-                'formula': 'XBN',
-                'variants': [
-                    {
-                        'generated_structure_cif_path': cif_relative_path,
-                        '_cif_text': 'data_XBN\n',
-                    },
-                ],
-            },
-        ],
-    }
+    writer_kwargs, _execution_cfg = _structure_execution_writer_kwargs(cfg)
+    writer_kwargs['structure_payload']['candidates'][0]['variants'][0].update({
+        'generated_structure_cif_path': cif_relative_path,
+        '_cif_text': 'data_XBN\n',
+    })
 
     _save_minimal_report_bundle(
         cfg,
         screened_df=screened_df,
-        structure_payload=structure_payload,
-        structure_summary_df=pd.DataFrame([
-            {'formula': 'XBN', 'first_pass_execution_status': 'executed'},
-        ]),
-        structure_variant_df=pd.DataFrame([
-            {'formula': 'XBN', 'execution_variant_id': 'xbn__variant_01'},
-        ]),
+        **writer_kwargs,
     )
     stale_paths = [
         artifact_dir / execution_cfg['artifact'],
@@ -1629,16 +1612,186 @@ def _report_bundle_snapshot(artifact_dir: Path):
 
 def _structure_execution_writer_kwargs(cfg):
     execution_cfg = _structure_first_pass_execution_config(cfg)
+    variant_row = {
+        'formula': 'XBN',
+        'execution_variant_id': 'xbn__variant_01',
+        'execution_status': 'ok',
+        'geometry_sanity_pass': True,
+        'final_status': 'ready_for_external_relaxation',
+    }
     return {
         'structure_payload': {
             **execution_cfg,
-            'candidates': [],
+            'candidate_count': 1,
+            'variant_count': 1,
+            'successful_variant_count': 1,
+            'status_counts': {'executed': 1},
+            'executed_formulas': ['XBN'],
+            'candidates': [{
+                'formula': 'XBN',
+                'candidate_status': 'executed',
+                'selected_variant_id': 'xbn__variant_01',
+                'variants': [variant_row.copy()],
+            }],
         },
         'structure_summary_df': pd.DataFrame([
-            {'formula': 'XBN', 'first_pass_execution_status': 'executed'},
+            {
+                'formula': 'XBN',
+                'first_pass_execution_variant_count': 1,
+                'first_pass_execution_successful_variant_count': 1,
+                'first_pass_execution_geometry_pass_variant_count': 1,
+                'first_pass_execution_status': 'executed',
+                'first_pass_execution_selected_variant_id': 'xbn__variant_01',
+                'first_pass_execution_selected_final_status': (
+                    'ready_for_external_relaxation'
+                ),
+            },
         ]),
-        'structure_variant_df': pd.DataFrame(columns=['formula']),
+        'structure_variant_df': pd.DataFrame([variant_row]),
     }, execution_cfg
+
+
+def _canonical_structure_execution_writer_inputs(
+    tmp_path: Path,
+    *,
+    baseline_case: str = 'full',
+):
+    artifact_dir = tmp_path / 'artifacts'
+    raw_dir = tmp_path / 'raw'
+    raw_dir.mkdir()
+    (raw_dir / 'twod_matpd.json').write_text(
+        json.dumps([
+            {
+                'jid': 'jid-1',
+                'formula': 'BN',
+                'band_gap': 5.8,
+                'atoms': {
+                    'elements': ['B', 'N'],
+                    'coords': [[0.0, 0.0, 0.0], [0.5, 0.5, 0.0]],
+                    'lattice_mat': [
+                        [2.5, 0.0, 0.0],
+                        [0.0, 2.5, 0.0],
+                        [0.0, 0.0, 20.0],
+                    ],
+                    'abc': [2.5, 2.5, 20.0],
+                    'angles': [90.0, 90.0, 120.0],
+                    'cartesian': False,
+                },
+            },
+        ]),
+        encoding='utf-8',
+    )
+    execution_overrides = {
+        'enabled': baseline_case != 'inactive',
+        'max_candidates': 2,
+        'max_variants_per_candidate': 2,
+    }
+    if baseline_case == 'custom-paths':
+        execution_overrides.update({
+            'artifact': 'nested/execution.json',
+            'summary_artifact': 'nested/execution-summary.csv',
+            'variants_artifact': 'nested/execution-variants.csv',
+            'structure_dir': 'nested/cifs',
+        })
+    cfg = {
+        'project': {'artifact_dir': str(artifact_dir)},
+        'data': {
+            'dataset': 'twod_matpd',
+            'raw_dir': str(raw_dir),
+            'formula_column': 'formula',
+            'target_column': 'band_gap',
+        },
+        'screening': {
+            'ranking_stability': {'enabled': False},
+            'decision_policy': {'enabled': False},
+            'structure_generation_seeds': {'enabled': False},
+            'structure_first_pass_execution': execution_overrides,
+        },
+    }
+    if baseline_case == 'empty':
+        seed_df = pd.DataFrame()
+    else:
+        seed_rows = [('BN', 'missing-jid')] if baseline_case == 'error' else [('BN', 'jid-1')]
+        if baseline_case == 'partial':
+            seed_rows.append(('AlBN', 'missing-jid'))
+        seed_df = pd.DataFrame({
+            'formula': [formula for formula, _record_id in seed_rows],
+            'ranking_rank': list(range(1, len(seed_rows) + 1)),
+            'ranking_score': [4.8 - index for index in range(len(seed_rows))],
+            'candidate_family': ['bn_binary_anchor'] * len(seed_rows),
+            'candidate_novelty_bucket': ['train_plus_val_rediscovery'] * len(seed_rows),
+            'chemical_plausibility_pass': [True] * len(seed_rows),
+            'proposal_shortlist_selected': [True] * len(seed_rows),
+            'proposal_shortlist_rank': list(range(1, len(seed_rows) + 1)),
+            'extrapolation_shortlist_selected': [False] * len(seed_rows),
+            'extrapolation_shortlist_rank': [None] * len(seed_rows),
+            'structure_generation_candidate_priority_reason': [
+                'proposal_shortlist'
+            ] * len(seed_rows),
+            'structure_generation_seed_rank': [1] * len(seed_rows),
+            'structure_generation_seed_status': ['ok'] * len(seed_rows),
+            'seed_reference_formula': ['BN'] * len(seed_rows),
+            'seed_reference_record_id': [record_id for _formula, record_id in seed_rows],
+        })
+    variant_df, summary_df, payload = build_structure_first_pass_execution_artifacts(
+        seed_df,
+        cfg=cfg,
+        formula_col='formula',
+    )
+    return cfg, {
+        'structure_payload': payload,
+        'structure_summary_df': summary_df,
+        'structure_variant_df': variant_df,
+    }
+
+
+_STRUCTURE_EXECUTION_RELATION_MUTATIONS = {
+    'payload-enabled': ('payload', 'enabled', False),
+    'payload-candidate-count': ('payload', 'candidate_count', 2),
+    'payload-variant-count': ('payload', 'variant_count', 2),
+    'payload-successful-variant-count': ('payload', 'successful_variant_count', 0),
+    'payload-status-counts': ('payload', 'status_counts', {'missing_reference_record': 1}),
+    'payload-executed-formulas': ('payload', 'executed_formulas', ['AlBN']),
+    'payload-candidate-formula': ('candidate', 'formula', 'AlBN'),
+    'payload-candidate-status': ('candidate', 'candidate_status', 'missing_reference_record'),
+    'payload-selected-variant-id': ('candidate', 'selected_variant_id', 'wrong__variant_99'),
+    'payload-variant-id': ('payload-variant', 'execution_variant_id', 'wrong__variant_99'),
+    'payload-variant-status': ('payload-variant', 'execution_status', 'error'),
+    'summary-variant-count': ('summary', 'first_pass_execution_variant_count', 2),
+    'summary-successful-variant-count': (
+        'summary', 'first_pass_execution_successful_variant_count', 0,
+    ),
+    'summary-geometry-pass-count': (
+        'summary', 'first_pass_execution_geometry_pass_variant_count', 0,
+    ),
+    'summary-status': ('summary', 'first_pass_execution_status', 'no_successful_variant'),
+    'summary-selected-variant-id': (
+        'summary', 'first_pass_execution_selected_variant_id', 'wrong__variant_99',
+    ),
+    'summary-selected-final-status': (
+        'summary', 'first_pass_execution_selected_final_status', 'execution_error',
+    ),
+    'variant-formula': ('variant', 'formula', 'AlBN'),
+    'variant-id': ('variant', 'execution_variant_id', 'wrong__variant_99'),
+    'variant-status': ('variant', 'execution_status', 'error'),
+    'variant-geometry-status': ('variant', 'geometry_sanity_pass', False),
+    'variant-final-status': ('variant', 'final_status', 'execution_error'),
+}
+
+
+def _mutate_structure_execution_relation(writer_kwargs, mismatch_case):
+    payload = writer_kwargs['structure_payload']
+    target_name, field_name, value = _STRUCTURE_EXECUTION_RELATION_MUTATIONS[mismatch_case]
+    targets = {
+        'payload': payload,
+        'candidate': payload['candidates'][0],
+        'payload-variant': payload['candidates'][0]['variants'][0],
+    }
+    if target_name in targets:
+        targets[target_name][field_name] = copy.deepcopy(value)
+    else:
+        frame = writer_kwargs[f'structure_{target_name}_df']
+        frame.loc[0, field_name] = value
 
 
 @pytest.mark.parametrize(
@@ -1664,13 +1817,6 @@ def test_reporting_rejects_mislabeled_structure_execution_frames_before_mutation
         },
     }
     writer_kwargs, _execution_cfg = _structure_execution_writer_kwargs(cfg)
-    writer_kwargs['structure_variant_df'] = pd.DataFrame([
-        {
-            'formula': 'XBN',
-            'execution_variant_id': 'xbn__variant_01',
-            'execution_status': 'ok',
-        },
-    ])
     _save_minimal_report_bundle(cfg, **writer_kwargs)
     before = _report_bundle_snapshot(artifact_dir)
 
@@ -1684,6 +1830,93 @@ def test_reporting_rejects_mislabeled_structure_execution_frames_before_mutation
         _save_minimal_report_bundle(cfg, **invalid_writer_kwargs)
 
     assert _report_bundle_snapshot(artifact_dir) == before
+
+
+@pytest.mark.parametrize(
+    'baseline_case',
+    ['inactive', 'empty', 'error', 'partial', 'full', 'custom-paths'],
+)
+def test_reporting_accepts_canonical_structure_execution_builder_states(
+    tmp_path,
+    monkeypatch,
+    baseline_case,
+):
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    cfg, writer_kwargs = _canonical_structure_execution_writer_inputs(
+        tmp_path,
+        baseline_case=baseline_case,
+    )
+    manifest = {
+        'name': 'twod_matpd',
+        'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-21T00:00:00+00:00',
+        'target_column': 'band_gap',
+    }
+
+    _save_minimal_report_bundle(cfg, manifest=manifest, **writer_kwargs)
+
+    artifact_dir = Path(cfg['project']['artifact_dir'])
+    assessment = io_utils.assess_artifact_provenance(
+        io_utils.read_json_file(artifact_dir / 'artifact_provenance.json'),
+        cfg,
+        manifest,
+        project_root_path=tmp_path,
+    )
+    assert assessment['status'] == 'current'
+    execution_cfg = _structure_first_pass_execution_config(cfg)
+    should_publish_execution = baseline_case not in {'inactive', 'empty'}
+    assert (artifact_dir / execution_cfg['artifact']).exists() is should_publish_execution
+
+
+@pytest.mark.parametrize(
+    'mismatch_case',
+    _STRUCTURE_EXECUTION_RELATION_MUTATIONS,
+)
+def test_reporting_rejects_structure_execution_relational_mismatches_atomically(
+    tmp_path,
+    monkeypatch,
+    mismatch_case,
+):
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    cfg, canonical_kwargs = _canonical_structure_execution_writer_inputs(tmp_path)
+    artifact_dir = Path(cfg['project']['artifact_dir'])
+    manifest = {
+        'name': 'twod_matpd',
+        'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-21T00:00:00+00:00',
+        'target_column': 'band_gap',
+    }
+
+    invalid_kwargs = copy.deepcopy(canonical_kwargs)
+    _mutate_structure_execution_relation(invalid_kwargs, mismatch_case)
+    with pytest.raises(ValueError, match='structure_first_pass_execution'):
+        _save_minimal_report_bundle(cfg, manifest=manifest, **invalid_kwargs)
+    assert _report_bundle_snapshot(artifact_dir) is None
+
+    _save_minimal_report_bundle(cfg, manifest=manifest, **canonical_kwargs)
+    valid_snapshot = _report_bundle_snapshot(artifact_dir)
+    invalid_kwargs = copy.deepcopy(canonical_kwargs)
+    _mutate_structure_execution_relation(invalid_kwargs, mismatch_case)
+    with pytest.raises(ValueError, match='structure_first_pass_execution'):
+        _save_minimal_report_bundle(cfg, manifest=manifest, **invalid_kwargs)
+    assert _report_bundle_snapshot(artifact_dir) == valid_snapshot
+
+    _save_minimal_report_bundle(cfg, manifest=manifest, **canonical_kwargs)
+    assessment = io_utils.assess_artifact_provenance(
+        io_utils.read_json_file(artifact_dir / 'artifact_provenance.json'),
+        cfg,
+        manifest,
+        project_root_path=tmp_path,
+    )
+    assert assessment['status'] == 'current'
 
 
 def _assert_summary_preflight_rejection_is_atomic(
@@ -2019,17 +2252,7 @@ def test_reporting_failure_after_publication_begins_leaves_no_completion_marker(
             'structure_first_pass_execution': execution_cfg,
         },
     }
-    structure_payload = {
-        **execution_cfg,
-        'candidates': [],
-    }
-    writer_kwargs = {
-        'structure_payload': structure_payload,
-        'structure_summary_df': pd.DataFrame([
-            {'formula': 'XBN', 'first_pass_execution_status': 'executed'},
-        ]),
-        'structure_variant_df': pd.DataFrame(columns=['formula']),
-    }
+    writer_kwargs, _execution_cfg = _structure_execution_writer_kwargs(cfg)
     completion_marker = artifact_dir / 'artifact_provenance.json'
     if prior_bundle:
         _save_minimal_report_bundle(cfg, **writer_kwargs)
@@ -2090,16 +2313,12 @@ def test_completion_marker_commits_exact_successful_bundle_outputs(
             'structure_first_pass_execution': execution_cfg,
         },
     }
-    structure_payload = {
-        **execution_cfg,
-        'candidates': [{
-            'formula': 'XBN',
-            'variants': [{
-                'generated_structure_cif_path': 'nested/cifs/xbn__variant_01.cif',
-                '_cif_text': 'data_XBN\n',
-            }],
-        }],
-    }
+    writer_kwargs, _execution_cfg = _structure_execution_writer_kwargs(cfg)
+    structure_payload = writer_kwargs['structure_payload']
+    structure_payload['candidates'][0]['variants'][0].update({
+        'generated_structure_cif_path': 'nested/cifs/xbn__variant_01.cif',
+        '_cif_text': 'data_XBN\n',
+    })
     manifest = {
         'name': 'twod_matpd',
         'source': 'jarvis-tools/figshare',
@@ -2127,12 +2346,8 @@ def test_completion_marker_commits_exact_successful_bundle_outputs(
         {'dataset': {'rows': 1}},
         manifest,
         cfg,
-        structure_first_pass_execution_variant_df=pd.DataFrame([
-            {'formula': 'XBN', 'execution_variant_id': 'xbn__variant_01'},
-        ]),
-        structure_first_pass_execution_summary_df=pd.DataFrame([
-            {'formula': 'XBN', 'first_pass_execution_status': 'executed'},
-        ]),
+        structure_first_pass_execution_variant_df=writer_kwargs['structure_variant_df'],
+        structure_first_pass_execution_summary_df=writer_kwargs['structure_summary_df'],
         structure_first_pass_execution_payload=structure_payload,
         include_parity_plot=True,
     )
