@@ -11,6 +11,7 @@ import sys
 
 import pandas as pd
 import pytest
+from pymatgen.core import Lattice, Structure
 
 from runtime import io_utils
 from materials import artifacts as artifacts_module
@@ -19,6 +20,7 @@ from materials import structure_execution as structure_execution_module
 from materials.artifacts import save_metrics_and_predictions
 from materials.benchmarking import benchmark_bn_family_holdout, benchmark_bn_slice
 from materials.constants import NOVELTY_BUCKET_FORMULA_LEVEL_EXTRAPOLATION
+from materials.data import _structure_summary_from_atoms
 from materials.plots import save_basic_plots
 from materials.ranking_tables import (
     _build_bn_model_role_comparison_table,
@@ -32,8 +34,10 @@ from materials.structure_helpers import (
     _STRUCTURE_EXECUTION_SELECTED_PROJECTION_FIELDS,
     _STRUCTURE_EXECUTION_VARIANT_STATUS_BY_BRANCH,
     _STRUCTURE_EXECUTION_ZERO_VARIANT_STATUSES,
+    _pair_distance_statistics,
     _select_structure_execution_variant,
     _structure_first_pass_execution_config,
+    _structure_to_atoms,
 )
 
 
@@ -1118,7 +1122,6 @@ def test_reporting_clears_stale_optional_artifacts_on_disabled_second_run(tmp_pa
     writer_kwargs, _execution_cfg = _structure_execution_writer_kwargs(cfg)
     writer_kwargs['structure_payload']['candidates'][0]['variants'][0].update({
         'generated_structure_cif_path': cif_relative_path,
-        '_cif_text': 'data_XBN\n',
     })
     writer_kwargs['structure_variant_df'].loc[
         0, 'generated_structure_cif_path'
@@ -1626,6 +1629,24 @@ def _report_bundle_snapshot(artifact_dir: Path):
 
 def _structure_execution_writer_kwargs(cfg):
     execution_cfg = _structure_first_pass_execution_config(cfg)
+    structure = Structure(
+        Lattice.tetragonal(3.0, 20.0),
+        ['B', 'N'],
+        [[0.0, 0.0, 0.5], [0.5, 0.5, 0.5]],
+    )
+    atoms = _structure_to_atoms(structure)
+    structure_summary = _structure_summary_from_atoms(atoms)
+    (
+        min_distance,
+        min_distance_ratio,
+        overlap_pair_count,
+        mean_distance,
+    ) = _pair_distance_statistics(
+        structure,
+        overlap_threshold=execution_cfg[
+            'geometry_min_distance_ratio_overlap_threshold'
+        ],
+    )
     variant_row = {
         'formula': 'BN',
         'execution_variant_id': 'xbn__variant_01',
@@ -1641,13 +1662,15 @@ def _structure_execution_writer_kwargs(cfg):
             f"{execution_cfg['structure_dir']}/xbn__variant_01.cif"
         ),
         'generated_formula': 'BN',
-        'generated_structure_n_sites': 2,
-        'geometry_min_distance': 1.5,
-        'geometry_min_distance_ratio': 0.8,
-        'geometry_overlap_pair_count': 0,
+        'generated_structure_n_sites': len(structure),
+        'geometry_min_distance': min_distance,
+        'geometry_mean_distance': mean_distance,
+        'geometry_min_distance_ratio': min_distance_ratio,
+        'geometry_overlap_pair_count': overlap_pair_count,
         'structure_band_gap_proxy': None,
         'relaxation_status': 'not_run_reference_geometry_reused',
         'final_status': 'reference_control_ready',
+        **structure_summary,
     }
     return {
         'structure_payload': {
@@ -1661,7 +1684,11 @@ def _structure_execution_writer_kwargs(cfg):
                 'formula': 'BN',
                 'candidate_status': 'executed',
                 'selected_variant_id': 'xbn__variant_01',
-                'variants': [{**variant_row, '_cif_text': 'data_BN\n'}],
+                'variants': [{
+                    **variant_row,
+                    'atoms': atoms,
+                    '_cif_text': structure.to(fmt='cif'),
+                }],
             }],
         },
         'structure_summary_df': pd.DataFrame([
@@ -1677,9 +1704,11 @@ def _structure_execution_writer_kwargs(cfg):
                     f"{execution_cfg['structure_dir']}/xbn__variant_01.cif"
                 ),
                 'first_pass_execution_selected_generated_formula': 'BN',
-                'first_pass_execution_selected_structure_n_sites': 2,
-                'first_pass_execution_selected_min_distance': 1.5,
-                'first_pass_execution_selected_min_distance_ratio': 0.8,
+                'first_pass_execution_selected_structure_n_sites': len(structure),
+                'first_pass_execution_selected_min_distance': min_distance,
+                'first_pass_execution_selected_min_distance_ratio': (
+                    min_distance_ratio
+                ),
                 'first_pass_execution_selected_band_gap_proxy': None,
                 'first_pass_execution_selected_relaxation_status': (
                     'not_run_reference_geometry_reused'
@@ -2244,6 +2273,105 @@ def test_reporting_rejects_noncanonical_variant_states_atomically(
         row_updates=row_updates,
         clear_selection=clear_selection,
         remove_cif_text=remove_cif_text,
+    )
+    manifest = {
+        'name': 'twod_matpd',
+        'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-21T00:00:00+00:00',
+        'target_column': 'band_gap',
+    }
+
+    _assert_structure_execution_rejection_is_atomic(
+        tmp_path,
+        cfg,
+        canonical_kwargs,
+        invalid_kwargs,
+        manifest,
+    )
+
+
+_STRUCTURE_IDENTITY_MUTATIONS = (
+    'atoms-species',
+    'atoms-coordinates',
+    'cif-coordinates',
+    'coordinated-site-count',
+    'coordinated-lattice-metadata',
+    'coordinated-geometry-metadata',
+)
+
+
+def _mutate_structure_identity_story(writer_kwargs, mutation_kind):
+    mutated = copy.deepcopy(writer_kwargs)
+    payload_variant = mutated['structure_payload']['candidates'][0]['variants'][0]
+    variant_df = mutated['structure_variant_df']
+    summary_df = mutated['structure_summary_df']
+    if mutation_kind == 'atoms-species':
+        payload_variant['atoms']['elements'][0] = 'C'
+    elif mutation_kind == 'atoms-coordinates':
+        payload_variant['atoms']['coords'][1] = [0.1, 0.1, 0.2]
+    elif mutation_kind == 'cif-coordinates':
+        cif_structure = Structure.from_str(payload_variant['_cif_text'], fmt='cif')
+        cif_structure.translate_sites(
+            [1],
+            [0.125, 0.0, 0.0],
+            frac_coords=True,
+            to_unit_cell=True,
+        )
+        payload_variant['_cif_text'] = cif_structure.to(fmt='cif')
+    elif mutation_kind == 'coordinated-site-count':
+        payload_variant['generated_structure_n_sites'] = 3
+        payload_variant['structure_n_sites'] = 3.0
+        variant_df.loc[0, 'generated_structure_n_sites'] = 3
+        variant_df.loc[0, 'structure_n_sites'] = 3.0
+        summary_df.loc[
+            0, 'first_pass_execution_selected_structure_n_sites'
+        ] = 3
+    elif mutation_kind == 'coordinated-lattice-metadata':
+        payload_variant['atoms']['abc'][0] = 99.0
+        payload_variant['structure_lattice_a'] = 99.0
+        variant_df.loc[0, 'structure_lattice_a'] = 99.0
+    elif mutation_kind == 'coordinated-geometry-metadata':
+        for field_name in (
+            'geometry_min_distance',
+            'geometry_mean_distance',
+            'geometry_min_distance_ratio',
+        ):
+            payload_variant[field_name] = 9.0
+            variant_df.loc[0, field_name] = 9.0
+        summary_df.loc[0, 'first_pass_execution_selected_min_distance'] = 9.0
+        summary_df.loc[
+            0, 'first_pass_execution_selected_min_distance_ratio'
+        ] = 9.0
+    else:  # pragma: no cover - parametrization contract
+        raise AssertionError(mutation_kind)
+    return mutated
+
+
+@pytest.mark.parametrize(
+    ('baseline_case', 'formula_col'),
+    [('full', 'formula'), ('custom-paths', 'composition')],
+)
+@pytest.mark.parametrize('mutation_kind', _STRUCTURE_IDENTITY_MUTATIONS)
+def test_reporting_rejects_noncanonical_structure_identity_atomically(
+    tmp_path,
+    monkeypatch,
+    baseline_case,
+    formula_col,
+    mutation_kind,
+):
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    cfg, canonical_kwargs = _canonical_structure_execution_writer_inputs(
+        tmp_path,
+        baseline_case=baseline_case,
+        formula_col=formula_col,
+    )
+    invalid_kwargs = _mutate_structure_identity_story(
+        canonical_kwargs,
+        mutation_kind,
     )
     manifest = {
         'name': 'twod_matpd',
@@ -3303,7 +3431,6 @@ def test_completion_marker_commits_exact_successful_bundle_outputs(
     structure_payload = writer_kwargs['structure_payload']
     structure_payload['candidates'][0]['variants'][0].update({
         'generated_structure_cif_path': 'nested/cifs/xbn__variant_01.cif',
-        '_cif_text': 'data_XBN\n',
     })
     writer_kwargs['structure_variant_df'].loc[
         0, 'generated_structure_cif_path'

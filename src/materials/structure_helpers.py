@@ -207,20 +207,200 @@ def _canonical_formula(formula: str | None) -> str | None:
     return Composition(value).reduced_formula
 
 
+def _validate_structure_execution_variant_identity(
+    *,
+    atoms,
+    cif_text,
+    generated_formula,
+    generated_structure_n_sites,
+    structure_summary,
+    geometry_min_distance,
+    geometry_mean_distance,
+    geometry_min_distance_ratio,
+    geometry_overlap_pair_count,
+    geometry_min_distance_ratio_overlap_threshold,
+) -> None:
+    """Validate one builder-produced structure across atoms, metadata, and CIF."""
+
+    def reject(detail):
+        raise ValueError(
+            f'structure_first_pass_execution variant structure identity {detail}'
+        )
+
+    def finite_vector(value, field_name):
+        try:
+            vector = np.asarray(value, dtype=float)
+        except Exception:
+            reject(f'{field_name} must be a finite three-vector')
+        if vector.shape != (3,) or not np.isfinite(vector).all():
+            reject(f'{field_name} must be a finite three-vector')
+        return vector
+
+    def same_optional_number(actual, expected, field_name, *, tolerance=1e-8):
+        actual = make_json_safe(actual)
+        expected = make_json_safe(expected)
+        if actual is None or expected is None:
+            if actual is not expected:
+                reject(f'{field_name} disagrees with atoms evidence')
+            return
+        if (
+            isinstance(actual, bool)
+            or not isinstance(actual, (int, float))
+            or not np.isfinite(actual)
+            or not np.isclose(actual, expected, rtol=tolerance, atol=tolerance)
+        ):
+            reject(f'{field_name} disagrees with atoms evidence')
+
+    if not isinstance(atoms, dict):
+        reject('requires an atoms object')
+    if not isinstance(atoms.get('cartesian'), bool):
+        reject('atoms.cartesian must be boolean')
+    if not isinstance(structure_summary, dict):
+        reject('requires structure summary metadata')
+    missing_summary_fields = set(STRUCTURE_SUMMARY_COLUMNS) - set(structure_summary)
+    if missing_summary_fields:
+        reject(
+            'is missing structure summary fields: '
+            f'{sorted(missing_summary_fields)}'
+        )
+
+    try:
+        atoms_structure = _structure_from_atoms(atoms)
+    except Exception as exc:
+        reject(f'atoms cannot construct a structure: {type(exc).__name__}')
+    if not len(atoms_structure):
+        reject('atoms must contain at least one site')
+
+    declared_abc = finite_vector(atoms.get('abc'), 'atoms.abc')
+    declared_angles = finite_vector(atoms.get('angles'), 'atoms.angles')
+    if not np.allclose(
+        declared_abc,
+        np.asarray(atoms_structure.lattice.abc),
+        rtol=1e-8,
+        atol=1e-8,
+    ):
+        reject('atoms.abc disagrees with atoms.lattice_mat')
+    if not np.allclose(
+        declared_angles,
+        np.asarray(atoms_structure.lattice.angles),
+        rtol=1e-8,
+        atol=1e-8,
+    ):
+        reject('atoms.angles disagrees with atoms.lattice_mat')
+
+    atoms_formula = _canonical_formula(atoms_structure.composition.reduced_formula)
+    if _canonical_formula(generated_formula) != atoms_formula:
+        reject('generated_formula disagrees with atoms evidence')
+    if int(generated_structure_n_sites) != len(atoms_structure):
+        reject('generated_structure_n_sites disagrees with atoms evidence')
+
+    canonical_atoms = _structure_to_atoms(atoms_structure)
+    expected_summary = _structure_summary_from_atoms(canonical_atoms)
+    for field_name in STRUCTURE_SUMMARY_COLUMNS:
+        same_optional_number(
+            structure_summary.get(field_name),
+            expected_summary.get(field_name),
+            field_name,
+        )
+
+    try:
+        overlap_threshold = float(
+            make_json_safe(geometry_min_distance_ratio_overlap_threshold)
+        )
+    except (TypeError, ValueError):
+        reject('geometry overlap threshold must be numeric')
+    if not np.isfinite(overlap_threshold) or overlap_threshold <= 0:
+        reject('geometry overlap threshold must be positive and finite')
+    (
+        expected_min_distance,
+        expected_min_distance_ratio,
+        expected_overlap_pair_count,
+        expected_mean_distance,
+    ) = _pair_distance_statistics(
+        atoms_structure,
+        overlap_threshold=overlap_threshold,
+    )
+    same_optional_number(
+        geometry_min_distance,
+        expected_min_distance,
+        'geometry_min_distance',
+    )
+    same_optional_number(
+        geometry_mean_distance,
+        expected_mean_distance,
+        'geometry_mean_distance',
+    )
+    same_optional_number(
+        geometry_min_distance_ratio,
+        expected_min_distance_ratio,
+        'geometry_min_distance_ratio',
+    )
+    if int(geometry_overlap_pair_count) != expected_overlap_pair_count:
+        reject('geometry_overlap_pair_count disagrees with atoms evidence')
+
+    try:
+        cif_structure = Structure.from_str(cif_text, fmt='cif')
+    except Exception as exc:
+        reject(f'CIF bytes cannot construct a structure: {type(exc).__name__}')
+    if len(cif_structure) != len(atoms_structure):
+        reject('CIF site count disagrees with atoms evidence')
+    if not np.allclose(
+        np.asarray(cif_structure.lattice.abc),
+        np.asarray(atoms_structure.lattice.abc),
+        rtol=1e-6,
+        atol=1e-5,
+    ) or not np.allclose(
+        np.asarray(cif_structure.lattice.angles),
+        np.asarray(atoms_structure.lattice.angles),
+        rtol=1e-6,
+        atol=1e-5,
+    ):
+        reject('CIF lattice disagrees with atoms evidence')
+
+    unmatched_cif_sites = list(range(len(cif_structure)))
+    for atoms_site in atoms_structure:
+        matched_index = None
+        for cif_index in unmatched_cif_sites:
+            cif_site = cif_structure[cif_index]
+            if atoms_site.species_string != cif_site.species_string:
+                continue
+            coordinate_delta = np.asarray(
+                atoms_site.frac_coords - cif_site.frac_coords,
+                dtype=float,
+            )
+            coordinate_delta -= np.round(coordinate_delta)
+            if np.allclose(
+                coordinate_delta,
+                np.zeros(3),
+                rtol=0.0,
+                atol=1e-5,
+            ):
+                matched_index = cif_index
+                break
+        if matched_index is None:
+            reject('CIF species/coordinates disagree with atoms evidence')
+        unmatched_cif_sites.remove(matched_index)
+
+
 def _structure_execution_variant_expected_state(
     *,
     candidate_formula,
     execution_status,
     execution_message,
+    atoms,
     generated_formula,
     formula_matches_candidate,
+    geometry_min_distance,
+    geometry_mean_distance,
     geometry_min_distance_ratio,
     geometry_overlap_pair_count,
     geometry_sanity_pass,
     geometry_min_distance_ratio_pass_threshold,
+    geometry_min_distance_ratio_overlap_threshold,
     relabeled_site_count,
     removed_site_count,
     generated_structure_n_sites,
+    structure_summary,
     cif_text,
 ) -> tuple[str, str]:
     """Return the builder-owned relaxation/final state for one variant."""
@@ -247,6 +427,8 @@ def _structure_execution_variant_expected_state(
     execution_message = make_json_safe(execution_message)
     generated_formula = make_json_safe(generated_formula)
     formula_matches_candidate = make_json_safe(formula_matches_candidate)
+    geometry_min_distance = make_json_safe(geometry_min_distance)
+    geometry_mean_distance = make_json_safe(geometry_mean_distance)
     geometry_min_distance_ratio = make_json_safe(geometry_min_distance_ratio)
     geometry_sanity_pass = make_json_safe(geometry_sanity_pass)
     generated_structure_n_sites = make_json_safe(generated_structure_n_sites)
@@ -291,7 +473,19 @@ def _structure_execution_variant_expected_state(
             reject('execution errors cannot claim formula or geometry success')
         if generated_formula is not None or generated_structure_n_sites is not None:
             reject('execution errors cannot claim generated structure evidence')
-        if geometry_min_distance_ratio is not None or geometry_overlap_pair_count != 0:
+        if atoms is not None:
+            reject('execution errors cannot publish atoms evidence')
+        if not isinstance(structure_summary, dict) or any(
+            make_json_safe(structure_summary.get(field_name)) is not None
+            for field_name in STRUCTURE_SUMMARY_COLUMNS
+        ):
+            reject('execution errors cannot claim structure summary evidence')
+        if (
+            geometry_min_distance is not None
+            or geometry_mean_distance not in (None, 0, 0.0)
+            or geometry_min_distance_ratio is not None
+            or geometry_overlap_pair_count != 0
+        ):
             reject('execution errors cannot claim generated geometry evidence')
         if cif_text is not None:
             reject('execution errors cannot publish CIF bytes')
@@ -325,6 +519,20 @@ def _structure_execution_variant_expected_state(
         reject('generated formula evidence must be a valid composition')
     if formula_matches_candidate is not formula_evidence_matches:
         reject('formula_matches_candidate disagrees with generated formula evidence')
+    _validate_structure_execution_variant_identity(
+        atoms=atoms,
+        cif_text=cif_text,
+        generated_formula=generated_formula,
+        generated_structure_n_sites=generated_structure_n_sites,
+        structure_summary=structure_summary,
+        geometry_min_distance=geometry_min_distance,
+        geometry_mean_distance=geometry_mean_distance,
+        geometry_min_distance_ratio=geometry_min_distance_ratio,
+        geometry_overlap_pair_count=geometry_overlap_pair_count,
+        geometry_min_distance_ratio_overlap_threshold=(
+            geometry_min_distance_ratio_overlap_threshold
+        ),
+    )
     expected_geometry_sanity_pass = bool(
         geometry_overlap_pair_count == 0
         and (

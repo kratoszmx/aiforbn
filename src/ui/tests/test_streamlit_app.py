@@ -144,11 +144,16 @@ def _save_structure_execution_bundle(
     summary_execution_overrides: dict[str, object] | None = None,
     summary_mutator=None,
 ):
+    from pymatgen.core import Lattice, Structure
+
     from runtime import io_utils
+    from materials.data import _structure_summary_from_atoms
     from materials.summary import build_experiment_summary
     from materials.structure_helpers import (
         _STRUCTURE_EXECUTION_SELECTED_PROJECTION_FIELDS,
+        _pair_distance_statistics,
         _structure_first_pass_execution_config,
+        _structure_to_atoms,
     )
 
     root = Path(__file__).resolve().parents[3]
@@ -184,6 +189,24 @@ def _save_structure_execution_bundle(
         'screening_selected_feature_family': 'composition_only',
     }
     execution_cfg = _structure_first_pass_execution_config(cfg)
+    structure = Structure(
+        Lattice.tetragonal(4.0, 20.0),
+        ['Al', 'B', 'N'],
+        [[0.0, 0.0, 0.5], [0.5, 0.0, 0.5], [0.0, 0.5, 0.5]],
+    )
+    atoms = _structure_to_atoms(structure)
+    structure_summary = _structure_summary_from_atoms(atoms)
+    (
+        min_distance,
+        min_distance_ratio,
+        overlap_pair_count,
+        mean_distance,
+    ) = _pair_distance_statistics(
+        structure,
+        overlap_threshold=execution_cfg[
+            'geometry_min_distance_ratio_overlap_threshold'
+        ],
+    )
     variant_row = {
         'formula': 'AlBN',
         'execution_variant_id': 'albn__variant_01',
@@ -199,13 +222,15 @@ def _save_structure_execution_bundle(
             f"{execution_cfg['structure_dir']}/albn__variant_01.cif"
         ),
         'generated_formula': 'AlBN',
-        'generated_structure_n_sites': 2,
-        'geometry_min_distance': 1.5,
-        'geometry_min_distance_ratio': 0.8,
-        'geometry_overlap_pair_count': 0,
+        'generated_structure_n_sites': len(structure),
+        'geometry_min_distance': min_distance,
+        'geometry_mean_distance': mean_distance,
+        'geometry_min_distance_ratio': min_distance_ratio,
+        'geometry_overlap_pair_count': overlap_pair_count,
         'structure_band_gap_proxy': None,
         'relaxation_status': 'not_run_unrelaxed_species_edit',
         'final_status': 'ready_for_external_relaxation',
+        **structure_summary,
     }
     structure_payload = {
         field: execution_cfg[field]
@@ -223,7 +248,11 @@ def _save_structure_execution_bundle(
             'formula': 'AlBN',
             'candidate_status': 'executed',
             'selected_variant_id': 'albn__variant_01',
-            'variants': [{**variant_row, '_cif_text': 'data_AlBN\n'}],
+            'variants': [{
+                **variant_row,
+                'atoms': atoms,
+                '_cif_text': structure.to(fmt='cif'),
+            }],
         }] if execution_active else []),
     })
     structure_summary_df = (

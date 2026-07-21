@@ -20,7 +20,7 @@ from runtime.schema import (
     FIXED_REPORT_ARTIFACT_NAMES as _RESERVED_REPORT_ARTIFACT_NAMES,
     STRUCTURE_EXECUTION_OUTPUT_ROLES,
 )
-from materials.data import load_cached_raw_record_lookup
+from materials.data import STRUCTURE_SUMMARY_COLUMNS, load_cached_raw_record_lookup
 from materials.constants import *
 from materials.candidate_space import *
 from materials.candidate_space import (
@@ -308,6 +308,7 @@ def _validate_structure_execution_frame_roles(
     *,
     formula_col: str,
     geometry_min_distance_ratio_pass_threshold: float,
+    geometry_min_distance_ratio_overlap_threshold: float,
 ) -> None:
     def normalized(value):
         return make_json_safe(value)
@@ -353,10 +354,12 @@ def _validate_structure_execution_frame_roles(
         'execution_message',
         'relabeled_site_count',
         'removed_site_count',
+        'geometry_mean_distance',
         'geometry_overlap_pair_count',
         'geometry_sanity_pass',
         *selected_variant_fields,
         *_STRUCTURE_EXECUTION_VARIANT_SELECTION_FIELDS,
+        *STRUCTURE_SUMMARY_COLUMNS,
     )))
     summary_columns = {
         formula_col,
@@ -484,17 +487,27 @@ def _validate_structure_execution_frame_roles(
                 candidate_formula=row.get(formula_col),
                 execution_status=row.get('execution_status'),
                 execution_message=row.get('execution_message'),
+                atoms=payload_variants[variant_id].get('atoms'),
                 generated_formula=row.get('generated_formula'),
                 formula_matches_candidate=row.get('formula_matches_candidate'),
+                geometry_min_distance=row.get('geometry_min_distance'),
+                geometry_mean_distance=row.get('geometry_mean_distance'),
                 geometry_min_distance_ratio=row.get('geometry_min_distance_ratio'),
                 geometry_overlap_pair_count=row.get('geometry_overlap_pair_count'),
                 geometry_sanity_pass=row.get('geometry_sanity_pass'),
                 geometry_min_distance_ratio_pass_threshold=(
                     geometry_min_distance_ratio_pass_threshold
                 ),
+                geometry_min_distance_ratio_overlap_threshold=(
+                    geometry_min_distance_ratio_overlap_threshold
+                ),
                 relabeled_site_count=row.get('relabeled_site_count'),
                 removed_site_count=row.get('removed_site_count'),
                 generated_structure_n_sites=row.get('generated_structure_n_sites'),
+                structure_summary={
+                    field_name: row.get(field_name)
+                    for field_name in STRUCTURE_SUMMARY_COLUMNS
+                },
                 cif_text=payload_variants[variant_id].get('_cif_text'),
             )
         )
@@ -864,6 +877,11 @@ def save_metrics_and_predictions(
             geometry_min_distance_ratio_pass_threshold=(
                 structure_first_pass_execution_cfg[
                     'geometry_min_distance_ratio_pass_threshold'
+                ]
+            ),
+            geometry_min_distance_ratio_overlap_threshold=(
+                structure_first_pass_execution_cfg[
+                    'geometry_min_distance_ratio_overlap_threshold'
                 ]
             ),
         )

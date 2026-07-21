@@ -430,19 +430,26 @@ def build_structure_first_pass_execution_artifacts(
                     candidate_formula=candidate_formula,
                     execution_status=execution_status,
                     execution_message=error_message,
+                    atoms=variant_atoms,
                     generated_formula=generated_formula,
                     formula_matches_candidate=formula_matches_candidate,
+                    geometry_min_distance=min_distance,
+                    geometry_mean_distance=mean_distance,
                     geometry_min_distance_ratio=min_distance_ratio,
                     geometry_overlap_pair_count=overlap_pair_count,
                     geometry_sanity_pass=geometry_sanity_pass,
                     geometry_min_distance_ratio_pass_threshold=execution_cfg[
                         'geometry_min_distance_ratio_pass_threshold'
                     ],
+                    geometry_min_distance_ratio_overlap_threshold=execution_cfg[
+                        'geometry_min_distance_ratio_overlap_threshold'
+                    ],
                     relabeled_site_count=len(plan['relabel_indices']),
                     removed_site_count=len(plan['remove_indices']),
                     generated_structure_n_sites=structure_summary[
                         'structure_n_sites'
                     ],
+                    structure_summary=structure_summary,
                     cif_text=cif_text,
                 )
             )
