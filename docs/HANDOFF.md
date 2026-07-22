@@ -1,386 +1,75 @@
-# HANDOFF.md
+# Agent Handoff
 
-## 项目
+## Current state
+
+- Project: `aiforbn`, a research-grade AI-for-BN demonstration repository maintained for autonomous agents.
+- Default environment: conda `quant`; run from the repository root.
 - `HUMAN_DOCS_POLICY=user_owned_read_only_unless_explicit_human_document_task`
-- 名称：AI for BN PoC
-- 路径：`/Users/zmx/Projects/projects/aiforbn`
-- 默认执行环境：agent shell 下的 `quant`
-- 当前优先级：**保持 relocated checkout 可执行，并以契约测试锁住 formula-only screening、BN diagnostics、artifact 安全边界与完整测试入口**
+- No active repository blocker is recorded. Start new work from a reproduced defect or an explicit scientific-delivery request, not from historical maintenance chronology.
+- Git history is the forensic record for completed maintenance rounds; this file records only current operational truth.
 
-## 一句话结论
-- **最后一个可直接回退的稳定主线**仍然是此前已完整验证并已保存的主线波次。
-- 当前更适合对外汇报的项目定位应是：
-  - general grouped-split predictor 已经明显优于 dummy；
-  - BN-specific diagnostics 已被单独拆开并更诚实地暴露出来；
-  - 当前 candidate ranking 应被视为 **low-confidence formula-level prioritization for follow-up**，而不是 discovery claim。
-- 目前最稳妥的技术判断仍然是：
-  - overall evaluation best 依旧不是 candidate-compatible screening best；
-  - 当前最可信的 candidate-compatible neural control 仍然是 **`matminer_composition + torch_mlp_ensemble`**；
-  - attention / Roost-like / kNN 这些新试探都**没有**在短 BN-slice pilot 上形成足够强的新证据。
+## Scientific contract
 
-## 最后一个稳定主线（可回退认定）
-- 当前应把此前已经完整跑通 `pytest -q` 和 `python main.py` 的主线看作稳定基线。
-- 该稳定基线已经包含：
-  - grouped-by-formula robustness
-  - BN formula holdout
-  - BN family holdout
-  - BN vs non-BN stratified error
-  - candidate-compatible BN honesty table
-  - ranking explainability / uncertainty / abstention
-  - BN-centered alternative ranking
-  - structure-generation handoff / first-pass execution artifacts
-- 这条稳定主线里的核心方法学定位仍然是：
-  - **overall evaluation** 可以使用 lightweight structure-aware 路径
-  - **formula-only screening** 必须使用 candidate-compatible 路径
-  - 不可把二者混成一个“AI 发现 BN 新材料”的强 claim
+- The design space is bounded and BN-centered. Candidate ranking is low-confidence formula-level follow-up prioritization, not open-ended material discovery.
+- Stage 1 screening must use candidate-compatible formula-only features. The overall evaluation model may use lightweight structure-aware features and may differ from the screening model.
+- Formula-stage stability, application relevance, and directness are conservative proxies. Structure-dependent claims begin only after a structure hypothesis exists and passes the applicable checks.
+- Current structure outputs are deterministic, unrelaxed prototypes and validation-ready handoff evidence. They are not structure relaxation, experimental synthesis, thermodynamic-stability proof, direct-gap proof, or discovery evidence.
+- Grouped-by-formula, BN formula/family holdout, BN-vs-non-BN, uncertainty, domain-support, novelty, and action-label diagnostics are evidence layers; none promotes a formula-stage result into a structure or experimental claim.
+- Default model/config truth belongs to `src/config.py`. Fractional-attention, sparse-attention, and Roost-like implementations remain experimental rather than default-mainline evidence; historical pilot results do not justify a GPU-success claim.
 
-## 当前 live working tree 状态
-当前 live tree 已完成一轮 **去掉 wrapper 的 src 顶层模块化重排**，目标是不改行为，但把主要模块都上提到 `src` 顶层，避免继续藏在 `pipeline/` 下面。
+The machine-readable v18 anchors, non-claims, and deliverable chain are canonical in `docs/AGENT_MANIFEST.json`. Read the human research context only when the task requires it and never treat it as agent-owned state.
 
-当前代码组织已经变成：
-- `src/config.py`
-  - 实际默认配置文件，`main.py` 和测试直接使用它
-- `conftest.py`
-  - pytest bootstrap 放在仓库根，而不是 `src` 顶层
-- `src/runtime/`
-  - 独立 runtime 模块，保留 `io_utils.py` 和 `schema.py`
-- `src/materials/`
-  - 业务主模块，吸收了原先分散的 dataset / features / reporting / structure-execution 逻辑
-  - 关键文件包括 `data.py`、`candidate_space.py`、`feature_building.py`、`modeling.py`、`selection.py`、`benchmarking.py`、`screening.py`、`common.py`、`ranking_tables.py`、`structure_artifacts.py`、`structure_helpers.py`、`structure_execution.py`、`summary.py`、`artifacts.py`、`plots.py`
-- `src/torch_models/`
-  - 独立 PyTorch 模型模块，保留 `base.py`、`attention.py`、`sparse_attention.py`、`roost_like.py`、`ensemble.py`
-- `src/ui/`
-  - 独立 UI 模块，保留 `streamlit_app.py`
+## Authority map
 
-每个正式模块目录现在都已有模板文件：
-- `AGENTS.md`
-- `PY_FILES_SUMMARY.md`
-- `utils.py`
+| Need | Canonical source |
+|---|---|
+| Repository entry, ownership, safety | `AGENTS.md` |
+| Entrypoints, modules, dependencies, profiles, v18 boundaries | `docs/AGENT_MANIFEST.json` |
+| Routine execution and profile selection | `.agents/skills/aiforbn-workflow/SKILL.md` and `skills/ai_native_workflow.txt` |
+| Proposal/Overleaf delivery | `.agents/skills/aiforbn-overleaf-proposal/SKILL.md` |
+| Public Python callables and signatures | root and nearest module `PY_FILES_SUMMARY.md` |
+| Runtime defaults | `src/config.py` |
+| Historical changes and rollback | Git commits and diffs |
 
-当前新增的 AI-native inspection 层：
-- `docs/AGENT_MANIFEST.json`
-  - 机器可读的项目契约，记录入口命令、模块边界、验证命令和安全边界
-  - 现已记录 v18 research-plan alignment：源文件、实现锚点、非 claim 边界、以及 deliverable chain，并由 `--verify-agent-contract` 检查
-- `python3 main.py --emit-agent-commands`
-  - 输出 entrypoints、validation commands、validation profiles、project skills 和 retired guidance 文件清单
-- `python3 main.py --emit-agent-state`
-  - 输出 live JSON 项目状态
-- `python3 main.py --verify-agent-contract`
-  - 检查 AI-native 布局；只有缺少关键契约文件这类阻断错误才非零退出
-- `skills/ai_native_workflow.txt`
-  - 当前唯一 active plain-text project runtime guidance
-- `.agents/skills/aiforbn-workflow/SKILL.md`
-  - 当前 repo-scoped Codex workflow skill
-- `.agents/skills/aiforbn-overleaf-proposal/SKILL.md`
-  - research-plan / Overleaf 专用 repo-scoped Codex skill
+Do not duplicate exact commands, dependency lists, public signatures, or round narratives here when their canonical owner above is machine-checkable.
 
-当前 `quant` 环境已补齐 `requirements.txt` 中完整测试需要的关键依赖：
-- `pyarrow`
-- `torch`
-- `streamlit`
-- `jarvis-tools`
+## Architecture and artifact truth
 
-因此新的默认广覆盖验证命令可以使用：
-- `python3 -m pytest -q src`
+- `main.py` remains the linear, agent-traceable pipeline entrypoint.
+- Production ownership is `runtime`, `materials`, `torch_models`, and `ui`; manifest records for `tests` and `template` are non-production contract surfaces.
+- Allowed production dependencies are `runtime -> []`, `torch_models -> []`, `ui -> [runtime]`, and `materials -> [runtime, torch_models]`.
+- Runtime reuses the stable `myutils` filesystem and JSON APIs behind project-specific path, identity, and human-document guards. Project-specific artifact and AST semantics remain local.
+- Successful artifact publication uses v2 source/config/dataset/output identity, commits actual published bytes by relative path and SHA-256, and writes the completion marker last. Missing, malformed, mismatched, legacy, or uncommitted-known output state is non-current and must not render report content.
+- Structure summary, writer, and viewer roles derive from the shared runtime contract. Writer semantic preflight happens before mutation; the viewer independently validates persisted state.
 
-测试布局也已随模块调整为：
-- `src/runtime/tests/`
-- `src/materials/tests/`
-- `src/torch_models/tests/`
-- `src/ui/tests/`
-- `src/tests/`
+## Safety boundaries
 
-根目录旧 `tests/` 已移除，`src/pipeline/`、`src/core/`、`src/dataset/`、`src/features/`、`src/reporting/`、`src/structure_execution/` 这些旧顶层也都已退出 live 结构。
+- Everything under `human_docs/` is user-owned and read-only unless the current task explicitly requests human-document work. Do not edit, move, regenerate, stage, normalize, reclassify, or copy its contents into agent-owned history.
+- Treat `data/` and `artifacts/` as scientific/generated state. Do not regenerate or commit them during ordinary maintenance; run the full pipeline only when the task explicitly requires refreshed artifacts and review the resulting diff.
+- Do not commit credentials, private datasets, caches, local environment state, or scratch outputs.
+- An installed local package, authorization state, or historical artifact is not current project truth unless it is declared by the machine contract and verified in the active environment.
 
-另外，本轮还完成了几项关键整理：
-- `main.py` 的导入链已改成直接指向新的真实模块，不再经过 façade
-- `main.py` 现在新增 `--dry-run` 快速烟测入口，可在不跑完整主流程的情况下验证配置、候选空间、特征表构建、以及模型导入/实例化是否仍然通畅
-- 各模块（含 `template` 与 `tests`）现在都已有自己的 `PY_FILES_SUMMARY.md`，用于记录该目录对外暴露的可调用函数/类；模块内部实现细节则继续放在各自的 `AGENTS.md`
-- `src/config.py` 保持为真实配置文件，不再保留兼容层
-- 顶层模块目录已去掉 `__init__.py`、package-relative imports 和依赖 `__all__` 的包式导出，回到“repo root + src 路径直接使用”的非包态模式
-- `core` 这个顶层名字已移除，原通用运行时职责收敛到 `src/runtime/`
-- `reporting` 和 `structure_execution` 不再作为假独立 sibling module 存在，而是并回 `materials`，避免只在目录层面独立、实际仍强依赖主业务流
-- Streamlit UI 仍位于 `src/ui/streamlit_app.py`，并通过公开的 `runtime.io_utils.read_json_file` 复用 JSON 读取能力，避免重复维护 `myutils` 定位逻辑
-- `src/runtime/io_utils.py` 的 `ensure_runtime_dirs(...)` 已去掉对 `apps/`、`tests/`、`notebooks/` 这类非运行时目录的自动创建逻辑，因此旧的 notebook/notebooks 自动生成来源已经移除
-- `src/runtime/io_utils.py` 会从仓库位置向上寻找相邻的 `myutils/file_utils/`，也支持显式 `MYUTILS_ROOT`；不再依赖固定父目录深度
-- 项目里重复出现的 JSON 读写 / JSON-safe 转换逻辑继续尽量复用 `myutils/file_utils/json_io.py`
+## Validated checkpoint
 
-根 `skill.txt` 和旧 `skills/*_skill.txt` shards 已不再作为入口文件；项目级 agent 规则收敛到：
-- `AGENTS.md`
-- `docs/AGENT_MANIFEST.json`
-- `.agents/skills/aiforbn-workflow/SKILL.md`
-- `.agents/skills/aiforbn-overleaf-proposal/SKILL.md`
-- `skills/ai_native_workflow.txt`
+Latest validated tree (2026-07-23):
 
-## 当前默认主线与实验分界
-### 默认主线仍保持不变
-默认 `model.candidate_types` 仍应视为：
-- `linear_regression`
-- `hist_gradient_boosting`
-- `torch_mlp`
-- `torch_mlp_ensemble`
+- agent contract and nine-field command-index parity: `ok`, 0 errors, 0 warnings;
+- dry-run pipeline wiring: passed;
+- emitted architecture/docs focused profile: 483 passed;
+- cache-disabled collection/full `src` suite: 1038 collected, 1038 passed;
+- warning classification: one upstream PyTorch nested-tensor prototype warning, no project warning regression;
+- Streamlit AppTest: 104 passed;
+- bounded loopback renderer: health 200, root 200, clean shutdown, zero remaining listener;
+- both repo skills valid; external-cache compile, diff, residue, and protected-tree checks clean.
 
-这意味着当前主线默认 sweep **没有**把下面这些模型并入：
-- `torch_fractional_attention`
-- `torch_sparse_fractional_attention`
-- `torch_roost_like`
+These checks do not regenerate scientific artifacts. Select commands from `python3 main.py --emit-agent-commands`; do not copy this snapshot forward after behavior or test inventory changes without rerunning the exact affected checks.
 
-### 实验模型的定位
-当前代码里已经有以下实验模型实现，但它们都应视为 **pilot-only / experimental**：
-- `torch_fractional_attention`
-- `torch_sparse_fractional_attention`
-- `torch_roost_like`
+## Resume and recovery
 
-它们当前都只允许和：
-- `fractional_composition_vector`
-搭配。
+1. Read `AGENTS.md`, `docs/AGENT_MANIFEST.json`, this file, `skills/ai_native_workflow.txt`, and the relevant repo skill.
+2. Run `python3 main.py --emit-agent-commands` and `python3 main.py --verify-agent-contract`.
+3. Classify the task and select the smallest emitted validation profile. For `src/**` work, also read the nearest module `AGENTS.md` and `PY_FILES_SUMMARY.md`.
+4. Keep scientific regeneration separate from code/docs maintenance. Use artifact provenance rather than file presence to judge currentness.
+5. Before handoff, review the complete diff, validate the frozen tree, stage only intentional paths, synchronize the existing remotes, and prove clean ref equality.
 
-不要把这些实验模型误写成已经进入默认主线。
-
-## 本轮新增但尚未主线化的实验结论
-### 1) Dense fractional attention pilot
-相关 artifacts：
-- `artifacts/pilot/fractional_attention_pilot_summary.json`
-- `artifacts/pilot/fractional_attention_pilot_benchmark_results.csv`
-- `artifacts/pilot/fractional_attention_pilot_bn_slice_results.csv`
-
-结论：
-- 在短 BN-slice pilot 上没有打赢更强的现有 candidate-compatible control。
-- 不值得主线化。
-
-### 2) Sparse fractional attention pilot
-相关 artifacts：
-- `artifacts/pilot/sparse_fractional_attention_pilot_summary.json`
-- `artifacts/pilot/sparse_fractional_attention_pilot_benchmark_results.csv`
-- `artifacts/pilot/sparse_fractional_attention_pilot_bn_slice_results.csv`
-
-结论：
-- 在小 pilot 上出现了 validation selection 与 BN-slice evidence 不一致的问题。
-- 不只是“本机算力不够”，而是模型本身没有形成稳定正信号。
-- 继续在这条 attention 变体线上投入不划算。
-
-### 3) Roost-like 短 pilot
-相关 artifacts：
-- `artifacts/pilot/roost_like_pilot_summary.json`
-- `artifacts/pilot/roost_like_pilot_benchmark_results.csv`
-- `artifacts/pilot/roost_like_pilot_bn_slice_results.csv`
-
-本次小 pilot（`341 rows / 240 formulas / 10 BN formulas`）的关键信息：
-- test benchmark：
-  - `matminer_composition + hist_gradient_boosting`: `MAE = 0.5717`
-  - `fractional_composition_vector + torch_mlp_ensemble`: `MAE = 0.8246`
-  - `fractional_composition_vector + torch_roost_like`: `MAE = 0.8405`
-- BN-slice：
-  - `dummy_mean`: `MAE = 1.3439`
-  - `matminer_composition + hist_gradient_boosting`: `MAE = 1.6158`
-  - `fractional_composition_vector + torch_mlp_ensemble`: `MAE = 1.4772`
-  - `fractional_composition_vector + torch_roost_like`: `MAE = 1.3784`
-
-解读：
-- `torch_roost_like` 比同批 fractional neural controls 更接近真正的 BN-slice 目标。
-- 但它**仍然没有打赢 dummy**。
-- 因此它最多算“有一点方向感”，**还不能主线化**。
-
-### 4) Roost-like 配置小扫
-相关 artifact：
-- `artifacts/pilot/roost_like_config_sweep_summary.json`
-
-关键结果：
-- `roost_like_small`: `MAE = 1.3784`，未过 dummy
-- `roost_like_medium`: `MAE = 1.3984`，未过 dummy
-- `roost_like_wider`: `MAE = 2.0710`，明显更差
-
-结论：
-- 更宽/更重的局部配置并没有把 BN-slice 拉起来。
-- 当前还没有“已经证明需要更重算力才会成功”的证据。
-
-### 5) 零改代码 kNN 小 pilot
-相关 artifacts：
-- `artifacts/pilot/knn_bn_slice_pilot_summary.json`
-- `artifacts/pilot/knn_bn_slice_pilot_results.csv`
-
-最佳结果：
-- `fractional_composition_vector + k=7 + distance`
-- `BN-slice MAE = 1.8808`
-
-结论：
-- 比 Roost-like 更差。
-- “局部传统基线”不是这轮的解。
-
-## 当前最可信的项目结论
-截至目前，最可信的项目结论仍然是：
-1. 主线方法学修补已经基本到位，项目不再是“只会报一个漂亮 test MAE 的 PoC”。
-2. BN-centered 诊断已经比早期清楚很多，但 BN 子域仍然明显更难。
-3. 当前最可信的 candidate-compatible neural baseline 仍然是：
-   - `matminer_composition + torch_mlp_ensemble`
-4. 本轮新增的 reporting wave 没有引入新的 benchmark logic，而是把现有证据压缩成更容易给导师直接阅读的摘要产物：
-   - `artifacts/bn_model_role_comparison.csv`（现已收敛为 compact 的 5 行 BN 角色对照表）
-   - `artifacts/demo_candidate_rank_stability_summary.csv`
-   - `artifacts/demo_candidate_structure_followup_report.csv`
-   - 并同步接入 `artifacts/experiment_summary.json`
-5. 因此当前**更安全的汇报口径**应是：
-   - BN-themed formula-level screening PoC with honest diagnostics
-   - not BN-centered discovery
-
-## 当前验证状态
-2026-07-19 接管轮已修复 relocated checkout 暴露的固定父目录导入故障，并完成测试完备性补强。当前验证证据：
-
-2026-07-20 监督维护轮进一步完成：
-- 把 `human_docs/` 的用户所有、默认只读边界提升为 manifest 字段和所有已声明 agent instruction surfaces 的稳定 marker，并加入削弱/缺失负向测试；没有修改任何 `human_docs/` 文件
-- 移除零仓内调用、仅作 backward compatibility 的 `select_model_type(...)` façade
-- 把 Streamlit 已过期的 `use_container_width` 参数迁移为 `width='stretch'`，新增真实 Streamlit `AppTest` render regression，并完成有时限的 headless server health check
-- 严格复核后补齐 command index 的模块依赖 round-trip，并把 public-surface AST guard 接入 architecture focused profile；修复了原先标题解析不匹配导致的空集合假通过
-- 对 runtime 目录、agent-state、JSON、dataset、artifact、plot 输出和 cache 清理加入 `human_docs/` 写入/删除阻断，同时把全部 manifest module public surfaces 纳入 policy marker 验证
-- 退役仍可执行的非 BN toy candidate grid，保留且测试唯一的 bounded BN-centered candidate space；移除零引用的旧 rank-stability table builder
-- grouped robustness 预测保留 DataFrame feature names，消除 sklearn feature-name warnings
-- Round 3 进一步封死伪造 project root、直接/软链接 human-doc cache root、输出叶子软链接和硬链接别名；runtime/dataset/report/plot 会在任何目录创建、写入或删除前预检全部目录及具体输出叶子的根目录归属、类型和父链，结构配置、动态 CIF 及 stale-CIF 清理均保留/检查原始叶子身份，cache 清理安全跳过目录软链接
-- Round 4 补齐大小写等价的 human-doc 路径识别、cache root 任意软链接组件与 discovery 逃逸阻断、JSON/agent-state 序列化先于目录创建，并把 Python config bytecode、Matplotlib/JARVIS 的间接 cache/archive 写入纳入同一 canonical guard；没有修改或重算 `human_docs/` 与 scientific artifacts
-- Round 5 固定单次校验后的 JARVIS metadata snapshot，拒绝绝对路径、遍历、分隔符、空值和畸形 archive tag 后再把同一 URL/tag 与 canonical `store_dir` 交给依赖；空白 `MPLCONFIGDIR` 不再退化为当前目录，v18 alignment status 也纳入 contract verifier；没有联网下载、修改 `human_docs/` 或重算 scientific artifacts
-- Round 9 为未来完整运行增加本地 source/config/dataset artifact provenance 完成标记，viewer 会显式把现有未重算快照标为 unverified，并跟随配置的 artifact root 与 summary 中的 execution 路径；同时修复重复 prediction source、disabled optional outputs、空 structure bridge 元数据、大小写 CIF stale cleanup 与 CSV failure-before-replace，仍未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- Round 10 修复 completion marker 在“写完后抛错”时仍可能把部分 bundle 标为 current 的故障；provenance 现在要求完整 marker 字段与 schema-valid dataset manifest，viewer 对缺失 core bundle 或畸形 provenance/summary/manifest fail closed；同时移除无消费者的 `screening.enabled` 假开关并补齐根 Python summary 对 runtime/UI callable 的非空验证，仍未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- Round 11 把 provenance 升级为实际成功发布文件的 v2 内容承诺：固定、可选、配置化、动态 CIF 与 parity plot 输出均在成功写入后登记并以相对路径及 SHA-256 固化，marker 严格最后发布；viewer 对缺失、篡改、畸形或未纳入本轮发布的已知输出 fail closed，同时继续忽略无关 extra/cache 文件；仍未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- Round 12 验证重复运行会让 marker 只承诺本轮实际成功输出，并修复三处相邻 truth-contract 缺口：viewer 不再渲染 provenance 非 current 的已承诺表格，BN slice/family 数据不足时 summary 不再崩溃或误报空 prediction 文件，candidate generator 会把当前 chemical-plausibility 配置传入注释器；同时让 control-plane 测试不依赖 checkout 目录名，仍未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- Round 13 补齐 BN slice/family prediction 的四状态、双向同目录切换与 provenance 交叉验证，并修复 viewer 对畸形/legacy marker 或 viewer 二次降级 bundle 仍渲染 committed-looking 内容的 fail-open：现在只有最终 assessment 为 current 且存在明确 v2 committed-path set 时才渲染任何 report table；仍未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- Round 14 用 source-derived 30-section render inventory 和真实 AppTest 复核单一最终 render gate，并修复两条 dynamic execution 路径契约：custom execution 变为空时不再回退并误认 stale default 文件；summary 中 present 但无效、缺失、别名或未承诺的 JSON/CSV 路径会令最终 assessment fail closed。默认/custom/empty 同目录切换及三类 dynamic output 的 missing/byte-mismatch 均已回归覆盖；仍未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- Round 15 修复 current-v2 summary 的 nested object-shape 与 file-identity 漏洞：`screening`/`structure_generation_bridge` 的错误 JSON 类型不再崩溃或静默通过，三个 dynamic execution 声明必须指向各自配置并 guard 后的同一文件，不能把已承诺的 BN slice 或另一 execution CSV 重新贴标签；absent/null/empty container、规范化路径与本机真实 same-file 大小写别名仍保留有效。全报告仍只经过单一最终 render gate；未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- Round 16 将同一 dynamic execution role 契约前移到 public writer 的纯预检：错误 nested shape、缺失/错后缀/跨角色/固定输出别名及 inactive declaration 会在创建目录、失效旧 marker 或写删任何 bundle 文件前拒绝；summary builder、writer 与 viewer 共用 runtime role registry，viewer 继续独立防御持久化后的畸形状态。32 个拒绝状态均验证无 prior root 与同目录 prior-valid bundle 的字节级原子性，9 个 fallback/规范化/same-file 控制仍可成功发布 current v2；未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- Round 17 把三个 dynamic execution 默认文件名及固定 report 文件名收敛到 runtime 单一契约，structure builder、summary、writer 与 viewer 均从该契约派生；public writer 现接受真实 same-file 的同角色 payload 别名，但拒绝固定文件、跨角色 canonical default 与大小写等价冲突，viewer 对 absent/null/empty bridge 的配置路径也执行同一 fail-closed 检查。无 execution payload 时 summary 不再声明不会发布的 follow-up report；未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- Round 18 证明 provenance v2 已通过 effective config、已承诺 experiment summary 与 path-to-SHA-256 output inventory 传递绑定三个 execution 路径，单独增加 v3 role map 没有新的拒绝能力；同时修复 public writer 可把 canonical summary/variants DataFrame 对调后仍发布 current bundle 的语义缺口，现会在目录创建、旧 marker 失效或任何输出写入前按 builder-owned role column 拒绝错位表格。未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- Round 19 修复 structure-execution public writer 对 builder-owned 跨表关系只验角色、不验内容的缺口：payload、summary 与 variants 的 candidate/variant membership、聚合与逐候选 counts、status、geometry result、selected ID/final status 现在会在 artifact root 创建、旧 marker 失效或任何输出写入前完成一致性预检；canonical inactive、empty、error、partial、full 与 custom-path 输出保持有效。未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- Round 20 修复 zero-variant structure-execution candidate 可协调伪装成 `executed`、`no_successful_variant` 或成功 selected-final status 并发布 current bundle 的缺口；public writer 现在会在 artifact root 创建、旧 marker 失效或任何输出写入前拒绝这些 post-attempt 状态，同时保留 inactive、empty、missing/invalid reference、unresolved scale、planner error、自定义 formula column 与实际 failed-variant/no-success 输出。未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- Round 21 修复 structure-execution selected summary 只绑定 ID/final status 的缺口：builder 与 writer 现在共用确定性的成功 variant 排序与十字段 selected-row 投影契约，payload/summary/variants 任一 rank、CIF path、formula、site/geometry/proxy、relaxation 或 winner relabel 不一致都会在 artifact root 创建、旧 marker 失效或任何写入前拒绝；无成功 variant 时全部 selected 投影保持空值，并保留 canonical `not_executed` 或 invalid-reference error 语义。默认/自定义 formula column、nested path、partial、failed-only、zero-variant 与实际 non-first winner 均有原子回归；未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- Reset Round 2 修复 zero-variant structure-execution candidate 可把 payload、summary 与 status counts 协调改成任意或 claim-like 状态后仍发布 current bundle 的缺口；builder、planner 与 writer 现共用 materials 内唯一有限状态词表，并在 artifact root 创建、旧 marker 失效或任何写入前拒绝未知、大小写/空白变体及非字符串状态。missing/invalid reference、unresolved scale、formula scale mismatch、planner error、自定义 formula column/路径、failed-only、partial/full 与 non-first winner 控制保持有效，invalid-reference 动态异常细节仍与机器状态分离；未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- Reset Round 1（variant-state integrity）修复 structure-execution variant 可协调使用未知/claim-like execution/final 状态、与 formula/geometry/edit/relaxation 证据矛盾的状态，或在 `ok` 时缺失 CIF bytes 后仍发布 current bundle 的缺口；builder 与 writer 现共用单一 materials 状态解析器，并在 artifact root 创建、旧 marker 失效或任何写入前核对 finite execution vocabulary、formula identity、geometry result、edit counts、generated structure、relaxation 与 final status。reference control、formula mismatch、geometry failure、external-relaxation handoff、error-only、混合 success/error、自定义 formula column/路径及自由诊断文本均保留有效；未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- 本次 Reset Round 2（structure identity）修复成功 variant 的 payload atoms、generated formula/site count、结构摘要、几何诊断与实际发布 CIF bytes 可彼此矛盾却仍发布 current bundle 的缺口；builder 与 writer 现共用单一 materials identity preflight，并在 artifact root 创建、旧 marker 失效或任何写入前从 atoms 重建并核对全部结构证据。默认/自定义 formula column、自定义 nested path、有效重试恢复及原有 error/partial/full 分支均保持有效；未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- 本次 Reset Round 3（edit-plan identity）修复 variant 可协调伪造 relabel site/target、vacancy site 与 edit counts，同时保留内部一致的 final atoms/CIF 并发布 current bundle 的缺口；builder 与 writer 现共用唯一 edit-plan projection，writer 在任何 bundle mutation 前从 cached raw source 重建 deterministic plan 并核对 source、plan、final atoms 的逐位结构关系。reference reuse、relabel、vacancy、自定义 formula column、失败 variant 与有效重试恢复均有回归覆盖；未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- 本次 Reset Round 4（seed reference identity）修复 payload/summary/variants 可协调改挂到未被 builder 选中的另一 cached record，或 cached raw record 的显式 formula 与 seed claim/source atoms 不一致后仍发布 current bundle 的缺口；builder 与 writer 现共用 exact queue/follow-up selection context，formula multiplier 同时拒绝 source atoms 中未由 seed formula 声明的元素，writer 在任何 bundle mutation 前精确绑定 builder-selected record/formula、raw formula 与 source composition。默认/自定义 formula column、multiple seeds、reference reuse、vacancy、canonical-equivalent formula、旧 bundle 保全及有效重试均有回归覆盖；未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- 本次 Reset Round 5（seed evidence fields）修复 selected seed 的 record ID/formula/atoms 不变时，band gap、四个 reference property、has-structure-summary 与 11 个 structure-summary 字段仍可被协调改写并发布 current bundle 的缺口；public writer 现在复用 dataset normalizer，在任何 bundle mutation 前把所有已发出的 record-level evidence 精确绑定到 cached raw record，execution-disabled seed-only 发布也受同一预检。builder 同时把合法缺失的 optional target/property evidence 规范为 null；依赖 train+val mask 的 formula aggregates 留待后续 split-aware 边界核对。默认/自定义 formula column、缺失 optional/structure、旧 bundle 保全及有效重试均有回归覆盖；未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- 本次 Reset Round 7（skeptical second-NO）推翻前轮 aggregate NO：默认 formula-grouped split 已使完整 `bn_df` 足以唯一重建 seed formula 的 train+val row-count/mean，writer 现于任何 bundle mutation 前核对这两项；非 formula-grouped split 仍保留为无法由当前输入重建的 planning context。同时修复公开 `--write-agent-state` 未进入 manifest/命令索引、根 Python summary 的两个 runtime schema 常量归错文件、UI edit profile 漏跑 public-surface/import guard，以及根 `main.py` import/CLI flag/summary symbol false-green。未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- 本次 Reset Round 8（validation profile reachability）修复 profile 的 `scope`/`use_when` 只是未校验文本、skill trigger metadata 与 requirements dependency 可漂移、以及 full-pipeline lazy bindings 没有真实解析测试仍可假绿的问题：validation commands 现声明 `provides`、profiles 声明 `requires`，verifier 精确核对 capability reachability、skill name/description frontmatter 及 manifest-to-requirements parity；focused regression 会解析每个真实 pipeline binding。四类 profile 的反事实探针另补齐 RMSE 数值、默认 split ratios 与 UI 30-row display cap 的精确 oracle。精简 workflow 指引只引用 emitted profile 名称，不再复制命令序列；未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- 本次 Reset Round 9（materials wildcard dependency façade）移除 48 个 materials 与 4 个 torch_models 生产 wildcard import，并把所有实际依赖改为 true-owner 显式导入；`materials.constants`、`materials.common` 等文件不再隐式转发 stdlib、sklearn、pandas 或项目内部符号。source-derived public-surface guard 现拒绝任何生产 wildcard 及未由 owner 文件定义或公开记录的同模块 façade import，并用可编译的绝对/相对反事实变体证明不会假绿；未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- 本次 Reset Round 10（requirements reverse parity）把 12 个 requirements 全部纳入带 specifier、import module、role 与 direct/backend 分类的 manifest 契约；verifier 现双向核对规范化 distribution/specifier、从 48 个 Python source/test/CLI/UI 文件推导并分类外部 import 与本地 `myutils` import、拒绝无消费者的 direct dependency，并把缺失 import probe 升为阻断错误。四类 validation profile 均明确要求 declaration completeness 与 import availability；未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- 本次 Reset Round 11（skeptical post-contract）修复 Round 10 契约仍可伪造 dependency distribution/module ownership、direct/backend 或 core/scientific/UI/test role、local-shared owner 与 dependency-blind validation profile 后返回 `ok` 的假绿；full-pipeline lazy binding 现逐个核对实际 owner symbol。结构 writer 同时在任何 mutation 前精确绑定 config→payload→experiment-summary 的 first-pass metadata/model/count projection，阻止 claim-like structure handoff 被发布为 current。两个 repo skill 与 compact workflow 移除不可解析的 blocker/coding/Overleaf 路由名并新增 repo-local `$skill` reference closure；未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- 本次 Reset Round 12（dependency source discovery）修复 aliased `import_module`、builtin/aliased `__import__`、nested/`TYPE_CHECKING`/optional literal imports 可绕过声明，以及任意同名 `.import_module(...)` 和 relative-local dynamic import 会被误报的问题；source scanner 现按真实 `importlib`/`builtins` owner alias 识别字面模块名，对不支持的非字面动态依赖 fail closed，并由全部字面 `_bind_missing` call sites 与 exact owner-identity test 约束唯一 production loader。机器检查同时输出并核对完整 48-file source inventory；未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- 本次 Reset Round 13（delegated dynamic-import reachability）修复通用 pass-through 例外可让 production wrapper 经字面/计算参数、别名、返回值或容器调用未声明依赖，以及 `_bind_missing` 例外可由入口外同名函数或入口内间接调用复用后仍返回 `ok` 的假绿；scanner 现拒绝全部 delegated dynamic-import wrapper，仅允许真实 `main.py` 内唯一 `_bind_missing` 定义及其直接字面 call sites，JARVIS preflight-order 测试改用标准库 `Mock(wraps=...)`，无需 import pass-through 例外。未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- 本次 Reset Round 14（direct-loader identity）修复 scanner 仅按 `_bind_missing` 名称收集调用造成的双向漂移：局部函数、参数、closure/nonlocal、lambda/comprehension、赋值/导入、class、exception/with target 等无关同名调用不再被误当依赖，而 module/global 赋值、增量赋值、删除或导入重绑定不再假绿。真实 loader 的 34 个直接字面调用现按词法身份解析，默认参数、class base、comprehension 首个 iterable 与 global load 仍正确绑定；无真实调用时，局部同名调用不能再授权 loader 体内的非字面 import。未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- 本次 Reset Round 15（dynamic-import definition-time scope）修复通用 `importlib`/`__import__` scanner 把 function/class decorator、default、annotation、base/keyword 错当 body scope，以及合并整层 binding 导致 owner 调用被后续重绑定遮蔽的问题；resolver 现按真实 evaluation scope、调用位置与 runtime closure lookup 解析 owner，并精确区分 comprehension 首个/当前 iterable 与已绑定 target。字面未声明依赖与计算动态名分别被阻断，relative-local、lambda/body/local shadow 和无关同名方法保持不误报；未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- 本次 Reset Round 16（ambiguous runtime owner resolution）修复 late-bound function/lambda/class closure 在同一 enclosing scope 同时存在 dynamic-import owner 与非 owner binding 时会被折叠为无 owner 的假绿；resolver 现保留全部可能 owner kind，并把 `global`/`nonlocal` 写入归回声明目标 scope，同时把 match capture/star/rest 记录为本地 shadow。if/else、try/except/finally、`try/except*`、match、loop、with、跨定义位置、混合 callable/module owner、字面与计算动态名均有回归；纯非 owner、relative-local、sibling shadow 与唯一 `_bind_missing` 契约保持有效。未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- 本次 Reset Round 17（direct conditional call-position）修复 direct dynamic-import call 把互斥分支中词法位置最晚的 binding 当成运行时支配关系所造成的双向漂移：post-join 现在保留所有可达 owner，而 if/elif/else、normal except/else/handler 与 match sibling arm 内的不可达 owner 不再误报；same-path、finally 与穷尽 non-owner 分支仍可确定性覆盖先前 owner，`except*` 的可并行 handler 语义及 module/class builtin fallback 保持独立。未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- 本次 Reset Round 18（direct loop/with evaluation order）修复 direct dynamic-import call 对 loop backedge、zero-iteration/else/break/continue、short-circuit/conditional iterable/test 及多项 context-manager 顺序的双向漂移：后续迭代会保留可达 owner，已完成 loop 按 normal/break exit 保留最终可达 binding，`finally` 仍在 break/continue 前确定执行，iterable/context expression 不再被自己的后置 target 逆向遮蔽；`with` target 按左到右绑定，并对 prior-manager 或 destructuring assignment suppression 保持 fail closed。55 个 error/control 反事实覆盖 module/function/class/async、tuple/star target、字面/计算/relative-local 及 post-loop/post-with 状态；未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- 本次 Reset Round 19（nested loop exit-state isolation）修复 inner `break` 被错误归到 outer loop、inner completion 未在 outer backedge 前折叠，以及 `while` 最终 test 与 loop `else` 被按源码位置而非执行顺序解释的双向漂移；completed inner loops 现由内向外按 normal/break outcome 折叠，nearest-loop break/continue、unreachable post-exit binding 与 `try/finally` carry 相互隔离。26 个新增 error/control 反事实覆盖 `for`/`async for`/`while` 嵌套、owner/module/builtin/computed/relative-local 名称与正常完成/中断路径；未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- 本次 Reset Round 20（deleted-binding fallback identity）修复 definite `global`/`nonlocal` deletion 会错误复活不可达 owner，以及 completed inner loop 的 normal/break 结果均已绑定或删除同名 loader 时仍混入旧 outer carry 的假阳性；resolver 现在保留 Python 精确的 module/class builtin fallback，同时把 exhaustive loop boundary 在 outer backedge 前一次性折叠。20 个新增 error/control 反事实覆盖 alias/module owner、builtin/nonlocal 差异、conditional/zero-iteration fallback、nested `try/finally` 与 `for`/`while` normal/break 结果；未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- 本次 Reset Round 21（exception-handler implicit deletion）修复 `except ... as name` handler 内 owner rebind 会越过 Python 隐式 cleanup 形成假阳性，以及 module/class/explicit-global `__import__` cleanup 暴露 builtin 后仍假绿的双向漂移；scanner 以 handler identity 记录合成 deletion，并在 direct、loop-carried、global/nonlocal 与 class/module lookup 上按 normal、`finally`、return/re-raise、break/continue、sibling handler 与 `except*` 可达性折叠同名事件。43 个 error/control 反事实同时锁住 handler type 先于 alias binding、body shadow、no-exception 保留、closure-before-cleanup 与 exact builtin fallback；未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- 本次 Reset Round 22（handler suspension / escaped closure timing）修复 nested function/lambda/coroutine/generator body 的源码位置被误当成实际执行时点所造成的双向漂移：仅当 callable 具有唯一 binding 且全部 load 都是可直接证明的 call/await/iteration 时，scanner 才按 handler cleanup 前后位置解析；default argument 会保留 cleanup 前捕获的 loader value，延迟 generator expression 则在可逃逸时保留 exact global/class `__import__` builtin fallback。未知逃逸或调用时点继续保守合并，直接 `yield`/`await` suspension、cleanup 与 `finally` 顺序保持不变；14 个 error/control 反事实覆盖三类修复及防止过宽折叠的 eager/inline 控制，未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- 本次 Reset Round 23（exhaustive compound-handler termination）修复 selected exception handler 的最终显式 `if/else`（含递归嵌套）每个分支均 `return`、uncaught `raise` 或 nearest-loop `break` 时，implicit cleanup 仍被错误传播到运行时不可达位置的假阳性；scanner 只对两侧均存在的最终 `if` 分支递归复用既有 direct exit 规则，缺失 `else`、caught raise、post-loop break、later-iteration continue 与 cleanup-before-finally 继续保守有效。9 个 error/control 反事实锁住边界；未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- 本次 Reset Round 24（terminal handler try/finally）修复 selected exception handler 的最终显式 `try/finally` 由 finalizer 的 `return`、uncaught `raise` 或 nearest-loop `break` 确定终止后，implicit cleanup 仍被错误传播到运行时不可达位置的假阳性；scanner 仅在 finalizer 非空时把其最后语句交给既有 terminal predicate，递归显式 `if/else` 继续复用，`continue`、caught raise、post-loop break、finalizer 内 use、缺失或非终止 finalizer 保持保守有效。10 个 error/control 反事实锁住边界；未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- 本次 Reset Round 25（enclosing-finalizer override）修复 selected handler 的穷尽 `if/else` 已请求 `return` 后，最近 enclosing `finally` 的 caught `raise`、nearest-loop `break` 或 `continue` 覆盖该退出并恢复到 later call 时，implicit cleanup 仍被丢弃造成的依赖假绿；scanner 只检查最近 enclosing finalizer 的直接 `return`/`raise`/`break`/`continue` 叶子并复用既有 terminal predicate，uncaught raise、fallthrough、finalizer return、finalizer 内 use 与 handler 自身 caught raise 保持原有保守边界。8 个 error/control 反事实锁住边界；未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- contract verifier 现精确锁定 validation command scope/capability、profile use-case/required-capability reachability、三个 active project-skill 记录与七个 retired-guidance 路径；public-surface 测试同时核对模块摘要及根摘要的 callable 参数顺序和 keyword-only 边界
-- `--verify-agent-contract` 现会精确锁定六个 module 的 path/role/public-surface/agent-rules/local-utils/allowed-dependencies；公开 surface 测试逐个要求四个生产模块非空，并显式覆盖 import re-export
-
-1. AI-native contract 与命令索引：
-- `conda run -n quant python3 main.py --emit-agent-commands`
-- `conda run -n quant python3 main.py --verify-agent-contract`
-- 结果：两者通过，contract status 为 `ok`，无 warnings / errors
-
-2. 快速主线烟测：
-- `conda run -n quant python3 main.py --dry-run`
-- 结果：通过；候选空间、4 组 feature sets、4 组默认模型与 dummy baseline 均可导入和实例化
-
-3. 完整 src 测试：
-- `conda run -n quant python3 -m pytest -q src`
-- 结果：`1038 passed, 1 warning`
-- 剩余 warning 是 PyTorch nested-tensor prototype 提示，不是测试失败；原 sklearn feature-name warnings 已消除
-
-4. UI 文字化验证：
-- `conda run -n quant python3 -m pytest -q src/ui/tests/test_streamlit_app.py`
-- 结果：`104 passed`，包含真实 Streamlit renderer、source-derived 全 section gate、dynamic custom/empty 路径切换、nested object-shape 与 shared file-identity/role matrix、无效或未承诺 summary/config declaration fail-closed、三类 dynamic output 的 missing/byte-mismatch 交叉矩阵、completion/provenance matrix、BN slice/family 四状态及非对称 provenance cross-product、content-mixed bundle mutation matrix 与 non-current committed-output 抑制
-- 有时限的 `streamlit run ... --server.headless=true` 启动后，`/_stcore/health` 与根页面均成功响应；验证后进程已终止
-
-5. 语法与 diff 卫生：
-- `conda run -n quant python3 -m compileall -q main.py src`
-- `git diff --check`
-- 结果：通过
-
-本轮新增或强化的主要契约测试覆盖：
-- relocated checkout 与 `MYUTILS_ROOT` override
-- control-plane 命令在 `myutils` 不可用时仍保持纯 JSON、可独立检查 contract
-- manifest command mapping、模块依赖边界、跨模块 private/wildcard imports、反向 public-surface 文档校验
-- 完整 `main.py` BN-centered alternative branch 与 summary/artifact 参数传递
-- formula-only screening 强边界、候选公式 featurization 原子失败、自定义 formula column
-- BN diagnostic disabled / insufficient-data 状态与 BN-centered selection 复核
-- processed-cache provenance 与 target-column identity、raw-record lookup、Pydantic schema、Torch regressor 快速契约
-- JARVIS store/archive 与 Matplotlib import-time cache 的 canonical output guard，以及无效 JSON payload 的 pre-effect 原子失败
-- validation profiles、project skills、retired guidance 与两层 Python surface callable signatures 的非空/精确契约
-- BN stratified diagnostics 强制 formula grouping 并按唯一公式聚合，避免重复公式跨 fold 泄漏
-- decision policy disabled 语义、结构工件路径 containment、core/pairwise/case/Unicode/hardlink alias 防护，以及空结果第二轮清除旧 JSON/CSV/CIF
-
-因此当前最准确的表述是：
-- **代码、contract、dry-run 与完整测试套件均已通过**
-- **本轮没有重算完整 scientific artifacts；如需刷新 research/demo 产物，应单独运行 full pipeline 并审查生成物**
-
-## 当前最重要的记录文件
-### 应继续保留并视为主状态文件
-- `HANDOFF.md`：中文交接与当前状态摘要
-- `PY_FILES_SUMMARY.md`：AI-facing Python surface 摘要
-
-### 只读的人类上下文
-- `human_docs/` 全部由用户管理，默认只读，不属于 agent-owned 状态或 AI-facing contract。
-- `human_docs/task_notes/literature_mining/MODEL_UPGRADE_RESEARCH_2026-04-20.md` 只能作为历史建模方向证据；采用其中建议前必须用当前代码、测试与研究边界重新验证。
-
-### 当前实验 / 汇报 artifacts
-- `artifacts/pilot/fractional_attention_pilot_*`
-- `artifacts/pilot/sparse_fractional_attention_pilot_*`
-- `artifacts/pilot/roost_like_pilot_*`
-- `artifacts/pilot/roost_like_small_bn_slice_results.csv`
-- `artifacts/pilot/roost_like_medium_bn_slice_results.csv`
-- `artifacts/pilot/roost_like_wider_bn_slice_results.csv`
-- `artifacts/pilot/roost_like_config_sweep_summary.json`
-- `artifacts/pilot/knn_bn_slice_pilot_summary.json`
-- `artifacts/pilot/knn_bn_slice_pilot_results.csv`
-- `artifacts/bn_model_role_comparison.csv`
-- `artifacts/demo_candidate_rank_stability_summary.csv`
-- `artifacts/demo_candidate_structure_followup_report.csv`
-
-## 恢复工作时的直接起点
-默认恢复动作：
-1. 先读：
-   - `AGENTS.md`
-   - `docs/AGENT_MANIFEST.json`
-   - `skills/ai_native_workflow.txt`
-   - `.agents/skills/aiforbn-workflow/SKILL.md`
-   - `docs/HANDOFF.md`
-2. 运行：
-   - `python3 main.py --emit-agent-commands`
-   - `python3 main.py --verify-agent-contract`
-3. 先确认这轮是：
-   - architecture / docs / skills / contract maintenance
-   - single-module coding
-   - scientific pipeline or artifact regeneration
-   - research-plan / Overleaf delivery
-4. 如果进入单模块 coding：
-   - 只选一个模块
-   - 读最近的模块 `AGENTS.md` 和 `PY_FILES_SUMMARY.md`
-   - 明确允许改哪些文件、禁止碰哪些文件
-   - 可对低风险局部实现使用 `spark_coder`，但主 Codex 必须审查 diff 和测试
-5. 若形成 checkpoint：
-   - 排除不该提交的文件
-   - 清缓存
-   - 按 `--emit-agent-commands` 给出的最小验证 profile 跑验证
-   - 通过后再 `git add / commit / push`
-
-只有当任务明确涉及老师回覆、导师汇报或 proposal 时，才额外读：
-   - `human_docs/project_reports/老師回覆.txt`
-   - `human_docs/project_reports/项目汇报.md`
-   - `human_docs/project_reports/给见微的说明.md`
-
-## 当前不应丢失的判断
-- 不要因为本机不是 CUDA 机器就自动退缩换方向。
-- 但也不要在没有正向证据时，仅因为“模型更重”就要求 GPU。
-- 当前实验结论还不足以说明“只要上 GPU 就能赢”。
-- 不把未列入 requirements/manifest 的本机试验依赖或授权状态当作当前 agent state。
-- 从结构规范角度看，当前代码已经进一步收敛到 4 个正式生产模块：`runtime`、`materials`、`torch_models`、`ui`。
-- 模块模板要求目前已满足，每个正式模块都带有自己的 `AGENTS.md` 和 `utils.py`。
-- 当前生产依赖关系也已明显收敛：`runtime -> []`、`torch_models -> []`、`ui -> [runtime]`、`materials -> [runtime, torch_models]`。
-- 也就是说，之前那种 `reporting` / `structure_execution` 只是目录独立、实现上却从属于主业务链的问题，已经通过并回 `materials` 解决。
-- 当前工程动作应先通过 `--emit-agent-commands` 选择最小验证 profile，再进入单模块 coding 或 artifact regeneration。
-- 当前科研动作仍不应盲目扩展实验面；只有任务明确涉及导师汇报时，才回到老师回覆与证据口径补齐。
+There is no separate active chronology or archive document. Use `git log -- docs/HANDOFF.md` and the relevant commit diff for forensic recovery.
