@@ -1733,6 +1733,14 @@ def _source_import_analysis(
                     terminal_statement_reaches_use(branch[-1])
                     for branch in (statement.body, statement.orelse)
                 )
+            if (
+                isinstance(
+                    statement,
+                    (ast.Try, getattr(ast, 'TryStar', ast.Try)),
+                )
+                and statement.finalbody
+            ):
+                return terminal_statement_reaches_use(statement.finalbody[-1])
             if isinstance(statement, ast.Continue):
                 return True
             if isinstance(statement, ast.Break):
