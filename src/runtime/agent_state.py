@@ -841,6 +841,38 @@ def _source_import_analysis(
                 return False
         return True
 
+    def nested_finally_binding_precedes_outer_finally(
+        binding_node: ast.AST,
+        control: ast.AST,
+    ) -> bool:
+        current = binding_node
+        saw_nested_finally = False
+        while current is not control:
+            parent = parent_by_node.get(id(current))
+            if parent is None:
+                return False
+            if isinstance(parent, conditional_binding_ancestors):
+                if isinstance(
+                    parent,
+                    (ast.Try, getattr(ast, 'TryStar', ast.Try)),
+                ) and control_region(binding_node, parent) == (
+                    'finalbody',
+                    None,
+                ):
+                    if not parent.finalbody or current is not parent.finalbody[0]:
+                        return False
+                    saw_nested_finally = True
+                elif parent is not control:
+                    return False
+            if parent is control:
+                return bool(
+                    saw_nested_finally
+                    and current in control.body
+                    and control.body.index(current) == 0
+                )
+            current = parent
+        return False
+
     def binding_is_path_definite(
         binding_node: ast.AST,
         use_node: ast.AST,
@@ -925,6 +957,15 @@ def _source_import_analysis(
                     '',
                     'finalbody',
                 }:
+                    continue
+                if (
+                    event_part == 'body'
+                    and use_part == 'finalbody'
+                    and nested_finally_binding_precedes_outer_finally(
+                        binding_node,
+                        control,
+                    )
+                ):
                     continue
                 if event_part == 'body' and use_part in {'body', 'orelse'}:
                     continue
@@ -1017,6 +1058,36 @@ def _source_import_analysis(
             current = parent_by_node.get(id(current))
         return False
 
+    def binding_is_definite_on_abrupt_loop_exit(
+        binding_node: ast.AST,
+        abrupt_node: ast.AST,
+        loop: ast.AST,
+        scope: ast.AST,
+    ) -> bool:
+        if (
+            source_end(binding_node) <= source_start(abrupt_node)
+            and binding_may_reach_use(binding_node, abrupt_node, scope)
+            and binding_is_path_definite(binding_node, abrupt_node, scope)
+        ):
+            return True
+        current = parent_by_node.get(id(abrupt_node))
+        while current is not None and current is not loop:
+            if isinstance(current, (ast.Try, getattr(ast, 'TryStar', ast.Try))):
+                if (
+                    control_region(abrupt_node, current)
+                    != ('finalbody', None)
+                    and control_region(binding_node, current)
+                    == ('finalbody', None)
+                    and binding_is_structurally_definite_until(
+                        binding_node,
+                        current,
+                        scope,
+                    )
+                ):
+                    return True
+            current = parent_by_node.get(id(current))
+        return False
+
     def prior_loop_exit_may_skip_event(
         binding_node: ast.AST,
         loop: ast.AST,
@@ -1040,14 +1111,14 @@ def _source_import_analysis(
             for node in ast.walk(loop)
         )
 
-    def binding_is_structurally_cycle_definite(
+    def binding_is_structurally_definite_until(
         binding_node: ast.AST,
-        loop: ast.AST,
+        stop_control: ast.AST,
         scope: ast.AST,
     ) -> bool:
         for control in control_ancestors(binding_node, scope):
-            if control is loop:
-                break
+            if control is stop_control:
+                return True
             part, index = control_region(binding_node, control) or ('', None)
             if isinstance(control, ast.If) and part == 'test':
                 continue
@@ -1079,7 +1150,18 @@ def _source_import_analysis(
             ) and part == 'finalbody':
                 continue
             return False
-        return True
+        return False
+
+    def binding_is_structurally_cycle_definite(
+        binding_node: ast.AST,
+        loop: ast.AST,
+        scope: ast.AST,
+    ) -> bool:
+        return binding_is_structurally_definite_until(
+            binding_node,
+            loop,
+            scope,
+        )
 
     def binding_is_cycle_definite(
         binding_node: ast.AST,
@@ -1339,7 +1421,7 @@ def _source_import_analysis(
         events: list[tuple[ast.AST, ast.AST]],
         *,
         within_loop: ast.AST | None = None,
-    ) -> list[tuple[ast.AST, ast.AST]]:
+    ) -> tuple[list[tuple[ast.AST, ast.AST]], ast.AST | None]:
         completed_loops: dict[int, ast.AST] = {}
         for _, binding_node in events:
             for control in control_ancestors(binding_node, scope):
@@ -1359,6 +1441,7 @@ def _source_import_analysis(
                 ):
                     completed_loops[id(control)] = control
         retained_events = events
+        bound_loops = []
         for loop in sorted(
             completed_loops.values(),
             key=lambda control: len(control_ancestors(control, scope)),
@@ -1382,6 +1465,44 @@ def _source_import_analysis(
                 retained_events,
                 include_break_paths=True,
             )
+            if (
+                source_end(loop) <= source_start(use_node)
+                and binding_is_path_definite(loop, use_node, scope)
+                and (
+                    any(
+                        control_region(event, loop) == ('orelse', None)
+                        and binding_is_structurally_definite_until(
+                            event,
+                            loop,
+                            scope,
+                        )
+                        for _, event in retained_events
+                    )
+                    or (
+                        isinstance(loop, ast.While)
+                        and any(
+                            control_region(event, loop) == ('test', None)
+                            and binding_is_cycle_definite(event, loop, scope)
+                            for _, event in retained_events
+                        )
+                    )
+                )
+                and all(
+                    any(
+                        binding_is_definite_on_abrupt_loop_exit(
+                            event,
+                            break_node,
+                            loop,
+                            scope,
+                        )
+                        for _, event in raw_cycle_events
+                    )
+                    for break_node in ast.walk(loop)
+                    if isinstance(break_node, ast.Break)
+                    and nearest_enclosing_loop(break_node) is loop
+                )
+            ):
+                bound_loops.append(loop)
             cycle_event_ids = {
                 id(event[1])
                 for event in raw_cycle_events
@@ -1397,7 +1518,8 @@ def _source_import_analysis(
                 if id(event[1]) not in cycle_event_ids
             ]
             retained_events.extend(final_events)
-        return retained_events
+        boundary = max(bound_loops, key=source_end, default=None)
+        return retained_events, boundary
 
     def event_has_following_direct_break(
         binding_node: ast.AST,
@@ -1446,7 +1568,10 @@ def _source_import_analysis(
             elif use_region not in {('test', None), ('body', None)}:
                 continue
 
-            resolved_scope_events = summarize_completed_loop_events(
+            (
+                resolved_scope_events,
+                completed_prefix_boundary,
+            ) = summarize_completed_loop_events(
                 scope,
                 use_node,
                 all_scope_events,
@@ -1463,10 +1588,17 @@ def _source_import_analysis(
                 if (
                     source_end(event[1]) <= source_start(use_node)
                     and binding_may_reach_use(event[1], use_node, scope)
-                    and binding_is_cycle_definite(event[1], loop, scope)
+                    and (
+                        binding_is_cycle_definite(event[1], loop, scope)
+                        or binding_is_path_definite(
+                            event[1],
+                            use_node,
+                            scope,
+                        )
+                    )
                 )
             ]
-            if definite_prefix_events:
+            if definite_prefix_events or completed_prefix_boundary is not None:
                 continue
 
             carried_events.extend(
@@ -1512,7 +1644,7 @@ def _source_import_analysis(
         scope: ast.AST,
         name: str,
         use_node: ast.AST,
-    ) -> tuple[bool, set[str], bool]:
+    ) -> tuple[bool, set[str], bool, bool]:
         preceding_events = [
             (event_scope, binding_node)
             for event_scope, event_name, binding_node in binding_events
@@ -1523,17 +1655,18 @@ def _source_import_analysis(
                 and binding_may_reach_use(binding_node, use_node, scope)
             )
         ]
-        preceding_events = summarize_completed_loop_events(
+        preceding_events, completed_loop_boundary = summarize_completed_loop_events(
             scope,
             use_node,
             preceding_events,
         )
         if not preceding_events:
-            return loop_carried_event_resolution(
+            has_event, kinds, deleted_fallback = loop_carried_event_resolution(
                 scope,
                 name,
                 use_node,
             )
+            return has_event, kinds, deleted_fallback, False
 
         definite_events = [
             event
@@ -1544,6 +1677,14 @@ def _source_import_analysis(
             (source_end(binding_node), 'event', binding_node)
             for _, binding_node in definite_events
         ]
+        if completed_loop_boundary is not None:
+            boundaries.append(
+                (
+                    source_end(completed_loop_boundary),
+                    'control',
+                    completed_loop_boundary,
+                )
+            )
 
         def direct_region_latest_event(
             control: ast.AST,
@@ -1634,18 +1775,22 @@ def _source_import_analysis(
                 ]
 
         fallback_possible = not boundaries
+        definite_delete = False
         if boundary_kind == 'event' and boundary_node is not None:
             fallback_possible = (
                 id(scope),
                 name,
                 id(boundary_node),
             ) in deleted_binding_events
+            definite_delete = fallback_possible
         if any(
             (id(event_scope), name, id(binding_node))
             in deleted_binding_events
             for event_scope, binding_node in retained_events
         ):
             fallback_possible = True
+            if boundary_kind == 'control':
+                definite_delete = True
         has_event, kinds = resolved_event_kinds(name, retained_events)
         (
             carried_has_event,
@@ -1657,6 +1802,7 @@ def _source_import_analysis(
             has_event or carried_has_event,
             kinds,
             fallback_possible or carried_fallback_possible,
+            definite_delete,
         )
 
     def event_kinds_anywhere(
@@ -1813,7 +1959,19 @@ def _source_import_analysis(
                 )
             return {'builtins_callable'} if name == '__import__' else set()
 
+        def deleted_name_fallback_kinds() -> set[str]:
+            if name in nonlocal_names.get(id(scope), set()):
+                return set()
+            if name in global_names.get(id(scope), set()):
+                return (
+                    {'builtins_callable'}
+                    if name == '__import__'
+                    else set()
+                )
+            return fallback_name_kinds()
+
         direct_fallback_possible = False
+        direct_delete_is_definite = False
         if runtime_lookup:
             has_event, event_kinds = event_kinds_anywhere(scope, name)
         elif possible_before_lookup:
@@ -1827,6 +1985,7 @@ def _source_import_analysis(
                 has_event,
                 event_kinds,
                 direct_fallback_possible,
+                direct_delete_is_definite,
             ) = event_kinds_before(
                 scope,
                 name,
@@ -1847,7 +2006,9 @@ def _source_import_analysis(
             ):
                 return {'builtins_callable'}
             resolved_kinds = set(event_kinds)
-            if direct_fallback_possible:
+            if direct_delete_is_definite:
+                resolved_kinds.update(deleted_name_fallback_kinds())
+            elif direct_fallback_possible:
                 resolved_kinds.update(fallback_name_kinds())
             return resolved_kinds
         return fallback_name_kinds()

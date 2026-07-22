@@ -1258,6 +1258,208 @@ def test_validate_agent_layout_ignores_non_dependency_runtime_owner_controls(
 
 
 @pytest.mark.parametrize(
+    'source_prefix',
+    [
+        (
+            'from importlib import import_module as load\n'
+            'def use_loader():\n'
+            '    global load\n'
+            '    del load\n'
+            '    return load("requests")\n'
+        ),
+        (
+            'from builtins import __import__ as load\n'
+            'def use_loader():\n'
+            '    global load\n'
+            '    del load\n'
+            '    return load("requests")\n'
+        ),
+        (
+            'def outer():\n'
+            '    from importlib import import_module as load\n'
+            '    def use_loader():\n'
+            '        nonlocal load\n'
+            '        del load\n'
+            '        return load("requests")\n'
+            '    return use_loader\n'
+        ),
+        (
+            'def outer():\n'
+            '    from builtins import __import__\n'
+            '    def use_loader():\n'
+            '        nonlocal __import__\n'
+            '        del __import__\n'
+            '        return __import__("requests")\n'
+            '    return use_loader\n'
+        ),
+        (
+            'import importlib\n'
+            'def use_loader():\n'
+            '    global importlib\n'
+            '    del importlib\n'
+            '    return importlib.import_module("requests")\n'
+        ),
+        (
+            'def outer():\n'
+            '    from importlib import import_module as load\n'
+            '    def use_loader(outer_values, inner_values):\n'
+            '        nonlocal load\n'
+            '        for outer in outer_values:\n'
+            '            for inner in inner_values:\n'
+            '                try:\n'
+            '                    observe(inner)\n'
+            '                finally:\n'
+            '                    del load\n'
+            '                return load("requests")\n'
+            '    return use_loader\n'
+        ),
+    ],
+    ids=(
+        'global-importlib-alias',
+        'global-builtin-alias',
+        'nonlocal-importlib-alias',
+        'nonlocal-builtin-name',
+        'global-importlib-module',
+        'nested-nonlocal-finally-delete',
+    ),
+)
+def test_validate_agent_layout_ignores_definitely_deleted_declared_targets(
+    monkeypatch,
+    source_prefix,
+):
+    validation = _validate_agent_layout_with_config_prefix(
+        monkeypatch,
+        source_prefix,
+    )
+
+    assert validation['status'] == 'ok'
+    assert validation['errors'] == []
+
+
+@pytest.mark.parametrize(
+    ('source_prefix', 'expected_error_code'),
+    [
+        (
+            '__import__ = lambda name: name\n'
+            'def use_loader():\n'
+            '    global __import__\n'
+            '    del __import__\n'
+            '    return __import__("requests")\n',
+            'undeclared_external_import',
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'def use_loader(flag):\n'
+            '    global load\n'
+            '    if flag:\n'
+            '        del load\n'
+            '    return load("requests")\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def outer():\n'
+            '    from importlib import import_module as load\n'
+            '    def use_loader(flag):\n'
+            '        nonlocal load\n'
+            '        if flag:\n'
+            '            del load\n'
+            '        return load("requests")\n'
+            '    return use_loader\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def use_loader(values):\n'
+            '    from importlib import import_module as load\n'
+            '    for value in values:\n'
+            '        del load\n'
+            '    return load("requests")\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def use_loader(values):\n'
+            '    from importlib import import_module as load\n'
+            '    for value in values:\n'
+            '        break\n'
+            '    else:\n'
+            '        load = lambda name, package=None: name\n'
+            '    return load("requests")\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def use_loader(values, flag):\n'
+            '    from importlib import import_module as load\n'
+            '    for value in values:\n'
+            '        try:\n'
+            '            break\n'
+            '        finally:\n'
+            '            if flag:\n'
+            '                del load\n'
+            '    else:\n'
+            '        load = lambda name, package=None: name\n'
+            '    return load("requests")\n',
+            'undeclared_external_import',
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'def use_loader(values):\n'
+            '    global load\n'
+            '    for value in values:\n'
+            '        try:\n'
+            '            maybe_fail()\n'
+            '            try:\n'
+            '                observe(value)\n'
+            '            finally:\n'
+            '                del load\n'
+            '        finally:\n'
+            '            load("requests")\n',
+            'undeclared_external_import',
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'def use_loader(values):\n'
+            '    global load\n'
+            '    for value in values:\n'
+            '        try:\n'
+            '            try:\n'
+            '                observe(value)\n'
+            '            finally:\n'
+            '                maybe_fail()\n'
+            '                del load\n'
+            '        finally:\n'
+            '            load("requests")\n',
+            'undeclared_external_import',
+        ),
+    ],
+    ids=(
+        'global-builtin-fallback',
+        'conditional-global-delete',
+        'conditional-nonlocal-delete',
+        'zero-iteration-owner-fallback',
+        'uncovered-break-owner-fallback',
+        'conditional-finally-delete',
+        'outer-try-prefix-may-skip-nested-delete',
+        'inner-finally-prefix-may-skip-delete',
+    ),
+)
+def test_validate_agent_layout_preserves_feasible_deleted_binding_fallbacks(
+    monkeypatch,
+    source_prefix,
+    expected_error_code,
+):
+    validation = _validate_agent_layout_with_config_prefix(
+        monkeypatch,
+        source_prefix,
+    )
+
+    assert validation['status'] == 'error'
+    assert any(
+        error['code'] == expected_error_code
+        and error['path'] == 'src/config.py'
+        for error in validation['errors']
+    )
+
+
+@pytest.mark.parametrize(
     ('source_prefix', 'expected_error_code'),
     [
         (
@@ -2104,6 +2306,100 @@ def test_validate_agent_layout_isolates_nested_loop_breaks(
     ),
 )
 def test_validate_agent_layout_preserves_nested_loop_exit_controls(
+    monkeypatch,
+    source_prefix,
+):
+    validation = _validate_agent_layout_with_config_prefix(
+        monkeypatch,
+        source_prefix,
+    )
+
+    assert validation['status'] == 'ok'
+    assert validation['errors'] == []
+
+
+@pytest.mark.parametrize(
+    'source_prefix',
+    [
+        (
+            'def use_loader(inner_values):\n'
+            '    from importlib import import_module as load\n'
+            '    for inner in inner_values:\n'
+            '        del load\n'
+            '        break\n'
+            '    else:\n'
+            '        load = lambda name, package=None: name\n'
+            '    return load("requests")\n'
+        ),
+        (
+            'def use_loader(outer_values, inner_values):\n'
+            '    load = lambda name, package=None: name\n'
+            '    for outer in outer_values:\n'
+            '        from importlib import import_module as load\n'
+            '        for inner in inner_values:\n'
+            '            del load\n'
+            '            break\n'
+            '        else:\n'
+            '            load = lambda name, package=None: name\n'
+            '        load("requests")\n'
+        ),
+        (
+            'def use_loader(outer_values, inner_values):\n'
+            '    from importlib import import_module as load\n'
+            '    for outer in outer_values:\n'
+            '        for inner in inner_values:\n'
+            '            try:\n'
+            '                try:\n'
+            '                    observe(inner)\n'
+            '                finally:\n'
+            '                    del load\n'
+            '            finally:\n'
+            '                load("requests")\n'
+        ),
+        (
+            'def use_loader(inner_values, stop):\n'
+            '    from importlib import import_module as load\n'
+            '    for inner in inner_values:\n'
+            '        if stop:\n'
+            '            del load\n'
+            '            break\n'
+            '    else:\n'
+            '        load = lambda name, package=None: name\n'
+            '    return load("requests")\n'
+        ),
+        (
+            'def use_loader(inner_values):\n'
+            '    from importlib import import_module as load\n'
+            '    for inner in inner_values:\n'
+            '        try:\n'
+            '            break\n'
+            '        finally:\n'
+            '            del load\n'
+            '    else:\n'
+            '        load = lambda name, package=None: name\n'
+            '    return load("requests")\n'
+        ),
+        (
+            'from importlib import import_module as owner\n'
+            'def use_loader(stop):\n'
+            '    load = owner\n'
+            '    while (load := (lambda name: name)) and condition():\n'
+            '        if stop:\n'
+            '            del load\n'
+            '            break\n'
+            '    return load("requests")\n'
+        ),
+    ],
+    ids=(
+        'break-delete-or-else-nonowner',
+        'nested-break-delete-or-else-nonowner',
+        'nested-finally-delete-before-call',
+        'conditional-break-delete-or-else-nonowner',
+        'break-finally-delete-or-else-nonowner',
+        'while-final-test-nonowner-or-break-delete',
+    ),
+)
+def test_validate_agent_layout_preserves_deleted_completed_loop_outcomes(
     monkeypatch,
     source_prefix,
 ):
