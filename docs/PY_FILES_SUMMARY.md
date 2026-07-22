@@ -90,7 +90,7 @@ Use it to choose the smallest sufficient validation profile for a change without
 - `src/config.py`
   - actual default `CONFIG` payload used by `main.py` and tests; mandatory formula screening has no umbrella `screening.enabled` switch, while explicitly declared nested diagnostic and handoff gates remain configurable
 - `conftest.py`
-  - shared pytest bootstrap at repo root after tests were moved under `src/**/tests`
+  - shared pytest bootstrap plus explicit UI-renderer-profile non-vacuity guard at repo root after tests were moved under `src/**/tests`
 
 ### top-level modules
 - `src/runtime/`

@@ -2,8 +2,12 @@ from __future__ import annotations
 
 import ast
 import json
+import os
 from pathlib import Path
 import re
+import shutil
+import subprocess
+import sys
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -657,3 +661,52 @@ def test_imported_runtime_json_helpers_count_as_live_public_reexports():
     defined_names = _defined_top_level_names(SRC_ROOT / 'runtime' / 'io_utils.py')
 
     assert {'make_json_safe', 'read_json_file'}.issubset(defined_names)
+
+
+def test_ui_renderer_profile_requires_a_passed_call_phase(tmp_path):
+    project_root = tmp_path / 'project'
+    runtime_dir = project_root / 'src' / 'runtime'
+    ui_test_dir = project_root / 'src' / 'ui' / 'tests'
+    runtime_dir.mkdir(parents=True)
+    ui_test_dir.mkdir(parents=True)
+    shutil.copyfile(ROOT / 'conftest.py', project_root / 'conftest.py')
+    (runtime_dir / 'io_utils.py').write_text(
+        'def clear_project_cache(project_root_path):\n    return None\n',
+        encoding='utf-8',
+    )
+    ui_test_path = ui_test_dir / 'test_streamlit_app.py'
+
+    environment = os.environ.copy()
+    environment.pop('PYTHONPATH', None)
+    environment.pop('PYTEST_ADDOPTS', None)
+    environment['PYTHONDONTWRITEBYTECODE'] = '1'
+
+    def run_pytest(*arguments):
+        return subprocess.run(
+            [sys.executable, '-m', 'pytest', '-q', *arguments],
+            cwd=project_root,
+            check=False,
+            capture_output=True,
+            text=True,
+            env=environment,
+        )
+
+    relative_target = 'src/ui/tests/test_streamlit_app.py'
+    ui_test_path.write_text(
+        "import pytest\npytestmark = pytest.mark.skip(reason='disabled')\n"
+        'def test_renderer_contract():\n    assert False\n',
+        encoding='utf-8',
+    )
+    skipped = run_pytest(relative_target)
+    assert skipped.returncode == 1
+    assert '1 skipped' in skipped.stdout
+    assert 'passed no non-xfail renderer test calls' in skipped.stdout
+    assert run_pytest('--collect-only', relative_target).returncode == 0
+
+    ui_test_path.write_text(
+        'def test_renderer_contract():\n    assert True\n', encoding='utf-8'
+    )
+    absolute_nodeid = f'{ui_test_path.resolve()}::test_renderer_contract'
+    passed = run_pytest(absolute_nodeid)
+    assert passed.returncode == 0
+    assert '1 passed' in passed.stdout

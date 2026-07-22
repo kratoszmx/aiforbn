@@ -55,8 +55,8 @@ Latest validated tree (2026-07-23):
 
 - agent contract and nine-field command-index parity: `ok`, 0 errors, 0 warnings;
 - dry-run pipeline wiring: passed;
-- emitted architecture/docs focused profile: 483 passed;
-- cache-disabled collection/full `src` suite: 1038 collected, 1038 passed;
+- emitted architecture/docs focused profile: 484 passed;
+- cache-disabled collection/full `src` suite: 1039 collected, 1039 passed;
 - warning classification: one upstream PyTorch nested-tensor prototype warning, no project warning regression;
 - Streamlit AppTest: 104 passed;
 - bounded loopback renderer: health 200, root 200, clean shutdown, zero remaining listener;

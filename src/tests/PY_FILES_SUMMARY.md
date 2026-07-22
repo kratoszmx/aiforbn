@@ -15,7 +15,7 @@
 - `test_main.py`
   - Covers the complete top-level orchestration branch, resolves every lazy full-pipeline dependency binding against its real public symbol, exercises `--dry-run`, and covers all JSON control-plane commands, including requested-path `--write-agent-state`, relocated checkout basenames, and operation without runtime `myutils` imports.
 - `test_public_surfaces.py`
-  - Verifies explicit cross-module imports are documented, production imports contain no wildcard dependencies or undocumented same-module façade imports, production and root-entrypoint imports follow public/private boundaries, every implemented control flag is manifested, and every module/root documented symbol and callable signature exists in its declared file; root-summary callable parsing must be nonempty for `main.py`, runtime, materials, and UI.
+  - Verifies explicit cross-module imports are documented, production imports contain no wildcard dependencies or undocumented same-module façade imports, production and root-entrypoint imports follow public/private boundaries, every implemented control flag is manifested, every module/root documented symbol and callable signature exists in its declared file, and the explicit UI renderer profile cannot pass vacuously; root-summary callable parsing must be nonempty for `main.py`, runtime, materials, and UI.
 - `utils.py`
   - Currently exposes no public helper functions.
 
