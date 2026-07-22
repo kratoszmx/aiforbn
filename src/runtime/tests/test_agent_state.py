@@ -1769,6 +1769,354 @@ def test_validate_agent_layout_respects_loop_and_with_evaluation_order(
 
 
 @pytest.mark.parametrize(
+    ('source_prefix', 'expected_error_code'),
+    [
+        (
+            'def use_loader(outer_values, inner_values):\n'
+            '    load = lambda name, package=None: name\n'
+            '    for outer in outer_values:\n'
+            '        load("requests")\n'
+            '        for inner in inner_values:\n'
+            '            from importlib import import_module as load\n'
+            '            break\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def use_loader():\n'
+            '    loader = object()\n'
+            '    while outer_condition():\n'
+            '        loader.import_module("requests")\n'
+            '        while inner_condition():\n'
+            '            import importlib as loader\n'
+            '            break\n',
+            'undeclared_external_import',
+        ),
+        (
+            'async def use_loader(outer_values, inner_values, module_name):\n'
+            '    load = lambda name, package=None: name\n'
+            '    async for outer in outer_values:\n'
+            '        load(module_name)\n'
+            '        async for inner in inner_values:\n'
+            '            from builtins import __import__ as load\n'
+            '            break\n',
+            'unsupported_dynamic_import',
+        ),
+        (
+            'def use_loader(outer_values):\n'
+            '    loader = object()\n'
+            '    for outer in outer_values:\n'
+            '        loader.__import__("requests")\n'
+            '        while inner_condition():\n'
+            '            import builtins as loader\n'
+            '            break\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def use_loader(outer_values, inner_values, select_owner):\n'
+            '    load = lambda name, package=None: name\n'
+            '    for outer in outer_values:\n'
+            '        load("requests")\n'
+            '        for inner in inner_values:\n'
+            '            if select_owner:\n'
+            '                from importlib import import_module as load\n'
+            '            break\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def use_loader(outer_values, inner_values):\n'
+            '    load = lambda name, package=None: name\n'
+            '    while outer_condition():\n'
+            '        load("requests")\n'
+            '        for inner in inner_values:\n'
+            '            try:\n'
+            '                from importlib import import_module as load\n'
+            '                break\n'
+            '            finally:\n'
+            '                observe(inner)\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def use_loader(outer_values, inner_values, skip):\n'
+            '    load = lambda name, package=None: name\n'
+            '    for outer in outer_values:\n'
+            '        load("requests")\n'
+            '        if skip:\n'
+            '            continue\n'
+            '        for inner in inner_values:\n'
+            '            from importlib import import_module as load\n',
+            'undeclared_external_import',
+        ),
+        (
+            'from importlib import import_module as owner\n'
+            'def use_loader(outer_values):\n'
+            '    load = lambda name, package=None: name\n'
+            '    for outer in outer_values:\n'
+            '        load("requests")\n'
+            '        while (load := owner) and inner_condition():\n'
+            '            load = lambda name, package=None: name\n',
+            'undeclared_external_import',
+        ),
+        (
+            'from importlib import import_module as owner\n'
+            'def use_loader(outer_values, stop):\n'
+            '    load = lambda name, package=None: name\n'
+            '    for outer in outer_values:\n'
+            '        while (load := (lambda name, package=None: name)) '
+            'and inner_condition():\n'
+            '            load = owner\n'
+            '            if stop:\n'
+            '                break\n'
+            '        load("requests")\n',
+            'undeclared_external_import',
+        ),
+    ],
+    ids=(
+        'for-for-inner-break-owner',
+        'while-while-inner-break-module-owner',
+        'async-for-inner-break-computed-owner',
+        'for-while-inner-break-builtins-owner',
+        'conditional-inner-owner-before-break',
+        'inner-try-break-owner',
+        'conditional-outer-continue-preserves-inner-owner-path',
+        'inner-while-final-test-owner-reaches-next-outer-cycle',
+        'inner-while-break-retains-body-owner',
+    ),
+)
+def test_validate_agent_layout_isolates_nested_loop_breaks(
+    monkeypatch,
+    source_prefix,
+    expected_error_code,
+):
+    validation = _validate_agent_layout_with_config_prefix(
+        monkeypatch,
+        source_prefix,
+    )
+
+    assert validation['status'] == 'error'
+    assert any(
+        error['code'] == expected_error_code
+        and error['path'] == 'src/config.py'
+        for error in validation['errors']
+    )
+
+
+@pytest.mark.parametrize(
+    'source_prefix',
+    [
+        (
+            'def use_loader(outer_values, inner_values):\n'
+            '    load = lambda name, package=None: name\n'
+            '    for outer in outer_values:\n'
+            '        load("requests")\n'
+            '        for inner in inner_values:\n'
+            '            try:\n'
+            '                from importlib import import_module as load\n'
+            '                break\n'
+            '            finally:\n'
+            '                load = lambda name, package=None: name\n'
+        ),
+        (
+            'def use_loader(outer_values, inner_values):\n'
+            '    load = lambda name, package=None: name\n'
+            '    while outer_condition():\n'
+            '        load("requests")\n'
+            '        for inner in inner_values:\n'
+            '            from importlib import import_module as load\n'
+            '            load = lambda name, package=None: name\n'
+            '            break\n'
+        ),
+        (
+            'def use_loader(outer_values, inner_values):\n'
+            '    load = lambda name, package=None: name\n'
+            '    for outer in outer_values:\n'
+            '        load("requests")\n'
+            '        for inner in inner_values:\n'
+            '            from importlib import import_module as load\n'
+            '            break\n'
+            '        load = lambda name, package=None: name\n'
+        ),
+        (
+            'def use_loader(outer_values, inner_values):\n'
+            '    load = lambda name, package=None: name\n'
+            '    for outer in outer_values:\n'
+            '        load("requests")\n'
+            '        for inner in inner_values:\n'
+            '            from importlib import import_module as load\n'
+            '            break\n'
+            '        break\n'
+        ),
+        (
+            'from importlib import import_module as owner\n'
+            'def use_loader(outer_values):\n'
+            '    load = lambda name, package=None: name\n'
+            '    for outer in outer_values:\n'
+            '        while (load := (lambda name, package=None: name)) '
+            'and inner_condition():\n'
+            '            load = owner\n'
+            '        load("requests")\n'
+        ),
+        (
+            'from importlib import import_module as owner\n'
+            'def use_loader(outer_values, inner_values):\n'
+            '    load = lambda name, package=None: name\n'
+            '    for outer in outer_values:\n'
+            '        load("requests")\n'
+            '        for inner in inner_values:\n'
+            '            load = owner\n'
+            '        else:\n'
+            '            load = lambda name, package=None: name\n'
+        ),
+        (
+            'from importlib import import_module as owner\n'
+            'async def use_loader(outer_values, inner_values):\n'
+            '    load = lambda name, package=None: name\n'
+            '    async for outer in outer_values:\n'
+            '        load("requests")\n'
+            '        async for inner in inner_values:\n'
+            '            load = owner\n'
+            '        else:\n'
+            '            load = lambda name, package=None: name\n'
+        ),
+        (
+            'from importlib import import_module as owner\n'
+            'def use_loader(outer_values, inner_values):\n'
+            '    load = lambda name, package=None: name\n'
+            '    for outer in outer_values:\n'
+            '        load("requests")\n'
+            '        for inner in inner_values:\n'
+            '            load = owner\n'
+            '            continue\n'
+            '        else:\n'
+            '            load = lambda name, package=None: name\n'
+        ),
+        (
+            'from importlib import import_module as owner\n'
+            'def use_loader(outer_values):\n'
+            '    load = lambda name, package=None: name\n'
+            '    for outer in outer_values:\n'
+            '        load("requests")\n'
+            '        while inner_condition():\n'
+            '            load = owner\n'
+            '        else:\n'
+            '            load = lambda name, package=None: name\n'
+        ),
+        (
+            'def use_loader(outer_values, inner_values):\n'
+            '    load = lambda name, package=None: name\n'
+            '    for outer in outer_values:\n'
+            '        load("requests")\n'
+            '        for inner in inner_values:\n'
+            '            from importlib import import_module as load\n'
+            '            break\n'
+            '        try:\n'
+            '            break\n'
+            '        finally:\n'
+            '            observe(outer)\n'
+        ),
+        (
+            'def use_loader(outer_values, inner_values):\n'
+            '    load = lambda name, package=None: name\n'
+            '    for outer in outer_values:\n'
+            '        load("requests")\n'
+            '        try:\n'
+            '            for inner in inner_values:\n'
+            '                observe(inner)\n'
+            '            break\n'
+            '        finally:\n'
+            '            from importlib import import_module as load\n'
+        ),
+        (
+            'def use_loader(outer_values, inner_values):\n'
+            '    load = lambda name, package=None: name\n'
+            '    for outer in outer_values:\n'
+            '        load("requests")\n'
+            '        continue\n'
+            '        for inner in inner_values:\n'
+            '            from importlib import import_module as load\n'
+        ),
+        (
+            'def use_loader(outer_values, inner_values):\n'
+            '    load = lambda name, package=None: name\n'
+            '    while outer_condition():\n'
+            '        load("requests")\n'
+            '        break\n'
+            '        for inner in inner_values:\n'
+            '            from importlib import import_module as load\n'
+        ),
+        (
+            'def use_loader(outer_values, inner_values):\n'
+            '    load = lambda name, package=None: name\n'
+            '    for outer in outer_values:\n'
+            '        load("requests")\n'
+            '        for inner in inner_values:\n'
+            '            continue\n'
+            '            from importlib import import_module as load\n'
+        ),
+        (
+            'def use_loader(outer_values, inner_values):\n'
+            '    load = lambda name, package=None: name\n'
+            '    for outer in outer_values:\n'
+            '        load(".helpers", __package__)\n'
+            '        for inner in inner_values:\n'
+            '            from importlib import import_module as load\n'
+            '            break\n'
+        ),
+        (
+            'def use_loader(outer_values):\n'
+            '    load = lambda name, package=None: name\n'
+            '    for outer in outer_values:\n'
+            '        load("requests")\n'
+            '        def inner():\n'
+            '            from importlib import import_module as load\n'
+            '            return load("json")\n'
+        ),
+        (
+            'def use_loader(outer_values, inner_values):\n'
+            '    load = lambda name, package=None: name\n'
+            '    for outer in outer_values:\n'
+            '        load("requests")\n'
+            '        for inner in inner_values:\n'
+            '            try:\n'
+            '                break\n'
+            '            finally:\n'
+            '                from importlib import import_module as load\n'
+            '        break\n'
+        ),
+    ],
+    ids=(
+        'inner-break-finally-nonowner-dominates',
+        'inner-final-nonowner-before-break',
+        'outer-final-nonowner-dominates',
+        'genuine-outer-break-stops-backedge',
+        'inner-while-final-test-nonowner-dominates-body-owner',
+        'inner-for-else-nonowner-dominates-normal-completion',
+        'inner-async-for-else-nonowner-dominates-normal-completion',
+        'inner-continue-still-reaches-for-else-nonowner',
+        'inner-while-else-nonowner-dominates-normal-completion',
+        'outer-try-finally-break-stops-backedge',
+        'outer-break-finally-owner-stops-backedge',
+        'outer-continue-before-inner-owner',
+        'outer-break-before-inner-owner',
+        'inner-continue-before-inner-owner',
+        'relative-inner-owner-call',
+        'nested-function-owner-isolated',
+        'outer-break-after-inner-finally-owner',
+    ),
+)
+def test_validate_agent_layout_preserves_nested_loop_exit_controls(
+    monkeypatch,
+    source_prefix,
+):
+    validation = _validate_agent_layout_with_config_prefix(
+        monkeypatch,
+        source_prefix,
+    )
+
+    assert validation['status'] == 'ok'
+    assert validation['errors'] == []
+
+
+@pytest.mark.parametrize(
     'source_prefix',
     [
         (

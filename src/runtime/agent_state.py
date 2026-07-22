@@ -872,13 +872,21 @@ def _source_import_analysis(
                 if event_part == 'iter' or (
                     event_part in {'target', 'body'}
                     and use_part == 'body'
-                ) or (event_part == use_part == 'orelse'):
+                ) or (event_part == use_part == 'orelse') or (
+                    event_part == 'orelse'
+                    and use_part == ''
+                    and not loop_has_nearest_break(control)
+                ):
                     continue
                 return False
             if isinstance(control, ast.While):
                 if event_part == 'test' or (
                     event_part == use_part
                     and event_part in {'body', 'orelse'}
+                ) or (
+                    event_part == 'orelse'
+                    and use_part == ''
+                    and not loop_has_nearest_break(control)
                 ):
                     continue
                 return False
@@ -984,6 +992,13 @@ def _source_import_analysis(
             current = parent_by_node.get(id(current))
         return None
 
+    def loop_has_nearest_break(loop: ast.AST) -> bool:
+        return any(
+            isinstance(node, ast.Break)
+            and nearest_enclosing_loop(node) is loop
+            for node in ast.walk(loop)
+        )
+
     def abrupt_exit_runs_finally_binding(
         abrupt_node: ast.AST,
         binding_node: ast.AST,
@@ -1025,12 +1040,10 @@ def _source_import_analysis(
             for node in ast.walk(loop)
         )
 
-    def binding_is_cycle_definite(
+    def binding_is_structurally_cycle_definite(
         binding_node: ast.AST,
         loop: ast.AST,
         scope: ast.AST,
-        *,
-        include_break_paths: bool = False,
     ) -> bool:
         for control in control_ancestors(binding_node, scope):
             if control is loop:
@@ -1047,106 +1060,91 @@ def _source_import_analysis(
                 continue
             if isinstance(control, ast.Match) and part == 'subject':
                 continue
+            if isinstance(control, (ast.For, ast.AsyncFor)) and (
+                part == 'orelse'
+                and not loop_has_nearest_break(control)
+            ):
+                continue
+            if isinstance(control, ast.While) and (
+                part == 'test'
+                or (
+                    part == 'orelse'
+                    and not loop_has_nearest_break(control)
+                )
+            ):
+                continue
             if isinstance(
                 control,
                 (ast.Try, getattr(ast, 'TryStar', ast.Try)),
             ) and part == 'finalbody':
                 continue
             return False
-        return not prior_loop_exit_may_skip_event(
+        return True
+
+    def binding_is_cycle_definite(
+        binding_node: ast.AST,
+        loop: ast.AST,
+        scope: ast.AST,
+        *,
+        include_break_paths: bool = False,
+    ) -> bool:
+        return binding_is_structurally_cycle_definite(
+            binding_node,
+            loop,
+            scope,
+        ) and not prior_loop_exit_may_skip_event(
             binding_node,
             loop,
             include_break_paths=include_break_paths,
         )
 
-    def loop_cycle_events(
+    def statement_guarantees_loop_break(
+        statement: ast.AST,
         loop: ast.AST,
-        scope: ast.AST,
-        events: list[tuple[ast.AST, ast.AST]],
-    ) -> list[tuple[ast.AST, ast.AST]]:
-        if isinstance(loop, (ast.For, ast.AsyncFor)):
-            cycle_parts = {'target', 'body'}
-        else:
-            cycle_parts = {'test', 'body'}
-        cycle_events = []
-        for event in events:
-            region = control_region(event[1], loop)
-            if event[0] is scope and region and region[0] in cycle_parts:
-                cycle_events.append(event)
-        return cycle_events
-
-    def loop_final_reaching_events(
-        loop: ast.AST,
-        scope: ast.AST,
-        events: list[tuple[ast.AST, ast.AST]],
-        *,
-        include_break_paths: bool = False,
-    ) -> list[tuple[ast.AST, ast.AST]]:
-        cycle_events = loop_cycle_events(loop, scope, events)
-        definite_events = [
-            event
-            for event in cycle_events
-            if binding_is_cycle_definite(
-                event[1],
-                loop,
-                scope,
-                include_break_paths=include_break_paths,
-            )
-        ]
-        if not definite_events:
-            return cycle_events
-        boundary = max(source_end(event[1]) for event in definite_events)
-        return [
-            event
-            for event in cycle_events
-            if source_end(event[1]) >= boundary
-        ]
-
-    def summarize_completed_loop_events(
-        scope: ast.AST,
-        use_node: ast.AST,
-        events: list[tuple[ast.AST, ast.AST]],
-    ) -> list[tuple[ast.AST, ast.AST]]:
-        completed_loops: dict[int, ast.AST] = {}
-        for _, binding_node in events:
-            for control in control_ancestors(binding_node, scope):
-                if not isinstance(control, loop_types):
-                    continue
-                use_region = control_region(use_node, control)
-                if (
-                    source_end(control) <= source_start(use_node)
-                    or use_region == ('orelse', None)
-                ):
-                    completed_loops[id(control)] = control
-        retained_events = events
-        for loop in sorted(
-            completed_loops.values(),
-            key=lambda control: len(control_ancestors(control, scope)),
-            reverse=True,
+    ) -> bool:
+        if isinstance(statement, ast.Break):
+            return nearest_enclosing_loop(statement) is loop
+        if not isinstance(
+            statement,
+            (ast.Try, getattr(ast, 'TryStar', ast.Try)),
+        ) or statement.handlers:
+            return False
+        if not statement.body or not statement_guarantees_loop_break(
+            statement.body[-1],
+            loop,
         ):
-            cycle_events = loop_cycle_events(
-                loop,
-                scope,
-                retained_events,
-            )
-            if not cycle_events:
-                continue
-            final_events = loop_final_reaching_events(
-                loop,
-                scope,
-                retained_events,
-                include_break_paths=True,
-            )
-            cycle_event_ids = {id(event[1]) for event in cycle_events}
-            retained_events = [
-                event
-                for event in retained_events
-                if id(event[1]) not in cycle_event_ids
-            ]
-            retained_events.extend(final_events)
-        return retained_events
+            return False
+        possible_continues = (
+            *statement.body[:-1],
+            *statement.finalbody,
+        )
+        return not any(
+            isinstance(node, ast.Continue)
+            and nearest_enclosing_loop(node) is loop
+            for root in possible_continues
+            for node in ast.walk(root)
+        )
 
-    def event_has_following_direct_break(
+    def statement_prevents_loop_fallthrough(
+        statement: ast.AST,
+        loop: ast.AST,
+    ) -> bool:
+        if isinstance(statement, (ast.Break, ast.Continue)):
+            return nearest_enclosing_loop(statement) is loop
+        return bool(
+            isinstance(
+                statement,
+                (ast.Try, getattr(ast, 'TryStar', ast.Try)),
+            )
+            and not statement.handlers
+            and statement.body
+            and statement_prevents_loop_fallthrough(
+                statement.body[-1],
+                loop,
+            )
+        )
+
+    def event_follows_guaranteed_loop_exit(
         binding_node: ast.AST,
         loop: ast.AST,
     ) -> bool:
@@ -1161,7 +1159,264 @@ def _source_import_analysis(
                     continue
                 index = statements.index(current)
                 if any(
-                    isinstance(statement, ast.Break)
+                    statement_prevents_loop_fallthrough(statement, loop)
+                    for statement in statements[:index]
+                ):
+                    return True
+            current = parent
+        return False
+
+    def loop_cycle_events(
+        loop: ast.AST,
+        scope: ast.AST,
+        events: list[tuple[ast.AST, ast.AST]],
+    ) -> list[tuple[ast.AST, ast.AST]]:
+        if isinstance(loop, (ast.For, ast.AsyncFor)):
+            cycle_parts = {'target', 'body'}
+        else:
+            cycle_parts = {'test', 'body'}
+        cycle_events = []
+        for event in events:
+            region = control_region(event[1], loop)
+            if (
+                event[0] is scope
+                and region
+                and region[0] in cycle_parts
+                and not event_follows_guaranteed_loop_exit(event[1], loop)
+            ):
+                cycle_events.append(event)
+        return cycle_events
+
+    def final_reaching_events(
+        loop: ast.AST,
+        scope: ast.AST,
+        events: list[tuple[ast.AST, ast.AST]],
+        *,
+        include_break_paths: bool,
+        structural_only: bool = False,
+    ) -> list[tuple[ast.AST, ast.AST]]:
+        definite_events = [
+            event
+            for event in events
+            if (
+                binding_is_structurally_cycle_definite(
+                    event[1],
+                    loop,
+                    scope,
+                )
+                if structural_only
+                else binding_is_cycle_definite(
+                    event[1],
+                    loop,
+                    scope,
+                    include_break_paths=include_break_paths,
+                )
+            )
+        ]
+        if not definite_events:
+            return events
+        boundary = max(source_end(event[1]) for event in definite_events)
+        return [
+            event
+            for event in events
+            if source_end(event[1]) >= boundary
+        ]
+
+    def loop_final_reaching_events(
+        loop: ast.AST,
+        scope: ast.AST,
+        events: list[tuple[ast.AST, ast.AST]],
+        *,
+        include_break_paths: bool = False,
+    ) -> list[tuple[ast.AST, ast.AST]]:
+        cycle_events = loop_cycle_events(loop, scope, events)
+        if not include_break_paths:
+            return final_reaching_events(
+                loop,
+                scope,
+                cycle_events,
+                include_break_paths=False,
+            )
+
+        normal_events = cycle_events
+        if isinstance(loop, ast.While):
+            test_events = [
+                event
+                for event in cycle_events
+                if control_region(event[1], loop) == ('test', None)
+            ]
+            if test_events:
+                test_is_definite = any(
+                    binding_is_cycle_definite(
+                        event[1],
+                        loop,
+                        scope,
+                    )
+                    for event in test_events
+                )
+                test_final_events = final_reaching_events(
+                    loop,
+                    scope,
+                    test_events,
+                    include_break_paths=False,
+                )
+                if test_is_definite:
+                    normal_events = test_final_events
+                else:
+                    normal_events = [
+                        *final_reaching_events(
+                            loop,
+                            scope,
+                            [
+                                event
+                                for event in cycle_events
+                                if control_region(event[1], loop)
+                                == ('body', None)
+                            ],
+                            include_break_paths=False,
+                        ),
+                        *test_final_events,
+                    ]
+            else:
+                normal_events = final_reaching_events(
+                    loop,
+                    scope,
+                    cycle_events,
+                    include_break_paths=False,
+                )
+        else:
+            normal_events = final_reaching_events(
+                loop,
+                scope,
+                cycle_events,
+                include_break_paths=False,
+            )
+
+        orelse_events = [
+            event
+            for event in events
+            if (
+                event[0] is scope
+                and control_region(event[1], loop) == ('orelse', None)
+            )
+        ]
+        if orelse_events:
+            orelse_final_events = final_reaching_events(
+                loop,
+                scope,
+                orelse_events,
+                include_break_paths=False,
+                structural_only=True,
+            )
+            if any(
+                binding_is_structurally_cycle_definite(
+                    event[1],
+                    loop,
+                    scope,
+                )
+                for event in orelse_events
+            ):
+                normal_events = orelse_final_events
+            else:
+                normal_events = [*normal_events, *orelse_final_events]
+
+        break_events = []
+        if loop_has_nearest_break(loop):
+            break_events = final_reaching_events(
+                loop,
+                scope,
+                cycle_events,
+                include_break_paths=True,
+            )
+        return list({
+            (id(event[0]), id(event[1])): event
+            for event in (*normal_events, *break_events)
+        }.values())
+
+    def summarize_completed_loop_events(
+        scope: ast.AST,
+        use_node: ast.AST,
+        events: list[tuple[ast.AST, ast.AST]],
+        *,
+        within_loop: ast.AST | None = None,
+    ) -> list[tuple[ast.AST, ast.AST]]:
+        completed_loops: dict[int, ast.AST] = {}
+        for _, binding_node in events:
+            for control in control_ancestors(binding_node, scope):
+                if not isinstance(control, loop_types):
+                    continue
+                if within_loop is not None:
+                    if (
+                        control is not within_loop
+                        and is_descendant(control, within_loop)
+                    ):
+                        completed_loops[id(control)] = control
+                    continue
+                use_region = control_region(use_node, control)
+                if (
+                    source_end(control) <= source_start(use_node)
+                    or use_region == ('orelse', None)
+                ):
+                    completed_loops[id(control)] = control
+        retained_events = events
+        for loop in sorted(
+            completed_loops.values(),
+            key=lambda control: len(control_ancestors(control, scope)),
+            reverse=True,
+        ):
+            raw_cycle_events = [
+                event
+                for event in retained_events
+                if (
+                    event[0] is scope
+                    and control_region(event[1], loop)
+                    and control_region(event[1], loop)[0]
+                    in {'target', 'test', 'body'}
+                )
+            ]
+            if not raw_cycle_events:
+                continue
+            final_events = loop_final_reaching_events(
+                loop,
+                scope,
+                retained_events,
+                include_break_paths=True,
+            )
+            cycle_event_ids = {
+                id(event[1])
+                for event in raw_cycle_events
+            }
+            cycle_event_ids.update(
+                id(event[1])
+                for event in retained_events
+                if control_region(event[1], loop) == ('orelse', None)
+            )
+            retained_events = [
+                event
+                for event in retained_events
+                if id(event[1]) not in cycle_event_ids
+            ]
+            retained_events.extend(final_events)
+        return retained_events
+
+    def event_has_following_direct_break(
+        binding_node: ast.AST,
+        loop: ast.AST,
+    ) -> bool:
+        current = binding_node
+        while current is not loop:
+            if statement_guarantees_loop_break(current, loop):
+                return True
+            parent = parent_by_node.get(id(current))
+            if parent is None:
+                return False
+            for field_name in ('body', 'orelse', 'finalbody'):
+                statements = getattr(parent, field_name, None)
+                if not isinstance(statements, list) or current not in statements:
+                    continue
+                index = statements.index(current)
+                if any(
+                    statement_guarantees_loop_break(statement, loop)
                     for statement in statements[index + 1:]
                 ):
                     return True
@@ -1191,10 +1446,16 @@ def _source_import_analysis(
             elif use_region not in {('test', None), ('body', None)}:
                 continue
 
+            resolved_scope_events = summarize_completed_loop_events(
+                scope,
+                use_node,
+                all_scope_events,
+                within_loop=loop,
+            )
             cycle_events = loop_cycle_events(
                 loop,
                 scope,
-                all_scope_events,
+                resolved_scope_events,
             )
             definite_prefix_events = [
                 event
@@ -1213,7 +1474,7 @@ def _source_import_analysis(
                 for event in loop_final_reaching_events(
                     loop,
                     scope,
-                    all_scope_events,
+                    resolved_scope_events,
                 )
                 if not event_has_following_direct_break(event[1], loop)
             )
