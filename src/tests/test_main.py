@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import ast
-import importlib
 import json
 import os
 from importlib.util import module_from_spec, spec_from_file_location
@@ -460,7 +459,7 @@ def test_pipeline_dependency_bindings_resolve_real_public_symbols():
     main_module._ensure_pipeline_dependencies_loaded()
 
     for name, module_name, attribute_name in binding_records:
-        owner = importlib.import_module(module_name)
+        owner = sys.modules[module_name]
         expected = owner if attribute_name is None else getattr(owner, attribute_name)
         assert getattr(main_module, name) is expected
 

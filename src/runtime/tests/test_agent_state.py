@@ -327,6 +327,24 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
     }
     assert ownership_checks.keys() == dependencies.keys()
     assert all(check['matches'] for check in ownership_checks.values())
+    source_classification = next(
+        check
+        for check in validation['checks']
+        if check['kind'] == 'source_import_classification'
+    )
+    discovered_python_files = set(source_classification['source_files'])
+    expected_python_files = {
+        str(path.relative_to(ROOT))
+        for path in ROOT.rglob('*.py')
+        if path.relative_to(ROOT).parts[0]
+        not in {'human_docs', 'data', 'artifacts'}
+        and '__pycache__' not in path.parts
+    }
+    assert source_classification['source_file_count'] == len(
+        discovered_python_files
+    )
+    assert discovered_python_files == expected_python_files
+    assert source_classification['unsupported_dynamic_imports'] == []
     assert validation['status'] == 'ok'
 
 
@@ -495,23 +513,22 @@ def test_validate_agent_layout_rejects_dependency_contract_drift(
     )
 
 
+@pytest.mark.parametrize(
+    'source_prefix',
+    [
+        'import requests as client\n',
+        'from requests import get as fetch\n',
+    ],
+    ids=('import-alias', 'import-from-alias'),
+)
 def test_validate_agent_layout_rejects_compile_valid_undeclared_source_import(
     monkeypatch,
+    source_prefix,
 ):
-    original_read = agent_state._read_text_if_present
-    target_path = (ROOT / 'src' / 'config.py').resolve()
-
-    def read_with_external_import(path):
-        text = original_read(path)
-        if Path(path).resolve() != target_path:
-            return text
-        mutated = f'import requests\n{text}'
-        compile(mutated, str(path), 'exec')
-        return mutated
-
-    monkeypatch.setattr(agent_state, '_read_text_if_present', read_with_external_import)
-
-    validation = validate_agent_layout(ROOT)
+    validation = _validate_agent_layout_with_config_prefix(
+        monkeypatch,
+        source_prefix,
+    )
 
     assert validation['status'] == 'error'
     assert any(
@@ -519,6 +536,185 @@ def test_validate_agent_layout_rejects_compile_valid_undeclared_source_import(
         and error['path'] == 'src/config.py'
         for error in validation['errors']
     )
+
+
+def _validate_agent_layout_with_config_prefix(monkeypatch, source_prefix):
+    original_read = agent_state._read_text_if_present
+    target_path = (ROOT / 'src' / 'config.py').resolve()
+
+    def read_with_external_import(path):
+        text = original_read(path)
+        if Path(path).resolve() != target_path:
+            return text
+        mutated = f'{source_prefix}{text}'
+        compile(mutated, str(path), 'exec')
+        return mutated
+
+    monkeypatch.setattr(agent_state, '_read_text_if_present', read_with_external_import)
+
+    return validate_agent_layout(ROOT)
+
+
+@pytest.mark.parametrize(
+    ('source_prefix', 'expected_error_code'),
+    [
+        (
+            'from importlib import import_module as load\n'
+            'load("requests")\n',
+            'undeclared_external_import',
+        ),
+        (
+            'import importlib\n'
+            'load = importlib.import_module\n'
+            'load("requests")\n',
+            'undeclared_external_import',
+        ),
+        ('__import__("requests")\n', 'undeclared_external_import'),
+        (
+            'import importlib as loader\n'
+            'loader.import_module("requests")\n',
+            'undeclared_external_import',
+        ),
+        (
+            'import importlib\n'
+            'module_name = "requests"\n'
+            'importlib.import_module(module_name)\n',
+            'unsupported_dynamic_import',
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'module_name = "requests"\n'
+            'load(module_name)\n',
+            'unsupported_dynamic_import',
+        ),
+        (
+            'import importlib\n'
+            'load = importlib.import_module\n'
+            'module_name = "requests"\n'
+            'load(module_name)\n',
+            'unsupported_dynamic_import',
+        ),
+        (
+            'module_name = "requests"\n'
+            '__import__(module_name)\n',
+            'unsupported_dynamic_import',
+        ),
+        (
+            'import builtins as runtime_builtins\n'
+            'runtime_builtins.__import__("requests")\n',
+            'undeclared_external_import',
+        ),
+        (
+            'from builtins import __import__ as load\n'
+            'load("requests")\n',
+            'undeclared_external_import',
+        ),
+        (
+            'from typing import TYPE_CHECKING\n'
+            'from importlib import import_module as load\n'
+            'if TYPE_CHECKING:\n'
+            '    load("requests")\n',
+            'undeclared_external_import',
+        ),
+        (
+            'try:\n'
+            '    from importlib import import_module as load\n'
+            '    def load_optional_dependency():\n'
+            '        return load("requests")\n'
+            'except ImportError:\n'
+            '    load_optional_dependency = None\n',
+            'undeclared_external_import',
+        ),
+    ],
+    ids=(
+        'aliased-import-module-literal',
+        'assigned-import-module-literal',
+        'builtin-import-literal',
+        'aliased-importlib-literal',
+        'importlib-computed-name',
+        'aliased-import-module-computed-name',
+        'assigned-import-module-computed-name',
+        'builtin-import-computed-name',
+        'aliased-builtins-literal',
+        'aliased-builtin-import-literal',
+        'type-checking-literal',
+        'nested-optional-literal',
+    ),
+)
+def test_validate_agent_layout_classifies_dynamic_import_forms(
+    monkeypatch,
+    source_prefix,
+    expected_error_code,
+):
+    validation = _validate_agent_layout_with_config_prefix(
+        monkeypatch,
+        source_prefix,
+    )
+
+    assert validation['status'] == 'error'
+    assert any(
+        error['code'] == expected_error_code
+        and error['path'] == 'src/config.py'
+        for error in validation['errors']
+    )
+
+
+@pytest.mark.parametrize(
+    'source_prefix',
+    [
+        (
+            'class LocalLoader:\n'
+            '    def import_module(self, module_name):\n'
+            '        return module_name\n'
+            'local_loader = LocalLoader()\n'
+            'local_loader.import_module("requests")\n'
+        ),
+        (
+            'import importlib\n'
+            'importlib.import_module(".utils", __package__)\n'
+        ),
+        (
+            'import importlib\n'
+            'class LocalLoader:\n'
+            '    def import_module(self, module_name):\n'
+            '        return module_name\n'
+            'def use_local_loader():\n'
+            '    importlib = LocalLoader()\n'
+            '    return importlib.import_module("requests")\n'
+        ),
+        (
+            'def bind_loader():\n'
+            '    import importlib as loader\n'
+            '    return loader\n'
+            'def use_unbound_name():\n'
+            '    return loader.import_module("requests")\n'
+        ),
+        (
+            'import builtins\n'
+            'real_import = builtins.__import__\n'
+            'def delegated_import(name, *args, **kwargs):\n'
+            '    return real_import(name, *args, **kwargs)\n'
+        ),
+    ],
+    ids=(
+        'unrelated-method',
+        'relative-local-dynamic-import',
+        'shadowed-importlib-owner',
+        'cross-scope-importlib-alias',
+        'delegated-import-wrapper',
+    ),
+)
+def test_validate_agent_layout_ignores_non_dependency_import_forms(
+    monkeypatch,
+    source_prefix,
+):
+    validation = _validate_agent_layout_with_config_prefix(
+        monkeypatch,
+        source_prefix,
+    )
+
+    assert validation['status'] == 'ok'
+    assert validation['errors'] == []
 
 
 def test_validate_agent_layout_rejects_missing_declared_dependency(monkeypatch):

@@ -260,6 +260,7 @@
 - 本次 Reset Round 9（materials wildcard dependency façade）移除 48 个 materials 与 4 个 torch_models 生产 wildcard import，并把所有实际依赖改为 true-owner 显式导入；`materials.constants`、`materials.common` 等文件不再隐式转发 stdlib、sklearn、pandas 或项目内部符号。source-derived public-surface guard 现拒绝任何生产 wildcard 及未由 owner 文件定义或公开记录的同模块 façade import，并用可编译的绝对/相对反事实变体证明不会假绿；未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - 本次 Reset Round 10（requirements reverse parity）把 12 个 requirements 全部纳入带 specifier、import module、role 与 direct/backend 分类的 manifest 契约；verifier 现双向核对规范化 distribution/specifier、从 48 个 Python source/test/CLI/UI 文件推导并分类外部 import 与本地 `myutils` import、拒绝无消费者的 direct dependency，并把缺失 import probe 升为阻断错误。四类 validation profile 均明确要求 declaration completeness 与 import availability；未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - 本次 Reset Round 11（skeptical post-contract）修复 Round 10 契约仍可伪造 dependency distribution/module ownership、direct/backend 或 core/scientific/UI/test role、local-shared owner 与 dependency-blind validation profile 后返回 `ok` 的假绿；full-pipeline lazy binding 现逐个核对实际 owner symbol。结构 writer 同时在任何 mutation 前精确绑定 config→payload→experiment-summary 的 first-pass metadata/model/count projection，阻止 claim-like structure handoff 被发布为 current。两个 repo skill 与 compact workflow 移除不可解析的 blocker/coding/Overleaf 路由名并新增 repo-local `$skill` reference closure；未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
+- 本次 Reset Round 12（dependency source discovery）修复 aliased `import_module`、builtin/aliased `__import__`、nested/`TYPE_CHECKING`/optional literal imports 可绕过声明，以及任意同名 `.import_module(...)` 和 relative-local dynamic import 会被误报的问题；source scanner 现按真实 `importlib`/`builtins` owner alias 识别字面模块名，对直接未支持的非字面动态依赖 fail closed，同时保留显式 delegated-import wrapper pass-through 及由全部字面 `_bind_missing` call sites 与 exact owner-identity test 约束的唯一 production loader。机器检查同时输出并核对完整 48-file source inventory；未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - contract verifier 现精确锁定 validation command scope/capability、profile use-case/required-capability reachability、三个 active project-skill 记录与七个 retired-guidance 路径；public-surface 测试同时核对模块摘要及根摘要的 callable 参数顺序和 keyword-only 边界
 - `--verify-agent-contract` 现会精确锁定六个 module 的 path/role/public-surface/agent-rules/local-utils/allowed-dependencies；公开 surface 测试逐个要求四个生产模块非空，并显式覆盖 import re-export
 
@@ -274,7 +275,7 @@
 
 3. 完整 src 测试：
 - `conda run -n quant python3 -m pytest -q src`
-- 结果：`722 passed, 1 warning`
+- 结果：`740 passed, 1 warning`
 - 剩余 warning 是 PyTorch nested-tensor prototype 提示，不是测试失败；原 sklearn feature-name warnings 已消除
 
 4. UI 文字化验证：

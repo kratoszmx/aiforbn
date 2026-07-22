@@ -398,53 +398,298 @@ def _project_python_source_paths(root: Path) -> list[Path]:
     return [*root_sources, *src_sources]
 
 
-def _source_import_roots(source_text: str) -> set[str]:
+def _source_import_analysis(
+    source_text: str,
+) -> tuple[set[str], list[int]]:
     tree = ast.parse(source_text)
+    parent_by_node = {
+        id(child): parent
+        for parent in ast.walk(tree)
+        for child in ast.iter_child_nodes(parent)
+    }
+    scope_types = (
+        ast.Module,
+        ast.FunctionDef,
+        ast.AsyncFunctionDef,
+        ast.Lambda,
+        ast.ClassDef,
+    )
+
+    def lexical_scope(node: ast.AST) -> ast.AST:
+        current = node
+        while not isinstance(current, scope_types):
+            current = parent_by_node[id(current)]
+        return current
+
+    def enclosing_scope(scope: ast.AST) -> ast.AST | None:
+        current = parent_by_node.get(id(scope))
+        while current is not None:
+            if isinstance(
+                current,
+                (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda),
+            ):
+                return current
+            current = parent_by_node.get(id(current))
+        return None
+
+    def target_names(target: ast.AST) -> set[str]:
+        if isinstance(target, ast.Name):
+            return {target.id}
+        if isinstance(target, (ast.Tuple, ast.List)):
+            return {
+                name
+                for child in target.elts
+                for name in target_names(child)
+            }
+        return set()
+
     import_roots: set[str] = set()
+    owner_bindings: dict[int, dict[str, set[str]]] = {}
+    local_names: dict[int, set[str]] = {}
+    nonowner_bindings: dict[int, set[str]] = {}
+    assignment_nodes: list[tuple[ast.AST, ast.expr | None, list[ast.AST]]] = []
+
+    def add_local(scope: ast.AST, name: str) -> None:
+        local_names.setdefault(id(scope), set()).add(name)
+
+    def add_nonowner(scope: ast.AST, name: str) -> None:
+        add_local(scope, name)
+        nonowner_bindings.setdefault(id(scope), set()).add(name)
+
+    def add_owner(scope: ast.AST, name: str, kind: str) -> None:
+        add_local(scope, name)
+        owner_bindings.setdefault(id(scope), {}).setdefault(name, set()).add(kind)
+
     for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            import_roots.update(alias.name.split('.', 1)[0] for alias in node.names)
-        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
-            import_roots.add(node.module.split('.', 1)[0])
-        elif (
-            isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Attribute)
-            and node.func.attr == 'import_module'
+        scope = lexical_scope(node)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            parent = parent_by_node.get(id(node))
+            if parent is not None:
+                add_nonowner(lexical_scope(parent), node.name)
+        elif isinstance(node, ast.arg):
+            add_nonowner(scope, node.arg)
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                import_roots.add(alias.name.split('.', 1)[0])
+                bound_name = alias.asname or alias.name.split('.', 1)[0]
+                if alias.name == 'importlib' or (
+                    alias.name.startswith('importlib.')
+                    and alias.asname is None
+                ):
+                    add_owner(scope, bound_name, 'importlib_module')
+                elif alias.name == 'builtins':
+                    add_owner(scope, bound_name, 'builtins_module')
+                else:
+                    add_nonowner(scope, bound_name)
+        elif isinstance(node, ast.ImportFrom):
+            if node.level == 0 and node.module:
+                import_roots.add(node.module.split('.', 1)[0])
+            for alias in node.names:
+                bound_name = alias.asname or alias.name
+                if (
+                    node.level == 0
+                    and node.module == 'importlib'
+                    and alias.name == 'import_module'
+                ):
+                    add_owner(scope, bound_name, 'importlib_callable')
+                elif (
+                    node.level == 0
+                    and node.module == 'builtins'
+                    and alias.name == '__import__'
+                ):
+                    add_owner(scope, bound_name, 'builtins_callable')
+                else:
+                    add_nonowner(scope, bound_name)
+        elif isinstance(node, (ast.Assign, ast.AnnAssign, ast.NamedExpr)):
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            assignment_nodes.append((scope, node.value, targets))
+            for target in targets:
+                for name in target_names(target):
+                    add_local(scope, name)
+        elif isinstance(node, (ast.For, ast.AsyncFor)):
+            for name in target_names(node.target):
+                add_nonowner(scope, name)
+        elif isinstance(node, (ast.With, ast.AsyncWith)):
+            for item in node.items:
+                if item.optional_vars is not None:
+                    for name in target_names(item.optional_vars):
+                        add_nonowner(scope, name)
+        elif isinstance(node, ast.ExceptHandler) and node.name:
+            add_nonowner(scope, node.name)
+
+    def resolve_name(scope: ast.AST, name: str) -> str | None:
+        kinds = owner_bindings.get(id(scope), {}).get(name, set())
+        if (
+            len(kinds) == 1
+            and name not in nonowner_bindings.get(id(scope), set())
+        ):
+            return next(iter(kinds))
+        if name in local_names.get(id(scope), set()):
+            return None
+        parent_scope = enclosing_scope(scope)
+        if parent_scope is not None:
+            return resolve_name(parent_scope, name)
+        return 'builtins_callable' if name == '__import__' else None
+
+    def resolve_dynamic_callable(node: ast.expr, scope: ast.AST) -> str | None:
+        if isinstance(node, ast.Name):
+            kind = resolve_name(scope, node.id)
+            if kind in {'importlib_callable', 'builtins_callable'}:
+                return kind
+            return None
+        if not isinstance(node, ast.Attribute) or not isinstance(node.value, ast.Name):
+            return None
+        owner = resolve_name(scope, node.value.id)
+        if owner == 'importlib_module' and node.attr == 'import_module':
+            return 'importlib_callable'
+        if owner == 'builtins_module' and node.attr == '__import__':
+            return 'builtins_callable'
+        return None
+
+    unresolved_assignments = assignment_nodes
+    while unresolved_assignments:
+        pending_assignments = []
+        made_progress = False
+        for scope, value, targets in unresolved_assignments:
+            kind = (
+                resolve_dynamic_callable(value, scope)
+                if value is not None
+                else None
+            )
+            if kind is None:
+                pending_assignments.append((scope, value, targets))
+                continue
+            for target in targets:
+                for name in target_names(target):
+                    add_owner(scope, name, kind)
+            made_progress = True
+        if not made_progress:
+            for scope, _, targets in pending_assignments:
+                for target in targets:
+                    nonowner_bindings.setdefault(id(scope), set()).update(
+                        target_names(target)
+                    )
+            break
+        unresolved_assignments = pending_assignments
+
+    def is_delegated_import_passthrough(node: ast.Call) -> bool:
+        parent = parent_by_node.get(id(node))
+        scope = lexical_scope(node)
+        if (
+            not isinstance(parent, ast.Return)
+            or parent.value is not node
+            or not isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef))
+            or not node.args
+            or not isinstance(node.args[0], ast.Name)
+        ):
+            return False
+        positional_names = {
+            argument.arg
+            for argument in [*scope.args.posonlyargs, *scope.args.args]
+        }
+        if node.args[0].id not in positional_names:
+            return False
+        forwarded_vararg = (
+            scope.args.vararg is not None
+            and any(
+                isinstance(argument, ast.Starred)
+                and isinstance(argument.value, ast.Name)
+                and argument.value.id == scope.args.vararg.arg
+                for argument in node.args[1:]
+            )
+        )
+        forwarded_kwarg = (
+            scope.args.kwarg is not None
+            and any(
+                keyword.arg is None
+                and isinstance(keyword.value, ast.Name)
+                and keyword.value.id == scope.args.kwarg.arg
+                for keyword in node.keywords
+            )
+        )
+        return forwarded_vararg or forwarded_kwarg
+
+    calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call)]
+    allowed_nonliteral_import_calls = {
+        id(node)
+        for node in calls
+        if (
+            isinstance(lexical_scope(node), (ast.FunctionDef, ast.AsyncFunctionDef))
+            and lexical_scope(node).name == '_bind_missing'
+            and resolve_dynamic_callable(node.func, lexical_scope(node))
+            == 'importlib_callable'
             and node.args
+            and isinstance(node.args[0], ast.Name)
+            and node.args[0].id == 'module_name'
+        )
+    }
+    unsupported_dynamic_import_lines: set[int] = set()
+
+    def record_literal_module(module_name: str, line_number: int) -> None:
+        if module_name.startswith('.'):
+            return
+        if not IMPORT_MODULE_PATTERN.fullmatch(module_name):
+            unsupported_dynamic_import_lines.add(line_number)
+            return
+        import_roots.add(module_name.split('.', 1)[0])
+
+    for node in calls:
+        if isinstance(node.func, ast.Name) and node.func.id == '_bind_missing':
+            if (
+                len(node.args) >= 2
+                and isinstance(node.args[1], ast.Constant)
+                and isinstance(node.args[1].value, str)
+            ):
+                record_literal_module(node.args[1].value, node.lineno)
+            else:
+                unsupported_dynamic_import_lines.add(node.lineno)
+            continue
+        if resolve_dynamic_callable(node.func, lexical_scope(node)) is None:
+            continue
+        if (
+            node.args
             and isinstance(node.args[0], ast.Constant)
             and isinstance(node.args[0].value, str)
         ):
-            import_roots.add(node.args[0].value.split('.', 1)[0])
+            record_literal_module(node.args[0].value, node.lineno)
         elif (
-            isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Name)
-            and node.func.id == '_bind_missing'
-            and len(node.args) >= 2
-            and isinstance(node.args[1], ast.Constant)
-            and isinstance(node.args[1].value, str)
+            id(node) not in allowed_nonliteral_import_calls
+            and not is_delegated_import_passthrough(node)
         ):
-            import_roots.add(node.args[1].value.split('.', 1)[0])
-    return import_roots
+            unsupported_dynamic_import_lines.add(node.lineno)
+
+    return import_roots, sorted(unsupported_dynamic_import_lines)
 
 
 def _source_import_consumers(
     root: Path,
-) -> tuple[dict[str, list[str]], list[tuple[str, str]]]:
+) -> tuple[
+    dict[str, list[str]],
+    list[tuple[str, str]],
+    list[tuple[str, int]],
+]:
     consumers: dict[str, list[str]] = {}
     parse_errors: list[tuple[str, str]] = []
+    unsupported_dynamic_imports: list[tuple[str, int]] = []
     for source_path in _project_python_source_paths(root):
         relative_path = str(source_path.relative_to(root))
         try:
-            import_roots = _source_import_roots(_read_text_if_present(source_path))
+            import_roots, unsupported_lines = _source_import_analysis(
+                _read_text_if_present(source_path)
+            )
         except SyntaxError as exc:
             parse_errors.append((relative_path, str(exc)))
             continue
+        unsupported_dynamic_imports.extend(
+            (relative_path, line_number)
+            for line_number in unsupported_lines
+        )
         for module_name in import_roots:
             consumers.setdefault(module_name, []).append(relative_path)
     return {
         module_name: sorted(set(paths))
         for module_name, paths in consumers.items()
-    }, parse_errors
+    }, parse_errors, unsupported_dynamic_imports
 
 
 def _project_import_roots(root: Path) -> set[str]:
@@ -737,9 +982,22 @@ def _validate_dependency_contract(
             continue
         local_modules[module] = {'owner': owner, 'required_for': purpose}
 
-    consumers_by_module, parse_errors = _source_import_consumers(root)
+    (
+        consumers_by_module,
+        parse_errors,
+        unsupported_dynamic_imports,
+    ) = _source_import_consumers(root)
     for path, detail in parse_errors:
         add_error('dependency_source_parse_error', path, f'Cannot classify imports: {detail}')
+    for path, line_number in unsupported_dynamic_imports:
+        add_error(
+            'unsupported_dynamic_import',
+            path,
+            (
+                'Dynamic dependency imports must use a literal module name; '
+                f'unsupported call at line {line_number}.'
+            ),
+        )
     external_modules = {module.split('.', 1)[0] for module in module_owners}
     shared_modules = {module.split('.', 1)[0] for module in local_modules}
     classified = set(sys.stdlib_module_names) | {'__future__'} | _project_import_roots(root) | external_modules | shared_modules
@@ -857,8 +1115,16 @@ def _validate_dependency_contract(
             add_error('local_shared_module_not_imported', 'docs/AGENT_MANIFEST.json:local_shared_imports', f'Local shared module `{module}` has no consumer.', module=module)
     checks.append({
         'kind': 'source_import_classification', 'source_file_count': len(_project_python_source_paths(root)),
+        'source_files': [
+            str(path.relative_to(root))
+            for path in _project_python_source_paths(root)
+        ],
         'external_modules': sorted(external_modules), 'local_shared_modules': sorted(shared_modules),
         'unclassified_modules': unclassified,
+        'unsupported_dynamic_imports': [
+            {'path': path, 'line': line_number}
+            for path, line_number in unsupported_dynamic_imports
+        ],
     })
 
 
