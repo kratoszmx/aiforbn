@@ -271,7 +271,7 @@
 - 本次 Reset Round 20（deleted-binding fallback identity）修复 definite `global`/`nonlocal` deletion 会错误复活不可达 owner，以及 completed inner loop 的 normal/break 结果均已绑定或删除同名 loader 时仍混入旧 outer carry 的假阳性；resolver 现在保留 Python 精确的 module/class builtin fallback，同时把 exhaustive loop boundary 在 outer backedge 前一次性折叠。20 个新增 error/control 反事实覆盖 alias/module owner、builtin/nonlocal 差异、conditional/zero-iteration fallback、nested `try/finally` 与 `for`/`while` normal/break 结果；未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - 本次 Reset Round 21（exception-handler implicit deletion）修复 `except ... as name` handler 内 owner rebind 会越过 Python 隐式 cleanup 形成假阳性，以及 module/class/explicit-global `__import__` cleanup 暴露 builtin 后仍假绿的双向漂移；scanner 以 handler identity 记录合成 deletion，并在 direct、loop-carried、global/nonlocal 与 class/module lookup 上按 normal、`finally`、return/re-raise、break/continue、sibling handler 与 `except*` 可达性折叠同名事件。43 个 error/control 反事实同时锁住 handler type 先于 alias binding、body shadow、no-exception 保留、closure-before-cleanup 与 exact builtin fallback；未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - 本次 Reset Round 22（handler suspension / escaped closure timing）修复 nested function/lambda/coroutine/generator body 的源码位置被误当成实际执行时点所造成的双向漂移：仅当 callable 具有唯一 binding 且全部 load 都是可直接证明的 call/await/iteration 时，scanner 才按 handler cleanup 前后位置解析；default argument 会保留 cleanup 前捕获的 loader value，延迟 generator expression 则在可逃逸时保留 exact global/class `__import__` builtin fallback。未知逃逸或调用时点继续保守合并，直接 `yield`/`await` suspension、cleanup 与 `finally` 顺序保持不变；14 个 error/control 反事实覆盖三类修复及防止过宽折叠的 eager/inline 控制，未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
-- 本次 Reset Round 23（exhaustive compound-handler termination）修复 selected exception handler 的最终显式 `if/else` 每个分支均 `return`、uncaught `raise` 或 nearest-loop `break` 时，implicit cleanup 仍被错误传播到运行时不可达位置的假阳性；scanner 只对两侧均存在的最终 `if` 分支复用既有 direct exit 规则，缺失 `else`、caught raise、post-loop break、later-iteration continue 与 cleanup-before-finally 继续保守有效。8 个 error/control 反事实锁住边界；未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
+- 本次 Reset Round 23（exhaustive compound-handler termination）修复 selected exception handler 的最终显式 `if/else`（含递归嵌套）每个分支均 `return`、uncaught `raise` 或 nearest-loop `break` 时，implicit cleanup 仍被错误传播到运行时不可达位置的假阳性；scanner 只对两侧均存在的最终 `if` 分支递归复用既有 direct exit 规则，缺失 `else`、caught raise、post-loop break、later-iteration continue 与 cleanup-before-finally 继续保守有效。9 个 error/control 反事实锁住边界；未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - contract verifier 现精确锁定 validation command scope/capability、profile use-case/required-capability reachability、三个 active project-skill 记录与七个 retired-guidance 路径；public-surface 测试同时核对模块摘要及根摘要的 callable 参数顺序和 keyword-only 边界
 - `--verify-agent-contract` 现会精确锁定六个 module 的 path/role/public-surface/agent-rules/local-utils/allowed-dependencies；公开 surface 测试逐个要求四个生产模块非空，并显式覆盖 import re-export
 
@@ -286,7 +286,7 @@
 
 3. 完整 src 测试：
 - `conda run -n quant python3 -m pytest -q src`
-- 结果：`1019 passed, 1 warning`
+- 结果：`1020 passed, 1 warning`
 - 剩余 warning 是 PyTorch nested-tensor prototype 提示，不是测试失败；原 sklearn feature-name warnings 已消除
 
 4. UI 文字化验证：

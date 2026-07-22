@@ -2289,6 +2289,24 @@ def test_validate_agent_layout_preserves_handler_cleanup_owner_controls(
         ),
         (
             '__import__ = lambda name: name\n'
+            'def use_loader(first, second):\n'
+            '    global __import__\n'
+            '    try:\n'
+            '        risky_operation()\n'
+            '    except ValueError as __import__:\n'
+            '        from builtins import __import__ as __import__\n'
+            '        if first:\n'
+            '            if second:\n'
+            '                return None\n'
+            '            else:\n'
+            '                return None\n'
+            '        else:\n'
+            '            return None\n'
+            '    return __import__("requests")\n',
+            False,
+        ),
+        (
+            '__import__ = lambda name: name\n'
             'def use_loader(flag):\n'
             '    global __import__\n'
             '    try:\n'
@@ -2393,6 +2411,7 @@ def test_validate_agent_layout_preserves_handler_cleanup_owner_controls(
     ],
     ids=(
         'exhaustive-if-return-skips-post-handler',
+        'nested-exhaustive-if-return-skips-post-handler',
         'exhaustive-if-raise-skips-post-handler',
         'exhaustive-if-break-skips-later-loop-body',
         'nonexhaustive-if-fallthrough',

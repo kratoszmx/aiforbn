@@ -1725,7 +1725,14 @@ def _source_import_analysis(
         if handler_cleanup_crosses_finally(handler, use_node, scope):
             return True
 
-        def terminal_leaf_reaches_use(statement: ast.stmt) -> bool:
+        def terminal_statement_reaches_use(statement: ast.stmt) -> bool:
+            if isinstance(statement, ast.If):
+                if not statement.body or not statement.orelse:
+                    return True
+                return any(
+                    terminal_statement_reaches_use(branch[-1])
+                    for branch in (statement.body, statement.orelse)
+                )
             if isinstance(statement, ast.Continue):
                 return True
             if isinstance(statement, ast.Break):
@@ -1759,15 +1766,7 @@ def _source_import_analysis(
                 return False
             return not isinstance(statement, ast.Return)
 
-        terminal = handler.body[-1]
-        if not isinstance(terminal, ast.If):
-            return terminal_leaf_reaches_use(terminal)
-        if not terminal.body or not terminal.orelse:
-            return True
-        return any(
-            terminal_leaf_reaches_use(branch[-1])
-            for branch in (terminal.body, terminal.orelse)
-        )
+        return terminal_statement_reaches_use(handler.body[-1])
 
     def summarize_completed_handler_events(
         name: str,
