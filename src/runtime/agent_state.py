@@ -575,16 +575,53 @@ def _source_import_analysis(
         unresolved_assignments = pending_assignments
 
     calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call)]
+    bind_missing_definitions = [
+        node
+        for node in tree.body
+        if (
+            isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == '_bind_missing'
+        )
+    ]
+    direct_bind_missing_calls = [
+        node
+        for node in calls
+        if isinstance(node.func, ast.Name) and node.func.id == '_bind_missing'
+    ]
+    direct_bind_missing_name_nodes = {
+        id(node.func) for node in direct_bind_missing_calls
+    }
+    bind_missing_name_nodes = {
+        id(node)
+        for node in ast.walk(tree)
+        if (
+            isinstance(node, ast.Name)
+            and isinstance(node.ctx, ast.Load)
+            and node.id == '_bind_missing'
+        )
+    }
+    bind_missing_definition = (
+        bind_missing_definitions[0]
+        if (
+            relative_path == 'main.py'
+            and len(bind_missing_definitions) == 1
+            and direct_bind_missing_calls
+            and bind_missing_name_nodes == direct_bind_missing_name_nodes
+            and all(
+                len(node.args) >= 2
+                and isinstance(node.args[1], ast.Constant)
+                and isinstance(node.args[1].value, str)
+                for node in direct_bind_missing_calls
+            )
+        )
+        else None
+    )
     allowed_nonliteral_import_calls = {
         id(node)
         for node in calls
         if (
-            relative_path == 'main.py'
-            and isinstance(
-                lexical_scope(node),
-                (ast.FunctionDef, ast.AsyncFunctionDef),
-            )
-            and lexical_scope(node).name == '_bind_missing'
+            bind_missing_definition is not None
+            and lexical_scope(node) is bind_missing_definition
             and resolve_dynamic_callable(node.func, lexical_scope(node))
             == 'importlib_callable'
             and node.args

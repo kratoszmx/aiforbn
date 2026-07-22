@@ -555,6 +555,23 @@ def _validate_agent_layout_with_config_prefix(monkeypatch, source_prefix):
     return validate_agent_layout(ROOT)
 
 
+def _validate_agent_layout_with_main_suffix(monkeypatch, source_suffix):
+    original_read = agent_state._read_text_if_present
+    target_path = (ROOT / 'main.py').resolve()
+
+    def read_with_indirect_loader(path):
+        text = original_read(path)
+        if Path(path).resolve() != target_path:
+            return text
+        mutated = f'{text}\n{source_suffix}'
+        compile(mutated, str(path), 'exec')
+        return mutated
+
+    monkeypatch.setattr(agent_state, '_read_text_if_present', read_with_indirect_loader)
+
+    return validate_agent_layout(ROOT)
+
+
 @pytest.mark.parametrize(
     ('source_prefix', 'expected_error_code'),
     [
@@ -797,6 +814,36 @@ def test_validate_agent_layout_rejects_bind_missing_outside_main(
     assert any(
         error['code'] == 'unsupported_dynamic_import'
         and error['path'] == 'src/config.py'
+        for error in validation['errors']
+    )
+
+
+@pytest.mark.parametrize(
+    'source_suffix',
+    [
+        'load = _bind_missing\nload("optional", "requests")\n',
+        (
+            'def expose_loader():\n'
+            '    return _bind_missing\n'
+            'expose_loader()("optional", "requests")\n'
+        ),
+        'loaders = [_bind_missing]\nloaders[0]("optional", "requests")\n',
+    ],
+    ids=('simple-alias', 'returned-wrapper', 'stored-wrapper'),
+)
+def test_validate_agent_layout_rejects_indirect_bind_missing_calls_in_main(
+    monkeypatch,
+    source_suffix,
+):
+    validation = _validate_agent_layout_with_main_suffix(
+        monkeypatch,
+        source_suffix,
+    )
+
+    assert validation['status'] == 'error'
+    assert any(
+        error['code'] == 'unsupported_dynamic_import'
+        and error['path'] == 'main.py'
         for error in validation['errors']
     )
 
