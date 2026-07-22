@@ -2626,6 +2626,196 @@ def test_validate_agent_layout_resolves_terminal_handler_try_finally(
     assert bool(dependency_errors) is expects_dependency
 
 
+@pytest.mark.filterwarnings(
+    "ignore:'(return|break|continue)' in a 'finally' block:SyntaxWarning"
+)
+@pytest.mark.parametrize(
+    ('source_prefix', 'expects_dependency'),
+    [
+        (
+            '__import__ = lambda name: name\n'
+            'def use_loader(flag):\n'
+            '    global __import__\n'
+            '    try:\n'
+            '        try:\n'
+            '            try:\n'
+            '                risky_operation()\n'
+            '            except ValueError as __import__:\n'
+            '                from builtins import __import__ as __import__\n'
+            '                if flag:\n'
+            '                    return None\n'
+            '                else:\n'
+            '                    return None\n'
+            '        finally:\n'
+            '            raise RuntimeError\n'
+            '    except RuntimeError:\n'
+            '        pass\n'
+            '    return __import__("requests")\n',
+            True,
+        ),
+        (
+            '__import__ = lambda name: name\n'
+            'def use_loader(flag):\n'
+            '    global __import__\n'
+            '    try:\n'
+            '        try:\n'
+            '            risky_operation()\n'
+            '        except ValueError as __import__:\n'
+            '            from builtins import __import__ as __import__\n'
+            '            if flag:\n'
+            '                return None\n'
+            '            else:\n'
+            '                return None\n'
+            '    finally:\n'
+            '        raise RuntimeError\n'
+            '    return __import__("requests")\n',
+            False,
+        ),
+        (
+            '__import__ = lambda name: name\n'
+            'def use_loader(flag):\n'
+            '    global __import__\n'
+            '    try:\n'
+            '        try:\n'
+            '            risky_operation()\n'
+            '        except ValueError as __import__:\n'
+            '            from builtins import __import__ as __import__\n'
+            '            if flag:\n'
+            '                return None\n'
+            '            else:\n'
+            '                return None\n'
+            '    finally:\n'
+            '        marker = 1\n'
+            '    return __import__("requests")\n',
+            False,
+        ),
+        (
+            '__import__ = lambda name: name\n'
+            'def use_loader(flag):\n'
+            '    global __import__\n'
+            '    try:\n'
+            '        try:\n'
+            '            risky_operation()\n'
+            '        except ValueError as __import__:\n'
+            '            from builtins import __import__ as __import__\n'
+            '            if flag:\n'
+            '                return None\n'
+            '            else:\n'
+            '                return None\n'
+            '    finally:\n'
+            '        __import__("requests")\n',
+            True,
+        ),
+        (
+            '__import__ = lambda name: name\n'
+            'def use_loader(flag):\n'
+            '    global __import__\n'
+            '    for value in values:\n'
+            '        try:\n'
+            '            try:\n'
+            '                risky_operation()\n'
+            '            except ValueError as __import__:\n'
+            '                from builtins import __import__ as __import__\n'
+            '                if flag:\n'
+            '                    return None\n'
+            '                else:\n'
+            '                    return None\n'
+            '        finally:\n'
+            '            break\n'
+            '        __import__("flask")\n'
+            '    return __import__("requests")\n',
+            True,
+        ),
+        (
+            '__import__ = lambda name: name\n'
+            'def use_loader(flag):\n'
+            '    global __import__\n'
+            '    for value in values:\n'
+            '        try:\n'
+            '            try:\n'
+            '                risky_operation()\n'
+            '            except ValueError as __import__:\n'
+            '                from builtins import __import__ as __import__\n'
+            '                if flag:\n'
+            '                    return None\n'
+            '                else:\n'
+            '                    return None\n'
+            '        finally:\n'
+            '            continue\n'
+            '        __import__("flask")\n'
+            '    return __import__("requests")\n',
+            True,
+        ),
+        (
+            '__import__ = lambda name: name\n'
+            'def use_loader(flag):\n'
+            '    global __import__\n'
+            '    try:\n'
+            '        try:\n'
+            '            risky_operation()\n'
+            '        except ValueError as __import__:\n'
+            '            from builtins import __import__ as __import__\n'
+            '            if flag:\n'
+            '                raise KeyError\n'
+            '            else:\n'
+            '                raise TypeError\n'
+            '    finally:\n'
+            '        return None\n'
+            '    return __import__("requests")\n',
+            False,
+        ),
+        (
+            '__import__ = lambda name: name\n'
+            'def use_loader(flag):\n'
+            '    global __import__\n'
+            '    try:\n'
+            '        try:\n'
+            '            try:\n'
+            '                risky_operation()\n'
+            '            except ValueError as __import__:\n'
+            '                from builtins import __import__ as __import__\n'
+            '                if flag:\n'
+            '                    raise KeyError\n'
+            '                else:\n'
+            '                    raise TypeError\n'
+            '        finally:\n'
+            '            raise RuntimeError\n'
+            '    except RuntimeError:\n'
+            '        pass\n'
+            '    return __import__("requests")\n',
+            True,
+        ),
+    ],
+    ids=(
+        'caught-finalizer-raise-overrides-exhaustive-return',
+        'uncaught-finalizer-raise-keeps-post-handler-unreachable',
+        'fallthrough-finalizer-preserves-exhaustive-return',
+        'finalizer-use-runs-after-handler-cleanup',
+        'finalizer-break-overrides-return-and-reaches-post-loop',
+        'finalizer-continue-overrides-return-and-reaches-post-loop',
+        'finalizer-return-keeps-post-handler-unreachable',
+        'caught-finalizer-raise-after-exhaustive-handler-raise',
+    ),
+)
+def test_validate_agent_layout_resolves_enclosing_finalizer_overrides(
+    monkeypatch,
+    source_prefix,
+    expects_dependency,
+):
+    validation = _validate_agent_layout_with_config_prefix(
+        monkeypatch,
+        source_prefix,
+    )
+
+    dependency_errors = [
+        error
+        for error in validation['errors']
+        if error['code'] == 'undeclared_external_import'
+        and error['path'] == 'src/config.py'
+    ]
+    assert bool(dependency_errors) is expects_dependency
+
+
 @pytest.mark.parametrize(
     ('source_prefix', 'expects_dependency'),
     [

@@ -1774,7 +1774,29 @@ def _source_import_analysis(
                 return False
             return not isinstance(statement, ast.Return)
 
-        return terminal_statement_reaches_use(handler.body[-1])
+        if terminal_statement_reaches_use(handler.body[-1]):
+            return True
+
+        current = parent_by_node.get(id(handler))
+        while current is not None and current is not scope:
+            if (
+                isinstance(
+                    current,
+                    (ast.Try, getattr(ast, 'TryStar', ast.Try)),
+                )
+                and current.finalbody
+                and control_region(handler, current) != ('finalbody', None)
+            ):
+                final_statement = current.finalbody[-1]
+                return bool(
+                    isinstance(
+                        final_statement,
+                        (ast.Break, ast.Continue, ast.Raise, ast.Return),
+                    )
+                    and terminal_statement_reaches_use(final_statement)
+                )
+            current = parent_by_node.get(id(current))
+        return False
 
     def summarize_completed_handler_events(
         name: str,
