@@ -450,6 +450,9 @@ def _source_import_analysis(
     local_names: dict[int, set[str]] = {}
     nonowner_bindings: dict[int, set[str]] = {}
     assignment_nodes: list[tuple[ast.AST, ast.expr | None, list[ast.AST]]] = []
+    binding_events: list[tuple[ast.AST, str, ast.AST]] = []
+    global_names: dict[int, set[str]] = {}
+    nonlocal_names: dict[int, set[str]] = {}
 
     def add_local(scope: ast.AST, name: str) -> None:
         local_names.setdefault(id(scope), set()).add(name)
@@ -467,9 +470,16 @@ def _source_import_analysis(
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             parent = parent_by_node.get(id(node))
             if parent is not None:
-                add_nonowner(lexical_scope(parent), node.name)
+                parent_scope = lexical_scope(parent)
+                add_nonowner(parent_scope, node.name)
+                binding_events.append((parent_scope, node.name, node))
         elif isinstance(node, ast.arg):
             add_nonowner(scope, node.arg)
+            binding_events.append((scope, node.arg, node))
+        elif isinstance(node, ast.Global):
+            global_names.setdefault(id(scope), set()).update(node.names)
+        elif isinstance(node, ast.Nonlocal):
+            nonlocal_names.setdefault(id(scope), set()).update(node.names)
         elif isinstance(node, ast.Import):
             for alias in node.names:
                 import_roots.add(alias.name.split('.', 1)[0])
@@ -483,6 +493,7 @@ def _source_import_analysis(
                     add_owner(scope, bound_name, 'builtins_module')
                 else:
                     add_nonowner(scope, bound_name)
+                binding_events.append((scope, bound_name, node))
         elif isinstance(node, ast.ImportFrom):
             if node.level == 0 and node.module:
                 import_roots.add(node.module.split('.', 1)[0])
@@ -502,22 +513,33 @@ def _source_import_analysis(
                     add_owner(scope, bound_name, 'builtins_callable')
                 else:
                     add_nonowner(scope, bound_name)
+                binding_events.append((scope, bound_name, node))
         elif isinstance(node, (ast.Assign, ast.AnnAssign, ast.NamedExpr)):
             targets = node.targets if isinstance(node, ast.Assign) else [node.target]
             assignment_nodes.append((scope, node.value, targets))
             for target in targets:
                 for name in target_names(target):
                     add_local(scope, name)
+                    binding_events.append((scope, name, node))
+        elif isinstance(node, (ast.AugAssign, ast.Delete)):
+            targets = [node.target] if isinstance(node, ast.AugAssign) else node.targets
+            for target in targets:
+                for name in target_names(target):
+                    add_nonowner(scope, name)
+                    binding_events.append((scope, name, node))
         elif isinstance(node, (ast.For, ast.AsyncFor)):
             for name in target_names(node.target):
                 add_nonowner(scope, name)
+                binding_events.append((scope, name, node))
         elif isinstance(node, (ast.With, ast.AsyncWith)):
             for item in node.items:
                 if item.optional_vars is not None:
                     for name in target_names(item.optional_vars):
                         add_nonowner(scope, name)
+                        binding_events.append((scope, name, node))
         elif isinstance(node, ast.ExceptHandler) and node.name:
             add_nonowner(scope, node.name)
+            binding_events.append((scope, node.name, node))
 
     def resolve_name(scope: ast.AST, name: str) -> str | None:
         kinds = owner_bindings.get(id(scope), {}).get(name, set())
@@ -575,18 +597,116 @@ def _source_import_analysis(
         unresolved_assignments = pending_assignments
 
     calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call)]
-    bind_missing_definitions = [
+    module_bind_missing_bindings = [
         node
-        for node in tree.body
+        for scope, name, node in binding_events
+        if scope is tree and name == '_bind_missing'
+    ]
+    global_bind_missing_rebindings = [
+        node
+        for scope, name, node in binding_events
         if (
-            isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-            and node.name == '_bind_missing'
+            name == '_bind_missing'
+            and name in global_names.get(id(scope), set())
         )
     ]
+    bind_missing_candidate = (
+        module_bind_missing_bindings[0]
+        if (
+            relative_path == 'main.py'
+            and len(module_bind_missing_bindings) == 1
+            and isinstance(
+                module_bind_missing_bindings[0],
+                (ast.FunctionDef, ast.AsyncFunctionDef),
+            )
+            and not global_bind_missing_rebindings
+        )
+        else None
+    )
+
+    comprehension_types = (
+        ast.ListComp,
+        ast.SetComp,
+        ast.DictComp,
+        ast.GeneratorExp,
+    )
+
+    def is_descendant(node: ast.AST, ancestor: ast.AST) -> bool:
+        current: ast.AST | None = node
+        while current is not None:
+            if current is ancestor:
+                return True
+            current = parent_by_node.get(id(current))
+        return False
+
+    def is_comprehension_shadowed(node: ast.Name, name: str) -> bool:
+        current = parent_by_node.get(id(node))
+        while current is not None:
+            if isinstance(current, comprehension_types):
+                first_iter = current.generators[0].iter
+                if (
+                    not is_descendant(node, first_iter)
+                    and any(
+                        name in target_names(generator.target)
+                        for generator in current.generators
+                    )
+                ):
+                    return True
+            current = parent_by_node.get(id(current))
+        return False
+
+    def load_scope(node: ast.Name) -> ast.AST:
+        current: ast.AST = node
+        while True:
+            parent = parent_by_node[id(current)]
+            if isinstance(parent, ast.Module):
+                return parent
+            if isinstance(parent, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                if any(is_descendant(node, statement) for statement in parent.body):
+                    return parent
+                current = parent
+                continue
+            if isinstance(parent, ast.Lambda):
+                if is_descendant(node, parent.body):
+                    return parent
+                current = parent
+                continue
+            if isinstance(parent, ast.ClassDef):
+                if any(is_descendant(node, statement) for statement in parent.body):
+                    return parent
+                current = parent
+                continue
+            current = parent
+
+    def resolves_to_bind_missing_candidate(node: ast.Name) -> bool:
+        if (
+            bind_missing_candidate is None
+            or is_comprehension_shadowed(node, '_bind_missing')
+        ):
+            return False
+        scope = load_scope(node)
+        while scope is not None:
+            if scope is tree:
+                return True
+            if '_bind_missing' in global_names.get(id(scope), set()):
+                scope = tree
+                continue
+            if '_bind_missing' in nonlocal_names.get(id(scope), set()):
+                scope = enclosing_scope(scope)
+                continue
+            if '_bind_missing' in local_names.get(id(scope), set()):
+                return False
+            scope = enclosing_scope(scope)
+        return False
+
     direct_bind_missing_calls = [
         node
         for node in calls
-        if isinstance(node.func, ast.Name) and node.func.id == '_bind_missing'
+        if (
+            isinstance(node.func, ast.Name)
+            and node.func.id == '_bind_missing'
+            and resolves_to_bind_missing_candidate(node.func)
+        )
     ]
     direct_bind_missing_name_nodes = {
         id(node.func) for node in direct_bind_missing_calls
@@ -598,13 +718,13 @@ def _source_import_analysis(
             isinstance(node, ast.Name)
             and isinstance(node.ctx, ast.Load)
             and node.id == '_bind_missing'
+            and resolves_to_bind_missing_candidate(node)
         )
     }
     bind_missing_definition = (
-        bind_missing_definitions[0]
+        bind_missing_candidate
         if (
-            relative_path == 'main.py'
-            and len(bind_missing_definitions) == 1
+            bind_missing_candidate is not None
             and direct_bind_missing_calls
             and bind_missing_name_nodes == direct_bind_missing_name_nodes
             and all(
@@ -616,6 +736,9 @@ def _source_import_analysis(
         )
         else None
     )
+    direct_bind_missing_call_ids = {
+        id(node) for node in direct_bind_missing_calls
+    }
     allowed_nonliteral_import_calls = {
         id(node)
         for node in calls
@@ -640,7 +763,7 @@ def _source_import_analysis(
         import_roots.add(module_name.split('.', 1)[0])
 
     for node in calls:
-        if isinstance(node.func, ast.Name) and node.func.id == '_bind_missing':
+        if id(node) in direct_bind_missing_call_ids:
             if (
                 len(node.args) >= 2
                 and isinstance(node.args[1], ast.Constant)

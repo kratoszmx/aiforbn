@@ -262,6 +262,7 @@
 - 本次 Reset Round 11（skeptical post-contract）修复 Round 10 契约仍可伪造 dependency distribution/module ownership、direct/backend 或 core/scientific/UI/test role、local-shared owner 与 dependency-blind validation profile 后返回 `ok` 的假绿；full-pipeline lazy binding 现逐个核对实际 owner symbol。结构 writer 同时在任何 mutation 前精确绑定 config→payload→experiment-summary 的 first-pass metadata/model/count projection，阻止 claim-like structure handoff 被发布为 current。两个 repo skill 与 compact workflow 移除不可解析的 blocker/coding/Overleaf 路由名并新增 repo-local `$skill` reference closure；未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - 本次 Reset Round 12（dependency source discovery）修复 aliased `import_module`、builtin/aliased `__import__`、nested/`TYPE_CHECKING`/optional literal imports 可绕过声明，以及任意同名 `.import_module(...)` 和 relative-local dynamic import 会被误报的问题；source scanner 现按真实 `importlib`/`builtins` owner alias 识别字面模块名，对不支持的非字面动态依赖 fail closed，并由全部字面 `_bind_missing` call sites 与 exact owner-identity test 约束唯一 production loader。机器检查同时输出并核对完整 48-file source inventory；未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - 本次 Reset Round 13（delegated dynamic-import reachability）修复通用 pass-through 例外可让 production wrapper 经字面/计算参数、别名、返回值或容器调用未声明依赖，以及 `_bind_missing` 例外可由入口外同名函数或入口内间接调用复用后仍返回 `ok` 的假绿；scanner 现拒绝全部 delegated dynamic-import wrapper，仅允许真实 `main.py` 内唯一 `_bind_missing` 定义及其直接字面 call sites，JARVIS preflight-order 测试改用标准库 `Mock(wraps=...)`，无需 import pass-through 例外。未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
+- 本次 Reset Round 14（direct-loader identity）修复 scanner 仅按 `_bind_missing` 名称收集调用造成的双向漂移：局部函数、参数、closure/nonlocal、lambda/comprehension、赋值/导入、class、exception/with target 等无关同名调用不再被误当依赖，而 module/global 赋值、增量赋值、删除或导入重绑定不再假绿。真实 loader 的 34 个直接字面调用现按词法身份解析，默认参数、class base、comprehension 首个 iterable 与 global load 仍正确绑定；无真实调用时，局部同名调用不能再授权 loader 体内的非字面 import。未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - contract verifier 现精确锁定 validation command scope/capability、profile use-case/required-capability reachability、三个 active project-skill 记录与七个 retired-guidance 路径；public-surface 测试同时核对模块摘要及根摘要的 callable 参数顺序和 keyword-only 边界
 - `--verify-agent-contract` 现会精确锁定六个 module 的 path/role/public-surface/agent-rules/local-utils/allowed-dependencies；公开 surface 测试逐个要求四个生产模块非空，并显式覆盖 import re-export
 
@@ -276,7 +277,7 @@
 
 3. 完整 src 测试：
 - `conda run -n quant python3 -m pytest -q src`
-- 结果：`751 passed, 1 warning`
+- 结果：`772 passed, 1 warning`
 - 剩余 warning 是 PyTorch nested-tensor prototype 提示，不是测试失败；原 sklearn feature-name warnings 已消除
 
 4. UI 文字化验证：

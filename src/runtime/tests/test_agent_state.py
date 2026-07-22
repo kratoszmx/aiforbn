@@ -1,3 +1,4 @@
+import ast
 from pathlib import Path
 import json
 
@@ -839,6 +840,230 @@ def test_validate_agent_layout_rejects_indirect_bind_missing_calls_in_main(
         monkeypatch,
         source_suffix,
     )
+
+    assert validation['status'] == 'error'
+    assert any(
+        error['code'] == 'unsupported_dynamic_import'
+        and error['path'] == 'main.py'
+        for error in validation['errors']
+    )
+
+
+@pytest.mark.parametrize(
+    'source_suffix',
+    [
+        (
+            'def use_local_loader():\n'
+            '    def _bind_missing(name, module_name):\n'
+            '        return module_name\n'
+            '    return _bind_missing("local", "requests")\n'
+        ),
+        (
+            'def use_parameter_loader(_bind_missing):\n'
+            '    return _bind_missing("local", "requests")\n'
+        ),
+        (
+            'def outer_loader():\n'
+            '    def _bind_missing(name, module_name):\n'
+            '        return module_name\n'
+            '    def inner_loader():\n'
+            '        nonlocal _bind_missing\n'
+            '        return _bind_missing("local", "requests")\n'
+        ),
+        'local_loader = lambda _bind_missing: _bind_missing("local", "requests")\n',
+        (
+            'local_results = [\n'
+            '    _bind_missing("local", "requests")\n'
+            '    for _bind_missing in []\n'
+            ']\n'
+        ),
+        (
+            'def use_assigned_loader():\n'
+            '    result = _bind_missing("local", "requests")\n'
+            '    _bind_missing = lambda name, module_name: module_name\n'
+            '    return result\n'
+        ),
+        (
+            'def use_imported_loader():\n'
+            '    from runtime.io_utils import load_config as _bind_missing\n'
+            '    return _bind_missing("local", "requests")\n'
+        ),
+        (
+            'class LocalLoader:\n'
+            '    _bind_missing = staticmethod(lambda name, module_name: module_name)\n'
+            '    result = _bind_missing("local", "requests")\n'
+        ),
+        (
+            'class AttributeLoader:\n'
+            '    def use_loader(self):\n'
+            '        return self._bind_missing("local", "requests")\n'
+        ),
+        (
+            'def use_exception_loader():\n'
+            '    try:\n'
+            '        pass\n'
+            '    except Exception as _bind_missing:\n'
+            '        return _bind_missing("local", "requests")\n'
+        ),
+        (
+            'def use_context_loader(manager):\n'
+            '    with manager as _bind_missing:\n'
+            '        return _bind_missing("local", "requests")\n'
+        ),
+    ],
+    ids=(
+        'nested-local-function',
+        'parameter',
+        'closure-nonlocal',
+        'lambda-parameter',
+        'comprehension-target',
+        'later-local-assignment',
+        'local-import-alias',
+        'class-local-binding',
+        'class-attribute-call',
+        'exception-target',
+        'with-target',
+    ),
+)
+def test_validate_agent_layout_ignores_shadowed_bind_missing_calls_in_main(
+    monkeypatch,
+    source_suffix,
+):
+    validation = _validate_agent_layout_with_main_suffix(
+        monkeypatch,
+        source_suffix,
+    )
+
+    assert validation['status'] == 'ok'
+    assert validation['errors'] == []
+
+
+@pytest.mark.parametrize(
+    'source_suffix',
+    [
+        (
+            'def use_global_loader():\n'
+            '    global _bind_missing\n'
+            '    return _bind_missing("local", "requests")\n'
+        ),
+        (
+            'comprehension = [\n'
+            '    None\n'
+            '    for _bind_missing in _bind_missing("local", "requests")\n'
+            ']\n'
+        ),
+        (
+            'def use_default_loader(\n'
+            '    _bind_missing,\n'
+            '    value=_bind_missing("local", "requests"),\n'
+            '):\n'
+            '    return value\n'
+        ),
+        (
+            'class LoaderBase(_bind_missing("local", "requests")):\n'
+            '    _bind_missing = None\n'
+        ),
+    ],
+    ids=(
+        'global-name',
+        'comprehension-first-iterable',
+        'function-default-outer-scope',
+        'class-base-outer-scope',
+    ),
+)
+def test_validate_agent_layout_keeps_real_bind_missing_calls_identity_bound(
+    monkeypatch,
+    source_suffix,
+):
+    validation = _validate_agent_layout_with_main_suffix(
+        monkeypatch,
+        source_suffix,
+    )
+
+    assert validation['status'] == 'error'
+    assert any(
+        error['code'] == 'undeclared_external_import'
+        and error['path'] == 'main.py'
+        for error in validation['errors']
+    )
+
+
+@pytest.mark.parametrize(
+    'source_suffix',
+    [
+        '_bind_missing = lambda name, module_name, attr_name=None: None\n',
+        '_bind_missing += ()\n',
+        'del _bind_missing\n',
+        'from runtime.io_utils import load_config as _bind_missing\n',
+        (
+            'def replace_loader():\n'
+            '    global _bind_missing\n'
+            '    _bind_missing = lambda name, module_name, attr_name=None: None\n'
+        ),
+    ],
+    ids=(
+        'module-assignment',
+        'module-augmented-assignment',
+        'module-delete',
+        'module-import-alias',
+        'global-assignment',
+    ),
+)
+def test_validate_agent_layout_rejects_rebound_bind_missing_in_main(
+    monkeypatch,
+    source_suffix,
+):
+    validation = _validate_agent_layout_with_main_suffix(
+        monkeypatch,
+        source_suffix,
+    )
+
+    assert validation['status'] == 'error'
+    assert any(
+        error['code'] == 'unsupported_dynamic_import'
+        and error['path'] == 'main.py'
+        for error in validation['errors']
+    )
+
+
+def test_shadowed_call_cannot_authorize_bind_missing_definition(monkeypatch):
+    original_read = agent_state._read_text_if_present
+    target_path = (ROOT / 'main.py').resolve()
+
+    def read_without_real_loader_calls(path):
+        text = original_read(path)
+        if Path(path).resolve() != target_path:
+            return text
+        tree = ast.parse(text)
+        for node in tree.body:
+            if (
+                isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and node.name in {
+                    '_ensure_dry_run_dependencies_loaded',
+                    '_ensure_pipeline_dependencies_loaded',
+                }
+            ):
+                node.body = [ast.Pass()]
+        tree.body.extend(
+            ast.parse(
+                'def use_local_loader():\n'
+                '    def _bind_missing(name, module_name):\n'
+                '        return module_name\n'
+                '    return _bind_missing("local", "pandas")\n'
+            ).body
+        )
+        ast.fix_missing_locations(tree)
+        mutated = ast.unparse(tree)
+        compile(mutated, str(path), 'exec')
+        return mutated
+
+    monkeypatch.setattr(
+        agent_state,
+        '_read_text_if_present',
+        read_without_real_loader_calls,
+    )
+
+    validation = validate_agent_layout(ROOT)
 
     assert validation['status'] == 'error'
     assert any(
