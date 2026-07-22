@@ -2,11 +2,9 @@ from __future__ import annotations
 
 from collections import Counter
 from pathlib import Path
-import re
 import tempfile
 import unicodedata
 
-import numpy as np
 import pandas as pd
 
 from runtime.io_utils import (
@@ -27,16 +25,11 @@ from materials.data import (
     _normalize,
     load_cached_raw_record_lookup,
 )
-from materials.constants import *
-from materials.candidate_space import *
 from materials.candidate_space import (
     _extrapolation_shortlist_config,
     _proposal_shortlist_config,
     _structure_generation_seed_config,
 )
-from materials.feature_building import *
-from materials.benchmarking import *
-from materials.common import *
 from materials.common import (
     _decision_policy_config,
     _ranking_stability_config,
@@ -44,7 +37,6 @@ from materials.common import (
     _structure_followup_extrapolation_shortlist_config,
     _structure_followup_shortlist_config,
 )
-from materials.ranking_tables import *
 from materials.ranking_tables import (
     _build_bn_candidate_compatible_evaluation_table,
     _build_bn_evaluation_matrix_table,
@@ -52,7 +44,6 @@ from materials.ranking_tables import (
     _candidate_ranking_comparison_payload,
     _candidate_ranking_uncertainty_table,
 )
-from materials.structure_artifacts import *
 from materials.structure_artifacts import (
     _build_structure_generation_first_pass_queue_payload,
     _build_structure_generation_followup_extrapolation_shortlist_df,
@@ -78,7 +69,6 @@ from materials.structure_helpers import (
     _structure_execution_variant_expected_state,
     _validate_structure_execution_edit_plan_identity,
 )
-from materials.summary import *
 
 
 def _write_csv_file(frame: pd.DataFrame, path: str | Path) -> None:

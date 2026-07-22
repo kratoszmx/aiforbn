@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import numpy as np
-
 from torch_models.attention import TorchFractionalAttentionRegressor
-from torch_models.base import *
 from torch_models.base import _build_sparse_fractional_tokens
+
 
 class TorchSparseFractionalAttentionRegressor(TorchFractionalAttentionRegressor):
     """Experimental sparse-token attention over only the present elements in each formula."""
@@ -93,4 +91,3 @@ class TorchSparseFractionalAttentionRegressor(TorchFractionalAttentionRegressor)
                 return self.head(pooled)
 
         return SparseFractionalCompositionAttentionNetwork()
-

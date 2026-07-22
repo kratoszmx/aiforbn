@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from torch_models.base import *
+from torch_models.base import TorchMLPRegressor
+
 
 class TorchFractionalAttentionRegressor(TorchMLPRegressor):
     """A lightweight composition-attention regressor over fractional-composition vectors.
@@ -178,4 +179,3 @@ class TorchFractionalAttentionRegressor(TorchMLPRegressor):
                 return self.head(pooled)
 
         return FractionalCompositionAttentionNetwork()
-

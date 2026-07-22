@@ -7,9 +7,8 @@ from sklearn.ensemble import HistGradientBoostingRegressor, RandomForestRegresso
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
-from materials.constants import *
-from materials.feature_building import *
 from materials.feature_building import _feature_columns, _feature_valid_mask
+
 
 def make_model(cfg: dict, model_type: str | None = None):
     model_type = model_type or cfg['model']['type']
@@ -116,4 +115,3 @@ def evaluate_predictions(
     prediction_df['prediction'] = pred
     prediction_df['abs_error'] = (prediction_df['target'] - prediction_df['prediction']).abs()
     return metrics, prediction_df
-

@@ -1,18 +1,31 @@
 from __future__ import annotations
 
 from functools import lru_cache
+import re
 
 import numpy as np
 import pandas as pd
 from matminer.featurizers.base import MultipleFeaturizer
 from matminer.featurizers.composition import ElementProperty, Stoichiometry
-from pymatgen.core import Composition, Element
+from pymatgen.core import Composition
 
-from materials.data import STRUCTURE_SUMMARY_COLUMNS
+from materials.data import REFERENCE_PROPERTY_COLUMNS
+from materials.constants import (
+    ATOMIC_NUMBERS,
+    BASE_PASSTHROUGH_COLUMNS,
+    BASIC_FEATURE_COLUMNS,
+    BASIC_FEATURE_SET,
+    FEATURE_SET_METADATA,
+    FRACTIONAL_COMPOSITION_COLUMNS,
+    FRACTIONAL_COMPOSITION_FEATURE_SET,
+    MATMINER_FEATURE_SET,
+    MATMINER_SELECTED_RAW_LABELS,
+    MODEL_FEATURE_SET_COMPATIBILITY,
+    STRUCTURE_AWARE_FEATURE_SET,
+    STRUCTURE_AWARE_REQUIRED_COLUMNS,
+)
+from materials.candidate_space import _ordered_values, extract_elements
 
-from materials.constants import *
-from materials.candidate_space import *
-from materials.candidate_space import _ordered_values
 
 def get_candidate_feature_sets(cfg: dict) -> list[str]:
     features_cfg = cfg.get('features', {})
@@ -508,4 +521,3 @@ def summarize_feature_table(feature_df: pd.DataFrame, feature_set: str | None = 
         'failed_formula_examples': formula_examples,
         'failed_error_examples': error_examples,
     }
-

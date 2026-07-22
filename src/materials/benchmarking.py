@@ -2,24 +2,36 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import GroupKFold
 from sklearn.neighbors import NearestNeighbors
 
-from materials.data import REFERENCE_PROPERTY_COLUMNS, STRUCTURE_SUMMARY_COLUMNS
-
-from materials.constants import *
-from materials.candidate_space import *
+from materials.constants import DUMMY_FEATURE_SET
 from materials.candidate_space import (
     _bn_family_benchmark_config,
     _bn_slice_benchmark_config,
     _bn_stratified_error_config,
     _ordered_values,
     _robustness_config,
+    annotate_bn_families,
+    extract_elements,
+    filter_bn,
 )
-from materials.feature_building import *
-from materials.feature_building import _feature_columns, _feature_valid_mask
-from materials.modeling import *
+from materials.feature_building import (
+    _feature_columns,
+    _feature_valid_mask,
+    feature_set_supports_formula_only_screening,
+    get_candidate_feature_sets,
+    get_candidate_model_types,
+    get_feature_family,
+    get_feature_note,
+    incompatible_model_feature_note,
+    model_type_supports_feature_set,
+    summarize_feature_table,
+)
+from materials.modeling import evaluate_predictions, train_baseline_model
 from materials.selection import _ordered_model_types
+
 
 def benchmark_regressors(
     feature_tables: dict[str, pd.DataFrame],

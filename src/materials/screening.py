@@ -6,8 +6,19 @@ from sklearn.neighbors import NearestNeighbors
 
 from materials.data import REFERENCE_PROPERTY_COLUMNS, STRUCTURE_SUMMARY_COLUMNS
 
-from materials.constants import *
-from materials.candidate_space import *
+from materials.constants import (
+    BN_ANALOG_EVIDENCE_RANKING_NOTE,
+    BN_BAND_GAP_ALIGNMENT_RANKING_NOTE,
+    BN_SUPPORT_RANKING_NOTE,
+    CHEMICAL_PLAUSIBILITY_SCREENING_NOTE,
+    DOMAIN_SUPPORT_RANKING_NOTE,
+    NOVELTY_ANNOTATION_RANKING_NOTE,
+    NOVELTY_BUCKET_FORMULA_LEVEL_EXTRAPOLATION,
+    NOVELTY_BUCKET_HELD_OUT_KNOWN_FORMULA,
+    NOVELTY_BUCKET_NOTE,
+    NOVELTY_BUCKET_PRIORITY,
+    NOVELTY_BUCKET_TRAIN_PLUS_VAL_REDISCOVERY,
+)
 from materials.candidate_space import (
     _bn_analog_evidence_config,
     _bn_analog_validation_config,
@@ -17,11 +28,26 @@ from materials.candidate_space import (
     _robustness_config,
     _structure_generation_seed_config,
     _structure_seed_edit_metadata,
+    annotate_candidate_chemical_plausibility,
+    annotate_candidate_extrapolation_shortlist,
+    annotate_candidate_proposal_shortlist,
+    extract_elements,
+    filter_bn,
+    get_screening_ranking_metadata,
 )
-from materials.feature_building import *
-from materials.feature_building import _feature_columns, _feature_valid_mask
-from materials.modeling import *
-from materials.benchmarking import *
+from materials.feature_building import (
+    _feature_columns,
+    _feature_valid_mask,
+    build_feature_table,
+    feature_set_supports_formula_only_screening,
+    get_candidate_model_types,
+    get_candidate_screening_feature_sets,
+    get_feature_family,
+    incompatible_model_feature_note,
+    model_type_supports_feature_set,
+    summarize_feature_table,
+)
+from materials.modeling import make_model, train_baseline_model
 from materials.benchmarking import _group_kfold_splits, _split_pipe_delimited_values
 from materials.selection import (
     _ranking_active_penalty_terms,

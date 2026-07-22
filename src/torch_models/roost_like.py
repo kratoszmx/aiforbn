@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import numpy as np
-
 from torch_models.attention import TorchFractionalAttentionRegressor
-from torch_models.base import *
 from torch_models.base import _build_sparse_fractional_tokens
+
 
 class TorchRoostLikeRegressor(TorchFractionalAttentionRegressor):
     """Experimental present-element stoichiometry network inspired by Roost."""
@@ -206,4 +204,3 @@ class TorchRoostLikeRegressor(TorchFractionalAttentionRegressor):
                 return self.head(pooled)
 
         return RoostLikeFractionalCompositionNetwork()
-

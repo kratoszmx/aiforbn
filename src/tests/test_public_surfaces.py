@@ -108,6 +108,110 @@ def _defined_top_level_names(source_path: Path) -> set[str]:
     return names
 
 
+def _assigned_name_targets(target: ast.expr) -> set[str]:
+    if isinstance(target, ast.Name):
+        return {target.id}
+    if isinstance(target, (ast.List, ast.Tuple)):
+        return {
+            name
+            for element in target.elts
+            for name in _assigned_name_targets(element)
+        }
+    return set()
+
+
+def _locally_owned_top_level_names(source_text: str) -> set[str]:
+    names: set[str] = set()
+    for node in ast.parse(source_text).body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            names.add(node.name)
+        elif isinstance(node, ast.Assign):
+            names.update(
+                name
+                for target in node.targets
+                for name in _assigned_name_targets(target)
+            )
+        elif isinstance(node, ast.AnnAssign):
+            names.update(_assigned_name_targets(node.target))
+    return names
+
+
+def _production_module_sources() -> dict[str, str]:
+    return {
+        '.'.join(source_path.relative_to(SRC_ROOT).with_suffix('').parts):
+            source_path.read_text(encoding='utf-8')
+        for module_name in PRODUCTION_MODULE_DIRS
+        for source_path in (SRC_ROOT / module_name).rglob('*.py')
+        if not _is_test_source(source_path)
+    }
+
+
+def _documented_production_names_by_module() -> dict[str, set[str]]:
+    documented: dict[str, set[str]] = {}
+    for module_name in PRODUCTION_MODULE_DIRS:
+        summary_path = SRC_ROOT / module_name / 'PY_FILES_SUMMARY.md'
+        for file_name, names in _documented_names_by_file(summary_path).items():
+            source_module = '.'.join(
+                [module_name, *Path(file_name).with_suffix('').parts]
+            )
+            documented[source_module] = names
+    return documented
+
+
+def _resolved_import_module(consumer_module: str, node: ast.ImportFrom) -> str:
+    if node.level == 0:
+        return node.module or ''
+    parent_parts = consumer_module.split('.')[:-node.level]
+    imported_parts = node.module.split('.') if node.module else []
+    return '.'.join([*parent_parts, *imported_parts])
+
+
+def _production_import_ownership_violations(
+    source_by_module: dict[str, str],
+) -> list[tuple[str, str, str, str]]:
+    locally_owned_names = {
+        module_name: _locally_owned_top_level_names(source_text)
+        for module_name, source_text in source_by_module.items()
+    }
+    documented_names = _documented_production_names_by_module()
+    violations: list[tuple[str, str, str, str]] = []
+    for consumer_module, source_text in source_by_module.items():
+        consumer_root = consumer_module.split('.')[0]
+        for node in ast.walk(ast.parse(source_text)):
+            if not isinstance(node, ast.ImportFrom):
+                continue
+            imported_module = _resolved_import_module(consumer_module, node)
+            for alias in node.names:
+                if alias.name == '*':
+                    violations.append((
+                        consumer_module,
+                        imported_module,
+                        alias.name,
+                        'production_wildcard_import',
+                    ))
+                    continue
+                if (
+                    imported_module.split('.')[0] == consumer_root
+                    and imported_module in locally_owned_names
+                    and alias.name not in locally_owned_names[imported_module]
+                    and alias.name not in documented_names.get(imported_module, set())
+                ):
+                    violations.append((
+                        consumer_module,
+                        imported_module,
+                        alias.name,
+                        'implicit_same_module_facade_import',
+                    ))
+    return sorted(violations)
+
+
+def _add_import_after_future(source_text: str, import_line: str) -> str:
+    future_line = 'from __future__ import annotations\n'
+    if source_text.startswith(future_line):
+        return source_text.replace(future_line, f'{future_line}\n{import_line}\n', 1)
+    return f'{import_line}\n{source_text}'
+
+
 def _documented_callable_parameters_by_file(
     summary_path: Path,
 ) -> dict[str, dict[str, tuple[list[str], bool]]]:
@@ -262,6 +366,7 @@ def test_explicit_cross_module_imports_are_documented_public_surfaces():
     missing: list[tuple[str, str, str]] = []
 
     for source_path in [ROOT / 'main.py', *SRC_ROOT.rglob('*.py')]:
+        consumer_module = _source_module(source_path)
         tree = ast.parse(source_path.read_text(encoding='utf-8'), filename=str(source_path))
         for node in ast.walk(tree):
             if not isinstance(node, ast.ImportFrom) or not node.module:
@@ -269,6 +374,8 @@ def test_explicit_cross_module_imports_are_documented_public_surfaces():
 
             source_module = node.module.split('.')[0]
             if source_module not in MODULE_DIRS:
+                continue
+            if source_module == consumer_module:
                 continue
 
             for alias in node.names:
@@ -350,6 +457,49 @@ def test_main_entrypoint_avoids_private_or_wildcard_module_imports():
         )
 
     assert violations == []
+
+
+def test_production_imports_are_explicit_and_owned_by_the_imported_module():
+    source_by_module = _production_module_sources()
+
+    assert source_by_module
+    assert any(name.startswith('materials.') for name in source_by_module)
+    assert _production_import_ownership_violations(source_by_module) == []
+
+
+def test_production_import_guard_rejects_wildcard_and_facade_mutations():
+    source_by_module = _production_module_sources()
+    target_module = 'materials.plots'
+    mutations = (
+        (
+            'from materials.constants import *',
+            '*',
+            'production_wildcard_import',
+        ),
+        (
+            'from materials.constants import REFERENCE_PROPERTY_COLUMNS',
+            'REFERENCE_PROPERTY_COLUMNS',
+            'implicit_same_module_facade_import',
+        ),
+        (
+            'from .constants import REFERENCE_PROPERTY_COLUMNS',
+            'REFERENCE_PROPERTY_COLUMNS',
+            'implicit_same_module_facade_import',
+        ),
+    )
+
+    for import_line, imported_name, reason in mutations:
+        mutated_sources = dict(source_by_module)
+        mutated_sources[target_module] = _add_import_after_future(
+            mutated_sources[target_module], import_line
+        )
+        compile(mutated_sources[target_module], target_module, 'exec')
+        assert (
+            target_module,
+            'materials.constants',
+            imported_name,
+            reason,
+        ) in _production_import_ownership_violations(mutated_sources)
 
 
 def test_every_documented_public_symbol_exists_in_its_declared_file():

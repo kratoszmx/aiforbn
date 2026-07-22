@@ -1,19 +1,22 @@
 from __future__ import annotations
 
-from pathlib import Path
 import re
 
 import numpy as np
 import pandas as pd
 
-from runtime.io_utils import make_json_safe, write_json_file
+from runtime.io_utils import make_json_safe
 from materials.data import load_cached_raw_record_lookup
-from materials.constants import *
-from materials.candidate_space import *
 from materials.candidate_space import _formula_amount_map, _structure_seed_edit_metadata
-from materials.feature_building import *
-from materials.benchmarking import *
-from materials.common import *
+from materials.common import (
+    STRUCTURE_GENERATION_FIRST_PASS_QUEUE_LABEL,
+    STRUCTURE_GENERATION_FIRST_PASS_QUEUE_METHOD,
+    STRUCTURE_GENERATION_FIRST_PASS_QUEUE_NOTE,
+    STRUCTURE_GENERATION_JOB_PLAN_LABEL,
+    STRUCTURE_GENERATION_JOB_PLAN_METHOD,
+    STRUCTURE_GENERATION_JOB_PLAN_NOTE,
+)
+
 
 def _collect_structure_generation_seed_summary(
     structure_generation_seed_df: pd.DataFrame,

@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from functools import lru_cache
 import os
-import re
 
 os.environ.setdefault('LOKY_MAX_CPU_COUNT', '1')
 os.environ.setdefault('OMP_NUM_THREADS', '1')
@@ -11,17 +9,7 @@ os.environ.setdefault('MKL_NUM_THREADS', '1')
 os.environ.setdefault('VECLIB_MAXIMUM_THREADS', '1')
 os.environ.setdefault('NUMEXPR_NUM_THREADS', '1')
 
-import numpy as np
-import pandas as pd
-from matminer.featurizers.base import MultipleFeaturizer
-from matminer.featurizers.composition import ElementProperty, Stoichiometry
-from pymatgen.core import Composition, Element
-from sklearn.dummy import DummyRegressor
-from sklearn.ensemble import HistGradientBoostingRegressor, RandomForestRegressor
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-from sklearn.model_selection import GroupKFold
-from sklearn.neighbors import NearestNeighbors
+from pymatgen.core import Element
 
 from materials.data import REFERENCE_PROPERTY_COLUMNS, STRUCTURE_SUMMARY_COLUMNS
 

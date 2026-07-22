@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import numpy as np
+from sklearn.base import BaseEstimator, RegressorMixin
 
-from torch_models.base import *
-from torch_models.base import _normalize_member_seeds
+from torch_models.base import TorchMLPRegressor, _normalize_member_seeds
+
 
 class TorchMLPEnsembleRegressor(BaseEstimator, RegressorMixin):
     """Seed-ensemble wrapper around TorchMLPRegressor.
@@ -81,4 +82,3 @@ class TorchMLPEnsembleRegressor(BaseEstimator, RegressorMixin):
     def predict(self, X):
         member_predictions = self.predict_members(X)
         return member_predictions.mean(axis=0)
-
