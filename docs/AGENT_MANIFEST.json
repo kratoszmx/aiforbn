@@ -213,6 +213,7 @@
       "provides": [
         "agent_contract",
         "dependency_declarations",
+        "dependency_import_availability",
         "project_skill_metadata"
       ]
     },
@@ -260,6 +261,8 @@
       "use_when": "agent contract, project skills, handoff, docs, or entrypoint metadata changed",
       "requires": [
         "agent_contract",
+        "dependency_declarations",
+        "dependency_import_availability",
         "entrypoint_runtime_public_surface_regressions",
         "pipeline_wiring_smoke",
         "project_skill_metadata"
@@ -277,6 +280,8 @@
       "requires": [
         "agent_contract",
         "complete_src_test_suite",
+        "dependency_declarations",
+        "dependency_import_availability",
         "entrypoint_runtime_public_surface_regressions",
         "pipeline_wiring_smoke"
       ]
@@ -292,6 +297,8 @@
       "requires": [
         "agent_contract",
         "complete_src_test_suite",
+        "dependency_declarations",
+        "dependency_import_availability",
         "pipeline_wiring_smoke"
       ]
     },
@@ -306,6 +313,7 @@
       "requires": [
         "agent_contract",
         "dependency_declarations",
+        "dependency_import_availability",
         "entrypoint_runtime_public_surface_regressions",
         "streamlit_renderer_contract"
       ]
@@ -314,38 +322,111 @@
   "dependency_imports": [
     {
       "package": "pandas",
+      "specifier": ">=2.2",
       "module": "pandas",
+      "role": "core_runtime",
+      "import_kind": "direct",
       "required_for": "core_dataframe_work"
     },
     {
       "package": "numpy",
+      "specifier": ">=1.26",
       "module": "numpy",
+      "role": "scientific_pipeline",
+      "import_kind": "direct",
       "required_for": "core_numeric_work"
     },
     {
       "package": "scikit-learn",
+      "specifier": ">=1.5",
       "module": "sklearn",
+      "role": "scientific_pipeline",
+      "import_kind": "direct",
       "required_for": "model_baselines"
     },
     {
-      "package": "pyarrow",
-      "module": "pyarrow",
-      "required_for": "parquet_dataset_cache_and_full_pytest"
+      "package": "pydantic",
+      "specifier": ">=2.8",
+      "module": "pydantic",
+      "role": "core_runtime",
+      "import_kind": "direct",
+      "required_for": "runtime_dataset_and_artifact_schemas"
     },
     {
-      "package": "torch",
-      "module": "torch",
-      "required_for": "torch_model_families"
+      "package": "matplotlib",
+      "specifier": ">=3.9",
+      "module": "matplotlib",
+      "role": "scientific_pipeline",
+      "import_kind": "direct",
+      "required_for": "artifact_plot_generation"
     },
     {
       "package": "streamlit",
+      "specifier": ">=1.38",
       "module": "streamlit",
+      "role": "ui",
+      "import_kind": "direct",
       "required_for": "artifact_viewer"
     },
     {
       "package": "jarvis-tools",
+      "specifier": ">=2024.10.30",
       "module": "jarvis",
+      "role": "optional_lazy",
+      "import_kind": "direct",
       "required_for": "dataset_download_when_cache_is_missing"
+    },
+    {
+      "package": "matminer",
+      "specifier": ">=0.9.2",
+      "module": "matminer",
+      "role": "scientific_pipeline",
+      "import_kind": "direct",
+      "required_for": "composition_featurization"
+    },
+    {
+      "package": "pymatgen",
+      "specifier": ">=2024.8.9",
+      "module": "pymatgen",
+      "role": "scientific_pipeline",
+      "import_kind": "direct",
+      "required_for": "formula_and_structure_processing"
+    },
+    {
+      "package": "pyarrow",
+      "specifier": ">=17.0",
+      "module": "pyarrow",
+      "role": "optional_lazy",
+      "import_kind": "backend",
+      "required_for": "pandas_parquet_dataset_cache"
+    },
+    {
+      "package": "torch",
+      "specifier": ">=2.11",
+      "module": "torch",
+      "role": "scientific_pipeline",
+      "import_kind": "direct",
+      "required_for": "torch_model_families"
+    },
+    {
+      "package": "pytest",
+      "specifier": ">=8.3",
+      "module": "pytest",
+      "role": "test_tool",
+      "import_kind": "direct",
+      "required_for": "declared_validation_profiles"
+    }
+  ],
+  "local_shared_imports": [
+    {
+      "module": "filesystem",
+      "owner": "myutils/file_utils/filesystem.py",
+      "required_for": "runtime_directory_and_cache_helpers"
+    },
+    {
+      "module": "json_io",
+      "owner": "myutils/file_utils/json_io.py",
+      "required_for": "runtime_json_io_and_serialization_helpers"
     }
   ],
   "safety_boundaries": {

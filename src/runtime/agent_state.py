@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import ast
 from datetime import datetime, timezone
 import json
 import importlib.util
 from pathlib import Path
 import re
 import subprocess
+import sys
 from typing import Any
 
 from runtime.utils import _path_is_same_or_descendant
@@ -94,6 +96,7 @@ REQUIRED_VALIDATION_COMMANDS = {
         'provides': [
             'agent_contract',
             'dependency_declarations',
+            'dependency_import_availability',
             'project_skill_metadata',
         ],
     },
@@ -133,6 +136,8 @@ REQUIRED_VALIDATION_PROFILES = {
         ),
         'requires': [
             'agent_contract',
+            'dependency_declarations',
+            'dependency_import_availability',
             'entrypoint_runtime_public_surface_regressions',
             'pipeline_wiring_smoke',
             'project_skill_metadata',
@@ -146,6 +151,8 @@ REQUIRED_VALIDATION_PROFILES = {
         'requires': [
             'agent_contract',
             'complete_src_test_suite',
+            'dependency_declarations',
+            'dependency_import_availability',
             'entrypoint_runtime_public_surface_regressions',
             'pipeline_wiring_smoke',
         ],
@@ -158,6 +165,8 @@ REQUIRED_VALIDATION_PROFILES = {
         'requires': [
             'agent_contract',
             'complete_src_test_suite',
+            'dependency_declarations',
+            'dependency_import_availability',
             'pipeline_wiring_smoke',
         ],
     },
@@ -168,6 +177,7 @@ REQUIRED_VALIDATION_PROFILES = {
         'requires': [
             'agent_contract',
             'dependency_declarations',
+            'dependency_import_availability',
             'entrypoint_runtime_public_surface_regressions',
             'streamlit_renderer_contract',
         ],
@@ -292,7 +302,22 @@ SKILL_FRONTMATTER_PATTERN = re.compile(
     r'\A---\r?\n(?P<body>.*?)\r?\n---(?:\r?\n|\Z)',
     re.DOTALL,
 )
-REQUIREMENT_NAME_PATTERN = re.compile(r'^([A-Za-z0-9][A-Za-z0-9_.-]*)')
+REQUIREMENT_DECLARATION_PATTERN = re.compile(
+    r'^(?P<name>[A-Za-z0-9][A-Za-z0-9_.-]*)'
+    r'(?P<specifier>(?:(?:===|~=|==|!=|<=|>=|<|>)[^,;]+'
+    r'(?:,(?:===|~=|==|!=|<=|>=|<|>)[^,;]+)*)?)$'
+)
+DEPENDENCY_ROLES = {
+    'core_runtime',
+    'scientific_pipeline',
+    'optional_lazy',
+    'ui',
+    'test_tool',
+}
+DEPENDENCY_IMPORT_KINDS = {'direct', 'backend'}
+IMPORT_MODULE_PATTERN = re.compile(
+    r'^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$'
+)
 
 
 def _project_root(path: str | Path = '.') -> Path:
@@ -325,16 +350,110 @@ def _normalized_requirement_name(value: str) -> str:
     return re.sub(r'[-_.]+', '-', value).casefold()
 
 
-def _declared_requirement_names(text: str) -> set[str]:
-    names: set[str] = set()
+def _normalized_requirement_specifier(value: str) -> str:
+    return re.sub(r'\s+', '', value)
+
+
+def _declared_requirements(
+    text: str,
+) -> tuple[dict[str, dict[str, str]], list[str], list[str]]:
+    declarations: dict[str, dict[str, str]] = {}
+    duplicate_names: list[str] = []
+    invalid_lines: list[str] = []
     for raw_line in text.splitlines():
         line = raw_line.split('#', 1)[0].strip()
-        if not line or line.startswith('-'):
+        if not line:
             continue
-        match = REQUIREMENT_NAME_PATTERN.match(line)
-        if match is not None:
-            names.add(_normalized_requirement_name(match.group(1)))
-    return names
+        compact_line = re.sub(r'\s+', '', line)
+        match = REQUIREMENT_DECLARATION_PATTERN.fullmatch(compact_line)
+        if match is None:
+            invalid_lines.append(line)
+            continue
+        package_name = match.group('name')
+        normalized_name = _normalized_requirement_name(package_name)
+        if normalized_name in declarations:
+            duplicate_names.append(normalized_name)
+            continue
+        declarations[normalized_name] = {
+            'package': package_name,
+            'specifier': _normalized_requirement_specifier(
+                match.group('specifier') or ''
+            ),
+        }
+    return declarations, sorted(set(duplicate_names)), invalid_lines
+
+
+def _project_python_source_paths(root: Path) -> list[Path]:
+    root_sources = [
+        path
+        for path in (root / 'main.py', root / 'conftest.py')
+        if path.is_file()
+    ]
+    src_root = root / 'src'
+    src_sources = sorted(src_root.rglob('*.py')) if src_root.is_dir() else []
+    return [*root_sources, *src_sources]
+
+
+def _source_import_roots(source_text: str) -> set[str]:
+    tree = ast.parse(source_text)
+    import_roots: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            import_roots.update(alias.name.split('.', 1)[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+            import_roots.add(node.module.split('.', 1)[0])
+        elif (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == 'import_module'
+            and node.args
+            and isinstance(node.args[0], ast.Constant)
+            and isinstance(node.args[0].value, str)
+        ):
+            import_roots.add(node.args[0].value.split('.', 1)[0])
+        elif (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == '_bind_missing'
+            and len(node.args) >= 2
+            and isinstance(node.args[1], ast.Constant)
+            and isinstance(node.args[1].value, str)
+        ):
+            import_roots.add(node.args[1].value.split('.', 1)[0])
+    return import_roots
+
+
+def _source_import_consumers(
+    root: Path,
+) -> tuple[dict[str, list[str]], list[tuple[str, str]]]:
+    consumers: dict[str, list[str]] = {}
+    parse_errors: list[tuple[str, str]] = []
+    for source_path in _project_python_source_paths(root):
+        relative_path = str(source_path.relative_to(root))
+        try:
+            import_roots = _source_import_roots(_read_text_if_present(source_path))
+        except SyntaxError as exc:
+            parse_errors.append((relative_path, str(exc)))
+            continue
+        for module_name in import_roots:
+            consumers.setdefault(module_name, []).append(relative_path)
+    return {
+        module_name: sorted(set(paths))
+        for module_name, paths in consumers.items()
+    }, parse_errors
+
+
+def _project_import_roots(root: Path) -> set[str]:
+    src_root = root / 'src'
+    roots = {'main', 'conftest', 'src'}
+    if src_root.is_dir():
+        roots.update(path.stem for path in src_root.glob('*.py'))
+        roots.update(
+            path.name
+            for path in src_root.iterdir()
+            if path.is_dir() and not path.name.startswith('.')
+        )
+    return roots
 
 
 def _path_check(root: Path, relative_path: str) -> dict[str, object]:
@@ -513,6 +632,144 @@ def _validate_local_instruction_paths(
                     f'Agent instruction references a missing local path: {raw_path}'
                 ),
             })
+
+
+def _validate_dependency_contract(
+    root: Path,
+    manifest_payload: dict[str, Any],
+    errors: list[dict[str, Any]],
+    checks: list[dict[str, object]],
+) -> None:
+    def add_error(code: str, path: str, message: str, **extra: str) -> None:
+        errors.append({'code': code, 'path': path, 'message': message, **extra})
+
+    requirements, duplicate_requirements, invalid_requirements = _declared_requirements(
+        _read_text_if_present(root / 'requirements.txt')
+    )
+    for name in duplicate_requirements:
+        add_error('duplicate_requirement', 'requirements.txt', f'Duplicate normalized requirement: {name}.')
+    for line in invalid_requirements:
+        add_error('invalid_requirement_declaration', 'requirements.txt', f'Unsupported requirement declaration: {line!r}.')
+
+    entries = manifest_payload.get('dependency_imports')
+    if not isinstance(entries, list) or not entries:
+        add_error('invalid_dependency_imports', 'docs/AGENT_MANIFEST.json:dependency_imports', '`dependency_imports` must be a non-empty object list.')
+        entries = []
+    dependencies: dict[str, dict[str, str]] = {}
+    module_owners: dict[str, str] = {}
+    for index, entry in enumerate(entries):
+        path = f'docs/AGENT_MANIFEST.json:dependency_imports[{index}]'
+        if not isinstance(entry, dict):
+            add_error('invalid_dependency_import_entry', path, 'Dependency entry must be an object.')
+            continue
+        record = {
+            field: str(entry.get(field, '')).strip()
+            for field in ('package', 'specifier', 'module', 'role', 'import_kind', 'required_for')
+        }
+        record['specifier'] = _normalized_requirement_specifier(record['specifier'])
+        if not all(record[field] for field in ('package', 'module', 'required_for')) or not IMPORT_MODULE_PATTERN.fullmatch(record['module']):
+            add_error('invalid_dependency_import_entry', path, 'Dependency entry requires package, importable module, and purpose.')
+            continue
+        if record['role'] not in DEPENDENCY_ROLES:
+            add_error('invalid_dependency_role', path, f'Unsupported dependency role: {record["role"]}.')
+            continue
+        if record['import_kind'] not in DEPENDENCY_IMPORT_KINDS:
+            add_error('invalid_dependency_import_kind', path, f'Unsupported dependency import kind: {record["import_kind"]}.')
+            continue
+        package_key = _normalized_requirement_name(record['package'])
+        if package_key in dependencies:
+            add_error('duplicate_dependency_package', path, f'Duplicate normalized dependency: {package_key}.')
+            continue
+        if record['module'] in module_owners:
+            add_error('duplicate_dependency_module', path, f'Duplicate dependency module: {record["module"]}.')
+            continue
+        dependencies[package_key] = record
+        module_owners[record['module']] = record['package']
+
+    for key in sorted(set(dependencies) - set(requirements)):
+        add_error('missing_dependency_requirement', 'requirements.txt', f'Manifest dependency `{dependencies[key]["package"]}` is not required.')
+    for key in sorted(set(requirements) - set(dependencies)):
+        add_error('unmanifested_requirement', 'docs/AGENT_MANIFEST.json:dependency_imports', f'Requirement `{requirements[key]["package"]}` has no dependency record.')
+
+    local_entries = manifest_payload.get('local_shared_imports')
+    if not isinstance(local_entries, list) or not local_entries:
+        add_error('invalid_local_shared_imports', 'docs/AGENT_MANIFEST.json:local_shared_imports', '`local_shared_imports` must be a non-empty object list.')
+        local_entries = []
+    local_modules: dict[str, dict[str, str]] = {}
+    for index, entry in enumerate(local_entries):
+        path = f'docs/AGENT_MANIFEST.json:local_shared_imports[{index}]'
+        if not isinstance(entry, dict):
+            add_error('invalid_local_shared_import_entry', path, 'Local shared import entry must be an object.')
+            continue
+        module = str(entry.get('module', '')).strip()
+        owner = str(entry.get('owner', '')).strip()
+        purpose = str(entry.get('required_for', '')).strip()
+        if not IMPORT_MODULE_PATTERN.fullmatch(module) or not owner or not purpose:
+            add_error('invalid_local_shared_import_entry', path, 'Local shared import requires module, owner, and purpose.')
+            continue
+        if module in local_modules or module in module_owners:
+            add_error('duplicate_local_shared_import_module', path, f'Duplicate import owner for `{module}`.')
+            continue
+        local_modules[module] = {'owner': owner, 'required_for': purpose}
+
+    consumers_by_module, parse_errors = _source_import_consumers(root)
+    for path, detail in parse_errors:
+        add_error('dependency_source_parse_error', path, f'Cannot classify imports: {detail}')
+    external_modules = {module.split('.', 1)[0] for module in module_owners}
+    shared_modules = {module.split('.', 1)[0] for module in local_modules}
+    classified = set(sys.stdlib_module_names) | {'__future__'} | _project_import_roots(root) | external_modules | shared_modules
+    unclassified = sorted(set(consumers_by_module) - classified)
+    for module in unclassified:
+        for path in consumers_by_module[module]:
+            add_error('undeclared_external_import', path, f'Unclassified external import: {module}.', module=module)
+
+    for package_key, record in dependencies.items():
+        declaration = requirements.get(package_key)
+        matches = declaration is not None and declaration['specifier'] == record['specifier']
+        checks.append({
+            'kind': 'dependency_requirement', 'package': record['package'],
+            'specifier': record['specifier'], 'declared_specifier': declaration['specifier'] if declaration else None,
+            'declared': declaration is not None, 'matches': matches, 'role': record['role'],
+        })
+        if declaration is not None and not matches:
+            add_error('dependency_specifier_mismatch', 'requirements.txt', f'Specifier mismatch for `{record["package"]}`.')
+        module = record['module']
+        consumers = consumers_by_module.get(module.split('.', 1)[0], [])
+        checks.append({
+            'kind': 'dependency_source_imports', 'package': record['package'],
+            'module': module, 'role': record['role'], 'import_kind': record['import_kind'],
+            'consumers': consumers,
+        })
+        if record['import_kind'] == 'direct' and not consumers:
+            add_error('dependency_module_not_imported', 'docs/AGENT_MANIFEST.json:dependency_imports', f'Direct dependency `{module}` has no source consumer.', module=module)
+        if record['role'] == 'test_tool':
+            production_consumers = [path for path in consumers if '/tests/' not in f'/{path}/' and not Path(path).name.startswith('test_') and Path(path).name != 'conftest.py']
+            if production_consumers:
+                add_error('test_tool_imported_by_production', production_consumers[0], f'Test tool `{module}` has production consumers.', module=module)
+        try:
+            available = importlib.util.find_spec(module) is not None
+        except (ImportError, AttributeError, ValueError):
+            available = False
+        checks.append({
+            'kind': 'dependency_import', 'package': record['package'], 'module': module,
+            'required_for': record['required_for'], 'role': record['role'], 'available': available,
+        })
+        if not available:
+            add_error('missing_declared_dependency', 'requirements.txt', f'`{record["package"]}` is not importable as `{module}`.', module=module)
+
+    for module, record in sorted(local_modules.items()):
+        consumers = consumers_by_module.get(module.split('.', 1)[0], [])
+        checks.append({
+            'kind': 'local_shared_source_imports', 'module': module, 'owner': record['owner'],
+            'required_for': record['required_for'], 'consumers': consumers,
+        })
+        if not consumers:
+            add_error('local_shared_module_not_imported', 'docs/AGENT_MANIFEST.json:local_shared_imports', f'Local shared module `{module}` has no consumer.', module=module)
+    checks.append({
+        'kind': 'source_import_classification', 'source_file_count': len(_project_python_source_paths(root)),
+        'external_modules': sorted(external_modules), 'local_shared_modules': sorted(shared_modules),
+        'unclassified_modules': unclassified,
+    })
 
 
 def _validate_human_docs_policy(
@@ -1212,52 +1469,12 @@ def validate_agent_layout(
             'message': f'Flat-module contract prefers no __init__.py files; found: {init_files}',
         })
 
-    dependency_checks = manifest_payload.get('dependency_imports', [])
-    requirement_names = _declared_requirement_names(
-        _read_text_if_present(root / 'requirements.txt')
+    _validate_dependency_contract(
+        root,
+        manifest_payload,
+        errors,
+        checks,
     )
-    if isinstance(dependency_checks, list):
-        for dependency in dependency_checks:
-            if not isinstance(dependency, dict):
-                continue
-            package_name = str(dependency.get('package', '')).strip()
-            module_name = str(dependency.get('module', '')).strip()
-            if not package_name or not module_name:
-                continue
-            requirement_name = _normalized_requirement_name(package_name)
-            requirement_declared = requirement_name in requirement_names
-            checks.append({
-                'kind': 'dependency_requirement',
-                'package': package_name,
-                'declared': requirement_declared,
-            })
-            if not requirement_declared:
-                errors.append({
-                    'code': 'missing_dependency_requirement',
-                    'path': 'requirements.txt',
-                    'message': (
-                        f'Manifest dependency `{package_name}` is not declared in '
-                        '`requirements.txt`.'
-                    ),
-                })
-            available = importlib.util.find_spec(module_name) is not None
-            checks.append({
-                'kind': 'dependency_import',
-                'package': package_name,
-                'module': module_name,
-                'required_for': dependency.get('required_for', ''),
-                'available': available,
-            })
-            if not available:
-                warnings.append({
-                    'code': 'missing_declared_dependency',
-                    'path': 'requirements.txt',
-                    'message': (
-                        f'Declared dependency `{dependency.get("package", module_name)}` '
-                        f'is not importable as `{module_name}`; required for '
-                        f'{dependency.get("required_for", "unspecified scope")}.'
-                    ),
-                })
 
     return {
         'status': 'ok' if not errors else 'error',

@@ -189,6 +189,7 @@ def test_build_agent_command_index_returns_validation_profiles():
     assert ui_profile['requires'] == [
         'agent_contract',
         'dependency_declarations',
+        'dependency_import_availability',
         'entrypoint_runtime_public_surface_regressions',
         'streamlit_renderer_contract',
     ]
@@ -253,6 +254,221 @@ def test_agent_command_index_round_trips_every_manifest_contract_section():
         'human_docs_policy',
     ):
         assert command_index[field] == manifest[field]
+
+
+def _dependency_by_package(manifest, package):
+    return next(
+        dependency
+        for dependency in manifest['dependency_imports']
+        if dependency['package'] == package
+    )
+
+
+def test_dependency_contract_covers_requirements_source_imports_and_profiles():
+    manifest = load_agent_manifest(ROOT)
+    validation = validate_agent_layout(ROOT, manifest)
+
+    dependencies = {
+        dependency['package']: dependency
+        for dependency in manifest['dependency_imports']
+    }
+    assert {
+        'pydantic',
+        'matplotlib',
+        'matminer',
+        'pymatgen',
+        'pytest',
+    }.issubset(dependencies)
+    assert dependencies['scikit-learn']['module'] == 'sklearn'
+    assert dependencies['jarvis-tools']['module'] == 'jarvis'
+    assert dependencies['pyarrow']['import_kind'] == 'backend'
+    assert dependencies['pytest']['role'] == 'test_tool'
+    assert all(
+        {'dependency_declarations', 'dependency_import_availability'}.issubset(
+            profile['requires']
+        )
+        for profile in manifest['validation_profiles']
+    )
+
+    source_checks = {
+        check['package']: check
+        for check in validation['checks']
+        if check['kind'] == 'dependency_source_imports'
+    }
+    assert source_checks['pandas']['consumers']
+    assert 'main.py' in source_checks['pandas']['consumers']
+    assert source_checks['pytest']['consumers']
+    assert source_checks['pyarrow']['consumers'] == []
+    assert validation['status'] == 'ok'
+
+
+@pytest.mark.parametrize(
+    ('mutate_manifest', 'mutate_requirements', 'expected_error_code'),
+    [
+        (
+            lambda manifest: None,
+            lambda text: text + 'requests>=2.0\n',
+            'unmanifested_requirement',
+        ),
+        (
+            lambda manifest: None,
+            lambda text: text + 'Pandas>=2.2\n',
+            'duplicate_requirement',
+        ),
+        (
+            lambda manifest: manifest.pop('dependency_imports'),
+            lambda text: text,
+            'invalid_dependency_imports',
+        ),
+        (
+            lambda manifest: manifest['dependency_imports'].append({}),
+            lambda text: text,
+            'invalid_dependency_import_entry',
+        ),
+        (
+            lambda manifest: manifest['dependency_imports'].append(
+                json.loads(json.dumps(manifest['dependency_imports'][0]))
+            ),
+            lambda text: text,
+            'duplicate_dependency_package',
+        ),
+        (
+            lambda manifest: manifest.update({
+                'dependency_imports': [
+                    dependency
+                    for dependency in manifest['dependency_imports']
+                    if dependency['package'] != 'pydantic'
+                ],
+            }),
+            lambda text: text,
+            'unmanifested_requirement',
+        ),
+        (
+            lambda manifest: _dependency_by_package(
+                manifest, 'pandas'
+            ).update({'module': 'json'}),
+            lambda text: text,
+            'undeclared_external_import',
+        ),
+        (
+            lambda manifest: _dependency_by_package(
+                manifest, 'pandas'
+            ).pop('module'),
+            lambda text: text,
+            'invalid_dependency_import_entry',
+        ),
+        (
+            lambda manifest: _dependency_by_package(
+                manifest, 'pandas'
+            ).update({'specifier': '>=999'}),
+            lambda text: text,
+            'dependency_specifier_mismatch',
+        ),
+        (
+            lambda manifest: _dependency_by_package(
+                manifest, 'pandas'
+            ).update({'role': 'unclassified'}),
+            lambda text: text,
+            'invalid_dependency_role',
+        ),
+        (
+            lambda manifest: _dependency_by_package(
+                manifest, 'pandas'
+            ).update({'import_kind': 'unknown'}),
+            lambda text: text,
+            'invalid_dependency_import_kind',
+        ),
+        (
+            lambda manifest: manifest.update({
+                'local_shared_imports': [
+                    dependency
+                    for dependency in manifest['local_shared_imports']
+                    if dependency['module'] != 'filesystem'
+                ],
+            }),
+            lambda text: text,
+            'undeclared_external_import',
+        ),
+    ],
+)
+def test_validate_agent_layout_rejects_dependency_contract_drift(
+    monkeypatch,
+    mutate_manifest,
+    mutate_requirements,
+    expected_error_code,
+):
+    manifest = json.loads(json.dumps(load_agent_manifest(ROOT)))
+    mutate_manifest(manifest)
+    original_read = agent_state._read_text_if_present
+    requirements_path = (ROOT / 'requirements.txt').resolve()
+
+    def read_with_requirements_mutation(path):
+        text = original_read(path)
+        if Path(path).resolve() == requirements_path:
+            return mutate_requirements(text)
+        return text
+
+    monkeypatch.setattr(
+        agent_state,
+        '_read_text_if_present',
+        read_with_requirements_mutation,
+    )
+
+    validation = validate_agent_layout(ROOT, manifest)
+
+    assert validation['status'] == 'error'
+    assert any(
+        error['code'] == expected_error_code
+        for error in validation['errors']
+    )
+
+
+def test_validate_agent_layout_rejects_compile_valid_undeclared_source_import(
+    monkeypatch,
+):
+    original_read = agent_state._read_text_if_present
+    target_path = (ROOT / 'src' / 'config.py').resolve()
+
+    def read_with_external_import(path):
+        text = original_read(path)
+        if Path(path).resolve() != target_path:
+            return text
+        mutated = f'import requests\n{text}'
+        compile(mutated, str(path), 'exec')
+        return mutated
+
+    monkeypatch.setattr(agent_state, '_read_text_if_present', read_with_external_import)
+
+    validation = validate_agent_layout(ROOT)
+
+    assert validation['status'] == 'error'
+    assert any(
+        error['code'] == 'undeclared_external_import'
+        and error['path'] == 'src/config.py'
+        for error in validation['errors']
+    )
+
+
+def test_validate_agent_layout_rejects_missing_declared_dependency(monkeypatch):
+    real_find_spec = agent_state.importlib.util.find_spec
+
+    def find_spec_with_missing_pydantic(module_name):
+        return None if module_name == 'pydantic' else real_find_spec(module_name)
+
+    monkeypatch.setattr(
+        agent_state.importlib.util,
+        'find_spec',
+        find_spec_with_missing_pydantic,
+    )
+
+    validation = validate_agent_layout(ROOT)
+
+    assert validation['status'] == 'error'
+    assert any(
+        error['code'] == 'missing_declared_dependency'
+        and error['module'] == 'pydantic'
+        for error in validation['errors']
+    )
 
 
 def test_write_agent_state_rejects_human_docs_output(tmp_path):
