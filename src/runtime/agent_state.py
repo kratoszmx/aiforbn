@@ -682,6 +682,188 @@ def _source_import_analysis(
         ast.Match,
     )
 
+    def control_region(
+        node: ast.AST,
+        control: ast.AST,
+    ) -> tuple[str, int | None] | None:
+        regions: list[tuple[str, int | None, list[ast.AST]]] = []
+        if isinstance(control, ast.If):
+            regions = [
+                ('test', None, [control.test]),
+                ('body', None, control.body),
+                ('orelse', None, control.orelse),
+            ]
+        elif isinstance(control, (ast.For, ast.AsyncFor)):
+            regions = [
+                ('iter', None, [control.iter]),
+                ('target', None, [control.target]),
+                ('body', None, control.body),
+                ('orelse', None, control.orelse),
+            ]
+        elif isinstance(control, ast.While):
+            regions = [
+                ('test', None, [control.test]),
+                ('body', None, control.body),
+                ('orelse', None, control.orelse),
+            ]
+        elif isinstance(control, (ast.With, ast.AsyncWith)):
+            regions = [
+                ('items', None, control.items),
+                ('body', None, control.body),
+            ]
+        elif isinstance(control, (ast.Try, getattr(ast, 'TryStar', ast.Try))):
+            regions = [
+                ('body', None, control.body),
+                *[
+                    ('handler', index, [handler])
+                    for index, handler in enumerate(control.handlers)
+                ],
+                ('orelse', None, control.orelse),
+                ('finalbody', None, control.finalbody),
+            ]
+        elif isinstance(control, ast.Match):
+            regions = [
+                ('subject', None, [control.subject]),
+                *[
+                    ('case', index, [case])
+                    for index, case in enumerate(control.cases)
+                ],
+            ]
+        for part, index, roots in regions:
+            if any(is_descendant(node, root) for root in roots):
+                return part, index
+        return None
+
+    def control_ancestors(
+        node: ast.AST,
+        scope: ast.AST,
+    ) -> list[ast.AST]:
+        controls: list[ast.AST] = []
+        current = parent_by_node.get(id(node))
+        while current is not None and current is not scope:
+            if isinstance(current, conditional_binding_ancestors):
+                controls.append(current)
+            current = parent_by_node.get(id(current))
+        return controls
+
+    def control_regions_are_compatible(
+        control: ast.AST,
+        event_region: tuple[str, int | None] | None,
+        use_region: tuple[str, int | None] | None,
+    ) -> bool:
+        if event_region is None or use_region is None:
+            return True
+        event_part, event_index = event_region
+        use_part, use_index = use_region
+        if isinstance(control, ast.If):
+            return {event_part, use_part} != {'body', 'orelse'}
+        if isinstance(control, ast.Match):
+            return not (
+                event_part == use_part == 'case'
+                and event_index != use_index
+            )
+        if isinstance(control, ast.Try) and not isinstance(
+            control,
+            getattr(ast, 'TryStar', ()),
+        ):
+            if event_part == use_part == 'handler':
+                return event_index == use_index
+            return {event_part, use_part} != {'handler', 'orelse'}
+        if isinstance(control, getattr(ast, 'TryStar', ())):
+            return {event_part, use_part} != {'handler', 'orelse'}
+        return True
+
+    def binding_may_reach_use(
+        binding_node: ast.AST,
+        use_node: ast.AST,
+        scope: ast.AST,
+    ) -> bool:
+        use_controls = {
+            id(control): control
+            for control in control_ancestors(use_node, scope)
+        }
+        for control in control_ancestors(binding_node, scope):
+            shared_control = use_controls.get(id(control))
+            if shared_control is None:
+                continue
+            if not control_regions_are_compatible(
+                control,
+                control_region(binding_node, control),
+                control_region(use_node, shared_control),
+            ):
+                return False
+        return True
+
+    def binding_is_path_definite(
+        binding_node: ast.AST,
+        use_node: ast.AST,
+        scope: ast.AST,
+    ) -> bool:
+        use_controls = {
+            id(control): control
+            for control in control_ancestors(use_node, scope)
+        }
+        for control in control_ancestors(binding_node, scope):
+            event_part, event_index = control_region(binding_node, control) or (
+                '',
+                None,
+            )
+            use_region = (
+                control_region(use_node, use_controls[id(control)])
+                if id(control) in use_controls
+                else None
+            )
+            use_part, use_index = use_region or ('', None)
+            if isinstance(control, ast.If):
+                if event_part == 'test' or (
+                    event_part == use_part
+                    and event_part in {'body', 'orelse'}
+                ):
+                    continue
+                return False
+            if isinstance(control, (ast.For, ast.AsyncFor)):
+                if event_part == 'iter' or (
+                    event_part in {'target', 'body'}
+                    and use_part == 'body'
+                ) or (event_part == use_part == 'orelse'):
+                    continue
+                return False
+            if isinstance(control, ast.While):
+                if event_part == 'test' or (
+                    event_part == use_part
+                    and event_part in {'body', 'orelse'}
+                ):
+                    continue
+                return False
+            if isinstance(control, (ast.With, ast.AsyncWith)):
+                if event_part == 'items' or (
+                    event_part == use_part == 'body'
+                ):
+                    continue
+                return False
+            if isinstance(control, (ast.Try, getattr(ast, 'TryStar', ast.Try))):
+                if event_part == 'finalbody' and use_part in {
+                    '',
+                    'finalbody',
+                }:
+                    continue
+                if event_part == 'body' and use_part in {'body', 'orelse'}:
+                    continue
+                if (
+                    event_part == use_part == 'handler'
+                    and event_index == use_index
+                ) or event_part == use_part == 'orelse':
+                    continue
+                return False
+            if isinstance(control, ast.Match):
+                if event_part == 'subject' or (
+                    event_part == use_part == 'case'
+                    and event_index == use_index
+                ):
+                    continue
+                return False
+        return True
+
     def is_conditional_binding(
         event_scope: ast.AST,
         target_scope: ast.AST,
@@ -716,7 +898,7 @@ def _source_import_analysis(
         scope: ast.AST,
         name: str,
         use_node: ast.AST,
-    ) -> tuple[bool, set[str]]:
+    ) -> tuple[bool, set[str], bool]:
         preceding_events = [
             (event_scope, binding_node)
             for event_scope, event_name, binding_node in binding_events
@@ -724,20 +906,125 @@ def _source_import_analysis(
                 event_scope is scope
                 and event_name == name
                 and source_end(binding_node) <= source_start(use_node)
+                and binding_may_reach_use(binding_node, use_node, scope)
             )
         ]
         if not preceding_events:
-            return False, set()
-        latest_position = max(
-            source_end(binding_node)
-            for _, binding_node in preceding_events
-        )
-        latest_events = [
+            return False, set(), True
+
+        definite_events = [
             event
             for event in preceding_events
-            if source_end(event[1]) == latest_position
+            if binding_is_path_definite(event[1], use_node, scope)
         ]
-        return resolved_event_kinds(name, latest_events)
+        boundaries: list[tuple[tuple[int, int], str, ast.AST]] = [
+            (source_end(binding_node), 'event', binding_node)
+            for _, binding_node in definite_events
+        ]
+
+        def direct_region_latest_event(
+            control: ast.AST,
+            region: tuple[str, int | None],
+        ) -> tuple[ast.AST, ast.AST] | None:
+            candidates = []
+            for event in preceding_events:
+                binding_node = event[1]
+                if control_region(binding_node, control) != region:
+                    continue
+                nested_controls = []
+                for ancestor in control_ancestors(binding_node, scope):
+                    if ancestor is control:
+                        break
+                    nested_controls.append(ancestor)
+                if not nested_controls:
+                    candidates.append(event)
+            if not candidates:
+                return None
+            return max(candidates, key=lambda event: source_end(event[1]))
+
+        seen_controls: dict[int, ast.AST] = {}
+        for _, binding_node in preceding_events:
+            for control in control_ancestors(binding_node, scope):
+                seen_controls[id(control)] = control
+        for control in seen_controls.values():
+            if (
+                source_end(control) > source_start(use_node)
+                or is_descendant(use_node, control)
+                or not binding_is_path_definite(control, use_node, scope)
+            ):
+                continue
+            regions: list[tuple[str, int | None]] = []
+            if isinstance(control, ast.If) and control.orelse:
+                regions = [('body', None), ('orelse', None)]
+            elif isinstance(control, ast.Match) and control.cases:
+                final_case = control.cases[-1]
+                if (
+                    final_case.guard is None
+                    and isinstance(final_case.pattern, ast.MatchAs)
+                    and final_case.pattern.pattern is None
+                ):
+                    regions = [
+                        ('case', index)
+                        for index in range(len(control.cases))
+                    ]
+            if not regions:
+                continue
+            latest_by_region = [
+                direct_region_latest_event(control, region)
+                for region in regions
+            ]
+            if any(event is None for event in latest_by_region):
+                continue
+            if any(
+                (id(event[0]), name, id(event[1]))
+                in deleted_binding_events
+                for event in latest_by_region
+                if event is not None
+            ):
+                continue
+            boundaries.append((source_end(control), 'control', control))
+
+        retained_events = preceding_events
+        boundary_kind = ''
+        boundary_node: ast.AST | None = None
+        if boundaries:
+            _, boundary_kind, boundary_node = max(
+                boundaries,
+                key=lambda boundary: boundary[0],
+            )
+            if boundary_kind == 'event':
+                boundary_position = source_end(boundary_node)
+                retained_events = [
+                    event
+                    for event in preceding_events
+                    if source_end(event[1]) >= boundary_position
+                ]
+            else:
+                control_end = source_end(boundary_node)
+                retained_events = [
+                    event
+                    for event in preceding_events
+                    if (
+                        is_descendant(event[1], boundary_node)
+                        or source_end(event[1]) >= control_end
+                    )
+                ]
+
+        fallback_possible = not boundaries
+        if boundary_kind == 'event' and boundary_node is not None:
+            fallback_possible = (
+                id(scope),
+                name,
+                id(boundary_node),
+            ) in deleted_binding_events
+        if any(
+            (id(event_scope), name, id(binding_node))
+            in deleted_binding_events
+            for event_scope, binding_node in retained_events
+        ):
+            fallback_possible = True
+        has_event, kinds = resolved_event_kinds(name, retained_events)
+        return has_event, kinds, fallback_possible
 
     def event_kinds_anywhere(
         scope: ast.AST,
@@ -841,6 +1128,59 @@ def _source_import_analysis(
         runtime_lookup: bool = False,
         possible_before_lookup: bool = False,
     ) -> set[str]:
+        def fallback_name_kinds() -> set[str]:
+            class_definition_lookup = isinstance(scope, ast.ClassDef)
+            if name in global_names.get(id(scope), set()):
+                return resolve_name_at(
+                    tree,
+                    name,
+                    scope if class_definition_lookup else use_node,
+                    runtime_lookup=not class_definition_lookup,
+                    possible_before_lookup=class_definition_lookup,
+                )
+            if name in nonlocal_names.get(id(scope), set()):
+                parent_scope = enclosing_scope(scope)
+                return (
+                    resolve_name_at(
+                        parent_scope,
+                        name,
+                        scope if class_definition_lookup else use_node,
+                        runtime_lookup=not class_definition_lookup,
+                        possible_before_lookup=class_definition_lookup,
+                    )
+                    if parent_scope is not None
+                    else set()
+                )
+            if (
+                isinstance(
+                    scope,
+                    (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda),
+                )
+                and name in local_names.get(id(scope), set())
+            ):
+                return set()
+            parent_scope = enclosing_scope(scope)
+            if parent_scope is not None:
+                parent_runtime_lookup = (
+                    runtime_lookup
+                    or isinstance(
+                        scope,
+                        (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda),
+                    )
+                )
+                return resolve_name_at(
+                    parent_scope,
+                    name,
+                    scope if class_definition_lookup else use_node,
+                    runtime_lookup=parent_runtime_lookup,
+                    possible_before_lookup=(
+                        not parent_runtime_lookup
+                        and (possible_before_lookup or class_definition_lookup)
+                    ),
+                )
+            return {'builtins_callable'} if name == '__import__' else set()
+
+        direct_fallback_possible = False
         if runtime_lookup:
             has_event, event_kinds = event_kinds_anywhere(scope, name)
         elif possible_before_lookup:
@@ -850,7 +1190,11 @@ def _source_import_analysis(
                 use_node,
             )
         else:
-            has_event, event_kinds = event_kinds_before(
+            (
+                has_event,
+                event_kinds,
+                direct_fallback_possible,
+            ) = event_kinds_before(
                 scope,
                 name,
                 use_node,
@@ -869,61 +1213,11 @@ def _source_import_analysis(
                 )
             ):
                 return {'builtins_callable'}
-            return event_kinds
-        if name in global_names.get(id(scope), set()):
-            class_definition_lookup = isinstance(scope, ast.ClassDef)
-            return resolve_name_at(
-                tree,
-                name,
-                scope if class_definition_lookup else use_node,
-                runtime_lookup=not class_definition_lookup,
-                possible_before_lookup=class_definition_lookup,
-            )
-        if name in nonlocal_names.get(id(scope), set()):
-            parent_scope = enclosing_scope(scope)
-            class_definition_lookup = isinstance(scope, ast.ClassDef)
-            return (
-                resolve_name_at(
-                    parent_scope,
-                    name,
-                    scope if class_definition_lookup else use_node,
-                    runtime_lookup=not class_definition_lookup,
-                    possible_before_lookup=class_definition_lookup,
-                )
-                if parent_scope is not None
-                else set()
-            )
-        if (
-            isinstance(
-                scope,
-                (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda),
-            )
-            and name in local_names.get(id(scope), set())
-        ):
-            return set()
-        parent_scope = enclosing_scope(scope)
-        if parent_scope is not None:
-            parent_runtime_lookup = (
-                runtime_lookup
-                or isinstance(
-                    scope,
-                    (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda),
-                )
-            )
-            return resolve_name_at(
-                parent_scope,
-                name,
-                scope if isinstance(scope, ast.ClassDef) else use_node,
-                runtime_lookup=parent_runtime_lookup,
-                possible_before_lookup=(
-                    not parent_runtime_lookup
-                    and (
-                        possible_before_lookup
-                        or isinstance(scope, ast.ClassDef)
-                    )
-                ),
-            )
-        return {'builtins_callable'} if name == '__import__' else set()
+            resolved_kinds = set(event_kinds)
+            if direct_fallback_possible:
+                resolved_kinds.update(fallback_name_kinds())
+            return resolved_kinds
+        return fallback_name_kinds()
 
     def resolve_dynamic_callable(node: ast.expr) -> set[str]:
         if isinstance(node, ast.Name):

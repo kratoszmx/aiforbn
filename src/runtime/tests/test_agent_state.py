@@ -1258,6 +1258,244 @@ def test_validate_agent_layout_ignores_non_dependency_runtime_owner_controls(
 
 
 @pytest.mark.parametrize(
+    ('source_prefix', 'expected_error_code'),
+    [
+        (
+            'if FLAG:\n'
+            '    from importlib import import_module as load\n'
+            'else:\n'
+            '    load = lambda name: name\n'
+            'load("requests")\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def use_loader(flag, module_name):\n'
+            '    if flag:\n'
+            '        from importlib import import_module as load\n'
+            '    else:\n'
+            '        load = lambda name: name\n'
+            '    return load(module_name)\n',
+            'unsupported_dynamic_import',
+        ),
+        (
+            'class Loader:\n'
+            '    if FLAG:\n'
+            '        import importlib as loader\n'
+            '    else:\n'
+            '        loader = object()\n'
+            '    value = loader.import_module("requests")\n',
+            'undeclared_external_import',
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'if FLAG:\n'
+            '    if OTHER_FLAG:\n'
+            '        load = lambda name: name\n'
+            'load("requests")\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def use_loader():\n'
+            '    try:\n'
+            '        from importlib import import_module as load\n'
+            '    except ImportError:\n'
+            '        load = lambda name: name\n'
+            '    return load("requests")\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def use_loader():\n'
+            '    try:\n'
+            '        from importlib import import_module as load\n'
+            '    except ImportError:\n'
+            '        load = lambda name: name\n'
+            '    finally:\n'
+            '        result = load("requests")\n'
+            '    return result\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def use_loader():\n'
+            '    try:\n'
+            '        risky_operation()\n'
+            '    except* ValueError:\n'
+            '        from importlib import import_module as load\n'
+            '    except* TypeError:\n'
+            '        load = lambda name: name\n'
+            '    return load("requests")\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def use_loader(value):\n'
+            '    match value:\n'
+            '        case 0:\n'
+            '            from importlib import import_module as load\n'
+            '        case _:\n'
+            '            load = lambda name: name\n'
+            '    return load("requests")\n',
+            'undeclared_external_import',
+        ),
+        (
+            'if FLAG:\n'
+            '    __import__ = lambda name: name\n'
+            '__import__("requests")\n',
+            'undeclared_external_import',
+        ),
+        (
+            'from builtins import __import__ as load\n'
+            'if FLAG:\n'
+            '    del load\n'
+            'load("requests")\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def use_loader(flag):\n'
+            '    if flag:\n'
+            '        from importlib import import_module as load\n'
+            '    else:\n'
+            '        load = lambda name: name\n'
+            '    alias = load\n'
+            '    return alias("requests")\n',
+            'undeclared_external_import',
+        ),
+    ],
+    ids=(
+        'module-if-else-join',
+        'function-if-else-computed-join',
+        'class-if-else-attribute-join',
+        'nested-optional-shadow-join',
+        'try-except-join',
+        'try-finally-call',
+        'try-star-handler-join',
+        'match-case-join',
+        'module-conditional-builtin-shadow',
+        'conditional-delete-owner-path',
+        'post-join-alias',
+    ),
+)
+def test_validate_agent_layout_rejects_direct_conditional_owner_paths(
+    monkeypatch,
+    source_prefix,
+    expected_error_code,
+):
+    validation = _validate_agent_layout_with_config_prefix(
+        monkeypatch,
+        source_prefix,
+    )
+
+    assert validation['status'] == 'error'
+    assert any(
+        error['code'] == expected_error_code
+        and error['path'] == 'src/config.py'
+        for error in validation['errors']
+    )
+
+
+@pytest.mark.parametrize(
+    'source_prefix',
+    [
+        (
+            'load = lambda name: name\n'
+            'load("requests")\n'
+            'if FLAG:\n'
+            '    from importlib import import_module as load\n'
+        ),
+        (
+            'def use_loader(flag):\n'
+            '    if flag:\n'
+            '        from importlib import import_module as load\n'
+            '    else:\n'
+            '        return load("requests")\n'
+        ),
+        (
+            'def use_loader(flag, other):\n'
+            '    if flag:\n'
+            '        from importlib import import_module as load\n'
+            '    elif other:\n'
+            '        return load("requests")\n'
+            '    return None\n'
+        ),
+        (
+            'def use_loader():\n'
+            '    try:\n'
+            '        risky_operation()\n'
+            '    except ValueError:\n'
+            '        from importlib import import_module as load\n'
+            '    except TypeError:\n'
+            '        return load("requests")\n'
+        ),
+        (
+            'def use_loader():\n'
+            '    try:\n'
+            '        risky_operation()\n'
+            '    except ValueError:\n'
+            '        from importlib import import_module as load\n'
+            '    else:\n'
+            '        return load("requests")\n'
+        ),
+        (
+            'def use_loader(value):\n'
+            '    match value:\n'
+            '        case 0:\n'
+            '            from importlib import import_module as load\n'
+            '        case 1:\n'
+            '            return load("requests")\n'
+            '    return None\n'
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'class Loader:\n'
+            '    if FLAG:\n'
+            '        load = lambda name: name\n'
+            '    else:\n'
+            '        def load(name):\n'
+            '            return name\n'
+            '    value = load("requests")\n'
+        ),
+        (
+            'def use_loader(flag):\n'
+            '    if flag:\n'
+            '        __import__ = lambda name: name\n'
+            '    return __import__("requests")\n'
+        ),
+        (
+            'def use_loader():\n'
+            '    from importlib import import_module as load\n'
+            '    try:\n'
+            '        risky_operation()\n'
+            '    except Exception:\n'
+            '        pass\n'
+            '    finally:\n'
+            '        load = lambda name: name\n'
+            '    return load("requests")\n'
+        ),
+    ],
+    ids=(
+        'call-before-conditional',
+        'exclusive-if-else-arm',
+        'exclusive-if-elif-arm',
+        'exclusive-except-handler',
+        'exclusive-try-else',
+        'exclusive-match-case',
+        'exhaustive-class-nonowner-branches',
+        'function-local-conditional-builtin-shadow',
+        'finally-nonowner-dominates',
+    ),
+)
+def test_validate_agent_layout_ignores_infeasible_direct_conditional_owners(
+    monkeypatch,
+    source_prefix,
+):
+    validation = _validate_agent_layout_with_config_prefix(
+        monkeypatch,
+        source_prefix,
+    )
+
+    assert validation['status'] == 'ok'
+    assert validation['errors'] == []
+
+
+@pytest.mark.parametrize(
     'source_prefix',
     [
         (
