@@ -1698,6 +1698,578 @@ def test_validate_agent_layout_ignores_infeasible_direct_conditional_owners(
 
 
 @pytest.mark.parametrize(
+    'source_prefix',
+    [
+        (
+            'load = lambda name: name\n'
+            'try:\n'
+            '    risky_operation()\n'
+            'except ValueError as load:\n'
+            '    from importlib import import_module as load\n'
+            'load("requests")\n'
+        ),
+        (
+            'load = lambda name: name\n'
+            'class Loader:\n'
+            '    load = lambda name: name\n'
+            '    try:\n'
+            '        risky_operation()\n'
+            '    except ValueError as load:\n'
+            '        from importlib import import_module as load\n'
+            '    value = load("requests")\n'
+        ),
+        (
+            'def use_loader():\n'
+            '    load = lambda name: name\n'
+            '    try:\n'
+            '        risky_operation()\n'
+            '    except ValueError as load:\n'
+            '        from importlib import import_module as load\n'
+            '    return load("requests")\n'
+        ),
+        (
+            'load = lambda name: name\n'
+            'def use_loader():\n'
+            '    global load\n'
+            '    try:\n'
+            '        risky_operation()\n'
+            '    except ValueError as load:\n'
+            '        from importlib import import_module as load\n'
+            '    return load("requests")\n'
+        ),
+        (
+            'def outer():\n'
+            '    load = lambda name: name\n'
+            '    def use_loader():\n'
+            '        nonlocal load\n'
+            '        try:\n'
+            '            risky_operation()\n'
+            '        except ValueError as load:\n'
+            '            from importlib import import_module as load\n'
+            '        return load("requests")\n'
+            '    return use_loader\n'
+        ),
+        (
+            'load = lambda name: name\n'
+            'try:\n'
+            '    try:\n'
+            '        risky_operation()\n'
+            '    except ValueError as load:\n'
+            '        from importlib import import_module as load\n'
+            'finally:\n'
+            '    load("requests")\n'
+        ),
+        (
+            'load = lambda name: name\n'
+            'try:\n'
+            '    risky_operation()\n'
+            'except ValueError as load:\n'
+            '    from importlib import import_module as load\n'
+            '    del load\n'
+            'except TypeError as load:\n'
+            '    del load\n'
+            '    from importlib import import_module as load\n'
+            'load("requests")\n'
+        ),
+        (
+            'load = lambda name: name\n'
+            'try:\n'
+            '    risky_operation()\n'
+            'except ValueError as load:\n'
+            '    try:\n'
+            '        nested_operation()\n'
+            '    except TypeError as load:\n'
+            '        from importlib import import_module as load\n'
+            'load("requests")\n'
+        ),
+        (
+            'def use_loader():\n'
+            '    load = lambda name: name\n'
+            '    try:\n'
+            '        try:\n'
+            '            risky_operation()\n'
+            '        except ValueError as load:\n'
+            '            from importlib import import_module as load\n'
+            '            return None\n'
+            '    finally:\n'
+            '        load("requests")\n'
+        ),
+        (
+            'def use_loader():\n'
+            '    load = lambda name: name\n'
+            '    try:\n'
+            '        try:\n'
+            '            risky_operation()\n'
+            '        except ValueError as load:\n'
+            '            from importlib import import_module as load\n'
+            '            raise\n'
+            '    finally:\n'
+            '        load("requests")\n'
+        ),
+        (
+            'def use_loader(values):\n'
+            '    load = lambda name: name\n'
+            '    for value in values:\n'
+            '        try:\n'
+            '            risky_operation()\n'
+            '        except ValueError as load:\n'
+            '            from importlib import import_module as load\n'
+            '            break\n'
+            '    return load("requests")\n'
+        ),
+        (
+            'def use_loader(values):\n'
+            '    load = lambda name: name\n'
+            '    for value in values:\n'
+            '        try:\n'
+            '            risky_operation()\n'
+            '        except ValueError as load:\n'
+            '            from importlib import import_module as load\n'
+            '            continue\n'
+            '        load("requests")\n'
+            '    return load("requests")\n'
+        ),
+        (
+            '__import__ = lambda name: name\n'
+            'def use_loader():\n'
+            '    global __import__\n'
+            '    try:\n'
+            '        risky_operation()\n'
+            '    except ValueError as __import__:\n'
+            '        __import__ = lambda name: name\n'
+            '        return None\n'
+            '    return __import__("requests")\n'
+        ),
+        (
+            '__import__ = lambda name: name\n'
+            'try:\n'
+            '    risky_operation()\n'
+            'except ValueError as __import__:\n'
+            '    __import__ = lambda name: name\n'
+            '    raise\n'
+            '__import__("requests")\n'
+        ),
+        (
+            '__import__ = lambda name: name\n'
+            'for value in values:\n'
+            '    try:\n'
+            '        risky_operation()\n'
+            '    except ValueError as __import__:\n'
+            '        __import__ = lambda name: name\n'
+            '        break\n'
+            '    __import__("requests")\n'
+        ),
+        (
+            '__import__ = lambda name: name\n'
+            'for value in values:\n'
+            '    try:\n'
+            '        risky_operation()\n'
+            '    except ValueError as __import__:\n'
+            '        __import__ = lambda name: name\n'
+            '        break\n'
+            'else:\n'
+            '    __import__("requests")\n'
+        ),
+        (
+            'load = lambda name: name\n'
+            'try:\n'
+            '    risky_group_operation()\n'
+            'except* ValueError as load:\n'
+            '    from importlib import import_module as load\n'
+            'load("requests")\n'
+        ),
+    ],
+    ids=(
+        'module-normal-cleanup',
+        'class-normal-cleanup',
+        'function-local-cleanup',
+        'explicit-global-cleanup',
+        'explicit-nonlocal-cleanup',
+        'cleanup-before-finally',
+        'multiple-handlers-explicit-del-rebind',
+        'nested-same-name-handler',
+        'return-cleanup-before-finally',
+        'reraise-cleanup-before-finally',
+        'break-cleanup-post-loop',
+        'continue-cleanup-carried-state',
+        'return-cleanup-skips-post-handler-call',
+        'reraise-cleanup-skips-post-handler-call',
+        'break-cleanup-skips-later-loop-body',
+        'break-cleanup-skips-loop-else',
+        'try-star-cleanup',
+    ),
+)
+def test_validate_agent_layout_drops_implicitly_cleaned_handler_owners(
+    monkeypatch,
+    source_prefix,
+):
+    validation = _validate_agent_layout_with_config_prefix(
+        monkeypatch,
+        source_prefix,
+    )
+
+    assert validation['status'] == 'ok'
+    assert validation['errors'] == []
+
+
+@pytest.mark.parametrize(
+    'source_prefix',
+    [
+        (
+            '__import__ = lambda name: name\n'
+            'try:\n'
+            '    risky_operation()\n'
+            'except ValueError as __import__:\n'
+            '    __import__ = lambda name: name\n'
+            '__import__("requests")\n'
+        ),
+        (
+            'class Loader:\n'
+            '    __import__ = lambda name: name\n'
+            '    try:\n'
+            '        risky_operation()\n'
+            '    except ValueError as __import__:\n'
+            '        __import__ = lambda name: name\n'
+            '    value = __import__("requests")\n'
+        ),
+        (
+            '__import__ = lambda name: name\n'
+            'def use_loader():\n'
+            '    global __import__\n'
+            '    try:\n'
+            '        risky_operation()\n'
+            '    except ValueError as __import__:\n'
+            '        __import__ = lambda name: name\n'
+            '    return __import__("requests")\n'
+        ),
+        (
+            '__import__ = lambda name: name\n'
+            'try:\n'
+            '    try:\n'
+            '        risky_operation()\n'
+            '    except ValueError as __import__:\n'
+            '        __import__ = lambda name: name\n'
+            'finally:\n'
+            '    __import__("requests")\n'
+        ),
+        (
+            '__import__ = lambda name: name\n'
+            'try:\n'
+            '    risky_group_operation()\n'
+            'except* ValueError as __import__:\n'
+            '    __import__ = lambda name: name\n'
+            '__import__("requests")\n'
+        ),
+        (
+            '__import__ = lambda name: name\n'
+            'for value in values:\n'
+            '    try:\n'
+            '        risky_operation()\n'
+            '    except ValueError as __import__:\n'
+            '        __import__ = lambda name: name\n'
+            '        break\n'
+            '__import__("requests")\n'
+        ),
+        (
+            '__import__ = lambda name: name\n'
+            'def use_loader():\n'
+            '    global __import__\n'
+            '    try:\n'
+            '        try:\n'
+            '            risky_operation()\n'
+            '        except ValueError as __import__:\n'
+            '            __import__ = lambda name: name\n'
+            '            return None\n'
+            '    finally:\n'
+            '        __import__("requests")\n'
+        ),
+        (
+            '__import__ = lambda name: name\n'
+            'try:\n'
+            '    try:\n'
+            '        risky_operation()\n'
+            '    except ValueError as __import__:\n'
+            '        __import__ = lambda name: name\n'
+            '        raise\n'
+            'finally:\n'
+            '    __import__("requests")\n'
+        ),
+        (
+            '__import__ = lambda name: name\n'
+            'try:\n'
+            '    risky_group_operation()\n'
+            'except* ValueError as __import__:\n'
+            '    __import__ = lambda name: name\n'
+            'except* __import__("requests").exceptions.RequestException:\n'
+            '    pass\n'
+        ),
+        (
+            '__import__ = lambda name: name\n'
+            'try:\n'
+            '    try:\n'
+            '        risky_operation()\n'
+            '    except ValueError as __import__:\n'
+            '        __import__ = lambda name: name\n'
+            '        raise\n'
+            'except ValueError:\n'
+            '    pass\n'
+            '__import__("requests")\n'
+        ),
+    ],
+    ids=(
+        'module-builtin-fallback',
+        'class-builtin-fallback',
+        'explicit-global-builtin-fallback',
+        'builtin-fallback-before-finally',
+        'try-star-builtin-fallback',
+        'break-builtin-fallback-post-loop',
+        'return-cleanup-before-finally-builtin-fallback',
+        'reraise-cleanup-before-finally-builtin-fallback',
+        'try-star-cleanup-before-later-handler-type',
+        'reraise-cleanup-through-outer-handler',
+    ),
+)
+def test_validate_agent_layout_detects_builtin_after_handler_cleanup(
+    monkeypatch,
+    source_prefix,
+):
+    validation = _validate_agent_layout_with_config_prefix(
+        monkeypatch,
+        source_prefix,
+    )
+
+    assert validation['status'] == 'error'
+    assert any(
+        error['code'] == 'undeclared_external_import'
+        and error['path'] == 'src/config.py'
+        for error in validation['errors']
+    )
+
+
+@pytest.mark.parametrize(
+    'source_prefix',
+    [
+        (
+            'def use_loader():\n'
+            '    __import__ = lambda name: name\n'
+            '    try:\n'
+            '        risky_operation()\n'
+            '    except ValueError as __import__:\n'
+            '        __import__ = lambda name: name\n'
+            '    return __import__("requests")\n'
+        ),
+        (
+            'def outer():\n'
+            '    __import__ = lambda name: name\n'
+            '    def use_loader():\n'
+            '        nonlocal __import__\n'
+            '        try:\n'
+            '            risky_operation()\n'
+            '        except ValueError as __import__:\n'
+            '            __import__ = lambda name: name\n'
+            '        return __import__("requests")\n'
+            '    return use_loader\n'
+        ),
+        (
+            'load = lambda name: name\n'
+            'try:\n'
+            '    risky_operation()\n'
+            'except ValueError as load:\n'
+            '    load("requests")\n'
+        ),
+        (
+            'load = lambda name: name\n'
+            'try:\n'
+            '    risky_group_operation()\n'
+            'except* ValueError as load:\n'
+            '    from importlib import import_module as load\n'
+            'except* load("requests").exceptions.RequestException:\n'
+            '    pass\n'
+        ),
+        (
+            '__import__ = lambda name: name\n'
+            'def use_loader():\n'
+            '    global __import__\n'
+            '    try:\n'
+            '        risky_operation()\n'
+            '    except ValueError as __import__:\n'
+            '        __import__ = lambda name: name\n'
+            '    except TypeError:\n'
+            '        return __import__("requests")\n'
+            '    return None\n'
+        ),
+        (
+            '__import__ = lambda name: name\n'
+            'class Loader:\n'
+            '    __import__ = lambda name: name\n'
+            '    try:\n'
+            '        risky_operation()\n'
+            '    except ValueError as __import__:\n'
+            '        __import__ = lambda name: name\n'
+            '    value = __import__("requests")\n'
+        ),
+    ],
+    ids=(
+        'function-local-no-builtin-fallback',
+        'nonlocal-no-builtin-fallback',
+        'handler-body-alias-is-nonowner',
+        'try-star-owner-cleanup-before-later-handler-type',
+        'ordinary-sibling-handler-bypasses-cleanup',
+        'class-cleanup-falls-through-module-nonowner',
+    ),
+)
+def test_validate_agent_layout_preserves_handler_cleanup_scope_controls(
+    monkeypatch,
+    source_prefix,
+):
+    validation = _validate_agent_layout_with_config_prefix(
+        monkeypatch,
+        source_prefix,
+    )
+
+    assert validation['status'] == 'ok'
+    assert validation['errors'] == []
+
+
+@pytest.mark.parametrize(
+    ('owner_binding', 'post_call'),
+    [
+        ('import importlib as load', 'load.import_module("requests")'),
+        ('from builtins import __import__ as load', 'load("requests")'),
+        ('import builtins as load', 'load.__import__("requests")'),
+        (
+            'from importlib import import_module as load',
+            'load(module_name)',
+        ),
+    ],
+    ids=(
+        'importlib-module',
+        'aliased-builtin-callable',
+        'builtins-module',
+        'computed-import-module-alias',
+    ),
+)
+def test_validate_agent_layout_cleans_every_handler_owner_kind(
+    monkeypatch,
+    owner_binding,
+    post_call,
+):
+    source_prefix = (
+        'load = lambda name: name\n'
+        'try:\n'
+        '    risky_operation()\n'
+        'except ValueError as load:\n'
+        f'    {owner_binding}\n'
+        f'{post_call}\n'
+    )
+
+    validation = _validate_agent_layout_with_config_prefix(
+        monkeypatch,
+        source_prefix,
+    )
+
+    assert validation['status'] == 'ok'
+    assert validation['errors'] == []
+
+
+def test_validate_agent_layout_fails_closed_for_computed_builtin_cleanup(
+    monkeypatch,
+):
+    source_prefix = (
+        '__import__ = lambda name: name\n'
+        'try:\n'
+        '    risky_operation()\n'
+        'except ValueError as __import__:\n'
+        '    __import__ = lambda name: name\n'
+        '__import__(module_name)\n'
+    )
+
+    validation = _validate_agent_layout_with_config_prefix(
+        monkeypatch,
+        source_prefix,
+    )
+
+    assert validation['status'] == 'error'
+    assert any(
+        error['code'] == 'unsupported_dynamic_import'
+        and error['path'] == 'src/config.py'
+        for error in validation['errors']
+    )
+
+
+@pytest.mark.parametrize(
+    'source_prefix',
+    [
+        (
+            'from importlib import import_module as load\n'
+            'try:\n'
+            '    risky_operation()\n'
+            'except load("requests").exceptions.RequestException as load:\n'
+            '    pass\n'
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'try:\n'
+            '    risky_operation()\n'
+            'except ValueError as load:\n'
+            '    load = lambda name: name\n'
+            'load("requests")\n'
+        ),
+        (
+            'load = lambda name: name\n'
+            'try:\n'
+            '    risky_operation()\n'
+            'except ValueError as error:\n'
+            '    from importlib import import_module as load\n'
+            'load("requests")\n'
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'class Loader:\n'
+            '    load = lambda name: name\n'
+            '    try:\n'
+            '        risky_operation()\n'
+            '    except ValueError as load:\n'
+            '        load = lambda name: name\n'
+            '    value = load("requests")\n'
+        ),
+        (
+            'load = lambda name: name\n'
+            'try:\n'
+            '    risky_operation()\n'
+            'except ValueError as load:\n'
+            '    from importlib import import_module as load\n'
+            '    def inner():\n'
+            '        return load("requests")\n'
+            '    inner()\n'
+        ),
+    ],
+    ids=(
+        'handler-type-before-target-binding',
+        'prior-owner-bypass',
+        'different-name-owner-survives',
+        'class-cleanup-falls-through-module-owner',
+        'closure-called-before-handler-cleanup',
+    ),
+)
+def test_validate_agent_layout_preserves_handler_cleanup_owner_controls(
+    monkeypatch,
+    source_prefix,
+):
+    validation = _validate_agent_layout_with_config_prefix(
+        monkeypatch,
+        source_prefix,
+    )
+
+    assert validation['status'] == 'error'
+    assert any(
+        error['code'] == 'undeclared_external_import'
+        and error['path'] == 'src/config.py'
+        for error in validation['errors']
+    )
+
+
+@pytest.mark.parametrize(
     ('source_prefix', 'expected_error_code'),
     [
         (

@@ -519,6 +519,7 @@ def _source_import_analysis(
     ] = []
     binding_events: list[tuple[ast.AST, str, ast.AST]] = []
     deleted_binding_events: set[tuple[int, str, int]] = set()
+    implicit_handler_cleanup_events: set[tuple[int, str, int]] = set()
     global_names: dict[int, set[str]] = {}
     nonlocal_names: dict[int, set[str]] = {}
 
@@ -639,6 +640,10 @@ def _source_import_analysis(
         elif isinstance(node, ast.ExceptHandler) and node.name:
             add_nonowner(scope, node.name)
             binding_events.append((scope, node.name, node.type or node))
+            binding_events.append((scope, node.name, node))
+            cleanup_event = (id(scope), node.name, id(node))
+            deleted_binding_events.add(cleanup_event)
+            implicit_handler_cleanup_events.add(cleanup_event)
         elif isinstance(node, (ast.MatchAs, ast.MatchStar)) and node.name:
             add_nonowner(scope, node.name)
             binding_events.append((scope, node.name, node))
@@ -1545,6 +1550,108 @@ def _source_import_analysis(
             current = parent
         return False
 
+    def handler_cleanup_crosses_finally(
+        handler: ast.ExceptHandler,
+        use_node: ast.AST,
+        scope: ast.AST,
+    ) -> bool:
+        current = parent_by_node.get(id(handler))
+        while current is not None and current is not scope:
+            if (
+                isinstance(
+                    current,
+                    (ast.Try, getattr(ast, 'TryStar', ast.Try)),
+                )
+                and control_region(handler, current) != ('finalbody', None)
+                and control_region(use_node, current) == ('finalbody', None)
+            ):
+                return True
+            current = parent_by_node.get(id(current))
+        return False
+
+    def handler_cleanup_reaches_use(
+        handler: ast.ExceptHandler,
+        use_node: ast.AST,
+        scope: ast.AST,
+    ) -> bool:
+        if not binding_may_reach_use(handler, use_node, scope):
+            return False
+        if not handler.body:
+            return True
+        terminal = handler.body[-1]
+        if not isinstance(terminal, (ast.Return, ast.Raise, ast.Break, ast.Continue)):
+            return True
+        if handler_cleanup_crosses_finally(handler, use_node, scope):
+            return True
+        if isinstance(terminal, ast.Continue):
+            return True
+        if isinstance(terminal, ast.Break):
+            loop = nearest_enclosing_loop(terminal)
+            return bool(loop is not None and not is_descendant(use_node, loop))
+        if isinstance(terminal, ast.Raise):
+            current = parent_by_node.get(id(handler))
+            while current is not None and current is not scope:
+                if isinstance(
+                    current,
+                    (ast.Try, getattr(ast, 'TryStar', ast.Try)),
+                ):
+                    use_region = control_region(use_node, current)
+                    event_region = control_region(handler, current)
+                    if (
+                        event_region == ('body', None)
+                        and current.handlers
+                        and (
+                            (use_region and use_region[0] == 'handler')
+                            or (
+                                use_region is None
+                                and source_end(current) <= source_start(use_node)
+                            )
+                        )
+                    ):
+                        return True
+                current = parent_by_node.get(id(current))
+        return False
+
+    def summarize_completed_handler_events(
+        name: str,
+        use_node: ast.AST,
+        events: list[tuple[ast.AST, ast.AST]],
+        *,
+        include_later_loop_events: bool = False,
+    ) -> list[tuple[ast.AST, ast.AST]]:
+        retained_events = events
+        cleanup_events = [
+            event
+            for event in events
+            if (
+                id(event[0]),
+                name,
+                id(event[1]),
+            ) in implicit_handler_cleanup_events
+            and not is_descendant(use_node, event[1])
+            and (
+                include_later_loop_events
+                or source_end(event[1]) <= source_start(use_node)
+            )
+        ]
+        for cleanup_scope, handler in cleanup_events:
+            cleanup_reaches_use = handler_cleanup_reaches_use(
+                handler,
+                use_node,
+                cleanup_scope,
+            )
+            retained_events = [
+                event
+                for event in retained_events
+                if (
+                    event == (cleanup_scope, handler)
+                    and cleanup_reaches_use
+                )
+                or event[0] is not cleanup_scope
+                or not is_descendant(event[1], handler)
+            ]
+        return retained_events
+
     def loop_carried_event_resolution(
         scope: ast.AST,
         name: str,
@@ -1556,6 +1663,12 @@ def _source_import_analysis(
             for event_scope, event_name, binding_node in binding_events
             if event_scope is scope and event_name == name
         ]
+        all_scope_events = summarize_completed_handler_events(
+            name,
+            use_node,
+            all_scope_events,
+            include_later_loop_events=True,
+        )
         for loop in control_ancestors(use_node, scope):
             if not isinstance(loop, loop_types):
                 continue
@@ -1655,6 +1768,11 @@ def _source_import_analysis(
                 and binding_may_reach_use(binding_node, use_node, scope)
             )
         ]
+        preceding_events = summarize_completed_handler_events(
+            name,
+            use_node,
+            preceding_events,
+        )
         preceding_events, completed_loop_boundary = summarize_completed_loop_events(
             scope,
             use_node,
@@ -1808,6 +1926,7 @@ def _source_import_analysis(
     def event_kinds_anywhere(
         scope: ast.AST,
         name: str,
+        use_node: ast.AST,
     ) -> tuple[bool, set[str]]:
         events = [
             (event_scope, binding_node)
@@ -1817,6 +1936,11 @@ def _source_import_analysis(
                 and event_name == name
             )
         ]
+        events = summarize_completed_handler_events(
+            name,
+            use_node,
+            events,
+        )
         return resolved_event_kinds(name, events)
 
     def event_kinds_possible_before(
@@ -1833,6 +1957,11 @@ def _source_import_analysis(
                 and source_end(binding_node) <= source_start(use_node)
             )
         ]
+        events = summarize_completed_handler_events(
+            name,
+            use_node,
+            events,
+        )
         return runtime_reaching_event_kinds(scope, name, events)
 
     def runtime_reaching_event_kinds(
@@ -1864,6 +1993,7 @@ def _source_import_analysis(
         name: str,
         *,
         before_node: ast.AST | None = None,
+        observation_node: ast.AST | None = None,
     ) -> bool:
         events = [
             (event_scope, binding_node)
@@ -1877,6 +2007,12 @@ def _source_import_analysis(
                 )
             )
         ]
+        if observation_node is not None:
+            events = summarize_completed_handler_events(
+                name,
+                observation_node,
+                events,
+            )
         unconditional_events = [
             event
             for event in events
@@ -1973,7 +2109,11 @@ def _source_import_analysis(
         direct_fallback_possible = False
         direct_delete_is_definite = False
         if runtime_lookup:
-            has_event, event_kinds = event_kinds_anywhere(scope, name)
+            has_event, event_kinds = event_kinds_anywhere(
+                scope,
+                name,
+                use_node,
+            )
         elif possible_before_lookup:
             has_event, event_kinds = event_kinds_possible_before(
                 scope,
@@ -2002,6 +2142,7 @@ def _source_import_analysis(
                     before_node=(
                         use_node if possible_before_lookup else None
                     ),
+                    observation_node=use_node,
                 )
             ):
                 return {'builtins_callable'}
