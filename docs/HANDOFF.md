@@ -266,6 +266,7 @@
 - 本次 Reset Round 15（dynamic-import definition-time scope）修复通用 `importlib`/`__import__` scanner 把 function/class decorator、default、annotation、base/keyword 错当 body scope，以及合并整层 binding 导致 owner 调用被后续重绑定遮蔽的问题；resolver 现按真实 evaluation scope、调用位置与 runtime closure lookup 解析 owner，并精确区分 comprehension 首个/当前 iterable 与已绑定 target。字面未声明依赖与计算动态名分别被阻断，relative-local、lambda/body/local shadow 和无关同名方法保持不误报；未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - 本次 Reset Round 16（ambiguous runtime owner resolution）修复 late-bound function/lambda/class closure 在同一 enclosing scope 同时存在 dynamic-import owner 与非 owner binding 时会被折叠为无 owner 的假绿；resolver 现保留全部可能 owner kind，并把 `global`/`nonlocal` 写入归回声明目标 scope，同时把 match capture/star/rest 记录为本地 shadow。if/else、try/except/finally、`try/except*`、match、loop、with、跨定义位置、混合 callable/module owner、字面与计算动态名均有回归；纯非 owner、relative-local、sibling shadow 与唯一 `_bind_missing` 契约保持有效。未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - 本次 Reset Round 17（direct conditional call-position）修复 direct dynamic-import call 把互斥分支中词法位置最晚的 binding 当成运行时支配关系所造成的双向漂移：post-join 现在保留所有可达 owner，而 if/elif/else、normal except/else/handler 与 match sibling arm 内的不可达 owner 不再误报；same-path、finally 与穷尽 non-owner 分支仍可确定性覆盖先前 owner，`except*` 的可并行 handler 语义及 module/class builtin fallback 保持独立。未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
+- 本次 Reset Round 18（direct loop/with evaluation order）修复 direct dynamic-import call 对 loop backedge、zero-iteration/else/break/continue、short-circuit/conditional iterable/test 及多项 context-manager 顺序的双向漂移：后续迭代会保留可达 owner，已完成 loop 按 normal/break exit 保留最终可达 binding，`finally` 仍在 break/continue 前确定执行，iterable/context expression 不再被自己的后置 target 逆向遮蔽；`with` target 按左到右绑定，并对 prior-manager 或 destructuring assignment suppression 保持 fail closed。55 个 error/control 反事实覆盖 module/function/class/async、tuple/star target、字面/计算/relative-local 及 post-loop/post-with 状态；未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - contract verifier 现精确锁定 validation command scope/capability、profile use-case/required-capability reachability、三个 active project-skill 记录与七个 retired-guidance 路径；public-surface 测试同时核对模块摘要及根摘要的 callable 参数顺序和 keyword-only 边界
 - `--verify-agent-contract` 现会精确锁定六个 module 的 path/role/public-surface/agent-rules/local-utils/allowed-dependencies；公开 surface 测试逐个要求四个生产模块非空，并显式覆盖 import re-export
 
@@ -280,7 +281,7 @@
 
 3. 完整 src 测试：
 - `conda run -n quant python3 -m pytest -q src`
-- 结果：`853 passed, 1 warning`
+- 结果：`908 passed, 1 warning`
 - 剩余 warning 是 PyTorch nested-tensor prototype 提示，不是测试失败；原 sklearn feature-name warnings 已消除
 
 4. UI 文字化验证：

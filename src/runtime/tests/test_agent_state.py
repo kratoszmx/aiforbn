@@ -1496,6 +1496,520 @@ def test_validate_agent_layout_ignores_infeasible_direct_conditional_owners(
 
 
 @pytest.mark.parametrize(
+    ('source_prefix', 'expected_error_code'),
+    [
+        (
+            'load = lambda name, package=None: name\n'
+            'for item in values:\n'
+            '    load("requests")\n'
+            '    from importlib import import_module as load\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def use_loader(values, module_name):\n'
+            '    load = lambda name, package=None: name\n'
+            '    for item in values:\n'
+            '        load(module_name)\n'
+            '        from importlib import import_module as load\n',
+            'unsupported_dynamic_import',
+        ),
+        (
+            'async def use_loader(values):\n'
+            '    load = lambda name, package=None: name\n'
+            '    async for item in values:\n'
+            '        load("requests")\n'
+            '        from importlib import import_module as load\n',
+            'undeclared_external_import',
+        ),
+        (
+            'class Loader:\n'
+            '    load = lambda name, package=None: name\n'
+            '    for item in values:\n'
+            '        load("requests")\n'
+            '        from importlib import import_module as load\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def use_loader():\n'
+            '    load = lambda name, package=None: name\n'
+            '    while condition(load("requests")):\n'
+            '        from importlib import import_module as load\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def use_loader():\n'
+            '    loader = object()\n'
+            '    while condition():\n'
+            '        loader.import_module("requests")\n'
+            '        import importlib as loader\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def use_loader(values, select_owner):\n'
+            '    load = lambda name, package=None: name\n'
+            '    for item in values:\n'
+            '        if select_owner:\n'
+            '            load("requests")\n'
+            '        else:\n'
+            '            from importlib import import_module as load\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def use_loader(values, select_owner):\n'
+            '    load = lambda name, package=None: name\n'
+            '    for item in values:\n'
+            '        load("requests")\n'
+            '        if select_owner:\n'
+            '            from builtins import __import__ as load\n'
+            '            continue\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def use_loader(select_owner):\n'
+            '    load = lambda name, package=None: name\n'
+            '    while condition():\n'
+            '        load("requests")\n'
+            '        if select_owner:\n'
+            '            from importlib import import_module as load\n'
+            '            continue\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def use_loader(values):\n'
+            '    load = lambda name, package=None: name\n'
+            '    for item in values:\n'
+            '        from importlib import import_module as load\n'
+            '        break\n'
+            '    return load("requests")\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def use_loader():\n'
+            '    load = lambda name, package=None: name\n'
+            '    while condition():\n'
+            '        from importlib import import_module as load\n'
+            '        break\n'
+            '    return load("requests")\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def use_loader(values, stop):\n'
+            '    load = lambda name, package=None: name\n'
+            '    for item in values:\n'
+            '        from importlib import import_module as load\n'
+            '        if stop:\n'
+            '            break\n'
+            '        load = lambda name, package=None: name\n'
+            '    return load("requests")\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def use_loader(stop):\n'
+            '    load = lambda name, package=None: name\n'
+            '    while condition():\n'
+            '        from importlib import import_module as load\n'
+            '        if stop:\n'
+            '            break\n'
+            '        load = lambda name, package=None: name\n'
+            '    return load("requests")\n',
+            'undeclared_external_import',
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'for load in values:\n'
+            '    pass\n'
+            'load("requests")\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def use_loader():\n'
+            '    load = lambda name, package=None: name\n'
+            '    while condition():\n'
+            '        from importlib import import_module as load\n'
+            '    else:\n'
+            '        return load("requests")\n',
+            'undeclared_external_import',
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'for (load, *rest) in load("requests"):\n'
+            '    pass\n',
+            'undeclared_external_import',
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'with manager(load("requests")) as load:\n'
+            '    pass\n',
+            'undeclared_external_import',
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'with manager() as item, manager(load("requests")) as load:\n'
+            '    pass\n',
+            'undeclared_external_import',
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'with manager() as item, manager(load("requests")) as (load, *rest):\n'
+            '    pass\n',
+            'undeclared_external_import',
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'async def use_loader():\n'
+            '    global load\n'
+            '    async with manager() as item, manager(load("requests")) as load:\n'
+            '        pass\n',
+            'undeclared_external_import',
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'while flag and (load := lambda name, package=None: name):\n'
+            '    pass\n'
+            'load("requests")\n',
+            'undeclared_external_import',
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'for item in ((load := []) if flag else []):\n'
+            '    pass\n'
+            'load("requests")\n',
+            'undeclared_external_import',
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'while ((load := lambda name: name) if flag else load("requests")):\n'
+            '    pass\n',
+            'undeclared_external_import',
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'for item in ((load := []) if flag else [load("requests")]):\n'
+            '    pass\n',
+            'undeclared_external_import',
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'with suppressing_manager() as first, failing_manager() as load:\n'
+            '    pass\n'
+            'load("requests")\n',
+            'undeclared_external_import',
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'module_name = "requests"\n'
+            'with suppressing_manager() as first, failing_manager() as load:\n'
+            '    pass\n'
+            'load(module_name)\n',
+            'unsupported_dynamic_import',
+        ),
+        (
+            'async def use_loader():\n'
+            '    from importlib import import_module as load\n'
+            '    async with suppressing_manager() as first, failing_manager() as load:\n'
+            '        pass\n'
+            '    return load("requests")\n',
+            'undeclared_external_import',
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'with suppressing_manager() as (head, *load):\n'
+            '    pass\n'
+            'load("requests")\n',
+            'undeclared_external_import',
+        ),
+    ],
+    ids=(
+        'module-for-body-next-iteration',
+        'function-for-body-computed-next-iteration',
+        'async-for-body-next-iteration',
+        'class-for-body-next-iteration',
+        'while-test-next-iteration',
+        'while-body-attribute-next-iteration',
+        'for-opposite-branch-next-iteration',
+        'for-continue-next-iteration',
+        'while-continue-next-iteration',
+        'for-break-post-loop',
+        'while-break-post-loop',
+        'for-conditional-break-preserves-owner-post-loop',
+        'while-conditional-break-preserves-owner-post-loop',
+        'for-target-zero-iteration-post-loop',
+        'while-else-cycle-owner',
+        'for-iter-before-tuple-star-target',
+        'with-context-before-own-target',
+        'with-later-context-before-own-target',
+        'with-later-context-before-tuple-star-target',
+        'async-with-later-context-before-own-target',
+        'while-short-circuit-shadow-post-loop',
+        'for-conditional-iter-shadow-post-loop',
+        'while-if-expression-exclusive-call',
+        'for-if-expression-exclusive-call',
+        'with-suppressed-later-target-post-loop',
+        'with-suppressed-later-target-computed-post-loop',
+        'async-with-suppressed-later-target-post-loop',
+        'with-suppressed-first-destructuring-target-post-loop',
+    ),
+)
+def test_validate_agent_layout_respects_loop_and_with_evaluation_order(
+    monkeypatch,
+    source_prefix,
+    expected_error_code,
+):
+    validation = _validate_agent_layout_with_config_prefix(
+        monkeypatch,
+        source_prefix,
+    )
+
+    assert validation['status'] == 'error'
+    assert any(
+        error['code'] == expected_error_code
+        and error['path'] == 'src/config.py'
+        for error in validation['errors']
+    )
+
+
+@pytest.mark.parametrize(
+    'source_prefix',
+    [
+        (
+            'from importlib import import_module as load\n'
+            'for load in values:\n'
+            '    load("requests")\n'
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'async def use_loader(values):\n'
+            '    async for (load, *rest) in values:\n'
+            '        load("requests")\n'
+        ),
+        (
+            'def use_loader(values):\n'
+            '    load = lambda name, package=None: name\n'
+            '    load("requests")\n'
+            '    for item in values:\n'
+            '        from importlib import import_module as load\n'
+        ),
+        (
+            'def use_loader(values):\n'
+            '    load = lambda name, package=None: name\n'
+            '    for item in values:\n'
+            '        load(".helpers", __package__)\n'
+            '        from importlib import import_module as load\n'
+            '        load(".helpers", __package__)\n'
+        ),
+        (
+            'def use_loader(values):\n'
+            '    load = lambda name, package=None: name\n'
+            '    for item in values:\n'
+            '        load("requests")\n'
+            '        load = lambda name, package=None: name\n'
+        ),
+        (
+            'def use_loader():\n'
+            '    load = lambda name, package=None: name\n'
+            '    load("requests")\n'
+            '    while condition():\n'
+            '        from importlib import import_module as load\n'
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'with manager() as load, manager(load("requests")):\n'
+            '    pass\n'
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'with manager() as (load, *rest):\n'
+            '    load("requests")\n'
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'with manager() as load:\n'
+            '    pass\n'
+            'load("requests")\n'
+        ),
+        (
+            'def use_loader():\n'
+            '    load = lambda name, package=None: name\n'
+            '    with manager(load("requests")):\n'
+            '        from importlib import import_module as load\n'
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'async def use_loader():\n'
+            '    async with manager() as load, manager(load("requests")):\n'
+            '        pass\n'
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'for (head, *load) in values:\n'
+            '    load("requests")\n'
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'with manager() as (head, *load):\n'
+            '    load("requests")\n'
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'async def use_loader():\n'
+            '    async with manager() as item, manager(load("requests")) as load:\n'
+            '        pass\n'
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'while flag and (load := lambda name, package=None: name) and load("requests"):\n'
+            '    pass\n'
+        ),
+        (
+            'def use_loader(values):\n'
+            '    load = lambda name, package=None: name\n'
+            '    for item in values:\n'
+            '        from importlib import import_module as load\n'
+            '        load = lambda name, package=None: name\n'
+            '    return load("requests")\n'
+        ),
+        (
+            'def use_loader(values):\n'
+            '    load = lambda name, package=None: name\n'
+            '    for item in values:\n'
+            '        from importlib import import_module as load\n'
+            '        load = lambda name, package=None: name\n'
+            '    else:\n'
+            '        return load("requests")\n'
+        ),
+        (
+            'def use_loader():\n'
+            '    load = lambda name, package=None: name\n'
+            '    while condition():\n'
+            '        from importlib import import_module as load\n'
+            '        load = lambda name, package=None: name\n'
+            '    return load("requests")\n'
+        ),
+        (
+            'def use_loader(values):\n'
+            '    load = lambda name, package=None: name\n'
+            '    for item in values:\n'
+            '        if select_owner:\n'
+            '            from importlib import import_module as load\n'
+            '        load = lambda name, package=None: name\n'
+            '    return load("requests")\n'
+        ),
+        (
+            'def use_loader(values):\n'
+            '    load = lambda name, package=None: name\n'
+            '    for item in values:\n'
+            '        load("requests")\n'
+            '        from importlib import import_module as load\n'
+            '        load = lambda name, package=None: name\n'
+        ),
+        (
+            'def use_loader(values):\n'
+            '    load = lambda name, package=None: name\n'
+            '    for item in values:\n'
+            '        load("requests")\n'
+            '        from importlib import import_module as load\n'
+            '        break\n'
+        ),
+        (
+            'def use_loader():\n'
+            '    load = lambda name, package=None: name\n'
+            '    while condition():\n'
+            '        load("requests")\n'
+            '        from importlib import import_module as load\n'
+            '        break\n'
+        ),
+        (
+            'def use_loader(values):\n'
+            '    load = lambda name, package=None: name\n'
+            '    for item in values:\n'
+            '        load("requests")\n'
+            '        try:\n'
+            '            from importlib import import_module as load\n'
+            '            continue\n'
+            '        finally:\n'
+            '            load = lambda name, package=None: name\n'
+        ),
+        (
+            'def use_loader(values):\n'
+            '    load = lambda name, package=None: name\n'
+            '    for item in values:\n'
+            '        try:\n'
+            '            from importlib import import_module as load\n'
+            '            break\n'
+            '        finally:\n'
+            '            load = lambda name, package=None: name\n'
+            '    return load("requests")\n'
+        ),
+        (
+            'def use_loader(values):\n'
+            '    load = lambda name, package=None: name\n'
+            '    for item in values:\n'
+            '        from importlib import import_module as load\n'
+            '        del load\n'
+            '    return load("requests")\n'
+        ),
+        (
+            'def use_loader():\n'
+            '    load = lambda name, package=None: name\n'
+            '    while condition():\n'
+            '        from importlib import import_module as load\n'
+            '        del load\n'
+            '    return load("requests")\n'
+        ),
+        (
+            'def use_loader():\n'
+            '    load = lambda name, package=None: name\n'
+            '    while condition():\n'
+            '        from importlib import import_module as load\n'
+            '        load = lambda name, package=None: name\n'
+            '    else:\n'
+            '        return load("requests")\n'
+        ),
+    ],
+    ids=(
+        'for-target-shadows-body',
+        'async-for-tuple-star-target-shadows-body',
+        'call-before-loop-body-owner',
+        'relative-loop-carried-owner',
+        'pure-nonowner-loop',
+        'call-before-while-body-owner',
+        'with-earlier-target-shadows-later-context',
+        'with-tuple-star-target-shadows-body',
+        'with-target-shadows-post-body',
+        'with-body-owner-not-retroactive',
+        'async-with-earlier-target-shadows-later-context',
+        'for-starred-target-shadows-body',
+        'with-starred-target-shadows-body',
+        'async-with-local-later-target-is-unbound',
+        'while-same-path-short-circuit-shadow',
+        'for-body-final-nonowner-post-loop',
+        'for-body-final-nonowner-else',
+        'while-body-final-nonowner-post-loop',
+        'conditional-owner-final-nonowner-post-loop',
+        'for-backedge-final-nonowner',
+        'for-owner-then-break-no-backedge',
+        'while-owner-then-break-no-backedge',
+        'for-continue-finally-nonowner-no-backedge',
+        'for-break-finally-nonowner-post-loop',
+        'for-body-final-delete-post-loop',
+        'while-body-final-delete-post-loop',
+        'while-body-final-nonowner-else',
+    ),
+)
+def test_validate_agent_layout_ignores_non_dependency_loop_and_with_controls(
+    monkeypatch,
+    source_prefix,
+):
+    validation = _validate_agent_layout_with_config_prefix(
+        monkeypatch,
+        source_prefix,
+    )
+
+    assert validation['status'] == 'ok'
+    assert validation['errors'] == []
+
+
+@pytest.mark.parametrize(
     'source_prefix',
     [
         (

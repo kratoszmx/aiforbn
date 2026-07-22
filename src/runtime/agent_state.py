@@ -437,6 +437,8 @@ def _source_import_analysis(
     def target_names(target: ast.AST) -> set[str]:
         if isinstance(target, ast.Name):
             return {target.id}
+        if isinstance(target, ast.Starred):
+            return target_names(target.value)
         if isinstance(target, (ast.Tuple, ast.List)):
             return {
                 name
@@ -680,6 +682,8 @@ def _source_import_analysis(
         ast.Try,
         getattr(ast, 'TryStar', ast.Try),
         ast.Match,
+        ast.BoolOp,
+        ast.IfExp,
     )
 
     def control_region(
@@ -708,7 +712,15 @@ def _source_import_analysis(
             ]
         elif isinstance(control, (ast.With, ast.AsyncWith)):
             regions = [
-                ('items', None, control.items),
+                *[
+                    ('context', index, [item.context_expr])
+                    for index, item in enumerate(control.items)
+                ],
+                *[
+                    ('target', index, [item.optional_vars])
+                    for index, item in enumerate(control.items)
+                    if item.optional_vars is not None
+                ],
                 ('body', None, control.body),
             ]
         elif isinstance(control, (ast.Try, getattr(ast, 'TryStar', ast.Try))):
@@ -728,6 +740,17 @@ def _source_import_analysis(
                     ('case', index, [case])
                     for index, case in enumerate(control.cases)
                 ],
+            ]
+        elif isinstance(control, ast.BoolOp):
+            regions = [
+                ('value', index, [value])
+                for index, value in enumerate(control.values)
+            ]
+        elif isinstance(control, ast.IfExp):
+            regions = [
+                ('test', None, [control.test]),
+                ('body', None, [control.body]),
+                ('orelse', None, [control.orelse]),
             ]
         for part, index, roots in regions:
             if any(is_descendant(node, root) for root in roots):
@@ -771,6 +794,30 @@ def _source_import_analysis(
             return {event_part, use_part} != {'handler', 'orelse'}
         if isinstance(control, getattr(ast, 'TryStar', ())):
             return {event_part, use_part} != {'handler', 'orelse'}
+        if isinstance(control, (ast.With, ast.AsyncWith)):
+            if event_part == 'body':
+                return use_part not in {'context', 'target'}
+            if event_part == 'target' and use_part in {'context', 'target'}:
+                return (
+                    event_index is not None
+                    and use_index is not None
+                    and event_index < use_index
+                )
+            if event_part == 'context' and use_part in {'context', 'target'}:
+                return (
+                    event_index is not None
+                    and use_index is not None
+                    and event_index <= use_index
+                )
+        if isinstance(control, ast.BoolOp):
+            return not (
+                event_part == use_part == 'value'
+                and event_index is not None
+                and use_index is not None
+                and event_index > use_index
+            )
+        if isinstance(control, ast.IfExp):
+            return {event_part, use_part} != {'body', 'orelse'}
         return True
 
     def binding_may_reach_use(
@@ -836,9 +883,33 @@ def _source_import_analysis(
                     continue
                 return False
             if isinstance(control, (ast.With, ast.AsyncWith)):
-                if event_part == 'items' or (
-                    event_part == use_part == 'body'
+                if event_part == 'context' and (
+                    (
+                        use_part in {'context', 'target'}
+                        and event_index is not None
+                        and use_index is not None
+                        and event_index <= use_index
+                    )
+                    or use_part == 'body'
+                    or (use_part == '' and event_index == 0)
                 ):
+                    continue
+                if event_part == 'target' and (
+                    (
+                        use_part in {'context', 'target'}
+                        and event_index is not None
+                        and use_index is not None
+                        and event_index < use_index
+                    )
+                    or use_part == 'body'
+                    or (
+                        use_part == ''
+                        and event_index == 0
+                        and isinstance(binding_node, ast.Name)
+                    )
+                ):
+                    continue
+                if event_part == use_part == 'body':
                     continue
                 return False
             if isinstance(control, (ast.Try, getattr(ast, 'TryStar', ast.Try))):
@@ -862,6 +933,23 @@ def _source_import_analysis(
                 ):
                     continue
                 return False
+            if isinstance(control, ast.BoolOp):
+                if event_part == use_part == 'value' and (
+                    event_index is not None
+                    and use_index is not None
+                    and event_index <= use_index
+                ):
+                    continue
+                if event_part == 'value' and event_index == 0:
+                    continue
+                return False
+            if isinstance(control, ast.IfExp):
+                if event_part == 'test' or (
+                    event_part == use_part
+                    and event_part in {'body', 'orelse'}
+                ):
+                    continue
+                return False
         return True
 
     def is_conditional_binding(
@@ -873,10 +961,275 @@ def _source_import_analysis(
             return True
         current = parent_by_node.get(id(binding_node))
         while current is not None and current is not target_scope:
-            if isinstance(current, conditional_binding_ancestors):
+            if isinstance(current, ast.BoolOp):
+                region = control_region(binding_node, current)
+                if region != ('value', 0):
+                    return True
+            elif isinstance(current, ast.IfExp):
+                region = control_region(binding_node, current)
+                if region != ('test', None):
+                    return True
+            elif isinstance(current, conditional_binding_ancestors):
                 return True
             current = parent_by_node.get(id(current))
         return False
+
+    loop_types = (ast.For, ast.AsyncFor, ast.While)
+
+    def nearest_enclosing_loop(node: ast.AST) -> ast.AST | None:
+        current = parent_by_node.get(id(node))
+        while current is not None:
+            if isinstance(current, loop_types):
+                return current
+            current = parent_by_node.get(id(current))
+        return None
+
+    def abrupt_exit_runs_finally_binding(
+        abrupt_node: ast.AST,
+        binding_node: ast.AST,
+        loop: ast.AST,
+    ) -> bool:
+        current = parent_by_node.get(id(abrupt_node))
+        while current is not None and current is not loop:
+            if isinstance(current, (ast.Try, getattr(ast, 'TryStar', ast.Try))):
+                if (
+                    control_region(abrupt_node, current)
+                    != ('finalbody', None)
+                    and control_region(binding_node, current)
+                    == ('finalbody', None)
+                ):
+                    return True
+            current = parent_by_node.get(id(current))
+        return False
+
+    def prior_loop_exit_may_skip_event(
+        binding_node: ast.AST,
+        loop: ast.AST,
+        *,
+        include_break_paths: bool,
+    ) -> bool:
+        abrupt_types = (
+            (ast.Break, ast.Continue)
+            if include_break_paths
+            else (ast.Continue,)
+        )
+        return any(
+            isinstance(node, abrupt_types)
+            and nearest_enclosing_loop(node) is loop
+            and source_start(node) < source_start(binding_node)
+            and not abrupt_exit_runs_finally_binding(
+                node,
+                binding_node,
+                loop,
+            )
+            for node in ast.walk(loop)
+        )
+
+    def binding_is_cycle_definite(
+        binding_node: ast.AST,
+        loop: ast.AST,
+        scope: ast.AST,
+        *,
+        include_break_paths: bool = False,
+    ) -> bool:
+        for control in control_ancestors(binding_node, scope):
+            if control is loop:
+                break
+            part, index = control_region(binding_node, control) or ('', None)
+            if isinstance(control, ast.If) and part == 'test':
+                continue
+            if isinstance(control, ast.BoolOp) and (part, index) == (
+                'value',
+                0,
+            ):
+                continue
+            if isinstance(control, ast.IfExp) and part == 'test':
+                continue
+            if isinstance(control, ast.Match) and part == 'subject':
+                continue
+            if isinstance(
+                control,
+                (ast.Try, getattr(ast, 'TryStar', ast.Try)),
+            ) and part == 'finalbody':
+                continue
+            return False
+        return not prior_loop_exit_may_skip_event(
+            binding_node,
+            loop,
+            include_break_paths=include_break_paths,
+        )
+
+    def loop_cycle_events(
+        loop: ast.AST,
+        scope: ast.AST,
+        events: list[tuple[ast.AST, ast.AST]],
+    ) -> list[tuple[ast.AST, ast.AST]]:
+        if isinstance(loop, (ast.For, ast.AsyncFor)):
+            cycle_parts = {'target', 'body'}
+        else:
+            cycle_parts = {'test', 'body'}
+        cycle_events = []
+        for event in events:
+            region = control_region(event[1], loop)
+            if event[0] is scope and region and region[0] in cycle_parts:
+                cycle_events.append(event)
+        return cycle_events
+
+    def loop_final_reaching_events(
+        loop: ast.AST,
+        scope: ast.AST,
+        events: list[tuple[ast.AST, ast.AST]],
+        *,
+        include_break_paths: bool = False,
+    ) -> list[tuple[ast.AST, ast.AST]]:
+        cycle_events = loop_cycle_events(loop, scope, events)
+        definite_events = [
+            event
+            for event in cycle_events
+            if binding_is_cycle_definite(
+                event[1],
+                loop,
+                scope,
+                include_break_paths=include_break_paths,
+            )
+        ]
+        if not definite_events:
+            return cycle_events
+        boundary = max(source_end(event[1]) for event in definite_events)
+        return [
+            event
+            for event in cycle_events
+            if source_end(event[1]) >= boundary
+        ]
+
+    def summarize_completed_loop_events(
+        scope: ast.AST,
+        use_node: ast.AST,
+        events: list[tuple[ast.AST, ast.AST]],
+    ) -> list[tuple[ast.AST, ast.AST]]:
+        completed_loops: dict[int, ast.AST] = {}
+        for _, binding_node in events:
+            for control in control_ancestors(binding_node, scope):
+                if not isinstance(control, loop_types):
+                    continue
+                use_region = control_region(use_node, control)
+                if (
+                    source_end(control) <= source_start(use_node)
+                    or use_region == ('orelse', None)
+                ):
+                    completed_loops[id(control)] = control
+        retained_events = events
+        for loop in sorted(
+            completed_loops.values(),
+            key=lambda control: len(control_ancestors(control, scope)),
+            reverse=True,
+        ):
+            cycle_events = loop_cycle_events(
+                loop,
+                scope,
+                retained_events,
+            )
+            if not cycle_events:
+                continue
+            final_events = loop_final_reaching_events(
+                loop,
+                scope,
+                retained_events,
+                include_break_paths=True,
+            )
+            cycle_event_ids = {id(event[1]) for event in cycle_events}
+            retained_events = [
+                event
+                for event in retained_events
+                if id(event[1]) not in cycle_event_ids
+            ]
+            retained_events.extend(final_events)
+        return retained_events
+
+    def event_has_following_direct_break(
+        binding_node: ast.AST,
+        loop: ast.AST,
+    ) -> bool:
+        current = binding_node
+        while current is not loop:
+            parent = parent_by_node.get(id(current))
+            if parent is None:
+                return False
+            for field_name in ('body', 'orelse', 'finalbody'):
+                statements = getattr(parent, field_name, None)
+                if not isinstance(statements, list) or current not in statements:
+                    continue
+                index = statements.index(current)
+                if any(
+                    isinstance(statement, ast.Break)
+                    for statement in statements[index + 1:]
+                ):
+                    return True
+            current = parent
+        return False
+
+    def loop_carried_event_resolution(
+        scope: ast.AST,
+        name: str,
+        use_node: ast.AST,
+    ) -> tuple[bool, set[str], bool]:
+        carried_events: list[tuple[ast.AST, ast.AST]] = []
+        all_scope_events = [
+            (event_scope, binding_node)
+            for event_scope, event_name, binding_node in binding_events
+            if event_scope is scope and event_name == name
+        ]
+        for loop in control_ancestors(use_node, scope):
+            if not isinstance(loop, loop_types):
+                continue
+            use_region = control_region(use_node, loop)
+            if isinstance(loop, (ast.For, ast.AsyncFor)):
+                if use_region != ('body', None):
+                    continue
+                if name in target_names(loop.target):
+                    continue
+            elif use_region not in {('test', None), ('body', None)}:
+                continue
+
+            cycle_events = loop_cycle_events(
+                loop,
+                scope,
+                all_scope_events,
+            )
+            definite_prefix_events = [
+                event
+                for event in cycle_events
+                if (
+                    source_end(event[1]) <= source_start(use_node)
+                    and binding_may_reach_use(event[1], use_node, scope)
+                    and binding_is_cycle_definite(event[1], loop, scope)
+                )
+            ]
+            if definite_prefix_events:
+                continue
+
+            carried_events.extend(
+                event
+                for event in loop_final_reaching_events(
+                    loop,
+                    scope,
+                    all_scope_events,
+                )
+                if not event_has_following_direct_break(event[1], loop)
+            )
+
+        unique_events = {
+            (id(event_scope), id(binding_node)): (event_scope, binding_node)
+            for event_scope, binding_node in carried_events
+        }
+        retained_events = list(unique_events.values())
+        has_event, kinds = resolved_event_kinds(name, retained_events)
+        fallback_possible = any(
+            (id(event_scope), name, id(binding_node))
+            in deleted_binding_events
+            for event_scope, binding_node in retained_events
+        )
+        return has_event, kinds, fallback_possible
 
     def resolved_event_kinds(
         name: str,
@@ -909,8 +1262,17 @@ def _source_import_analysis(
                 and binding_may_reach_use(binding_node, use_node, scope)
             )
         ]
+        preceding_events = summarize_completed_loop_events(
+            scope,
+            use_node,
+            preceding_events,
+        )
         if not preceding_events:
-            return False, set(), True
+            return loop_carried_event_resolution(
+                scope,
+                name,
+                use_node,
+            )
 
         definite_events = [
             event
@@ -1024,7 +1386,17 @@ def _source_import_analysis(
         ):
             fallback_possible = True
         has_event, kinds = resolved_event_kinds(name, retained_events)
-        return has_event, kinds, fallback_possible
+        (
+            carried_has_event,
+            carried_kinds,
+            carried_fallback_possible,
+        ) = loop_carried_event_resolution(scope, name, use_node)
+        kinds.update(carried_kinds)
+        return (
+            has_event or carried_has_event,
+            kinds,
+            fallback_possible or carried_fallback_possible,
+        )
 
     def event_kinds_anywhere(
         scope: ast.AST,
