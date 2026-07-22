@@ -2274,6 +2274,158 @@ def test_validate_agent_layout_preserves_handler_cleanup_owner_controls(
     [
         (
             '__import__ = lambda name: name\n'
+            'def use_loader(flag):\n'
+            '    global __import__\n'
+            '    try:\n'
+            '        risky_operation()\n'
+            '    except ValueError as __import__:\n'
+            '        from builtins import __import__ as __import__\n'
+            '        if flag:\n'
+            '            return None\n'
+            '        else:\n'
+            '            return None\n'
+            '    return __import__("requests")\n',
+            False,
+        ),
+        (
+            '__import__ = lambda name: name\n'
+            'def use_loader(flag):\n'
+            '    global __import__\n'
+            '    try:\n'
+            '        risky_operation()\n'
+            '    except ValueError as __import__:\n'
+            '        from builtins import __import__ as __import__\n'
+            '        if flag:\n'
+            '            raise RuntimeError\n'
+            '        else:\n'
+            '            raise TypeError\n'
+            '    return __import__("requests")\n',
+            False,
+        ),
+        (
+            '__import__ = lambda name: name\n'
+            'for value in values:\n'
+            '    try:\n'
+            '        risky_operation()\n'
+            '    except ValueError as __import__:\n'
+            '        from builtins import __import__ as __import__\n'
+            '        if flag:\n'
+            '            break\n'
+            '        else:\n'
+            '            break\n'
+            '    __import__("requests")\n',
+            False,
+        ),
+        (
+            '__import__ = lambda name: name\n'
+            'def use_loader(flag):\n'
+            '    global __import__\n'
+            '    try:\n'
+            '        risky_operation()\n'
+            '    except ValueError as __import__:\n'
+            '        from builtins import __import__ as __import__\n'
+            '        if flag:\n'
+            '            return None\n'
+            '    return __import__("requests")\n',
+            True,
+        ),
+        (
+            '__import__ = lambda name: name\n'
+            'try:\n'
+            '    try:\n'
+            '        risky_operation()\n'
+            '    except ValueError as __import__:\n'
+            '        from builtins import __import__ as __import__\n'
+            '        if flag:\n'
+            '            raise RuntimeError\n'
+            '        else:\n'
+            '            raise TypeError\n'
+            'except (RuntimeError, TypeError):\n'
+            '    pass\n'
+            '__import__("requests")\n',
+            True,
+        ),
+        (
+            '__import__ = lambda name: name\n'
+            'for value in values:\n'
+            '    try:\n'
+            '        risky_operation()\n'
+            '    except ValueError as __import__:\n'
+            '        from builtins import __import__ as __import__\n'
+            '        if flag:\n'
+            '            break\n'
+            '        else:\n'
+            '            break\n'
+            '__import__("requests")\n',
+            True,
+        ),
+        (
+            '__import__ = lambda name: name\n'
+            'for value in values:\n'
+            '    try:\n'
+            '        risky_operation()\n'
+            '    except ValueError as __import__:\n'
+            '        from builtins import __import__ as __import__\n'
+            '        if flag:\n'
+            '            continue\n'
+            '        else:\n'
+            '            continue\n'
+            '    __import__("requests")\n',
+            True,
+        ),
+        (
+            '__import__ = lambda name: name\n'
+            'def use_loader(flag):\n'
+            '    global __import__\n'
+            '    try:\n'
+            '        try:\n'
+            '            risky_operation()\n'
+            '        except ValueError as __import__:\n'
+            '            from builtins import __import__ as __import__\n'
+            '            if flag:\n'
+            '                return None\n'
+            '            else:\n'
+            '                return None\n'
+            '    finally:\n'
+            '        __import__("requests")\n',
+            True,
+        ),
+    ],
+    ids=(
+        'exhaustive-if-return-skips-post-handler',
+        'exhaustive-if-raise-skips-post-handler',
+        'exhaustive-if-break-skips-later-loop-body',
+        'nonexhaustive-if-fallthrough',
+        'exhaustive-if-raise-reaches-outer-handler',
+        'exhaustive-if-break-reaches-post-loop',
+        'exhaustive-if-continue-reaches-later-iteration',
+        'exhaustive-if-return-cleanup-before-finally',
+    ),
+)
+def test_validate_agent_layout_resolves_exhaustive_handler_if_termination(
+    monkeypatch,
+    source_prefix,
+    expects_dependency,
+):
+    validation = _validate_agent_layout_with_config_prefix(
+        monkeypatch,
+        source_prefix,
+    )
+
+    dependency_errors = [
+        error
+        for error in validation['errors']
+        if error['code'] == 'undeclared_external_import'
+        and error['path'] == 'src/config.py'
+    ]
+    assert bool(dependency_errors) is expects_dependency
+
+
+@pytest.mark.parametrize(
+    ('source_prefix', 'expects_dependency'),
+    [
+        (
+            '__import__ = lambda name: name\n'
             'try:\n'
             '    raise ValueError\n'
             'except ValueError as __import__:\n'

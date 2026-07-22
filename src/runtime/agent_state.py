@@ -1722,39 +1722,52 @@ def _source_import_analysis(
             return False
         if not handler.body:
             return True
-        terminal = handler.body[-1]
-        if not isinstance(terminal, (ast.Return, ast.Raise, ast.Break, ast.Continue)):
-            return True
         if handler_cleanup_crosses_finally(handler, use_node, scope):
             return True
-        if isinstance(terminal, ast.Continue):
-            return True
-        if isinstance(terminal, ast.Break):
-            loop = nearest_enclosing_loop(terminal)
-            return bool(loop is not None and not is_descendant(use_node, loop))
-        if isinstance(terminal, ast.Raise):
-            current = parent_by_node.get(id(handler))
-            while current is not None and current is not scope:
-                if isinstance(
-                    current,
-                    (ast.Try, getattr(ast, 'TryStar', ast.Try)),
-                ):
-                    use_region = control_region(use_node, current)
-                    event_region = control_region(handler, current)
-                    if (
-                        event_region == ('body', None)
-                        and current.handlers
-                        and (
-                            (use_region and use_region[0] == 'handler')
-                            or (
-                                use_region is None
-                                and source_end(current) <= source_start(use_node)
-                            )
-                        )
+
+        def terminal_leaf_reaches_use(statement: ast.stmt) -> bool:
+            if isinstance(statement, ast.Continue):
+                return True
+            if isinstance(statement, ast.Break):
+                loop = nearest_enclosing_loop(statement)
+                return bool(
+                    loop is not None and not is_descendant(use_node, loop)
+                )
+            if isinstance(statement, ast.Raise):
+                current = parent_by_node.get(id(handler))
+                while current is not None and current is not scope:
+                    if isinstance(
+                        current,
+                        (ast.Try, getattr(ast, 'TryStar', ast.Try)),
                     ):
-                        return True
-                current = parent_by_node.get(id(current))
-        return False
+                        use_region = control_region(use_node, current)
+                        event_region = control_region(handler, current)
+                        if (
+                            event_region == ('body', None)
+                            and current.handlers
+                            and (
+                                (use_region and use_region[0] == 'handler')
+                                or (
+                                    use_region is None
+                                    and source_end(current)
+                                    <= source_start(use_node)
+                                )
+                            )
+                        ):
+                            return True
+                    current = parent_by_node.get(id(current))
+                return False
+            return not isinstance(statement, ast.Return)
+
+        terminal = handler.body[-1]
+        if not isinstance(terminal, ast.If):
+            return terminal_leaf_reaches_use(terminal)
+        if not terminal.body or not terminal.orelse:
+            return True
+        return any(
+            terminal_leaf_reaches_use(branch[-1])
+            for branch in (terminal.body, terminal.orelse)
+        )
 
     def summarize_completed_handler_events(
         name: str,
