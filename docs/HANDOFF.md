@@ -264,6 +264,7 @@
 - 本次 Reset Round 13（delegated dynamic-import reachability）修复通用 pass-through 例外可让 production wrapper 经字面/计算参数、别名、返回值或容器调用未声明依赖，以及 `_bind_missing` 例外可由入口外同名函数或入口内间接调用复用后仍返回 `ok` 的假绿；scanner 现拒绝全部 delegated dynamic-import wrapper，仅允许真实 `main.py` 内唯一 `_bind_missing` 定义及其直接字面 call sites，JARVIS preflight-order 测试改用标准库 `Mock(wraps=...)`，无需 import pass-through 例外。未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - 本次 Reset Round 14（direct-loader identity）修复 scanner 仅按 `_bind_missing` 名称收集调用造成的双向漂移：局部函数、参数、closure/nonlocal、lambda/comprehension、赋值/导入、class、exception/with target 等无关同名调用不再被误当依赖，而 module/global 赋值、增量赋值、删除或导入重绑定不再假绿。真实 loader 的 34 个直接字面调用现按词法身份解析，默认参数、class base、comprehension 首个 iterable 与 global load 仍正确绑定；无真实调用时，局部同名调用不能再授权 loader 体内的非字面 import。未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - 本次 Reset Round 15（dynamic-import definition-time scope）修复通用 `importlib`/`__import__` scanner 把 function/class decorator、default、annotation、base/keyword 错当 body scope，以及合并整层 binding 导致 owner 调用被后续重绑定遮蔽的问题；resolver 现按真实 evaluation scope、调用位置与 runtime closure lookup 解析 owner，并精确区分 comprehension 首个/当前 iterable 与已绑定 target。字面未声明依赖与计算动态名分别被阻断，relative-local、lambda/body/local shadow 和无关同名方法保持不误报；未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
+- 本次 Reset Round 16（ambiguous runtime owner resolution）修复 late-bound function/lambda/class closure 在同一 enclosing scope 同时存在 dynamic-import owner 与非 owner binding 时会被折叠为无 owner 的假绿；resolver 现保留全部可能 owner kind，并把 `global`/`nonlocal` 写入归回声明目标 scope，同时把 match capture/star/rest 记录为本地 shadow。if/else、try/except/finally、`try/except*`、match、loop、with、跨定义位置、混合 callable/module owner、字面与计算动态名均有回归；纯非 owner、relative-local、sibling shadow 与唯一 `_bind_missing` 契约保持有效。未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - contract verifier 现精确锁定 validation command scope/capability、profile use-case/required-capability reachability、三个 active project-skill 记录与七个 retired-guidance 路径；public-surface 测试同时核对模块摘要及根摘要的 callable 参数顺序和 keyword-only 边界
 - `--verify-agent-contract` 现会精确锁定六个 module 的 path/role/public-surface/agent-rules/local-utils/allowed-dependencies；公开 surface 测试逐个要求四个生产模块非空，并显式覆盖 import re-export
 
@@ -278,7 +279,7 @@
 
 3. 完整 src 测试：
 - `conda run -n quant python3 -m pytest -q src`
-- 结果：`803 passed, 1 warning`
+- 结果：`833 passed, 1 warning`
 - 剩余 warning 是 PyTorch nested-tensor prototype 提示，不是测试失败；原 sklearn feature-name warnings 已消除
 
 4. UI 文字化验证：

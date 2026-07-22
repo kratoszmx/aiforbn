@@ -894,6 +894,370 @@ def test_validate_agent_layout_uses_dynamic_owner_at_call_position(
 
 
 @pytest.mark.parametrize(
+    ('source_prefix', 'expected_error_code'),
+    [
+        (
+            'def outer(flag):\n'
+            '    if flag:\n'
+            '        from importlib import import_module as load\n'
+            '    else:\n'
+            '        load = lambda name: name\n'
+            '    def inner():\n'
+            '        return load("requests")\n'
+            '    return inner()\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def outer(flag, module_name):\n'
+            '    if flag:\n'
+            '        from importlib import import_module as load\n'
+            '    else:\n'
+            '        load = lambda name: name\n'
+            '    def inner():\n'
+            '        return load(module_name)\n'
+            '    return inner()\n',
+            'unsupported_dynamic_import',
+        ),
+        (
+            'def outer():\n'
+            '    try:\n'
+            '        from importlib import import_module as load\n'
+            '    except ImportError:\n'
+            '        load = lambda name: name\n'
+            '    finally:\n'
+            '        completed = True\n'
+            '    def inner():\n'
+            '        return load("requests")\n'
+            '    return inner()\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def outer():\n'
+            '    try:\n'
+            '        from importlib import import_module as load\n'
+            '    except* ImportError:\n'
+            '        load = lambda name: name\n'
+            '    class Inner:\n'
+            '        value = load("requests")\n'
+            '    return Inner\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def outer(value):\n'
+            '    match value:\n'
+            '        case 0:\n'
+            '            from importlib import import_module as load\n'
+            '        case _:\n'
+            '            load = lambda name: name\n'
+            '    def inner():\n'
+            '        return load("requests")\n'
+            '    return inner()\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def outer(values):\n'
+            '    from importlib import import_module as load\n'
+            '    for load in values:\n'
+            '        pass\n'
+            '    def inner():\n'
+            '        return load("requests")\n'
+            '    return inner()\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def outer(manager, flag):\n'
+            '    if flag:\n'
+            '        import importlib as loader\n'
+            '    else:\n'
+            '        with manager as loader:\n'
+            '            pass\n'
+            '    def inner():\n'
+            '        return loader.import_module("requests")\n'
+            '    return inner()\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def outer(flag):\n'
+            '    from importlib import import_module as load\n'
+            '    def inner():\n'
+            '        return load("requests")\n'
+            '    if flag:\n'
+            '        load = lambda name: name\n'
+            '    return inner()\n',
+            'undeclared_external_import',
+        ),
+        (
+            'if FLAG:\n'
+            '    from importlib import import_module as load\n'
+            'else:\n'
+            '    load = lambda name: name\n'
+            'def inner():\n'
+            '    global load\n'
+            '    return load("requests")\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def outer(flag):\n'
+            '    if flag:\n'
+            '        from builtins import __import__ as load\n'
+            '    else:\n'
+            '        load = lambda name: name\n'
+            '    def inner():\n'
+            '        nonlocal load\n'
+            '        return load("requests")\n'
+            '    return inner()\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def outer(flag):\n'
+            '    if flag:\n'
+            '        from importlib import import_module as load\n'
+            '    else:\n'
+            '        from builtins import __import__ as load\n'
+            '    def inner():\n'
+            '        return load("requests")\n'
+            '    return inner()\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def outer(flag):\n'
+            '    if flag:\n'
+            '        import builtins as loader\n'
+            '    else:\n'
+            '        loader = object()\n'
+            '    def inner():\n'
+            '        return loader.__import__("requests")\n'
+            '    return inner()\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def outer(flag):\n'
+            '    if flag:\n'
+            '        from importlib import import_module as load\n'
+            '    else:\n'
+            '        load = lambda name: name\n'
+            '    inner = lambda: load("requests")\n'
+            '    return inner()\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def outer(flag):\n'
+            '    if flag:\n'
+            '        from importlib import import_module as load\n'
+            '    else:\n'
+            '        load = lambda name: name\n'
+            '    class Inner:\n'
+            '        value = load("requests")\n'
+            '    return Inner\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def set_owner():\n'
+            '    global load\n'
+            '    from importlib import import_module as load\n'
+            'load = lambda name: name\n'
+            'def use_loader():\n'
+            '    return load("requests")\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def outer():\n'
+            '    def set_owner():\n'
+            '        nonlocal load\n'
+            '        from importlib import import_module as load\n'
+            '    load = lambda name: name\n'
+            '    def use_loader():\n'
+            '        return load("requests")\n'
+            '    return use_loader\n',
+            'undeclared_external_import',
+        ),
+        (
+            'if FLAG:\n'
+            '    __import__ = lambda name: name\n'
+            'def use_loader():\n'
+            '    return __import__("requests")\n',
+            'undeclared_external_import',
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'class Loader:\n'
+            '    global load\n'
+            '    value = load("requests")\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def outer():\n'
+            '    from importlib import import_module as load\n'
+            '    class Loader:\n'
+            '        nonlocal load\n'
+            '        value = load("requests")\n'
+            '    return Loader\n',
+            'undeclared_external_import',
+        ),
+        (
+            '__import__ = lambda name: name\n'
+            'del __import__\n'
+            'def use_loader():\n'
+            '    return __import__("requests")\n',
+            'undeclared_external_import',
+        ),
+        (
+            '__import__ = lambda name: name\n'
+            'if FLAG:\n'
+            '    del __import__\n'
+            'def use_loader():\n'
+            '    return __import__("requests")\n',
+            'undeclared_external_import',
+        ),
+    ],
+    ids=(
+        'if-else-literal',
+        'if-else-computed',
+        'try-except-finally',
+        'try-star-class-definition',
+        'match-case',
+        'loop-target',
+        'with-target-attribute',
+        'owner-before-definition-shadow-after',
+        'global-mixed-binding',
+        'nonlocal-mixed-binding',
+        'mixed-callable-owner-kinds',
+        'mixed-builtins-module-owner',
+        'lambda-mixed-binding',
+        'class-mixed-binding',
+        'child-global-owner',
+        'child-nonlocal-owner',
+        'conditional-builtin-shadow',
+        'class-global-current-owner',
+        'class-nonlocal-current-owner',
+        'builtin-shadow-then-delete',
+        'builtin-shadow-then-conditional-delete',
+    ),
+)
+def test_validate_agent_layout_rejects_ambiguous_runtime_import_owners(
+    monkeypatch,
+    source_prefix,
+    expected_error_code,
+):
+    validation = _validate_agent_layout_with_config_prefix(
+        monkeypatch,
+        source_prefix,
+    )
+
+    assert validation['status'] == 'error'
+    assert any(
+        error['code'] == expected_error_code
+        and error['path'] == 'src/config.py'
+        for error in validation['errors']
+    )
+
+
+@pytest.mark.parametrize(
+    'source_prefix',
+    [
+        (
+            'def outer(flag):\n'
+            '    if flag:\n'
+            '        load = lambda name: name\n'
+            '    else:\n'
+            '        def load(name):\n'
+            '            return name\n'
+            '    def inner():\n'
+            '        return load("requests")\n'
+            '    return inner()\n'
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'def sibling(load):\n'
+            '    return load("requests")\n'
+            'def owner_call():\n'
+            '    return load(".helpers", __package__)\n'
+        ),
+        (
+            'def outer(flag):\n'
+            '    if flag:\n'
+            '        from importlib import import_module as load\n'
+            '    else:\n'
+            '        load = lambda name, package=None: name\n'
+            '    def inner():\n'
+            '        return load(".helpers", __package__)\n'
+            '    return inner()\n'
+        ),
+        (
+            'import importlib\n'
+            'def use_capture(subject):\n'
+            '    match subject:\n'
+            '        case {"loader": importlib}:\n'
+            '            return importlib.import_module("requests")\n'
+        ),
+        (
+            'import importlib\n'
+            'import builtins\n'
+            'def use_captures(subject):\n'
+            '    match subject:\n'
+            '        case [importlib, *builtins]:\n'
+            '            return (\n'
+            '                importlib.import_module("requests"),\n'
+            '                builtins.__import__("requests"),\n'
+            '            )\n'
+        ),
+        (
+            'import importlib\n'
+            'def use_rest(subject):\n'
+            '    match subject:\n'
+            '        case {"loader": loader, **importlib}:\n'
+            '            return importlib.import_module("requests")\n'
+        ),
+        (
+            'load = lambda name: name\n'
+            'class Loader:\n'
+            '    global load\n'
+            '    value = load("requests")\n'
+            'from importlib import import_module as load\n'
+        ),
+        (
+            'def outer():\n'
+            '    load = lambda name: name\n'
+            '    class Loader:\n'
+            '        nonlocal load\n'
+            '        value = load("requests")\n'
+            '    from importlib import import_module as load\n'
+            '    return Loader\n'
+        ),
+        (
+            '__import__ = lambda name: name\n'
+            'del __import__\n'
+            '__import__ = lambda name: name\n'
+            'def use_loader():\n'
+            '    return __import__("requests")\n'
+        ),
+    ],
+    ids=(
+        'pure-nonowner-branches',
+        'unrelated-sibling-and-relative-owner',
+        'ambiguous-relative-local-import',
+        'match-as-capture',
+        'match-star-captures',
+        'match-mapping-rest-capture',
+        'class-global-future-owner',
+        'class-nonlocal-future-owner',
+        'builtin-delete-then-shadow',
+    ),
+)
+def test_validate_agent_layout_ignores_non_dependency_runtime_owner_controls(
+    monkeypatch,
+    source_prefix,
+):
+    validation = _validate_agent_layout_with_config_prefix(
+        monkeypatch,
+        source_prefix,
+    )
+
+    assert validation['status'] == 'ok'
+    assert validation['errors'] == []
+
+
+@pytest.mark.parametrize(
     'source_prefix',
     [
         (

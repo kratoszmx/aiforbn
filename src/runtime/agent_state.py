@@ -516,6 +516,7 @@ def _source_import_analysis(
         tuple[ast.AST, ast.expr | None, list[ast.AST], ast.AST]
     ] = []
     binding_events: list[tuple[ast.AST, str, ast.AST]] = []
+    deleted_binding_events: set[tuple[int, str, int]] = set()
     global_names: dict[int, set[str]] = {}
     nonlocal_names: dict[int, set[str]] = {}
 
@@ -619,6 +620,10 @@ def _source_import_analysis(
                 for name in target_names(target):
                     add_nonowner(scope, name)
                     binding_events.append((scope, name, node))
+                    if isinstance(node, ast.Delete):
+                        deleted_binding_events.add(
+                            (id(scope), name, id(node))
+                        )
         elif isinstance(node, (ast.For, ast.AsyncFor)):
             for name in target_names(node.target):
                 add_nonowner(scope, name)
@@ -632,6 +637,12 @@ def _source_import_analysis(
         elif isinstance(node, ast.ExceptHandler) and node.name:
             add_nonowner(scope, node.name)
             binding_events.append((scope, node.name, node.type or node))
+        elif isinstance(node, (ast.MatchAs, ast.MatchStar)) and node.name:
+            add_nonowner(scope, node.name)
+            binding_events.append((scope, node.name, node))
+        elif isinstance(node, ast.MatchMapping) and node.rest:
+            add_nonowner(scope, node.rest)
+            binding_events.append((scope, node.rest, node))
 
     def source_end(node: ast.AST) -> tuple[int, int]:
         return (
@@ -642,35 +653,72 @@ def _source_import_analysis(
     def source_start(node: ast.AST) -> tuple[int, int]:
         return node.lineno, node.col_offset
 
-    def resolved_event_kind(
-        scope: ast.AST,
-        name: str,
-        events: list[ast.AST],
-    ) -> tuple[bool, str | None]:
-        if not events:
-            return False, None
-        kinds: set[str] = set()
-        for binding_node in events:
-            event_kinds = owner_event_kinds.get(
-                (id(scope), name, id(binding_node)),
-                set(),
-            )
-            if not event_kinds:
-                return True, None
-            kinds.update(event_kinds)
-        return (
-            (True, next(iter(kinds)))
-            if len(kinds) == 1
-            else (True, None)
-        )
+    def binding_target_scope(scope: ast.AST, name: str) -> ast.AST:
+        if name in global_names.get(id(scope), set()):
+            return tree
+        if name not in nonlocal_names.get(id(scope), set()):
+            return scope
+        parent_scope = enclosing_scope(scope)
+        while parent_scope is not None:
+            if name in global_names.get(id(parent_scope), set()):
+                return tree
+            if (
+                name in local_names.get(id(parent_scope), set())
+                and name not in nonlocal_names.get(id(parent_scope), set())
+            ):
+                return parent_scope
+            parent_scope = enclosing_scope(parent_scope)
+        return scope
 
-    def event_kind_before(
+    conditional_binding_ancestors = (
+        ast.If,
+        ast.For,
+        ast.AsyncFor,
+        ast.While,
+        ast.With,
+        ast.AsyncWith,
+        ast.Try,
+        getattr(ast, 'TryStar', ast.Try),
+        ast.Match,
+    )
+
+    def is_conditional_binding(
+        event_scope: ast.AST,
+        target_scope: ast.AST,
+        binding_node: ast.AST,
+    ) -> bool:
+        if event_scope is not target_scope:
+            return True
+        current = parent_by_node.get(id(binding_node))
+        while current is not None and current is not target_scope:
+            if isinstance(current, conditional_binding_ancestors):
+                return True
+            current = parent_by_node.get(id(current))
+        return False
+
+    def resolved_event_kinds(
+        name: str,
+        events: list[tuple[ast.AST, ast.AST]],
+    ) -> tuple[bool, set[str]]:
+        if not events:
+            return False, set()
+        kinds: set[str] = set()
+        for event_scope, binding_node in events:
+            kinds.update(
+                owner_event_kinds.get(
+                    (id(event_scope), name, id(binding_node)),
+                    set(),
+                )
+            )
+        return True, kinds
+
+    def event_kinds_before(
         scope: ast.AST,
         name: str,
         use_node: ast.AST,
-    ) -> tuple[bool, str | None]:
+    ) -> tuple[bool, set[str]]:
         preceding_events = [
-            binding_node
+            (event_scope, binding_node)
             for event_scope, event_name, binding_node in binding_events
             if (
                 event_scope is scope
@@ -679,25 +727,111 @@ def _source_import_analysis(
             )
         ]
         if not preceding_events:
-            return False, None
-        latest_position = max(source_end(node) for node in preceding_events)
+            return False, set()
+        latest_position = max(
+            source_end(binding_node)
+            for _, binding_node in preceding_events
+        )
         latest_events = [
-            node
-            for node in preceding_events
-            if source_end(node) == latest_position
+            event
+            for event in preceding_events
+            if source_end(event[1]) == latest_position
         ]
-        return resolved_event_kind(scope, name, latest_events)
+        return resolved_event_kinds(name, latest_events)
 
-    def event_kind_anywhere(
+    def event_kinds_anywhere(
         scope: ast.AST,
         name: str,
-    ) -> tuple[bool, str | None]:
+    ) -> tuple[bool, set[str]]:
         events = [
-            binding_node
+            (event_scope, binding_node)
             for event_scope, event_name, binding_node in binding_events
-            if event_scope is scope and event_name == name
+            if (
+                binding_target_scope(event_scope, event_name) is scope
+                and event_name == name
+            )
         ]
-        return resolved_event_kind(scope, name, events)
+        return resolved_event_kinds(name, events)
+
+    def event_kinds_possible_before(
+        scope: ast.AST,
+        name: str,
+        use_node: ast.AST,
+    ) -> tuple[bool, set[str]]:
+        events = [
+            (event_scope, binding_node)
+            for event_scope, event_name, binding_node in binding_events
+            if (
+                event_scope is scope
+                and event_name == name
+                and source_end(binding_node) <= source_start(use_node)
+            )
+        ]
+        return runtime_reaching_event_kinds(scope, name, events)
+
+    def runtime_reaching_event_kinds(
+        scope: ast.AST,
+        name: str,
+        events: list[tuple[ast.AST, ast.AST]],
+    ) -> tuple[bool, set[str]]:
+        unconditional_events = [
+            event
+            for event in events
+            if not is_conditional_binding(event[0], scope, event[1])
+        ]
+        if unconditional_events:
+            latest_unconditional = max(
+                source_end(binding_node)
+                for _, binding_node in unconditional_events
+            )
+            events = [
+                event
+                for event in events
+                if (
+                    event[0] is not scope
+                    or source_end(event[1]) >= latest_unconditional
+                )
+            ]
+        return resolved_event_kinds(name, events)
+
+    def module_builtin_fallback_possible(
+        name: str,
+        *,
+        before_node: ast.AST | None = None,
+    ) -> bool:
+        events = [
+            (event_scope, binding_node)
+            for event_scope, event_name, binding_node in binding_events
+            if (
+                binding_target_scope(event_scope, event_name) is tree
+                and event_name == name
+                and (
+                    before_node is None
+                    or source_end(binding_node) <= source_start(before_node)
+                )
+            )
+        ]
+        unconditional_events = [
+            event
+            for event in events
+            if event[0] is tree
+            and not is_conditional_binding(event[0], tree, event[1])
+        ]
+        if not unconditional_events:
+            return True
+        latest_unconditional = max(
+            source_end(binding_node)
+            for _, binding_node in unconditional_events
+        )
+        return any(
+            (id(event_scope), name, id(binding_node))
+            in deleted_binding_events
+            and (
+                event_scope is not tree
+                or source_end(binding_node) >= latest_unconditional
+            )
+            for event_scope, binding_node in events
+        )
 
     def resolve_name_at(
         scope: ast.AST,
@@ -705,32 +839,59 @@ def _source_import_analysis(
         use_node: ast.AST,
         *,
         runtime_lookup: bool = False,
-    ) -> str | None:
-        has_event, event_kind = (
-            event_kind_anywhere(scope, name)
-            if runtime_lookup
-            else event_kind_before(scope, name, use_node)
-        )
+        possible_before_lookup: bool = False,
+    ) -> set[str]:
+        if runtime_lookup:
+            has_event, event_kinds = event_kinds_anywhere(scope, name)
+        elif possible_before_lookup:
+            has_event, event_kinds = event_kinds_possible_before(
+                scope,
+                name,
+                use_node,
+            )
+        else:
+            has_event, event_kinds = event_kinds_before(
+                scope,
+                name,
+                use_node,
+            )
         if has_event:
-            return event_kind
+            if (
+                scope is tree
+                and name == '__import__'
+                and (runtime_lookup or possible_before_lookup)
+                and not event_kinds
+                and module_builtin_fallback_possible(
+                    name,
+                    before_node=(
+                        use_node if possible_before_lookup else None
+                    ),
+                )
+            ):
+                return {'builtins_callable'}
+            return event_kinds
         if name in global_names.get(id(scope), set()):
+            class_definition_lookup = isinstance(scope, ast.ClassDef)
             return resolve_name_at(
                 tree,
                 name,
-                use_node,
-                runtime_lookup=True,
+                scope if class_definition_lookup else use_node,
+                runtime_lookup=not class_definition_lookup,
+                possible_before_lookup=class_definition_lookup,
             )
         if name in nonlocal_names.get(id(scope), set()):
             parent_scope = enclosing_scope(scope)
+            class_definition_lookup = isinstance(scope, ast.ClassDef)
             return (
                 resolve_name_at(
                     parent_scope,
                     name,
-                    use_node,
-                    runtime_lookup=True,
+                    scope if class_definition_lookup else use_node,
+                    runtime_lookup=not class_definition_lookup,
+                    possible_before_lookup=class_definition_lookup,
                 )
                 if parent_scope is not None
-                else None
+                else set()
             )
         if (
             isinstance(
@@ -739,60 +900,74 @@ def _source_import_analysis(
             )
             and name in local_names.get(id(scope), set())
         ):
-            return None
+            return set()
         parent_scope = enclosing_scope(scope)
         if parent_scope is not None:
+            parent_runtime_lookup = (
+                runtime_lookup
+                or isinstance(
+                    scope,
+                    (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda),
+                )
+            )
             return resolve_name_at(
                 parent_scope,
                 name,
-                use_node,
-                runtime_lookup=(
-                    runtime_lookup
-                    or isinstance(
-                        scope,
-                        (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda),
+                scope if isinstance(scope, ast.ClassDef) else use_node,
+                runtime_lookup=parent_runtime_lookup,
+                possible_before_lookup=(
+                    not parent_runtime_lookup
+                    and (
+                        possible_before_lookup
+                        or isinstance(scope, ast.ClassDef)
                     )
                 ),
             )
-        return 'builtins_callable' if name == '__import__' else None
+        return {'builtins_callable'} if name == '__import__' else set()
 
-    def resolve_dynamic_callable(node: ast.expr) -> str | None:
+    def resolve_dynamic_callable(node: ast.expr) -> set[str]:
         if isinstance(node, ast.Name):
             if is_comprehension_shadowed(node, node.id):
-                return None
-            kind = resolve_name_at(evaluation_scope(node), node.id, node)
-            if kind in {'importlib_callable', 'builtins_callable'}:
-                return kind
-            return None
+                return set()
+            return resolve_name_at(
+                evaluation_scope(node),
+                node.id,
+                node,
+            ) & {'importlib_callable', 'builtins_callable'}
         if not isinstance(node, ast.Attribute) or not isinstance(node.value, ast.Name):
-            return None
+            return set()
         if is_comprehension_shadowed(node.value, node.value.id):
-            return None
-        owner = resolve_name_at(
+            return set()
+        owner_kinds = resolve_name_at(
             evaluation_scope(node.value),
             node.value.id,
             node.value,
         )
-        if owner == 'importlib_module' and node.attr == 'import_module':
-            return 'importlib_callable'
-        if owner == 'builtins_module' and node.attr == '__import__':
-            return 'builtins_callable'
-        return None
+        callable_kinds: set[str] = set()
+        if (
+            'importlib_module' in owner_kinds
+            and node.attr == 'import_module'
+        ):
+            callable_kinds.add('importlib_callable')
+        if 'builtins_module' in owner_kinds and node.attr == '__import__':
+            callable_kinds.add('builtins_callable')
+        return callable_kinds
 
     unresolved_assignments = assignment_nodes
     while unresolved_assignments:
         pending_assignments = []
         made_progress = False
         for scope, value, targets, binding_node in unresolved_assignments:
-            kind = resolve_dynamic_callable(value) if value is not None else None
-            if kind is None:
+            kinds = resolve_dynamic_callable(value) if value is not None else set()
+            if not kinds:
                 pending_assignments.append(
                     (scope, value, targets, binding_node)
                 )
                 continue
             for target in targets:
                 for name in target_names(target):
-                    add_owner(scope, name, kind, binding_node)
+                    for kind in kinds:
+                        add_owner(scope, name, kind, binding_node)
             made_progress = True
         if not made_progress:
             break
@@ -893,7 +1068,7 @@ def _source_import_analysis(
         if (
             bind_missing_definition is not None
             and evaluation_scope(node) is bind_missing_definition
-            and resolve_dynamic_callable(node.func) == 'importlib_callable'
+            and resolve_dynamic_callable(node.func) == {'importlib_callable'}
             and node.args
             and isinstance(node.args[0], ast.Name)
             and node.args[0].id == 'module_name'
@@ -920,7 +1095,7 @@ def _source_import_analysis(
             else:
                 unsupported_dynamic_import_lines.add(node.lineno)
             continue
-        if resolve_dynamic_callable(node.func) is None:
+        if not resolve_dynamic_callable(node.func):
             continue
         if (
             node.args
