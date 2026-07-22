@@ -445,11 +445,76 @@ def _source_import_analysis(
             }
         return set()
 
+    comprehension_types = (
+        ast.ListComp,
+        ast.SetComp,
+        ast.DictComp,
+        ast.GeneratorExp,
+    )
+
+    def is_descendant(node: ast.AST, ancestor: ast.AST) -> bool:
+        current: ast.AST | None = node
+        while current is not None:
+            if current is ancestor:
+                return True
+            current = parent_by_node.get(id(current))
+        return False
+
+    def comprehension_bound_names(
+        node: ast.AST,
+        comprehension: ast.AST,
+    ) -> set[str]:
+        bound_names: set[str] = set()
+        for generator in comprehension.generators:
+            if is_descendant(node, generator.iter):
+                return bound_names
+            if is_descendant(node, generator.target):
+                return bound_names
+            bound_names.update(target_names(generator.target))
+            if any(is_descendant(node, condition) for condition in generator.ifs):
+                return bound_names
+        return bound_names
+
+    def is_comprehension_shadowed(node: ast.AST, name: str) -> bool:
+        current = parent_by_node.get(id(node))
+        while current is not None:
+            if (
+                isinstance(current, comprehension_types)
+                and name in comprehension_bound_names(node, current)
+            ):
+                return True
+            current = parent_by_node.get(id(current))
+        return False
+
+    def evaluation_scope(node: ast.AST) -> ast.AST:
+        current: ast.AST = node
+        while True:
+            parent = parent_by_node[id(current)]
+            if isinstance(parent, ast.Module):
+                return parent
+            if isinstance(parent, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                if any(is_descendant(node, statement) for statement in parent.body):
+                    return parent
+                current = parent
+                continue
+            if isinstance(parent, ast.Lambda):
+                if is_descendant(node, parent.body):
+                    return parent
+                current = parent
+                continue
+            if isinstance(parent, ast.ClassDef):
+                if any(is_descendant(node, statement) for statement in parent.body):
+                    return parent
+                current = parent
+                continue
+            current = parent
+
     import_roots: set[str] = set()
-    owner_bindings: dict[int, dict[str, set[str]]] = {}
     local_names: dict[int, set[str]] = {}
-    nonowner_bindings: dict[int, set[str]] = {}
-    assignment_nodes: list[tuple[ast.AST, ast.expr | None, list[ast.AST]]] = []
+    owner_event_kinds: dict[tuple[int, str, int], set[str]] = {}
+    assignment_nodes: list[
+        tuple[ast.AST, ast.expr | None, list[ast.AST], ast.AST]
+    ] = []
     binding_events: list[tuple[ast.AST, str, ast.AST]] = []
     global_names: dict[int, set[str]] = {}
     nonlocal_names: dict[int, set[str]] = {}
@@ -459,11 +524,18 @@ def _source_import_analysis(
 
     def add_nonowner(scope: ast.AST, name: str) -> None:
         add_local(scope, name)
-        nonowner_bindings.setdefault(id(scope), set()).add(name)
 
-    def add_owner(scope: ast.AST, name: str, kind: str) -> None:
+    def add_owner(
+        scope: ast.AST,
+        name: str,
+        kind: str,
+        binding_node: ast.AST,
+    ) -> None:
         add_local(scope, name)
-        owner_bindings.setdefault(id(scope), {}).setdefault(name, set()).add(kind)
+        owner_event_kinds.setdefault(
+            (id(scope), name, id(binding_node)),
+            set(),
+        ).add(kind)
 
     for node in ast.walk(tree):
         scope = lexical_scope(node)
@@ -488,9 +560,19 @@ def _source_import_analysis(
                     alias.name.startswith('importlib.')
                     and alias.asname is None
                 ):
-                    add_owner(scope, bound_name, 'importlib_module')
+                    add_owner(
+                        scope,
+                        bound_name,
+                        'importlib_module',
+                        node,
+                    )
                 elif alias.name == 'builtins':
-                    add_owner(scope, bound_name, 'builtins_module')
+                    add_owner(
+                        scope,
+                        bound_name,
+                        'builtins_module',
+                        node,
+                    )
                 else:
                     add_nonowner(scope, bound_name)
                 binding_events.append((scope, bound_name, node))
@@ -504,19 +586,29 @@ def _source_import_analysis(
                     and node.module == 'importlib'
                     and alias.name == 'import_module'
                 ):
-                    add_owner(scope, bound_name, 'importlib_callable')
+                    add_owner(
+                        scope,
+                        bound_name,
+                        'importlib_callable',
+                        node,
+                    )
                 elif (
                     node.level == 0
                     and node.module == 'builtins'
                     and alias.name == '__import__'
                 ):
-                    add_owner(scope, bound_name, 'builtins_callable')
+                    add_owner(
+                        scope,
+                        bound_name,
+                        'builtins_callable',
+                        node,
+                    )
                 else:
                     add_nonowner(scope, bound_name)
                 binding_events.append((scope, bound_name, node))
         elif isinstance(node, (ast.Assign, ast.AnnAssign, ast.NamedExpr)):
             targets = node.targets if isinstance(node, ast.Assign) else [node.target]
-            assignment_nodes.append((scope, node.value, targets))
+            assignment_nodes.append((scope, node.value, targets, node))
             for target in targets:
                 for name in target_names(target):
                     add_local(scope, name)
@@ -530,40 +622,157 @@ def _source_import_analysis(
         elif isinstance(node, (ast.For, ast.AsyncFor)):
             for name in target_names(node.target):
                 add_nonowner(scope, name)
-                binding_events.append((scope, name, node))
+                binding_events.append((scope, name, node.target))
         elif isinstance(node, (ast.With, ast.AsyncWith)):
             for item in node.items:
                 if item.optional_vars is not None:
                     for name in target_names(item.optional_vars):
                         add_nonowner(scope, name)
-                        binding_events.append((scope, name, node))
+                        binding_events.append((scope, name, item.optional_vars))
         elif isinstance(node, ast.ExceptHandler) and node.name:
             add_nonowner(scope, node.name)
-            binding_events.append((scope, node.name, node))
+            binding_events.append((scope, node.name, node.type or node))
 
-    def resolve_name(scope: ast.AST, name: str) -> str | None:
-        kinds = owner_bindings.get(id(scope), {}).get(name, set())
+    def source_end(node: ast.AST) -> tuple[int, int]:
+        return (
+            getattr(node, 'end_lineno', None) or node.lineno,
+            getattr(node, 'end_col_offset', None) or node.col_offset,
+        )
+
+    def source_start(node: ast.AST) -> tuple[int, int]:
+        return node.lineno, node.col_offset
+
+    def resolved_event_kind(
+        scope: ast.AST,
+        name: str,
+        events: list[ast.AST],
+    ) -> tuple[bool, str | None]:
+        if not events:
+            return False, None
+        kinds: set[str] = set()
+        for binding_node in events:
+            event_kinds = owner_event_kinds.get(
+                (id(scope), name, id(binding_node)),
+                set(),
+            )
+            if not event_kinds:
+                return True, None
+            kinds.update(event_kinds)
+        return (
+            (True, next(iter(kinds)))
+            if len(kinds) == 1
+            else (True, None)
+        )
+
+    def event_kind_before(
+        scope: ast.AST,
+        name: str,
+        use_node: ast.AST,
+    ) -> tuple[bool, str | None]:
+        preceding_events = [
+            binding_node
+            for event_scope, event_name, binding_node in binding_events
+            if (
+                event_scope is scope
+                and event_name == name
+                and source_end(binding_node) <= source_start(use_node)
+            )
+        ]
+        if not preceding_events:
+            return False, None
+        latest_position = max(source_end(node) for node in preceding_events)
+        latest_events = [
+            node
+            for node in preceding_events
+            if source_end(node) == latest_position
+        ]
+        return resolved_event_kind(scope, name, latest_events)
+
+    def event_kind_anywhere(
+        scope: ast.AST,
+        name: str,
+    ) -> tuple[bool, str | None]:
+        events = [
+            binding_node
+            for event_scope, event_name, binding_node in binding_events
+            if event_scope is scope and event_name == name
+        ]
+        return resolved_event_kind(scope, name, events)
+
+    def resolve_name_at(
+        scope: ast.AST,
+        name: str,
+        use_node: ast.AST,
+        *,
+        runtime_lookup: bool = False,
+    ) -> str | None:
+        has_event, event_kind = (
+            event_kind_anywhere(scope, name)
+            if runtime_lookup
+            else event_kind_before(scope, name, use_node)
+        )
+        if has_event:
+            return event_kind
+        if name in global_names.get(id(scope), set()):
+            return resolve_name_at(
+                tree,
+                name,
+                use_node,
+                runtime_lookup=True,
+            )
+        if name in nonlocal_names.get(id(scope), set()):
+            parent_scope = enclosing_scope(scope)
+            return (
+                resolve_name_at(
+                    parent_scope,
+                    name,
+                    use_node,
+                    runtime_lookup=True,
+                )
+                if parent_scope is not None
+                else None
+            )
         if (
-            len(kinds) == 1
-            and name not in nonowner_bindings.get(id(scope), set())
+            isinstance(
+                scope,
+                (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda),
+            )
+            and name in local_names.get(id(scope), set())
         ):
-            return next(iter(kinds))
-        if name in local_names.get(id(scope), set()):
             return None
         parent_scope = enclosing_scope(scope)
         if parent_scope is not None:
-            return resolve_name(parent_scope, name)
+            return resolve_name_at(
+                parent_scope,
+                name,
+                use_node,
+                runtime_lookup=(
+                    runtime_lookup
+                    or isinstance(
+                        scope,
+                        (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda),
+                    )
+                ),
+            )
         return 'builtins_callable' if name == '__import__' else None
 
-    def resolve_dynamic_callable(node: ast.expr, scope: ast.AST) -> str | None:
+    def resolve_dynamic_callable(node: ast.expr) -> str | None:
         if isinstance(node, ast.Name):
-            kind = resolve_name(scope, node.id)
+            if is_comprehension_shadowed(node, node.id):
+                return None
+            kind = resolve_name_at(evaluation_scope(node), node.id, node)
             if kind in {'importlib_callable', 'builtins_callable'}:
                 return kind
             return None
         if not isinstance(node, ast.Attribute) or not isinstance(node.value, ast.Name):
             return None
-        owner = resolve_name(scope, node.value.id)
+        if is_comprehension_shadowed(node.value, node.value.id):
+            return None
+        owner = resolve_name_at(
+            evaluation_scope(node.value),
+            node.value.id,
+            node.value,
+        )
         if owner == 'importlib_module' and node.attr == 'import_module':
             return 'importlib_callable'
         if owner == 'builtins_module' and node.attr == '__import__':
@@ -574,25 +783,18 @@ def _source_import_analysis(
     while unresolved_assignments:
         pending_assignments = []
         made_progress = False
-        for scope, value, targets in unresolved_assignments:
-            kind = (
-                resolve_dynamic_callable(value, scope)
-                if value is not None
-                else None
-            )
+        for scope, value, targets, binding_node in unresolved_assignments:
+            kind = resolve_dynamic_callable(value) if value is not None else None
             if kind is None:
-                pending_assignments.append((scope, value, targets))
+                pending_assignments.append(
+                    (scope, value, targets, binding_node)
+                )
                 continue
             for target in targets:
                 for name in target_names(target):
-                    add_owner(scope, name, kind)
+                    add_owner(scope, name, kind, binding_node)
             made_progress = True
         if not made_progress:
-            for scope, _, targets in pending_assignments:
-                for target in targets:
-                    nonowner_bindings.setdefault(id(scope), set()).update(
-                        target_names(target)
-                    )
             break
         unresolved_assignments = pending_assignments
 
@@ -624,67 +826,13 @@ def _source_import_analysis(
         else None
     )
 
-    comprehension_types = (
-        ast.ListComp,
-        ast.SetComp,
-        ast.DictComp,
-        ast.GeneratorExp,
-    )
-
-    def is_descendant(node: ast.AST, ancestor: ast.AST) -> bool:
-        current: ast.AST | None = node
-        while current is not None:
-            if current is ancestor:
-                return True
-            current = parent_by_node.get(id(current))
-        return False
-
-    def is_comprehension_shadowed(node: ast.Name, name: str) -> bool:
-        current = parent_by_node.get(id(node))
-        while current is not None:
-            if isinstance(current, comprehension_types):
-                first_iter = current.generators[0].iter
-                if (
-                    not is_descendant(node, first_iter)
-                    and any(
-                        name in target_names(generator.target)
-                        for generator in current.generators
-                    )
-                ):
-                    return True
-            current = parent_by_node.get(id(current))
-        return False
-
-    def load_scope(node: ast.Name) -> ast.AST:
-        current: ast.AST = node
-        while True:
-            parent = parent_by_node[id(current)]
-            if isinstance(parent, ast.Module):
-                return parent
-            if isinstance(parent, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                if any(is_descendant(node, statement) for statement in parent.body):
-                    return parent
-                current = parent
-                continue
-            if isinstance(parent, ast.Lambda):
-                if is_descendant(node, parent.body):
-                    return parent
-                current = parent
-                continue
-            if isinstance(parent, ast.ClassDef):
-                if any(is_descendant(node, statement) for statement in parent.body):
-                    return parent
-                current = parent
-                continue
-            current = parent
-
     def resolves_to_bind_missing_candidate(node: ast.Name) -> bool:
         if (
             bind_missing_candidate is None
             or is_comprehension_shadowed(node, '_bind_missing')
         ):
             return False
-        scope = load_scope(node)
+        scope = evaluation_scope(node)
         while scope is not None:
             if scope is tree:
                 return True
@@ -744,9 +892,8 @@ def _source_import_analysis(
         for node in calls
         if (
             bind_missing_definition is not None
-            and lexical_scope(node) is bind_missing_definition
-            and resolve_dynamic_callable(node.func, lexical_scope(node))
-            == 'importlib_callable'
+            and evaluation_scope(node) is bind_missing_definition
+            and resolve_dynamic_callable(node.func) == 'importlib_callable'
             and node.args
             and isinstance(node.args[0], ast.Name)
             and node.args[0].id == 'module_name'
@@ -773,7 +920,7 @@ def _source_import_analysis(
             else:
                 unsupported_dynamic_import_lines.add(node.lineno)
             continue
-        if resolve_dynamic_callable(node.func, lexical_scope(node)) is None:
+        if resolve_dynamic_callable(node.func) is None:
             continue
         if (
             node.args

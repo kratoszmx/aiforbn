@@ -686,6 +686,292 @@ def test_validate_agent_layout_classifies_dynamic_import_forms(
 
 
 @pytest.mark.parametrize(
+    ('source_prefix', 'expected_error_code'),
+    [
+        (
+            'from importlib import import_module as load\n'
+            'def use_default(load, value=load("requests")):\n'
+            '    return value\n',
+            'undeclared_external_import',
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'module_name = "requests"\n'
+            'async def use_kw_default(\n'
+            '    *, load=None, value=load(module_name)\n'
+            '):\n'
+            '    return value\n',
+            'unsupported_dynamic_import',
+        ),
+        (
+            'from importlib import import_module as load\n'
+            '@load("requests")\n'
+            'def decorated(load):\n'
+            '    return load\n',
+            'undeclared_external_import',
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'def annotated(load: load("requests")):\n'
+            '    return load\n',
+            'undeclared_external_import',
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'def annotated_return() -> load("requests"):\n'
+            '    load = None\n'
+            '    return load\n',
+            'undeclared_external_import',
+        ),
+        (
+            'from importlib import import_module as load\n'
+            '@load("requests")\n'
+            'class Decorated:\n'
+            '    load = None\n',
+            'undeclared_external_import',
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'class Derived(load("requests")):\n'
+            '    load = None\n',
+            'undeclared_external_import',
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'class Meta(metaclass=load("requests")):\n'
+            '    load = None\n',
+            'undeclared_external_import',
+        ),
+        (
+            'import importlib\n'
+            'def use_attribute(\n'
+            '    importlib, value=importlib.import_module("requests")\n'
+            '):\n'
+            '    return value\n',
+            'undeclared_external_import',
+        ),
+        (
+            'import builtins\n'
+            'value = (\n'
+            '    lambda builtins, loaded=builtins.__import__("requests"): loaded\n'
+            ')(None)\n',
+            'undeclared_external_import',
+        ),
+        (
+            'def use_builtin(\n'
+            '    __import__, value=__import__("requests")\n'
+            '):\n'
+            '    return value\n',
+            'undeclared_external_import',
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'value = (lambda load=load("requests"): load)()\n',
+            'undeclared_external_import',
+        ),
+    ],
+    ids=(
+        'function-default',
+        'async-kw-default-computed',
+        'function-decorator',
+        'parameter-annotation',
+        'return-annotation',
+        'class-decorator',
+        'class-base',
+        'class-keyword',
+        'attribute-owner-default',
+        'builtins-attribute-lambda-default',
+        'bare-builtin-default',
+        'lambda-default',
+    ),
+)
+def test_validate_agent_layout_classifies_definition_time_dynamic_imports(
+    monkeypatch,
+    source_prefix,
+    expected_error_code,
+):
+    validation = _validate_agent_layout_with_config_prefix(
+        monkeypatch,
+        source_prefix,
+    )
+
+    assert validation['status'] == 'error'
+    assert any(
+        error['code'] == expected_error_code
+        and error['path'] == 'src/config.py'
+        for error in validation['errors']
+    )
+
+
+@pytest.mark.parametrize(
+    'source_prefix',
+    [
+        (
+            'from importlib import import_module as load\n'
+            'load("requests")\n'
+            'load = lambda value: value\n'
+        ),
+        (
+            'load = lambda value: value\n'
+            'from importlib import import_module as load\n'
+            'load("requests")\n'
+        ),
+        (
+            'def use_loader():\n'
+            '    from importlib import import_module as load\n'
+            '    load("requests")\n'
+            '    load = lambda value: value\n'
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'class Loader:\n'
+            '    value = load("requests")\n'
+            '    load = lambda value: value\n'
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'values = [\n'
+            '    item for item in [1] for load in load("requests")\n'
+            ']\n'
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'def use_global():\n'
+            '    global load\n'
+            '    load("requests")\n'
+            '    load = lambda value: value\n'
+        ),
+        (
+            'def outer():\n'
+            '    from importlib import import_module as load\n'
+            '    def inner():\n'
+            '        nonlocal load\n'
+            '        load("requests")\n'
+            '        load = lambda value: value\n'
+            '    return inner\n'
+        ),
+        (
+            'def use_late_module_owner():\n'
+            '    return load("requests")\n'
+            'from importlib import import_module as load\n'
+            'use_late_module_owner()\n'
+        ),
+        (
+            'def outer():\n'
+            '    def inner():\n'
+            '        return load("requests")\n'
+            '    from importlib import import_module as load\n'
+            '    return inner()\n'
+        ),
+    ],
+    ids=(
+        'module-call-before-rebind',
+        'module-call-after-owner-rebind',
+        'function-call-before-rebind',
+        'class-call-before-shadow',
+        'comprehension-own-target-iterable',
+        'global-call-before-rebind',
+        'nonlocal-call-before-rebind',
+        'module-owner-after-function-definition',
+        'closure-owner-after-inner-definition',
+    ),
+)
+def test_validate_agent_layout_uses_dynamic_owner_at_call_position(
+    monkeypatch,
+    source_prefix,
+):
+    validation = _validate_agent_layout_with_config_prefix(
+        monkeypatch,
+        source_prefix,
+    )
+
+    assert validation['status'] == 'error'
+    assert any(
+        error['code'] == 'undeclared_external_import'
+        and error['path'] == 'src/config.py'
+        for error in validation['errors']
+    )
+
+
+@pytest.mark.parametrize(
+    'source_prefix',
+    [
+        (
+            'from importlib import import_module as load\n'
+            'values = [load("requests") for load in []]\n'
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'values = [\n'
+            '    item for load in [] if load("requests") for item in []\n'
+            ']\n'
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'values = [\n'
+            '    item for load in [] for item in load("requests")\n'
+            ']\n'
+        ),
+        (
+            'import importlib\n'
+            'values = [\n'
+            '    importlib.import_module("requests") for importlib in []\n'
+            ']\n'
+        ),
+        'values = [__import__("requests") for __import__ in []]\n',
+        (
+            'from importlib import import_module as load\n'
+            'values = [[load("requests") for item in []] for load in []]\n'
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'load = lambda value: value\n'
+            'load("requests")\n'
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'class Loader:\n'
+            '    load = lambda value: value\n'
+            '    value = load("requests")\n'
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'def use_lambda():\n'
+            '    return (lambda load: load("requests"))(lambda value: value)\n'
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'def use_relative(load, value=load(".utils", __package__)):\n'
+            '    return value\n'
+        ),
+    ],
+    ids=(
+        'comprehension-body-target',
+        'comprehension-filter-target',
+        'comprehension-later-iterator-target',
+        'comprehension-attribute-target',
+        'comprehension-builtin-target',
+        'nested-comprehension-outer-target',
+        'module-call-after-rebind',
+        'class-call-after-shadow',
+        'lambda-parameter',
+        'relative-definition-time-import',
+    ),
+)
+def test_validate_agent_layout_ignores_positionally_shadowed_dynamic_calls(
+    monkeypatch,
+    source_prefix,
+):
+    validation = _validate_agent_layout_with_config_prefix(
+        monkeypatch,
+        source_prefix,
+    )
+
+    assert validation['status'] == 'ok'
+    assert validation['errors'] == []
+
+
+@pytest.mark.parametrize(
     'source_prefix',
     [
         (
