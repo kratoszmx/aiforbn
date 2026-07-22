@@ -39,6 +39,6 @@ description: 用于 aiforbn 仓库的常规维护工作，包括 AI-native 架�
 
 ## 委派
 
-- 在有风险的本地状态修改前，使用 `$blocking-question-soft-gate`。
-- 只把范围窄、低风险、容易审查的代码片段交给 `$small-fast-coding` / `spark_coder`。
+- 在有风险的本地状态修改前先确认恢复路径和权限边界；只有真实阻断才向用户提出最小问题。
+- 只把范围窄、低风险、容易审查的代码片段交给 `spark_coder` agent role。
 - 主 Codex 负责 diff 审查、测试、暂存、提交和推送。

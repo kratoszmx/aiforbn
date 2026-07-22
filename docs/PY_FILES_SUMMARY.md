@@ -53,7 +53,7 @@ What it does **not** do:
 - does not train models
 - does not run the full benchmark/ranking pipeline
 
-Use it as the short per-round smoke test before deciding whether a full `main.py` run is worth asking the user to launch.
+Use it as the short per-round smoke test before the agent decides whether the authorized task requires a full `main.py` run and its artifact writes.
 
 ### `emit_agent_state(write_path=None, fail_on_error=False)`
 Machine-readable AI-native project inspection entrypoint used by agent control commands:
@@ -166,7 +166,7 @@ Purpose:
 Loads the checked-in agent manifest.
 
 ### `validate_agent_layout(project_root_path='.', manifest=None)`
-Checks required agent-facing files; exact control and validation command/scope/capability records; profile reachability; repo-skill trigger frontmatter; bidirectional normalized requirements/manifest specifier parity; source-derived external-import ownership (including local shared modules and backend-only dependencies); blocking dependency availability probes; exact retired-guidance and six-module records; local instruction paths; and the stable v18 alignment/scientific boundaries.
+Checks required agent-facing files; exact control and validation command/scope/capability records; profile reachability including mandatory dependency capabilities; repo-skill trigger frontmatter and repo-local `$skill` reference resolution; bidirectional normalized requirements/manifest specifier parity; source-derived external-import ownership (including distribution/module identity, direct/backend and core/scientific/UI/test consumer constraints, and local shared-owner records); blocking dependency availability probes; exact retired-guidance and six-module records; local instruction paths; and the stable v18 alignment/scientific boundaries.
 Returns:
 - `status`
 - `errors`
@@ -905,6 +905,7 @@ Writes the main artifact files under `artifacts/`.
 Every fixed, configurable, dynamic, and stale-cleanup CIF leaf is preflighted in its originally declared form before directory creation. Configurable structure-execution outputs must remain under that directory, use the expected JSON/CSV types, avoid core/pairwise/alias collisions, and place CIF files directly under the configured structure directory. Empty execution results remove only preflighted stale execution outputs from a previous run.
 The writer also preflights experiment-summary container shape and each declared dynamic output role against the shared runtime role mapping before artifact-directory creation or prior-marker invalidation. Semantically empty absent/null/empty containers and matching normalized or filesystem-identical same-role paths remain accepted.
 Nonempty structure-execution summary and variants frames must carry every canonical relation field, use the builder-owned finite candidate-status vocabulary, and agree with the execution payload on candidate/variant membership, counts, statuses, geometry results, the deterministic canonical winner, and all ten selected-row projections before publication. Candidates without a successful variant keep selected ID/rank/path/formula/site/geometry/proxy/relaxation fields null and use the canonical `not_executed` or invalid-reference error final status. This prevents swapped, relabelled, arbitrary-status, or internally contradictory builder outputs from reaching a current bundle while retaining canonical inactive, empty, error, partial, full, failed-variant, custom-formula-column, custom-path, and non-first-winner outputs.
+Configured enabled/label/method/note metadata, structure-aware model availability, and any experiment-summary execution metadata/count/model fields must be exact projections of the canonical configuration and payload before publication; this keeps structure outputs labeled as unrelaxed handoff evidence rather than synthesis, stability, or discovery proof.
 For formula-grouped splits, seed formula row counts and target means are reconstructed from the complete BN frame and must match the builder's train+validation aggregate before publication; record-level seed evidence remains bound to the cached raw record.
 Ranking-stability, decision-policy, shortlist, and structure-seed gates control their declared outputs; disabling a layer removes stale files from prior runs, including case-equivalent CIF suffixes. Caller JSON and parity inputs are preflighted before mutation, CSV replacement is atomic, and successful fixed/optional/configured/CIF/plot writes feed one source-derived commitment. Any prior marker is invalidated before mutation; failed plotting/publication leaves no marker, while `artifact_provenance.json` is always the final action and excludes absent optional outputs.
 Each compact BN model-role row uses one canonical feature/model identity across diagnostic scopes; unavailable identity-matched metrics stay empty rather than borrowing a different model's best value.

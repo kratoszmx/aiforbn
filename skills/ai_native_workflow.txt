@@ -46,7 +46,7 @@ Testing policy:
 - Update the nearest `PY_FILES_SUMMARY.md` when public commands, functions, classes, or module boundaries change.
 
 Delegation policy:
-- Use `blocking_questioner` for true blocker discovery before risky edits.
+- Before risky edits, establish the recovery path and ask the smallest user question only for a true blocker.
 - Use `spark_coder` only for low-risk, narrow, quickly verifiable coding/debug slices.
 - Give delegated coding agents English, file-scoped, validation-scoped prompts.
 - Main Codex must inspect diffs and verification results before accepting subagent output.

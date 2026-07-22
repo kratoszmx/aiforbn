@@ -33,10 +33,10 @@ description: 用于 aiforbn 仓库的 research-plan 和 Overleaf 交付工作，
 
 1. 读取仓库根目录的 `AGENTS.md` 和当前 proposal 任务上下文。
 2. 编辑前确认准确的本地 proposal source 和 output 文件。
-3. 需要远程 Overleaf source 检查、ZIP 下载、Git mirror 工作或 browser-session fallback 时，使用 `$mcp-overleaf`。
+3. 需要远程 Overleaf source 检查、ZIP 下载、Git mirror 工作或 browser-session fallback 时，优先使用当前已加载的 Overleaf 文字接口；若没有可用接口则报告真实 blocker。
 4. 用文字证据验证编译器选择和协作者权限。
 5. 除非任务明确要求追踪原始下载，否则把 Overleaf 原始下载放在 ignored temporary 或 artifact 路径。
-6. commit 或 push 前，使用 `$git-sync`，并且只 stage 有意的 proposal artifacts。
+6. commit 或 push 前遵循当前会话的 `git-sync` skill，并且只 stage 有意的 proposal artifacts。
 
 ## 验证
 

@@ -154,6 +154,21 @@ def test_validate_agent_layout_accepts_current_repo_contract():
         'aiforbn-overleaf-proposal',
     }
     assert all(check['valid'] for check in skill_frontmatter_checks)
+    skill_reference_checks = {
+        check['path']: check
+        for check in validation['checks']
+        if check['kind'] == 'project_skill_references'
+    }
+    assert skill_reference_checks[
+        '.agents/skills/aiforbn-workflow/SKILL.md'
+    ]['references'] == ['aiforbn-overleaf-proposal']
+    assert skill_reference_checks[
+        '.agents/skills/aiforbn-overleaf-proposal/SKILL.md'
+    ]['references'] == []
+    assert all(
+        not check['unresolved_references']
+        for check in skill_reference_checks.values()
+    )
 
 
 def test_build_agent_command_index_returns_validation_profiles():
@@ -264,6 +279,12 @@ def _dependency_by_package(manifest, package):
     )
 
 
+def _swap_dependency_modules(manifest, left_package, right_package):
+    left = _dependency_by_package(manifest, left_package)
+    right = _dependency_by_package(manifest, right_package)
+    left['module'], right['module'] = right['module'], left['module']
+
+
 def test_dependency_contract_covers_requirements_source_imports_and_profiles():
     manifest = load_agent_manifest(ROOT)
     validation = validate_agent_layout(ROOT, manifest)
@@ -299,6 +320,13 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
     assert 'main.py' in source_checks['pandas']['consumers']
     assert source_checks['pytest']['consumers']
     assert source_checks['pyarrow']['consumers'] == []
+    ownership_checks = {
+        check['package']: check
+        for check in validation['checks']
+        if check['kind'] == 'dependency_distribution_ownership'
+    }
+    assert ownership_checks.keys() == dependencies.keys()
+    assert all(check['matches'] for check in ownership_checks.values())
     assert validation['status'] == 'ok'
 
 
@@ -377,6 +405,50 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
             ).update({'import_kind': 'unknown'}),
             lambda text: text,
             'invalid_dependency_import_kind',
+        ),
+        (
+            lambda manifest: _dependency_by_package(
+                manifest, 'pandas'
+            ).update({'import_kind': 'backend'}),
+            lambda text: text,
+            'backend_dependency_imported_directly',
+        ),
+        (
+            lambda manifest: _dependency_by_package(
+                manifest, 'pandas'
+            ).update({'role': 'ui'}),
+            lambda text: text,
+            'ui_dependency_outside_ui',
+        ),
+        (
+            lambda manifest: _swap_dependency_modules(
+                manifest, 'pandas', 'numpy'
+            ),
+            lambda text: text,
+            'dependency_distribution_mismatch',
+        ),
+        (
+            lambda manifest: _dependency_by_package(
+                manifest, 'pytest'
+            ).update({'role': 'core_runtime'}),
+            lambda text: text,
+            'dependency_role_consumer_mismatch',
+        ),
+        (
+            lambda manifest: _dependency_by_package(
+                manifest, 'numpy'
+            ).update({'role': 'core_runtime'}),
+            lambda text: text,
+            'dependency_role_consumer_mismatch',
+        ),
+        (
+            lambda manifest: next(
+                dependency
+                for dependency in manifest['local_shared_imports']
+                if dependency['module'] == 'filesystem'
+            ).update({'owner': 'myutils/file_utils/not_the_owner.py'}),
+            lambda text: text,
+            'invalid_local_shared_import_entry',
         ),
         (
             lambda manifest: manifest.update({
@@ -467,6 +539,36 @@ def test_validate_agent_layout_rejects_missing_declared_dependency(monkeypatch):
     assert any(
         error['code'] == 'missing_declared_dependency'
         and error['module'] == 'pydantic'
+        for error in validation['errors']
+    )
+
+
+def test_validate_agent_layout_rejects_unresolved_project_skill_reference(
+    monkeypatch,
+):
+    original_read = agent_state._read_text_if_present
+    skill_path = (
+        ROOT / '.agents' / 'skills' / 'aiforbn-workflow' / 'SKILL.md'
+    ).resolve()
+
+    def read_with_missing_skill_reference(path):
+        text = original_read(path)
+        if Path(path).resolve() == skill_path:
+            return f'{text}\nUse `$missing-project-skill`.\n'
+        return text
+
+    monkeypatch.setattr(
+        agent_state,
+        '_read_text_if_present',
+        read_with_missing_skill_reference,
+    )
+
+    validation = validate_agent_layout(ROOT)
+
+    assert validation['status'] == 'error'
+    assert any(
+        error['code'] == 'unresolved_project_skill_reference'
+        and error['path'] == '.agents/skills/aiforbn-workflow/SKILL.md'
         for error in validation['errors']
     )
 
@@ -746,6 +848,15 @@ def test_validate_agent_layout_rejects_missing_human_docs_marker(monkeypatch, re
                 ],
             }),
             'missing_required_validation_profiles',
+        ),
+        (
+            lambda manifest: manifest['validation_profiles'].append({
+                'name': 'dependency_blind_extra_profile',
+                'commands': ['fast_smoke'],
+                'use_when': 'a bounded new edit class',
+                'requires': ['pipeline_wiring_smoke'],
+            }),
+            'validation_profile_missing_dependency_capabilities',
         ),
     ],
 )

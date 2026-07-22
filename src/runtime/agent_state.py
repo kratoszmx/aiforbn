@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 from datetime import datetime, timezone
+from importlib import metadata
 import json
 import importlib.util
 from pathlib import Path
@@ -302,6 +303,9 @@ SKILL_FRONTMATTER_PATTERN = re.compile(
     r'\A---\r?\n(?P<body>.*?)\r?\n---(?:\r?\n|\Z)',
     re.DOTALL,
 )
+SKILL_REFERENCE_PATTERN = re.compile(
+    r'(?<![A-Za-z0-9_])\$([a-z][a-z0-9]*(?:[-_][a-z0-9]+)*)'
+)
 REQUIREMENT_DECLARATION_PATTERN = re.compile(
     r'^(?P<name>[A-Za-z0-9][A-Za-z0-9_.-]*)'
     r'(?P<specifier>(?:(?:===|~=|==|!=|<=|>=|<|>)[^,;]+'
@@ -454,6 +458,15 @@ def _project_import_roots(root: Path) -> set[str]:
             if path.is_dir() and not path.name.startswith('.')
         )
     return roots
+
+
+def _is_test_source_path(relative_path: str) -> bool:
+    path = Path(relative_path)
+    return (
+        path.name == 'conftest.py'
+        or path.name.startswith('test_')
+        or 'tests' in path.parts
+    )
 
 
 def _path_check(root: Path, relative_path: str) -> dict[str, object]:
@@ -704,7 +717,19 @@ def _validate_dependency_contract(
         module = str(entry.get('module', '')).strip()
         owner = str(entry.get('owner', '')).strip()
         purpose = str(entry.get('required_for', '')).strip()
-        if not IMPORT_MODULE_PATTERN.fullmatch(module) or not owner or not purpose:
+        owner_path = Path(owner)
+        owner_is_valid = (
+            not owner_path.is_absolute()
+            and owner_path.parts[:1] == ('myutils',)
+            and all(part not in {'.', '..'} for part in owner_path.parts)
+            and owner_path.suffix == '.py'
+            and owner_path.stem == module.rsplit('.', 1)[-1]
+        )
+        if (
+            not IMPORT_MODULE_PATTERN.fullmatch(module)
+            or not owner_is_valid
+            or not purpose
+        ):
             add_error('invalid_local_shared_import_entry', path, 'Local shared import requires module, owner, and purpose.')
             continue
         if module in local_modules or module in module_owners:
@@ -723,6 +748,7 @@ def _validate_dependency_contract(
         for path in consumers_by_module[module]:
             add_error('undeclared_external_import', path, f'Unclassified external import: {module}.', module=module)
 
+    distributions_by_module = metadata.packages_distributions()
     for package_key, record in dependencies.items():
         declaration = requirements.get(package_key)
         matches = declaration is not None and declaration['specifier'] == record['specifier']
@@ -734,7 +760,30 @@ def _validate_dependency_contract(
         if declaration is not None and not matches:
             add_error('dependency_specifier_mismatch', 'requirements.txt', f'Specifier mismatch for `{record["package"]}`.')
         module = record['module']
-        consumers = consumers_by_module.get(module.split('.', 1)[0], [])
+        module_root = module.split('.', 1)[0]
+        owning_distributions = sorted(
+            distributions_by_module.get(module_root, [])
+        )
+        normalized_owners = {
+            _normalized_requirement_name(distribution)
+            for distribution in owning_distributions
+        }
+        ownership_matches = package_key in normalized_owners
+        checks.append({
+            'kind': 'dependency_distribution_ownership',
+            'package': record['package'],
+            'module': module,
+            'owning_distributions': owning_distributions,
+            'matches': ownership_matches,
+        })
+        if not ownership_matches:
+            add_error(
+                'dependency_distribution_mismatch',
+                'docs/AGENT_MANIFEST.json:dependency_imports',
+                f'Distribution `{record["package"]}` does not own import module `{module}`.',
+                module=module,
+            )
+        consumers = consumers_by_module.get(module_root, [])
         checks.append({
             'kind': 'dependency_source_imports', 'package': record['package'],
             'module': module, 'role': record['role'], 'import_kind': record['import_kind'],
@@ -742,10 +791,51 @@ def _validate_dependency_contract(
         })
         if record['import_kind'] == 'direct' and not consumers:
             add_error('dependency_module_not_imported', 'docs/AGENT_MANIFEST.json:dependency_imports', f'Direct dependency `{module}` has no source consumer.', module=module)
+        if record['import_kind'] == 'backend' and consumers:
+            add_error(
+                'backend_dependency_imported_directly',
+                'docs/AGENT_MANIFEST.json:dependency_imports',
+                f'Backend dependency `{module}` has direct source consumers.',
+                module=module,
+            )
+        production_consumers = [
+            path for path in consumers if not _is_test_source_path(path)
+        ]
         if record['role'] == 'test_tool':
-            production_consumers = [path for path in consumers if '/tests/' not in f'/{path}/' and not Path(path).name.startswith('test_') and Path(path).name != 'conftest.py']
             if production_consumers:
                 add_error('test_tool_imported_by_production', production_consumers[0], f'Test tool `{module}` has production consumers.', module=module)
+        if record['role'] == 'ui' and (
+            not production_consumers
+            or any(
+                Path(path).parts[:2] != ('src', 'ui')
+                for path in production_consumers
+            )
+        ):
+            add_error(
+                'ui_dependency_outside_ui',
+                'docs/AGENT_MANIFEST.json:dependency_imports',
+                f'UI dependency `{module}` must have only UI production consumers.',
+                module=module,
+            )
+        role_consumer_roots = {
+            'core_runtime': {'main.py', 'src/runtime'},
+            'scientific_pipeline': {'src/materials', 'src/torch_models'},
+        }
+        required_consumer_roots = role_consumer_roots.get(record['role'])
+        if required_consumer_roots is not None and not any(
+            (path == 'main.py' and 'main.py' in required_consumer_roots)
+            or any(
+                Path(path).parts[:2] == tuple(root_path.split('/'))
+                for root_path in required_consumer_roots - {'main.py'}
+            )
+            for path in production_consumers
+        ):
+            add_error(
+                'dependency_role_consumer_mismatch',
+                'docs/AGENT_MANIFEST.json:dependency_imports',
+                f'Dependency `{module}` has no production consumer for role `{record["role"]}`.',
+                module=module,
+            )
         try:
             available = importlib.util.find_spec(module) is not None
         except (ImportError, AttributeError, ValueError):
@@ -1147,6 +1237,22 @@ def validate_agent_layout(
                         f'Validation profile `{profile_name}` repeats a required capability.'
                     ),
                 })
+            required_dependency_capabilities = {
+                'dependency_declarations',
+                'dependency_import_availability',
+            }
+            missing_dependency_capabilities = sorted(
+                required_dependency_capabilities - set(requires)
+            )
+            if missing_dependency_capabilities:
+                errors.append({
+                    'code': 'validation_profile_missing_dependency_capabilities',
+                    'path': f'docs/AGENT_MANIFEST.json:validation_profiles[{index}]',
+                    'message': (
+                        f'Validation profile `{profile_name}` must reach dependency '
+                        'declaration and import-availability checks.'
+                    ),
+                })
             provided_capabilities: set[str] = set()
             for command in commands:
                 provided_capabilities.update(
@@ -1354,6 +1460,13 @@ def validate_agent_layout(
                 'the required agent-routing contract.'
             ),
         })
+    active_repo_skill_names = {
+        str(skill.get('name', '')).strip()
+        for skill in project_skills
+        if isinstance(skill, dict)
+        and skill.get('scope') == 'repo_scoped_codex_skill'
+        and skill.get('status', 'active') == 'active'
+    }
     for index, skill in enumerate(project_skills):
         if not isinstance(skill, dict):
             errors.append({
@@ -1383,9 +1496,8 @@ def validate_agent_layout(
                 'message': f'Active project skill `{skill.get("name", "<unnamed>")}` is missing.',
             })
         if skill.get('scope') == 'repo_scoped_codex_skill' and check['exists']:
-            frontmatter = _skill_frontmatter_fields(
-                _read_text_if_present(root / relative_path)
-            )
+            skill_text = _read_text_if_present(root / relative_path)
+            frontmatter = _skill_frontmatter_fields(skill_text)
             expected_name = str(skill.get('name', '')).strip()
             frontmatter_valid = (
                 frontmatter.get('name') == expected_name
@@ -1404,6 +1516,27 @@ def validate_agent_layout(
                     'message': (
                         f'Repo-scoped skill frontmatter must declare exact name '
                         f'`{expected_name}` and a non-empty description.'
+                    ),
+                })
+            references = sorted(set(SKILL_REFERENCE_PATTERN.findall(skill_text)))
+            unresolved_references = sorted(
+                set(references) - active_repo_skill_names
+            )
+            checks.append({
+                'kind': 'project_skill_references',
+                'path': relative_path,
+                'references': references,
+                'unresolved_references': unresolved_references,
+            })
+            if unresolved_references:
+                errors.append({
+                    'code': 'unresolved_project_skill_reference',
+                    'path': relative_path,
+                    'message': (
+                        'Repo-scoped `$skill` references must resolve to an active '
+                        'repo-scoped skill; describe environment-specific global '
+                        'roles or capabilities without trigger syntax. Unresolved: '
+                        f'{unresolved_references}'
                     ),
                 })
 

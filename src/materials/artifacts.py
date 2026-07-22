@@ -30,6 +30,7 @@ from materials.candidate_space import (
     _proposal_shortlist_config,
     _structure_generation_seed_config,
 )
+from materials.constants import STRUCTURE_AWARE_FEATURE_SET
 from materials.common import (
     _decision_policy_config,
     _ranking_stability_config,
@@ -247,6 +248,7 @@ def _validate_experiment_summary_output_contract(
     configured_execution_paths: dict[str, Path],
     *,
     execution_outputs_will_publish: bool,
+    execution_payload: dict[str, object],
 ) -> None:
     if not isinstance(experiment_summary, dict):
         raise ValueError('experiment_summary must be an object')
@@ -302,6 +304,32 @@ def _validate_experiment_summary_output_contract(
         if declared_path.suffix.casefold() != expected_suffix:
             raise ValueError(
                 f'experiment_summary {summary_field} must use the configured file type'
+            )
+
+    for payload_field in (
+        'method',
+        'note',
+        'candidate_count',
+        'variant_count',
+        'successful_variant_count',
+        'status_counts',
+        'executed_formulas',
+        'model_feature_set',
+        'model_type',
+        'model_available',
+    ):
+        summary_field = f'first_pass_execution_{payload_field}'
+        if summary_field not in bridge:
+            continue
+        expected_value = (
+            bool(execution_payload.get(payload_field, False))
+            if payload_field == 'model_available'
+            else execution_payload.get(payload_field)
+        )
+        if make_json_safe(bridge[summary_field]) != make_json_safe(expected_value):
+            raise ValueError(
+                f'experiment_summary {summary_field} must match the canonical '
+                'structure execution payload'
             )
 
 
@@ -436,6 +464,7 @@ def _validate_structure_execution_frame_roles(
     max_variants_per_candidate: int,
     raw_record_lookup: dict[str, dict],
     expected_seed_reference_by_formula: dict[str, tuple[object, object]],
+    execution_config: dict[str, object],
 ) -> None:
     def normalized(value):
         return make_json_safe(value)
@@ -520,8 +549,27 @@ def _validate_structure_execution_frame_roles(
     missing = payload_fields - set(payload)
     if missing:
         reject('payload', f'is missing canonical relational fields: {sorted(missing)}')
-    if normalized(payload['enabled']) is not True:
-        reject('enabled state')
+    if normalized(payload['enabled']) != normalized(execution_config['enabled']):
+        reject('enabled', 'must match the configured execution metadata')
+    for field_name in ('label', 'method', 'note'):
+        if (
+            field_name in payload
+            and normalized(payload[field_name])
+            != normalized(execution_config[field_name])
+        ):
+            reject(field_name, 'must match the configured execution metadata')
+    model_available = normalized(payload.get('model_available', False))
+    if not isinstance(model_available, bool):
+        reject('model_available', 'must be boolean')
+    if (
+        model_available
+        and normalized(payload['model_feature_set'])
+        != STRUCTURE_AWARE_FEATURE_SET
+    ):
+        reject(
+            'model_feature_set',
+            f'must be `{STRUCTURE_AWARE_FEATURE_SET}` when model_available is true',
+        )
 
     def index_records(records, key, label):
         indexed = {}
@@ -1103,6 +1151,7 @@ def save_metrics_and_predictions(
         experiment_summary,
         structure_first_pass_execution_paths,
         execution_outputs_will_publish=execution_outputs_will_publish,
+        execution_payload=structure_first_pass_execution_payload,
     )
     structure_seed_outputs_will_publish = bool(
         structure_generation_seed_cfg['enabled']
@@ -1166,6 +1215,7 @@ def save_metrics_and_predictions(
             expected_seed_reference_by_formula=(
                 expected_seed_reference_by_formula
             ),
+            execution_config=structure_first_pass_execution_cfg,
         )
     if include_parity_plot:
         missing_plot_columns = {'target', 'prediction'} - set(prediction_df.columns)

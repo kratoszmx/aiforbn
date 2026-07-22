@@ -2131,16 +2131,22 @@ def _assert_structure_execution_rejection_is_atomic(
     invalid_kwargs,
     manifest,
     expected_message='structure_first_pass_execution',
+    invalid_cfg=None,
 ):
     artifact_dir = Path(cfg['project']['artifact_dir'])
+    invalid_cfg = cfg if invalid_cfg is None else invalid_cfg
     with pytest.raises(ValueError, match=expected_message):
-        _save_minimal_report_bundle(cfg, manifest=manifest, **invalid_kwargs)
+        _save_minimal_report_bundle(
+            invalid_cfg, manifest=manifest, **invalid_kwargs
+        )
     assert _report_bundle_snapshot(artifact_dir) is None
 
     _save_minimal_report_bundle(cfg, manifest=manifest, **canonical_kwargs)
     valid_snapshot = _report_bundle_snapshot(artifact_dir)
     with pytest.raises(ValueError, match=expected_message):
-        _save_minimal_report_bundle(cfg, manifest=manifest, **invalid_kwargs)
+        _save_minimal_report_bundle(
+            invalid_cfg, manifest=manifest, **invalid_kwargs
+        )
     assert _report_bundle_snapshot(artifact_dir) == valid_snapshot
 
     _save_minimal_report_bundle(cfg, manifest=manifest, **canonical_kwargs)
@@ -2151,6 +2157,129 @@ def _assert_structure_execution_rejection_is_atomic(
         project_root_path=tmp_path,
     )
     assert assessment['status'] == 'current'
+
+
+def _canonical_structure_execution_publication_case(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        io_utils,
+        '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    cfg, canonical_kwargs = _real_builder_seed_evidence_writer_inputs(tmp_path)
+    manifest = {
+        'name': 'twod_matpd',
+        'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-22T00:00:00+00:00',
+        'target_column': 'band_gap',
+    }
+    return cfg, canonical_kwargs, manifest
+
+
+@pytest.mark.parametrize(
+    ('field_name', 'invalid_value'),
+    [
+        ('label', 'experimentally_synthesized_material'),
+        ('method', 'thermodynamic_stability_proof'),
+        ('note', 'This execution proves synthesis, stability, and discovery.'),
+        ('model_available', True),
+    ],
+)
+def test_reporting_rejects_structure_execution_metadata_mismatch_atomically(
+    tmp_path,
+    monkeypatch,
+    field_name,
+    invalid_value,
+):
+    cfg, canonical_kwargs, manifest = (
+        _canonical_structure_execution_publication_case(tmp_path, monkeypatch)
+    )
+    invalid_kwargs = copy.deepcopy(canonical_kwargs)
+    invalid_kwargs['structure_payload'][field_name] = invalid_value
+    if field_name == 'model_available':
+        invalid_kwargs['structure_payload'].update({
+            'model_feature_set': 'fabricated_structure_stability_features',
+            'model_type': 'synthesis_proof_model',
+        })
+    _assert_structure_execution_rejection_is_atomic(
+        tmp_path,
+        cfg,
+        canonical_kwargs,
+        invalid_kwargs,
+        manifest,
+        expected_message='structure_first_pass_execution',
+    )
+
+
+def test_reporting_rejects_disabled_config_with_execution_outputs_atomically(
+    tmp_path,
+    monkeypatch,
+):
+    cfg, canonical_kwargs, manifest = (
+        _canonical_structure_execution_publication_case(tmp_path, monkeypatch)
+    )
+    invalid_cfg = copy.deepcopy(cfg)
+    invalid_cfg['screening']['structure_first_pass_execution']['enabled'] = False
+
+    _assert_structure_execution_rejection_is_atomic(
+        tmp_path,
+        cfg,
+        canonical_kwargs,
+        canonical_kwargs,
+        manifest,
+        expected_message='structure_first_pass_execution enabled',
+        invalid_cfg=invalid_cfg,
+    )
+
+
+@pytest.mark.parametrize(
+    ('summary_field', 'invalid_value'),
+    [
+        ('first_pass_execution_method', 'experimental_synthesis_validation'),
+        ('first_pass_execution_note', 'This proves stability and discovery.'),
+        ('first_pass_execution_candidate_count', 99),
+        ('first_pass_execution_model_available', True),
+    ],
+)
+def test_reporting_rejects_structure_execution_summary_projection_mismatch(
+    tmp_path,
+    monkeypatch,
+    summary_field,
+    invalid_value,
+):
+    cfg, canonical_kwargs, manifest = (
+        _canonical_structure_execution_publication_case(tmp_path, monkeypatch)
+    )
+    payload = canonical_kwargs['structure_payload']
+    bridge = {
+        f'first_pass_execution_{field_name}': payload[field_name]
+        for field_name in (
+            'method',
+            'note',
+            'candidate_count',
+            'variant_count',
+            'successful_variant_count',
+            'status_counts',
+            'executed_formulas',
+            'model_feature_set',
+            'model_type',
+            'model_available',
+        )
+    }
+    canonical_kwargs['experiment_summary'] = {
+        'screening': {'structure_generation_bridge': bridge},
+    }
+    invalid_kwargs = copy.deepcopy(canonical_kwargs)
+    invalid_kwargs['experiment_summary']['screening'][
+        'structure_generation_bridge'
+    ][summary_field] = invalid_value
+    _assert_structure_execution_rejection_is_atomic(
+        tmp_path,
+        cfg,
+        canonical_kwargs,
+        invalid_kwargs,
+        manifest,
+        expected_message='experiment_summary',
+    )
 
 
 @pytest.mark.parametrize(

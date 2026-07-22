@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import ast
+import importlib
 import json
 import os
 from importlib.util import module_from_spec, spec_from_file_location
@@ -428,20 +430,39 @@ def test_pipeline_dependency_bindings_resolve_real_public_symbols():
     main_module = module_from_spec(spec)
     assert spec is not None and spec.loader is not None
     spec.loader.exec_module(main_module)
-    binding_names = {
+    source = (ROOT / 'main.py').read_text(encoding='utf-8')
+    binding_records = []
+    for node in ast.walk(ast.parse(source)):
+        if not (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == '_bind_missing'
+            and 2 <= len(node.args) <= 3
+            and all(isinstance(argument, ast.Constant) for argument in node.args)
+        ):
+            continue
+        name = node.args[0].value
+        module_name = node.args[1].value
+        attribute_name = node.args[2].value if len(node.args) == 3 else None
+        binding_records.append((name, module_name, attribute_name))
+
+    binding_names = {name for name, _module, _attribute in binding_records}
+    unresolved_public_names = {
         name
         for name, value in vars(main_module).items()
         if not name.startswith('_') and value is None
     }
 
     assert len(binding_names) >= 30, 'Pipeline binding test no longer covers its live surface'
+    assert len(binding_names) == len(binding_records)
+    assert binding_names == unresolved_public_names
 
     main_module._ensure_pipeline_dependencies_loaded()
 
-    unresolved_names = sorted(
-        name for name in binding_names if getattr(main_module, name) is None
-    )
-    assert unresolved_names == []
+    for name, module_name, attribute_name in binding_records:
+        owner = importlib.import_module(module_name)
+        expected = owner if attribute_name is None else getattr(owner, attribute_name)
+        assert getattr(main_module, name) is expected
 
 
 def test_emit_agent_state_emits_machine_readable_project_state(monkeypatch, capsys, tmp_path):

@@ -30,7 +30,6 @@ The project combines literature/research planning, materials data pipelines, str
 - `src/torch_models/`: neural model components and experiments.
 - `src/ui/`: optional artifact viewer; not a primary operation surface.
 - `src/tests/`: cross-module tests.
-- `tasks/`: task-specific implementation areas.
 - `docs/`: agent handoff notes, machine-readable state, and Python surface summaries.
 - `human_docs/`: user-owned, read-only-by-default research context, reports, proposal sources, task notes, and images.
 - `data/`: raw and processed project data.

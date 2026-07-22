@@ -207,19 +207,6 @@
 - 比 Roost-like 更差。
 - “局部传统基线”不是这轮的解。
 
-### 6) TabPFN 可行性检查
-当前环境中已完成：
-- `quant` 环境已安装 `tabpfn==7.1.1`
-
-但当前 blocker 是：
-- `TabPFNLicenseError`
-- 本地权重下载需要先接受 license，并设置 `TABPFN_TOKEN`
-- 这是 **license / auth blocker**，不是算力 blocker
-
-因此当前状态应写成：
-- **TabPFN 已完成安装，但尚未完成真正 pilot**
-- 缺的不是 GPU，而是 `TABPFN_TOKEN`
-
 ## 当前最可信的项目结论
 截至目前，最可信的项目结论仍然是：
 1. 主线方法学修补已经基本到位，项目不再是“只会报一个漂亮 test MAE 的 PoC”。
@@ -272,6 +259,7 @@
 - 本次 Reset Round 8（validation profile reachability）修复 profile 的 `scope`/`use_when` 只是未校验文本、skill trigger metadata 与 requirements dependency 可漂移、以及 full-pipeline lazy bindings 没有真实解析测试仍可假绿的问题：validation commands 现声明 `provides`、profiles 声明 `requires`，verifier 精确核对 capability reachability、skill name/description frontmatter 及 manifest-to-requirements parity；focused regression 会解析每个真实 pipeline binding。四类 profile 的反事实探针另补齐 RMSE 数值、默认 split ratios 与 UI 30-row display cap 的精确 oracle。精简 workflow 指引只引用 emitted profile 名称，不再复制命令序列；未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - 本次 Reset Round 9（materials wildcard dependency façade）移除 48 个 materials 与 4 个 torch_models 生产 wildcard import，并把所有实际依赖改为 true-owner 显式导入；`materials.constants`、`materials.common` 等文件不再隐式转发 stdlib、sklearn、pandas 或项目内部符号。source-derived public-surface guard 现拒绝任何生产 wildcard 及未由 owner 文件定义或公开记录的同模块 façade import，并用可编译的绝对/相对反事实变体证明不会假绿；未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - 本次 Reset Round 10（requirements reverse parity）把 12 个 requirements 全部纳入带 specifier、import module、role 与 direct/backend 分类的 manifest 契约；verifier 现双向核对规范化 distribution/specifier、从 48 个 Python source/test/CLI/UI 文件推导并分类外部 import 与本地 `myutils` import、拒绝无消费者的 direct dependency，并把缺失 import probe 升为阻断错误。四类 validation profile 均明确要求 declaration completeness 与 import availability；未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
+- 本次 Reset Round 11（skeptical post-contract）修复 Round 10 契约仍可伪造 dependency distribution/module ownership、direct/backend 或 core/scientific/UI/test role、local-shared owner 与 dependency-blind validation profile 后返回 `ok` 的假绿；full-pipeline lazy binding 现逐个核对实际 owner symbol。结构 writer 同时在任何 mutation 前精确绑定 config→payload→experiment-summary 的 first-pass metadata/model/count projection，阻止 claim-like structure handoff 被发布为 current。两个 repo skill 与 compact workflow 移除不可解析的 blocker/coding/Overleaf 路由名并新增 repo-local `$skill` reference closure；未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - contract verifier 现精确锁定 validation command scope/capability、profile use-case/required-capability reachability、三个 active project-skill 记录与七个 retired-guidance 路径；public-surface 测试同时核对模块摘要及根摘要的 callable 参数顺序和 keyword-only 边界
 - `--verify-agent-contract` 现会精确锁定六个 module 的 path/role/public-surface/agent-rules/local-utils/allowed-dependencies；公开 surface 测试逐个要求四个生产模块非空，并显式覆盖 import re-export
 
@@ -286,7 +274,7 @@
 
 3. 完整 src 测试：
 - `conda run -n quant python3 -m pytest -q src`
-- 结果：`705 passed, 1 warning`
+- 结果：`722 passed, 1 warning`
 - 剩余 warning 是 PyTorch nested-tensor prototype 提示，不是测试失败；原 sklearn feature-name warnings 已消除
 
 4. UI 文字化验证：
@@ -375,8 +363,7 @@
 - 不要因为本机不是 CUDA 机器就自动退缩换方向。
 - 但也不要在没有正向证据时，仅因为“模型更重”就要求 GPU。
 - 当前实验结论还不足以说明“只要上 GPU 就能赢”。
-- 目前真正的下一个 blocker 不是 GPU，而是：
-  - **TabPFN license/token**
+- 不把未列入 requirements/manifest 的本机试验依赖或授权状态当作当前 agent state。
 - 从结构规范角度看，当前代码已经进一步收敛到 4 个正式生产模块：`runtime`、`materials`、`torch_models`、`ui`。
 - 模块模板要求目前已满足，每个正式模块都带有自己的 `AGENTS.md` 和 `utils.py`。
 - 当前生产依赖关系也已明显收敛：`runtime -> []`、`torch_models -> []`、`ui -> [runtime]`、`materials -> [runtime, torch_models]`。
