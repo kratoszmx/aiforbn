@@ -625,6 +625,13 @@ def _validate_agent_layout_with_config_prefix(monkeypatch, source_prefix):
             '    load_optional_dependency = None\n',
             'undeclared_external_import',
         ),
+        (
+            'import builtins\n'
+            'real_import = builtins.__import__\n'
+            'def delegated_import(*args, **kwargs):\n'
+            '    return real_import("requests", *args, **kwargs)\n',
+            'undeclared_external_import',
+        ),
     ],
     ids=(
         'aliased-import-module-literal',
@@ -639,6 +646,7 @@ def _validate_agent_layout_with_config_prefix(monkeypatch, source_prefix):
         'aliased-builtin-import-literal',
         'type-checking-literal',
         'nested-optional-literal',
+        'delegated-wrapper-hardcoded-literal',
     ),
 )
 def test_validate_agent_layout_classifies_dynamic_import_forms(
@@ -689,19 +697,12 @@ def test_validate_agent_layout_classifies_dynamic_import_forms(
             'def use_unbound_name():\n'
             '    return loader.import_module("requests")\n'
         ),
-        (
-            'import builtins\n'
-            'real_import = builtins.__import__\n'
-            'def delegated_import(name, *args, **kwargs):\n'
-            '    return real_import(name, *args, **kwargs)\n'
-        ),
     ],
     ids=(
         'unrelated-method',
         'relative-local-dynamic-import',
         'shadowed-importlib-owner',
         'cross-scope-importlib-alias',
-        'delegated-import-wrapper',
     ),
 )
 def test_validate_agent_layout_ignores_non_dependency_import_forms(
@@ -715,6 +716,89 @@ def test_validate_agent_layout_ignores_non_dependency_import_forms(
 
     assert validation['status'] == 'ok'
     assert validation['errors'] == []
+
+
+@pytest.mark.parametrize(
+    'caller_source',
+    [
+        'delegated_import("requests")\n',
+        'module_name = "requests"\ndelegated_import(module_name)\n',
+        'alias = delegated_import\nalias("requests")\n',
+        (
+            'def expose_loader():\n'
+            '    return delegated_import\n'
+            'expose_loader()("requests")\n'
+        ),
+        'loaders = [delegated_import]\nloaders[0]("requests")\n',
+    ],
+    ids=(
+        'literal-caller',
+        'computed-caller',
+        'simple-alias',
+        'returned-wrapper',
+        'stored-wrapper',
+    ),
+)
+def test_validate_agent_layout_rejects_delegated_import_passthrough(
+    monkeypatch,
+    caller_source,
+):
+    source_prefix = (
+        'import builtins\n'
+        'real_import = builtins.__import__\n'
+        'def delegated_import(name, *args, **kwargs):\n'
+        '    return real_import(name, *args, **kwargs)\n'
+        f'{caller_source}'
+    )
+
+    validation = _validate_agent_layout_with_config_prefix(
+        monkeypatch,
+        source_prefix,
+    )
+
+    assert validation['status'] == 'error'
+    assert any(
+        error['code'] == 'unsupported_dynamic_import'
+        and error['path'] == 'src/config.py'
+        for error in validation['errors']
+    )
+
+
+@pytest.mark.parametrize(
+    'caller_source',
+    [
+        'load = _bind_missing\nload("optional", "requests")\n',
+        (
+            'def expose_loader():\n'
+            '    return _bind_missing\n'
+            'expose_loader()("optional", "requests")\n'
+        ),
+        'loaders = [_bind_missing]\nloaders[0]("optional", "requests")\n',
+    ],
+    ids=('simple-alias', 'returned-wrapper', 'stored-wrapper'),
+)
+def test_validate_agent_layout_rejects_bind_missing_outside_main(
+    monkeypatch,
+    caller_source,
+):
+    source_prefix = (
+        'import importlib\n'
+        'def _bind_missing(name, module_name):\n'
+        '    return importlib.import_module(module_name)\n'
+        f'{caller_source}'
+    )
+
+    validation = _validate_agent_layout_with_config_prefix(
+        monkeypatch,
+        source_prefix,
+    )
+
+    assert validation['status'] == 'error'
+    assert any(
+        error['code'] == 'unsupported_dynamic_import'
+        and error['path'] == 'src/config.py'
+        for error in validation['errors']
+    )
 
 
 def test_validate_agent_layout_rejects_missing_declared_dependency(monkeypatch):

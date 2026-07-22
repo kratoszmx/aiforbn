@@ -5,6 +5,7 @@ from io import BytesIO
 import json
 import sys
 import types
+from unittest.mock import DEFAULT, Mock
 import zipfile
 
 import pandas as pd
@@ -448,14 +449,17 @@ def test_load_or_build_dataset_rejects_mpl_cache_before_jarvis_import(
     monkeypatch.setattr(io_utils, 'PROJECT_ROOT', tmp_path)
     human_docs_cache = tmp_path / 'human_docs' / 'mpl'
     monkeypatch.setenv('MPLCONFIGDIR', str(human_docs_cache))
-    real_import = builtins.__import__
 
     def reject_jarvis_import(name, *args, **kwargs):
         if name == 'jarvis.db.figshare':
             raise AssertionError('JARVIS import must happen after MPL cache preflight')
-        return real_import(name, *args, **kwargs)
+        return DEFAULT
 
-    monkeypatch.setattr(builtins, '__import__', reject_jarvis_import)
+    guarded_import = Mock(
+        wraps=builtins.__import__,
+        side_effect=reject_jarvis_import,
+    )
+    monkeypatch.setattr(builtins, '__import__', guarded_import)
     cfg = {
         'data': {
             'dataset': 'twod_matpd',

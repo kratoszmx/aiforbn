@@ -400,6 +400,8 @@ def _project_python_source_paths(root: Path) -> list[Path]:
 
 def _source_import_analysis(
     source_text: str,
+    *,
+    relative_path: str,
 ) -> tuple[set[str], list[int]]:
     tree = ast.parse(source_text)
     parent_by_node = {
@@ -572,49 +574,16 @@ def _source_import_analysis(
             break
         unresolved_assignments = pending_assignments
 
-    def is_delegated_import_passthrough(node: ast.Call) -> bool:
-        parent = parent_by_node.get(id(node))
-        scope = lexical_scope(node)
-        if (
-            not isinstance(parent, ast.Return)
-            or parent.value is not node
-            or not isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef))
-            or not node.args
-            or not isinstance(node.args[0], ast.Name)
-        ):
-            return False
-        positional_names = {
-            argument.arg
-            for argument in [*scope.args.posonlyargs, *scope.args.args]
-        }
-        if node.args[0].id not in positional_names:
-            return False
-        forwarded_vararg = (
-            scope.args.vararg is not None
-            and any(
-                isinstance(argument, ast.Starred)
-                and isinstance(argument.value, ast.Name)
-                and argument.value.id == scope.args.vararg.arg
-                for argument in node.args[1:]
-            )
-        )
-        forwarded_kwarg = (
-            scope.args.kwarg is not None
-            and any(
-                keyword.arg is None
-                and isinstance(keyword.value, ast.Name)
-                and keyword.value.id == scope.args.kwarg.arg
-                for keyword in node.keywords
-            )
-        )
-        return forwarded_vararg or forwarded_kwarg
-
     calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call)]
     allowed_nonliteral_import_calls = {
         id(node)
         for node in calls
         if (
-            isinstance(lexical_scope(node), (ast.FunctionDef, ast.AsyncFunctionDef))
+            relative_path == 'main.py'
+            and isinstance(
+                lexical_scope(node),
+                (ast.FunctionDef, ast.AsyncFunctionDef),
+            )
             and lexical_scope(node).name == '_bind_missing'
             and resolve_dynamic_callable(node.func, lexical_scope(node))
             == 'importlib_callable'
@@ -652,10 +621,7 @@ def _source_import_analysis(
             and isinstance(node.args[0].value, str)
         ):
             record_literal_module(node.args[0].value, node.lineno)
-        elif (
-            id(node) not in allowed_nonliteral_import_calls
-            and not is_delegated_import_passthrough(node)
-        ):
+        elif id(node) not in allowed_nonliteral_import_calls:
             unsupported_dynamic_import_lines.add(node.lineno)
 
     return import_roots, sorted(unsupported_dynamic_import_lines)
@@ -675,7 +641,8 @@ def _source_import_consumers(
         relative_path = str(source_path.relative_to(root))
         try:
             import_roots, unsupported_lines = _source_import_analysis(
-                _read_text_if_present(source_path)
+                _read_text_if_present(source_path),
+                relative_path=relative_path,
             )
         except SyntaxError as exc:
             parse_errors.append((relative_path, str(exc)))
