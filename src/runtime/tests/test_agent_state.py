@@ -2270,6 +2270,243 @@ def test_validate_agent_layout_preserves_handler_cleanup_owner_controls(
 
 
 @pytest.mark.parametrize(
+    ('source_prefix', 'expects_dependency'),
+    [
+        (
+            '__import__ = lambda name: name\n'
+            'try:\n'
+            '    raise ValueError\n'
+            'except ValueError as __import__:\n'
+            '    __import__ = lambda name: name\n'
+            '    def inner():\n'
+            '        return __import__("requests")\n'
+            '    inner()\n',
+            False,
+        ),
+        (
+            'load = lambda name: name\n'
+            'try:\n'
+            '    raise ValueError\n'
+            'except ValueError as load:\n'
+            '    from importlib import import_module as load\n'
+            '    def inner():\n'
+            '        return load("requests")\n'
+            'inner()\n',
+            False,
+        ),
+        (
+            '__import__ = lambda name: name\n'
+            'try:\n'
+            '    raise ValueError\n'
+            'except ValueError as __import__:\n'
+            '    __import__ = lambda name: name\n'
+            '    def inner():\n'
+            '        return __import__("requests")\n'
+            'inner()\n',
+            True,
+        ),
+        (
+            'async def outer():\n'
+            '    load = lambda name: name\n'
+            '    try:\n'
+            '        raise ValueError\n'
+            '    except ValueError as load:\n'
+            '        from importlib import import_module as load\n'
+            '        async def inner():\n'
+            '            return load("requests")\n'
+            '        return await inner()\n',
+            True,
+        ),
+        (
+            'async def outer():\n'
+            '    load = lambda name: name\n'
+            '    try:\n'
+            '        raise ValueError\n'
+            '    except ValueError as load:\n'
+            '        from importlib import import_module as load\n'
+            '        async def inner():\n'
+            '            return load("requests")\n'
+            '    return await inner()\n',
+            False,
+        ),
+        (
+            'def outer():\n'
+            '    load = lambda name: name\n'
+            '    try:\n'
+            '        raise ValueError\n'
+            '    except ValueError as load:\n'
+            '        from importlib import import_module as load\n'
+            '        def inner():\n'
+            '            yield load("requests")\n'
+            '        yield from inner()\n',
+            True,
+        ),
+        (
+            'def outer():\n'
+            '    load = lambda name: name\n'
+            '    try:\n'
+            '        raise ValueError\n'
+            '    except ValueError as load:\n'
+            '        from importlib import import_module as load\n'
+            '        def inner():\n'
+            '            yield load("requests")\n'
+            '    yield from inner()\n',
+            False,
+        ),
+        (
+            '__import__ = lambda name: name\n'
+            'try:\n'
+            '    raise ValueError\n'
+            'except ValueError as __import__:\n'
+            '    __import__ = lambda name: name\n'
+            '    inner = lambda: __import__("requests")\n'
+            '    inner()\n',
+            False,
+        ),
+    ],
+    ids=(
+        'immediate-function-global-nonowner',
+        'post-handler-function-local-empty-cell',
+        'post-handler-function-global-builtin',
+        'immediate-coroutine-local-owner',
+        'post-handler-coroutine-local-empty-cell',
+        'immediate-generator-local-owner',
+        'post-handler-generator-local-empty-cell',
+        'immediate-lambda-global-nonowner',
+    ),
+)
+def test_validate_agent_layout_resolves_direct_handler_nested_execution_timing(
+    monkeypatch,
+    source_prefix,
+    expects_dependency,
+):
+    validation = _validate_agent_layout_with_config_prefix(
+        monkeypatch,
+        source_prefix,
+    )
+
+    dependency_errors = [
+        error
+        for error in validation['errors']
+        if error['code'] == 'undeclared_external_import'
+        and error['path'] == 'src/config.py'
+    ]
+    assert bool(dependency_errors) is expects_dependency
+
+
+@pytest.mark.parametrize(
+    'source_prefix',
+    [
+        (
+            'def outer():\n'
+            '    load = lambda name: name\n'
+            '    try:\n'
+            '        raise ValueError\n'
+            '    except ValueError as load:\n'
+            '        from importlib import import_module as load\n'
+            '        return lambda load=load: load("requests")\n'
+            'outer()()\n'
+        ),
+        (
+            'async def outer():\n'
+            '    load = lambda name: name\n'
+            '    try:\n'
+            '        raise ValueError\n'
+            '    except ValueError as load:\n'
+            '        from importlib import import_module as load\n'
+            '        async def inner(load=load):\n'
+            '            return load("requests")\n'
+            '    return await inner()\n'
+        ),
+        (
+            'def outer():\n'
+            '    load = lambda name: name\n'
+            '    try:\n'
+            '        raise ValueError\n'
+            '    except ValueError as load:\n'
+            '        from importlib import import_module as load\n'
+            '        def inner(load=load):\n'
+            '            yield load("requests")\n'
+            '    yield from inner()\n'
+        ),
+    ],
+    ids=('lambda-default', 'coroutine-default', 'generator-default'),
+)
+def test_validate_agent_layout_preserves_handler_callable_default_snapshots(
+    monkeypatch,
+    source_prefix,
+):
+    validation = _validate_agent_layout_with_config_prefix(
+        monkeypatch,
+        source_prefix,
+    )
+
+    assert validation['status'] == 'error'
+    assert any(
+        error['code'] == 'undeclared_external_import'
+        and error['path'] == 'src/config.py'
+        for error in validation['errors']
+    )
+
+
+@pytest.mark.parametrize(
+    ('source_prefix', 'expects_dependency'),
+    [
+        (
+            '__import__ = lambda name: name\n'
+            'try:\n'
+            '    raise ValueError\n'
+            'except ValueError as __import__:\n'
+            '    __import__ = lambda name: name\n'
+            '    pending = (__import__("requests") for _ in (0,))\n'
+            'next(pending)\n',
+            True,
+        ),
+        (
+            '__import__ = lambda name: name\n'
+            'try:\n'
+            '    raise ValueError\n'
+            'except ValueError as __import__:\n'
+            '    __import__ = lambda name: name\n'
+            '    next((__import__("requests") for _ in (0,)))\n',
+            False,
+        ),
+        (
+            '__import__ = lambda name: name\n'
+            'try:\n'
+            '    raise ValueError\n'
+            'except ValueError as __import__:\n'
+            '    __import__ = lambda name: name\n'
+            '    pending = (value for value in __import__("requests"))\n',
+            False,
+        ),
+    ],
+    ids=(
+        'generator-expression-driven-after-cleanup',
+        'generator-expression-driven-before-cleanup',
+        'generator-expression-eager-first-iterable',
+    ),
+)
+def test_validate_agent_layout_resolves_handler_generator_expression_timing(
+    monkeypatch,
+    source_prefix,
+    expects_dependency,
+):
+    validation = _validate_agent_layout_with_config_prefix(
+        monkeypatch,
+        source_prefix,
+    )
+
+    dependency_errors = [
+        error
+        for error in validation['errors']
+        if error['code'] == 'undeclared_external_import'
+        and error['path'] == 'src/config.py'
+    ]
+    assert bool(dependency_errors) is expects_dependency
+
+
+@pytest.mark.parametrize(
     ('source_prefix', 'expected_error_code'),
     [
         (

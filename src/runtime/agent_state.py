@@ -435,6 +435,8 @@ def _source_import_analysis(
         return None
 
     def target_names(target: ast.AST) -> set[str]:
+        if isinstance(target, ast.arg):
+            return {target.arg}
         if isinstance(target, ast.Name):
             return {target.id}
         if isinstance(target, ast.Starred):
@@ -517,6 +519,7 @@ def _source_import_analysis(
     assignment_nodes: list[
         tuple[ast.AST, ast.expr | None, list[ast.AST], ast.AST]
     ] = []
+    name_loads_by_scope: dict[tuple[int, str], list[ast.Name]] = {}
     binding_events: list[tuple[ast.AST, str, ast.AST]] = []
     deleted_binding_events: set[tuple[int, str, int]] = set()
     implicit_handler_cleanup_events: set[tuple[int, str, int]] = set()
@@ -543,6 +546,25 @@ def _source_import_analysis(
 
     for node in ast.walk(tree):
         scope = lexical_scope(node)
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
+            name_loads_by_scope.setdefault(
+                (id(evaluation_scope(node)), node.id),
+                [],
+            ).append(node)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+            positional_args = [*node.args.posonlyargs, *node.args.args]
+            default_pairs = [
+                *zip(
+                    positional_args[-len(node.args.defaults):],
+                    node.args.defaults,
+                ),
+                *zip(node.args.kwonlyargs, node.args.kw_defaults),
+            ]
+            assignment_nodes.extend(
+                (node, default, [argument], argument)
+                for argument, default in default_pairs
+                if default is not None
+            )
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             parent = parent_by_node.get(id(node))
             if parent is not None:
@@ -676,6 +698,128 @@ def _source_import_analysis(
                 return parent_scope
             parent_scope = enclosing_scope(parent_scope)
         return scope
+
+    def simple_value_binding(value: ast.AST) -> tuple[str, ast.AST] | None:
+        parent = parent_by_node.get(id(value))
+        if (
+            isinstance(parent, ast.Assign)
+            and parent.value is value
+            and len(parent.targets) == 1
+            and isinstance(parent.targets[0], ast.Name)
+        ):
+            return parent.targets[0].id, parent
+        if (
+            isinstance(parent, (ast.AnnAssign, ast.NamedExpr))
+            and parent.value is value
+            and isinstance(parent.target, ast.Name)
+        ):
+            return parent.target.id, parent
+        return None
+
+    def exact_direct_observations(
+        binding_name: str,
+        binding_node: ast.AST,
+        parent_scope: ast.AST,
+        classify: Any,
+    ) -> tuple[ast.AST, ...] | None:
+        if [
+            event_node
+            for event_scope, event_name, event_node in binding_events
+            if event_scope is parent_scope and event_name == binding_name
+        ] != [binding_node]:
+            return None
+        observations: list[ast.AST] = []
+        for node in name_loads_by_scope.get((id(parent_scope), binding_name), []):
+            observation = classify(node)
+            if (
+                observation is None
+                or source_start(node) < source_end(binding_node)
+            ):
+                return None
+            observations.append(observation)
+        return tuple(observations) if observations else None
+
+    direct_handler_observation_cache: dict[
+        tuple[int, str],
+        tuple[ast.AST, tuple[ast.AST, ...]] | None,
+    ] = {}
+
+    def direct_handler_nested_observations(
+        scope: ast.AST,
+        free_name: str,
+    ) -> tuple[ast.AST, tuple[ast.AST, ...]] | None:
+        cache_key = id(scope), free_name
+        if cache_key in direct_handler_observation_cache:
+            return direct_handler_observation_cache[cache_key]
+        direct_handler_observation_cache[cache_key] = None
+        if not isinstance(
+            scope,
+            (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda),
+        ):
+            return None
+        parent_scope = enclosing_scope(scope)
+        if parent_scope is None:
+            return None
+        current = parent_by_node.get(id(scope))
+        while current is not None and current is not parent_scope:
+            if isinstance(current, ast.ExceptHandler) and current.name == free_name:
+                break
+            current = parent_by_node.get(id(current))
+        else:
+            return None
+        handler_scope = lexical_scope(current)
+        if (
+            free_name in (
+                global_names.get(id(scope), set())
+                | nonlocal_names.get(id(scope), set())
+            )
+            and binding_target_scope(scope, free_name)
+            is not binding_target_scope(handler_scope, free_name)
+        ):
+            return None
+        binding = (
+            (scope.name, scope)
+            if isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef))
+            else simple_value_binding(scope)
+        )
+        if binding is None:
+            return None
+        is_generator = any(
+            isinstance(node, (ast.Yield, ast.YieldFrom))
+            and evaluation_scope(node) is scope
+            for node in ast.walk(scope)
+        )
+
+        def direct_call(node: ast.Name) -> ast.AST | None:
+            call = parent_by_node.get(id(node))
+            if not isinstance(call, ast.Call) or call.func is not node:
+                return None
+            parent = parent_by_node.get(id(call))
+            if isinstance(scope, ast.AsyncFunctionDef):
+                valid = (
+                    isinstance(parent, ast.AsyncFor) and parent.iter is call
+                    if is_generator
+                    else isinstance(parent, ast.Await) and parent.value is call
+                )
+            elif is_generator:
+                valid = (
+                    isinstance(parent, ast.YieldFrom) and parent.value is call
+                ) or (isinstance(parent, ast.For) and parent.iter is call)
+            else:
+                valid = True
+            return call if valid else None
+
+        observations = exact_direct_observations(
+            *binding,
+            parent_scope,
+            direct_call,
+        )
+        if observations is not None:
+            direct_handler_observation_cache[cache_key] = (
+                handler_scope,
+                observations,
+            )
+        return direct_handler_observation_cache[cache_key]
 
     conditional_binding_ancestors = (
         ast.If,
@@ -2045,6 +2189,21 @@ def _source_import_analysis(
     ) -> set[str]:
         def fallback_name_kinds() -> set[str]:
             class_definition_lookup = isinstance(scope, ast.ClassDef)
+            direct_observations = direct_handler_nested_observations(
+                scope,
+                name,
+            )
+            if direct_observations is not None:
+                observation_scope, observations = direct_observations
+                return {
+                    kind
+                    for observation in observations
+                    for kind in resolve_name_at(
+                        observation_scope,
+                        name,
+                        observation,
+                    )
+                }
             if name in global_names.get(id(scope), set()):
                 return resolve_name_at(
                     tree,
@@ -2154,15 +2313,90 @@ def _source_import_analysis(
             return resolved_kinds
         return fallback_name_kinds()
 
+    def generator_expression_observations(
+        generator: ast.GeneratorExp,
+    ) -> tuple[ast.AST, ...] | None:
+        parent_scope = evaluation_scope(generator)
+
+        def direct_consumer(node: ast.AST) -> ast.AST | None:
+            parent = parent_by_node.get(id(node))
+            if isinstance(parent, (ast.For, ast.AsyncFor)) and parent.iter is node:
+                return parent
+            if isinstance(parent, ast.YieldFrom) and parent.value is node:
+                return parent
+            if (
+                isinstance(parent, ast.Call)
+                and node in parent.args
+                and isinstance(parent.func, ast.Name)
+                and parent.func.id in {'next', 'anext'}
+                and not any(
+                    event_name == parent.func.id
+                    and binding_target_scope(event_scope, event_name)
+                    is evaluation_scope(parent.func)
+                    for event_scope, event_name, _ in binding_events
+                )
+            ):
+                return parent
+            return None
+
+        direct = direct_consumer(generator)
+        if direct is not None:
+            return (direct,)
+        binding = simple_value_binding(generator)
+        if binding is None:
+            return None
+        return exact_direct_observations(
+            *binding,
+            parent_scope,
+            direct_consumer,
+        )
+
+    def deferred_handler_builtin_fallback_possible(
+        node: ast.AST,
+        name: str,
+    ) -> bool:
+        if name != '__import__':
+            return False
+        generator = None
+        current: ast.AST | None = node
+        while current is not None:
+            if isinstance(current, ast.GeneratorExp):
+                generator = current
+                break
+            current = parent_by_node.get(id(current))
+        if generator is None or is_descendant(node, generator.generators[0].iter):
+            return False
+        handler = None
+        current = parent_by_node.get(id(generator))
+        while current is not None:
+            if isinstance(current, ast.ExceptHandler) and current.name == name:
+                handler = current
+                break
+            current = parent_by_node.get(id(current))
+        if handler is None:
+            return False
+        observations = generator_expression_observations(generator)
+        if observations is not None and all(
+            is_descendant(observation, handler)
+            for observation in observations
+        ):
+            return False
+        handler_scope = lexical_scope(handler)
+        target_scope = binding_target_scope(handler_scope, name)
+        return target_scope is tree or isinstance(target_scope, ast.ClassDef)
+
     def resolve_dynamic_callable(node: ast.expr) -> set[str]:
         if isinstance(node, ast.Name):
             if is_comprehension_shadowed(node, node.id):
                 return set()
-            return resolve_name_at(
+            callable_kinds = resolve_name_at(
                 evaluation_scope(node),
                 node.id,
                 node,
-            ) & {'importlib_callable', 'builtins_callable'}
+            )
+            if deferred_handler_builtin_fallback_possible(node, node.id):
+                callable_kinds.add('builtins_callable')
+            return callable_kinds & {'importlib_callable', 'builtins_callable'}
         if not isinstance(node, ast.Attribute) or not isinstance(node.value, ast.Name):
             return set()
         if is_comprehension_shadowed(node.value, node.value.id):

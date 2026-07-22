@@ -270,6 +270,7 @@
 - 本次 Reset Round 19（nested loop exit-state isolation）修复 inner `break` 被错误归到 outer loop、inner completion 未在 outer backedge 前折叠，以及 `while` 最终 test 与 loop `else` 被按源码位置而非执行顺序解释的双向漂移；completed inner loops 现由内向外按 normal/break outcome 折叠，nearest-loop break/continue、unreachable post-exit binding 与 `try/finally` carry 相互隔离。26 个新增 error/control 反事实覆盖 `for`/`async for`/`while` 嵌套、owner/module/builtin/computed/relative-local 名称与正常完成/中断路径；未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - 本次 Reset Round 20（deleted-binding fallback identity）修复 definite `global`/`nonlocal` deletion 会错误复活不可达 owner，以及 completed inner loop 的 normal/break 结果均已绑定或删除同名 loader 时仍混入旧 outer carry 的假阳性；resolver 现在保留 Python 精确的 module/class builtin fallback，同时把 exhaustive loop boundary 在 outer backedge 前一次性折叠。20 个新增 error/control 反事实覆盖 alias/module owner、builtin/nonlocal 差异、conditional/zero-iteration fallback、nested `try/finally` 与 `for`/`while` normal/break 结果；未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - 本次 Reset Round 21（exception-handler implicit deletion）修复 `except ... as name` handler 内 owner rebind 会越过 Python 隐式 cleanup 形成假阳性，以及 module/class/explicit-global `__import__` cleanup 暴露 builtin 后仍假绿的双向漂移；scanner 以 handler identity 记录合成 deletion，并在 direct、loop-carried、global/nonlocal 与 class/module lookup 上按 normal、`finally`、return/re-raise、break/continue、sibling handler 与 `except*` 可达性折叠同名事件。43 个 error/control 反事实同时锁住 handler type 先于 alias binding、body shadow、no-exception 保留、closure-before-cleanup 与 exact builtin fallback；未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
+- 本次 Reset Round 22（handler suspension / escaped closure timing）修复 nested function/lambda/coroutine/generator body 的源码位置被误当成实际执行时点所造成的双向漂移：仅当 callable 具有唯一 binding 且全部 load 都是可直接证明的 call/await/iteration 时，scanner 才按 handler cleanup 前后位置解析；default argument 会保留 cleanup 前捕获的 loader value，延迟 generator expression 则在可逃逸时保留 exact global/class `__import__` builtin fallback。未知逃逸或调用时点继续保守合并，直接 `yield`/`await` suspension、cleanup 与 `finally` 顺序保持不变；14 个 error/control 反事实覆盖三类修复及防止过宽折叠的 eager/inline 控制，未安装/升级依赖，未修改或重算 `human_docs/`、`data/` 或 scientific artifacts
 - contract verifier 现精确锁定 validation command scope/capability、profile use-case/required-capability reachability、三个 active project-skill 记录与七个 retired-guidance 路径；public-surface 测试同时核对模块摘要及根摘要的 callable 参数顺序和 keyword-only 边界
 - `--verify-agent-contract` 现会精确锁定六个 module 的 path/role/public-surface/agent-rules/local-utils/allowed-dependencies；公开 surface 测试逐个要求四个生产模块非空，并显式覆盖 import re-export
 
@@ -284,7 +285,7 @@
 
 3. 完整 src 测试：
 - `conda run -n quant python3 -m pytest -q src`
-- 结果：`997 passed, 1 warning`
+- 结果：`1011 passed, 1 warning`
 - 剩余 warning 是 PyTorch nested-tensor prototype 提示，不是测试失败；原 sklearn feature-name warnings 已消除
 
 4. UI 文字化验证：
