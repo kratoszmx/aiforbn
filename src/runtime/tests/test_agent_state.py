@@ -4656,6 +4656,109 @@ def test_dependency_import_probe_propagates_preloads_and_caches_by_full_key(
     assert len(calls) == 4
 
 
+def test_public_dependency_probe_cache_invalidates_after_pythonpath_change(
+    monkeypatch,
+    cleared_dependency_import_probe_cache,
+):
+    before_context = '/private/sensitive-probe-context-before'
+    after_context = '/private/sensitive-probe-context-after'
+    pydantic_calls = 0
+
+    def environment_sensitive_run(command, **kwargs):
+        nonlocal pydantic_calls
+        module = command[-2]
+        if module == 'pydantic':
+            pydantic_calls += 1
+        return subprocess.CompletedProcess(
+            command,
+            1
+            if module == 'pydantic'
+            and os.environ['PYTHONPATH'] == after_context
+            else 0,
+            stdout=b'',
+            stderr=b'',
+        )
+
+    monkeypatch.setattr(
+        agent_state.subprocess,
+        'run',
+        environment_sensitive_run,
+    )
+    monkeypatch.setenv('PYTHONPATH', before_context)
+
+    assert validate_agent_layout(ROOT)['status'] == 'ok'
+
+    monkeypatch.setenv('PYTHONPATH', after_context)
+    validation = validate_agent_layout(ROOT)
+
+    assert validation['status'] == 'error'
+    assert pydantic_calls == 2
+    assert any(
+        error['code'] == 'unimportable_declared_dependency'
+        and error['module'] == 'pydantic'
+        and error['failure_category'] == 'nonzero_exit'
+        for error in validation['errors']
+    )
+    cache_keys = repr(tuple(agent_state._DEPENDENCY_IMPORT_PROBE_CACHE))
+    assert before_context not in cache_keys
+    assert after_context not in cache_keys
+
+
+def test_public_dependency_probe_cache_invalidates_after_module_bytes_change(
+    monkeypatch,
+    tmp_path,
+    cleared_dependency_import_probe_cache,
+):
+    shim_root = tmp_path / 'shim'
+    shim_root.mkdir()
+    shim_path = shim_root / 'jarvis.py'
+    shim_path.write_text('SENTINEL = 1\n', encoding='utf-8')
+    monkeypatch.syspath_prepend(str(shim_root))
+    monkeypatch.setenv('PYTHONPATH', str(shim_root))
+    monkeypatch.delitem(sys.modules, 'jarvis', raising=False)
+    agent_state.importlib.invalidate_caches()
+    jarvis_calls = 0
+
+    def module_sensitive_run(command, **kwargs):
+        nonlocal jarvis_calls
+        module = command[-2]
+        if module == 'jarvis':
+            jarvis_calls += 1
+        return subprocess.CompletedProcess(
+            command,
+            1
+            if module == 'jarvis'
+            and shim_path.read_text(encoding='utf-8').startswith('raise ')
+            else 0,
+            stdout=b'',
+            stderr=b'',
+        )
+
+    monkeypatch.setattr(
+        agent_state.subprocess,
+        'run',
+        module_sensitive_run,
+    )
+
+    assert validate_agent_layout(ROOT)['status'] == 'ok'
+
+    shim_path.write_text(
+        'raise RuntimeError("synthetic import failure")\n',
+        encoding='utf-8',
+    )
+    agent_state.importlib.invalidate_caches()
+    validation = validate_agent_layout(ROOT)
+
+    assert validation['status'] == 'error'
+    assert jarvis_calls == 2
+    assert any(
+        error['code'] == 'unimportable_declared_dependency'
+        and error['module'] == 'jarvis'
+        and error['failure_category'] == 'nonzero_exit'
+        for error in validation['errors']
+    )
+
+
 @pytest.mark.parametrize(
     ('failure_mode', 'expected_category'),
     [

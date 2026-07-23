@@ -38,7 +38,7 @@ Do not duplicate exact commands, dependency lists, public signatures, or round n
 - `main.py` remains the linear, agent-traceable pipeline entrypoint.
 - Production ownership is `runtime`, `materials`, `torch_models`, and `ui`; manifest records for `tests` and `template` are non-production contract surfaces.
 - Allowed production dependencies are `runtime -> []`, `torch_models -> []`, `ui -> [runtime]`, and `materials -> [runtime, torch_models]`.
-- Runtime reuses the stable `myutils` filesystem and JSON APIs behind project-specific path, identity, and human-document guards. Dependency availability is proven by cached, timeout-bounded isolated imports; the manifest declares ordered preloads only when they mirror an actual project import context. Project-specific artifact, dependency-contract, and AST semantics remain local.
+- Runtime reuses the stable `myutils` filesystem and JSON APIs behind project-specific path, identity, and human-document guards. Dependency availability is proven by timeout-bounded isolated imports whose successes are cached only for an opaque import-environment and direct-module identity; the manifest declares ordered preloads only when they mirror an actual project import context. Project-specific artifact, dependency-contract, and AST semantics remain local.
 - Successful artifact publication uses v2 source/config/dataset/output identity, commits actual published bytes by relative path and SHA-256, and writes the completion marker last. Missing, malformed, mismatched, legacy, or uncommitted-known output state is non-current and must not render report content.
 - Structure summary, writer, and viewer roles derive from the shared runtime contract. Writer semantic preflight happens before mutation; the viewer independently validates persisted state.
 
@@ -51,12 +51,12 @@ Do not duplicate exact commands, dependency lists, public signatures, or round n
 
 ## Validated checkpoint
 
-Latest validated tree (2026-07-23):
+Latest validated tree (2026-07-24):
 
 - agent contract, nine-field command-index parity, and ordered pytest target rendering: `ok`, 0 errors, 0 warnings;
 - dry-run pipeline wiring: passed;
-- emitted architecture/docs focused profile: 503 passed;
-- cache-disabled collection/full `src` suite: 1058 collected, 1058 passed;
+- emitted architecture/docs focused profile: 505 passed;
+- cache-disabled collection/full `src` suite: 1060 collected, 1060 passed;
 - manifest pytest non-vacuity regression: all three declared commands reject zero-call exit-0 runs while preserving partial, collect-only, failure, interrupt, and no-test outcomes;
 - warning classification: one upstream PyTorch nested-tensor prototype warning, no project warning regression;
 - Streamlit AppTest: 104 passed;

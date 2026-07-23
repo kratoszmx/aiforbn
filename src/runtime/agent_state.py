@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 from datetime import datetime, timezone
+import hashlib
 from importlib import metadata
 import json
 import importlib.util
@@ -328,6 +329,14 @@ IMPORT_MODULE_PATTERN = re.compile(
 )
 DEPENDENCY_IMPORT_PROBE_TIMEOUT_SECONDS = 10.0
 DEPENDENCY_IMPORT_PROBE_TOTAL_BUDGET_SECONDS = 30.0
+_DEPENDENCY_IMPORT_PROBE_ENVIRONMENT_KEYS = (
+    'PYTHONCASEOK',
+    'PYTHONHOME',
+    'PYTHONNOUSERSITE',
+    'PYTHONPATH',
+    'PYTHONSAFEPATH',
+    'PYTHONUSERBASE',
+)
 DEPENDENCY_IMPORT_PROBE_SCRIPT = (
     'import importlib, json, pathlib, sys\n'
     'root = pathlib.Path(sys.argv[1]).resolve()\n'
@@ -337,7 +346,7 @@ DEPENDENCY_IMPORT_PROBE_SCRIPT = (
     'importlib.import_module(sys.argv[2])\n'
 )
 _DEPENDENCY_IMPORT_PROBE_CACHE: dict[
-    tuple[str, str, str, tuple[str, ...]],
+    tuple[str, str, str, tuple[str, ...], str],
     tuple[bool, str | None],
 ] = {}
 
@@ -376,16 +385,74 @@ def _normalized_requirement_specifier(value: str) -> str:
     return re.sub(r'\s+', '', value)
 
 
+def _dependency_import_probe_context_digest(
+    module: str,
+    import_probe_preloads: tuple[str, ...],
+) -> str:
+    context_parts: list[object] = [
+        (
+            'environment',
+            tuple(
+                (key, os.environ.get(key))
+                for key in _DEPENDENCY_IMPORT_PROBE_ENVIRONMENT_KEYS
+            ),
+        )
+    ]
+    for module_name in (*import_probe_preloads, module):
+        try:
+            module_spec = importlib.util.find_spec(module_name)
+        except (ImportError, AttributeError, ValueError):
+            module_spec = None
+        if module_spec is None:
+            context_parts.append((module_name, 'spec-unavailable'))
+            continue
+
+        locations = []
+        if module_spec.origin not in {None, 'built-in', 'frozen'}:
+            locations.append(module_spec.origin)
+        locations.extend(module_spec.submodule_search_locations or ())
+        location_parts = []
+        for location in dict.fromkeys(locations):
+            path = Path(location)
+            try:
+                resolved_path = str(path.resolve())
+                stat_result = path.stat()
+                content_digest = (
+                    hashlib.sha256(path.read_bytes()).hexdigest()
+                    if path.is_file()
+                    else None
+                )
+            except OSError:
+                location_parts.append((str(path), 'path-unavailable'))
+            else:
+                location_parts.append((
+                    resolved_path,
+                    stat_result.st_dev,
+                    stat_result.st_ino,
+                    stat_result.st_mode,
+                    stat_result.st_size,
+                    stat_result.st_mtime_ns,
+                    content_digest,
+                ))
+        context_parts.append((module_name, tuple(location_parts)))
+    serialized_context = repr(tuple(context_parts)).encode(
+        'utf-8',
+        errors='surrogateescape',
+    )
+    return hashlib.sha256(serialized_context).hexdigest()
+
+
 def _dependency_import_probe_cache_key(
     root: Path,
     module: str,
     import_probe_preloads: tuple[str, ...],
-) -> tuple[str, str, str, tuple[str, ...]]:
+) -> tuple[str, str, str, tuple[str, ...], str]:
     return (
         sys.executable,
         str(root.resolve()),
         module,
         import_probe_preloads,
+        _dependency_import_probe_context_digest(module, import_probe_preloads),
     )
 
 
