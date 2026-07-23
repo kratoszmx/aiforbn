@@ -384,6 +384,15 @@
       "package": "jarvis-tools",
       "specifier": ">=2024.10.30",
       "module": "jarvis",
+      "import_probe_targets": [
+        "jarvis.db.figshare"
+      ],
+      "import_probe_symbols": {
+        "jarvis.db.figshare": [
+          "get_db_info",
+          "get_request_data"
+        ]
+      },
       "role": "optional_lazy",
       "import_kind": "direct",
       "required_for": "dataset_download_when_cache_is_missing"

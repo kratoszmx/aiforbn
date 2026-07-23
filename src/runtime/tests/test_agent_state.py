@@ -18,6 +18,12 @@ from runtime.agent_state import (
 
 
 ROOT = Path(__file__).resolve().parents[3]
+JARVIS_TARGET_SYMBOLS = {
+    'jarvis.db.figshare': (
+        'get_db_info',
+        'get_request_data',
+    ),
+}
 MATMINER_TARGET_SYMBOLS = {
     'matminer.featurizers.base': (
         'MultipleFeaturizer',
@@ -345,6 +351,13 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
     assert dependencies['jarvis-tools']['module'] == 'jarvis'
     assert dependencies['pyarrow']['import_kind'] == 'backend'
     assert dependencies['torch']['import_probe_preloads'] == ['numpy', 'sklearn']
+    assert dependencies['jarvis-tools']['import_probe_targets'] == list(
+        JARVIS_TARGET_SYMBOLS
+    )
+    assert dependencies['jarvis-tools']['import_probe_symbols'] == {
+        target: list(symbols)
+        for target, symbols in JARVIS_TARGET_SYMBOLS.items()
+    }
     assert dependencies['matminer']['import_probe_targets'] == list(
         MATMINER_TARGET_SYMBOLS
     )
@@ -366,12 +379,12 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
     assert all(
         'import_probe_targets' not in dependency
         for package, dependency in dependencies.items()
-        if package not in {'matminer', 'pymatgen'}
+        if package not in {'jarvis-tools', 'matminer', 'pymatgen'}
     )
     assert all(
         'import_probe_symbols' not in dependency
         for package, dependency in dependencies.items()
-        if package not in {'matminer', 'pymatgen'}
+        if package not in {'jarvis-tools', 'matminer', 'pymatgen'}
     )
     assert dependencies['pytest']['role'] == 'test_tool'
     assert all(
@@ -397,6 +410,13 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
     }
     assert import_checks['torch']['import_probe_preloads'] == ['numpy', 'sklearn']
     assert import_checks['pyarrow']['import_probe_preloads'] == []
+    assert import_checks['jarvis']['import_probe_targets'] == list(
+        JARVIS_TARGET_SYMBOLS
+    )
+    assert import_checks['jarvis']['import_probe_symbols'] == {
+        target: list(symbols)
+        for target, symbols in JARVIS_TARGET_SYMBOLS.items()
+    }
     assert import_checks['matminer']['import_probe_targets'] == list(
         MATMINER_TARGET_SYMBOLS
     )
@@ -413,6 +433,7 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
     source_import_symbols = {
         target: set()
         for target in (
+            *JARVIS_TARGET_SYMBOLS,
             *MATMINER_TARGET_SYMBOLS,
             'pymatgen.core',
         )
@@ -434,6 +455,13 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
                 source_import_symbols[node.module].update(
                     alias.name for alias in node.names
                 )
+    assert {
+        target: source_import_symbols[target]
+        for target in JARVIS_TARGET_SYMBOLS
+    } == {
+        target: set(symbols)
+        for target, symbols in JARVIS_TARGET_SYMBOLS.items()
+    }
     assert {
         target: source_import_symbols[target]
         for target in MATMINER_TARGET_SYMBOLS
@@ -4940,6 +4968,168 @@ def test_public_dependency_probe_cache_invalidates_after_module_bytes_change(
         and error['failure_category'] == 'nonzero_exit'
         for error in validation['errors']
     )
+
+
+@pytest.mark.parametrize(
+    ('mutation', 'missing_symbol'),
+    [
+        ('missing-target', None),
+        ('missing-symbol', 'get_db_info'),
+        ('missing-symbol', 'get_request_data'),
+        ('raising-target', None),
+    ],
+)
+def test_public_and_cli_jarvis_probe_rejects_invalid_consumer_import(
+    monkeypatch,
+    tmp_path,
+    cleared_dependency_import_probe_cache,
+    mutation,
+    missing_symbol,
+):
+    package_dir = tmp_path / 'jarvis'
+    db_dir = package_dir / 'db'
+    db_dir.mkdir(parents=True)
+    (package_dir / '__init__.py').write_text(
+        'OWNER = True\n',
+        encoding='utf-8',
+    )
+    (db_dir / '__init__.py').write_text('', encoding='utf-8')
+    target = next(iter(JARVIS_TARGET_SYMBOLS))
+    target_path = db_dir / 'figshare.py'
+    target_path.write_text(
+        ''.join(
+            f'def {symbol}(*args, **kwargs):\n    return None\n'
+            for symbol in JARVIS_TARGET_SYMBOLS[target]
+        ),
+        encoding='utf-8',
+    )
+
+    def reset_jarvis_modules():
+        for module_name in tuple(sys.modules):
+            if (
+                module_name == 'jarvis'
+                or module_name.startswith('jarvis.')
+            ):
+                monkeypatch.delitem(
+                    sys.modules,
+                    module_name,
+                    raising=False,
+                )
+        agent_state.importlib.invalidate_caches()
+
+    reset_jarvis_modules()
+    monkeypatch.syspath_prepend(str(tmp_path))
+    monkeypatch.setenv('PYTHONPATH', str(tmp_path))
+    real_run = subprocess.run
+    jarvis_calls = 0
+
+    def selective_run(command, **kwargs):
+        nonlocal jarvis_calls
+        if command[-2] != 'jarvis':
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                stdout=b'',
+                stderr=b'',
+            )
+        jarvis_calls += 1
+        return real_run(command, **kwargs)
+
+    monkeypatch.setattr(agent_state.subprocess, 'run', selective_run)
+    probe_environment = os.environ.copy()
+    probe_environment['PYTHONDONTWRITEBYTECODE'] = '1'
+    exact_consumer = (
+        'from jarvis.db.figshare import get_db_info, get_request_data'
+    )
+    baseline_consumer = real_run(
+        [sys.executable, '-c', exact_consumer],
+        cwd=ROOT,
+        env=probe_environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    baseline_validation = validate_agent_layout(ROOT)
+    cached_baseline_validation = validate_agent_layout(ROOT)
+
+    assert baseline_consumer.returncode == 0
+    assert baseline_validation['status'] == 'ok'
+    assert cached_baseline_validation['status'] == 'ok'
+    assert jarvis_calls == 1
+
+    private_diagnostic = 'synthetic private jarvis consumer failure'
+    if mutation == 'missing-target':
+        target_path.unlink()
+    elif mutation == 'raising-target':
+        target_path.write_text(
+            f'raise RuntimeError({private_diagnostic!r})\n',
+            encoding='utf-8',
+        )
+    else:
+        target_path.write_text(
+            ''.join(
+                f'def {symbol}(*args, **kwargs):\n    return None\n'
+                for symbol in JARVIS_TARGET_SYMBOLS[target]
+                if symbol != missing_symbol
+            )
+            + (
+                'def __getattr__(name):\n'
+                f'    raise AttributeError({private_diagnostic!r})\n'
+            ),
+            encoding='utf-8',
+        )
+    reset_jarvis_modules()
+    direct_consumer = real_run(
+        [sys.executable, '-c', exact_consumer],
+        cwd=ROOT,
+        env=probe_environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    repeated_validation = validate_agent_layout(ROOT)
+    agent_state._clear_dependency_import_probe_cache()
+    uncached_validation = validate_agent_layout(ROOT)
+    completed = real_run(
+        [
+            sys.executable,
+            str(ROOT / 'main.py'),
+            '--verify-agent-contract',
+        ],
+        cwd=ROOT,
+        env=probe_environment,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+
+    assert direct_consumer.returncode == 1
+    assert repeated_validation['status'] == 'error'
+    assert uncached_validation['status'] == 'error'
+    assert jarvis_calls == 3
+    for validation in (repeated_validation, uncached_validation):
+        jarvis_check = next(
+            check
+            for check in validation['checks']
+            if check.get('kind') == 'dependency_import'
+            and check.get('module') == 'jarvis'
+        )
+        assert jarvis_check['import_probe_targets'] == list(
+            JARVIS_TARGET_SYMBOLS
+        )
+        assert jarvis_check['import_probe_symbols'] == {
+            target_name: list(symbols)
+            for target_name, symbols in JARVIS_TARGET_SYMBOLS.items()
+        }
+        assert jarvis_check['available'] is False
+        assert jarvis_check['failure_category'] == 'nonzero_exit'
+
+    assert completed.returncode == 1
+    assert completed.stderr == ''
+    payload = json.loads(completed.stdout)
+    assert payload['status'] == 'error'
+    assert private_diagnostic not in completed.stdout
 
 
 @pytest.mark.parametrize(
