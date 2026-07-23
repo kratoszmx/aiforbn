@@ -330,10 +330,18 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
     assert dependencies['jarvis-tools']['module'] == 'jarvis'
     assert dependencies['pyarrow']['import_kind'] == 'backend'
     assert dependencies['torch']['import_probe_preloads'] == ['numpy', 'sklearn']
+    assert dependencies['pymatgen']['import_probe_targets'] == [
+        'pymatgen.core'
+    ]
     assert all(
         'import_probe_preloads' not in dependency
         for package, dependency in dependencies.items()
         if package != 'torch'
+    )
+    assert all(
+        'import_probe_targets' not in dependency
+        for package, dependency in dependencies.items()
+        if package != 'pymatgen'
     )
     assert dependencies['pytest']['role'] == 'test_tool'
     assert all(
@@ -359,6 +367,9 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
     }
     assert import_checks['torch']['import_probe_preloads'] == ['numpy', 'sklearn']
     assert import_checks['pyarrow']['import_probe_preloads'] == []
+    assert import_checks['pymatgen']['import_probe_targets'] == [
+        'pymatgen.core'
+    ]
     assert all(check['available'] for check in import_checks.values())
     ownership_checks = {
         check['package']: check
@@ -412,6 +423,34 @@ def test_dependency_contract_rejects_invalid_import_probe_preloads(
     assert validation['status'] == 'error'
     assert any(
         error['code'] == 'invalid_dependency_import_probe_preloads'
+        for error in validation['errors']
+    )
+
+
+@pytest.mark.parametrize(
+    'invalid_targets',
+    [
+        [],
+        'pymatgen.core',
+        ['pymatgen'],
+        ['pymatgen.core', 'pymatgen.core'],
+        ['not-valid!'],
+        ['jarvis.db'],
+    ],
+)
+def test_dependency_contract_rejects_invalid_import_probe_targets(
+    invalid_targets,
+):
+    manifest = load_agent_manifest(ROOT)
+    _dependency_by_package(manifest, 'pymatgen')['import_probe_targets'] = (
+        invalid_targets
+    )
+
+    validation = validate_agent_layout(ROOT, manifest)
+
+    assert validation['status'] == 'error'
+    assert any(
+        error['code'] == 'invalid_dependency_import_probe_targets'
         for error in validation['errors']
     )
 
@@ -4622,7 +4661,10 @@ def test_dependency_import_probe_propagates_preloads_and_caches_by_full_key(
     command, kwargs = calls[0]
     assert command[0] == sys.executable
     assert command[-2] == 'torch'
-    assert json.loads(command[-1]) == ['numpy', 'sklearn']
+    assert json.loads(command[-1]) == {
+        'preloads': ['numpy', 'sklearn'],
+        'targets': [],
+    }
     assert command[-3] == str(ROOT.resolve())
     assert kwargs['cwd'] == ROOT.resolve()
     assert kwargs['capture_output'] is True
@@ -4757,6 +4799,77 @@ def test_public_dependency_probe_cache_invalidates_after_module_bytes_change(
         and error['failure_category'] == 'nonzero_exit'
         for error in validation['errors']
     )
+
+
+def test_public_pymatgen_probe_rejects_changed_required_namespace_submodule(
+    monkeypatch,
+    tmp_path,
+    cleared_dependency_import_probe_cache,
+):
+    shim_root = tmp_path / 'shim'
+    core_dir = shim_root / 'pymatgen' / 'core'
+    core_dir.mkdir(parents=True)
+    core_init = core_dir / '__init__.py'
+    core_init.write_text(
+        'Composition = Element = Structure = object\n',
+        encoding='utf-8',
+    )
+    monkeypatch.syspath_prepend(str(shim_root))
+    monkeypatch.setenv('PYTHONPATH', str(shim_root))
+    monkeypatch.delitem(sys.modules, 'pymatgen', raising=False)
+    monkeypatch.delitem(sys.modules, 'pymatgen.core', raising=False)
+    agent_state.importlib.invalidate_caches()
+    real_run = subprocess.run
+    pymatgen_calls = 0
+
+    def selective_run(command, **kwargs):
+        nonlocal pymatgen_calls
+        if command[-2] != 'pymatgen':
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                stdout=b'',
+                stderr=b'',
+            )
+        pymatgen_calls += 1
+        return real_run(command, **kwargs)
+
+    monkeypatch.setattr(agent_state.subprocess, 'run', selective_run)
+
+    assert validate_agent_layout(ROOT)['status'] == 'ok'
+
+    core_init.write_text(
+        'raise RuntimeError("synthetic required consumer failure")\n',
+        encoding='utf-8',
+    )
+    agent_state.importlib.invalidate_caches()
+    probe_environment = os.environ.copy()
+    probe_environment['PYTHONDONTWRITEBYTECODE'] = '1'
+    direct_consumer = real_run(
+        [
+            sys.executable,
+            '-c',
+            'from pymatgen.core import Composition, Element, Structure',
+        ],
+        cwd=ROOT,
+        env=probe_environment,
+        capture_output=True,
+        check=False,
+    )
+    validation = validate_agent_layout(ROOT)
+
+    assert direct_consumer.returncode == 1
+    assert validation['status'] == 'error'
+    assert pymatgen_calls == 2
+    pymatgen_check = next(
+        check
+        for check in validation['checks']
+        if check.get('kind') == 'dependency_import'
+        and check.get('module') == 'pymatgen'
+    )
+    assert pymatgen_check['import_probe_targets'] == ['pymatgen.core']
+    assert pymatgen_check['available'] is False
+    assert pymatgen_check['failure_category'] == 'nonzero_exit'
 
 
 @pytest.mark.parametrize(
@@ -4923,6 +5036,7 @@ def test_verify_agent_contract_rejects_spec_present_broken_pyarrow_import(
         'role': 'optional_lazy',
         'available': False,
         'import_probe_preloads': [],
+        'import_probe_targets': [],
         'failure_category': 'nonzero_exit',
     }
     assert any(
@@ -4932,6 +5046,64 @@ def test_verify_agent_contract_rejects_spec_present_broken_pyarrow_import(
         for error in payload['validation']['errors']
     )
     assert 'synthetic_missing_native_backend' not in completed.stdout
+
+
+def test_verify_agent_contract_rejects_broken_pymatgen_consumer_probe(
+    tmp_path,
+):
+    core_dir = tmp_path / 'pymatgen' / 'core'
+    core_dir.mkdir(parents=True)
+    (core_dir / '__init__.py').write_text(
+        'raise RuntimeError("synthetic required consumer failure")\n',
+        encoding='utf-8',
+    )
+    probe_environment = os.environ.copy()
+    existing_pythonpath = probe_environment.get('PYTHONPATH', '')
+    probe_environment['PYTHONPATH'] = os.pathsep.join(
+        part
+        for part in (str(tmp_path), existing_pythonpath)
+        if part
+    )
+    probe_environment['PYTHONDONTWRITEBYTECODE'] = '1'
+
+    completed = subprocess.run(
+        [sys.executable, str(ROOT / 'main.py'), '--verify-agent-contract'],
+        cwd=ROOT,
+        env=probe_environment,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+
+    assert completed.returncode == 1
+    assert completed.stderr == ''
+    payload = json.loads(completed.stdout)
+    assert payload['status'] == 'error'
+    pymatgen_check = next(
+        check
+        for check in payload['validation']['checks']
+        if check.get('kind') == 'dependency_import'
+        and check.get('module') == 'pymatgen'
+    )
+    assert pymatgen_check == {
+        'kind': 'dependency_import',
+        'package': 'pymatgen',
+        'module': 'pymatgen',
+        'required_for': 'formula_and_structure_processing',
+        'role': 'scientific_pipeline',
+        'available': False,
+        'import_probe_preloads': [],
+        'import_probe_targets': ['pymatgen.core'],
+        'failure_category': 'nonzero_exit',
+    }
+    assert any(
+        error['code'] == 'unimportable_declared_dependency'
+        and error['module'] == 'pymatgen'
+        and error['failure_category'] == 'nonzero_exit'
+        for error in payload['validation']['errors']
+    )
+    assert 'synthetic required consumer failure' not in completed.stdout
 
 
 def test_validate_agent_layout_rejects_unresolved_project_skill_reference(

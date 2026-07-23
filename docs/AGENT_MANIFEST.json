@@ -400,6 +400,9 @@
       "package": "pymatgen",
       "specifier": ">=2024.8.9",
       "module": "pymatgen",
+      "import_probe_targets": [
+        "pymatgen.core"
+      ],
       "role": "scientific_pipeline",
       "import_kind": "direct",
       "required_for": "formula_and_structure_processing"

@@ -341,12 +341,15 @@ DEPENDENCY_IMPORT_PROBE_SCRIPT = (
     'import importlib, json, pathlib, sys\n'
     'root = pathlib.Path(sys.argv[1]).resolve()\n'
     "sys.path.insert(0, str(root / 'src'))\n"
-    'for module_name in json.loads(sys.argv[3]):\n'
+    'probe_plan = json.loads(sys.argv[3])\n'
+    'for module_name in probe_plan["preloads"]:\n'
     '    importlib.import_module(module_name)\n'
     'importlib.import_module(sys.argv[2])\n'
+    'for module_name in probe_plan["targets"]:\n'
+    '    importlib.import_module(module_name)\n'
 )
 _DEPENDENCY_IMPORT_PROBE_CACHE: dict[
-    tuple[str, str, str, tuple[str, ...], str],
+    tuple[str, str, str, tuple[str, ...], tuple[str, ...], str],
     tuple[bool, str | None],
 ] = {}
 
@@ -388,6 +391,7 @@ def _normalized_requirement_specifier(value: str) -> str:
 def _dependency_import_probe_context_digest(
     module: str,
     import_probe_preloads: tuple[str, ...],
+    import_probe_targets: tuple[str, ...] = (),
 ) -> str:
     context_parts: list[object] = [
         (
@@ -398,7 +402,11 @@ def _dependency_import_probe_context_digest(
             ),
         )
     ]
-    for module_name in (*import_probe_preloads, module):
+    for module_name in (
+        *import_probe_preloads,
+        module,
+        *import_probe_targets,
+    ):
         try:
             module_spec = importlib.util.find_spec(module_name)
         except (ImportError, AttributeError, ValueError):
@@ -446,13 +454,19 @@ def _dependency_import_probe_cache_key(
     root: Path,
     module: str,
     import_probe_preloads: tuple[str, ...],
-) -> tuple[str, str, str, tuple[str, ...], str]:
+    import_probe_targets: tuple[str, ...] = (),
+) -> tuple[str, str, str, tuple[str, ...], tuple[str, ...], str]:
     return (
         sys.executable,
         str(root.resolve()),
         module,
         import_probe_preloads,
-        _dependency_import_probe_context_digest(module, import_probe_preloads),
+        import_probe_targets,
+        _dependency_import_probe_context_digest(
+            module,
+            import_probe_preloads,
+            import_probe_targets,
+        ),
     )
 
 
@@ -464,6 +478,7 @@ def _probe_dependency_import(
     root: Path,
     module: str,
     import_probe_preloads: tuple[str, ...],
+    import_probe_targets: tuple[str, ...] = (),
     *,
     timeout_seconds: float,
 ) -> tuple[bool, str | None]:
@@ -471,6 +486,7 @@ def _probe_dependency_import(
         root,
         module,
         import_probe_preloads,
+        import_probe_targets,
     )
     if probe_key in _DEPENDENCY_IMPORT_PROBE_CACHE:
         return _DEPENDENCY_IMPORT_PROBE_CACHE[probe_key]
@@ -485,7 +501,10 @@ def _probe_dependency_import(
                 DEPENDENCY_IMPORT_PROBE_SCRIPT,
                 str(root.resolve()),
                 module,
-                json.dumps(import_probe_preloads),
+                json.dumps({
+                    'preloads': import_probe_preloads,
+                    'targets': import_probe_targets,
+                }),
             ],
             cwd=root.resolve(),
             env=probe_environment,
@@ -3171,6 +3190,50 @@ def _validate_dependency_contract(
             else:
                 import_probe_preloads = normalized_preloads
         record['import_probe_preloads'] = import_probe_preloads
+        import_probe_targets: tuple[str, ...] = ()
+        if 'import_probe_targets' in entry:
+            raw_import_probe_targets = entry.get('import_probe_targets')
+            targets_are_valid = (
+                isinstance(raw_import_probe_targets, list)
+                and bool(raw_import_probe_targets)
+                and all(
+                    isinstance(target, str)
+                    and bool(target.strip())
+                    and IMPORT_MODULE_PATTERN.fullmatch(target.strip())
+                    is not None
+                    for target in raw_import_probe_targets
+                )
+            )
+            if targets_are_valid:
+                normalized_targets = tuple(
+                    target.strip()
+                    for target in raw_import_probe_targets
+                )
+                owner_prefix = f'{record["module"]}.'
+                targets_are_valid = (
+                    len(normalized_targets) == len(set(normalized_targets))
+                    and all(
+                        target.startswith(owner_prefix)
+                        for target in normalized_targets
+                    )
+                    and not set(normalized_targets).intersection(
+                        import_probe_preloads
+                    )
+                )
+            if not targets_are_valid:
+                add_error(
+                    'invalid_dependency_import_probe_targets',
+                    path,
+                    (
+                        '`import_probe_targets`, when present, must be a '
+                        'non-empty ordered list of unique import modules '
+                        'beneath the declared dependency owner and disjoint '
+                        'from preloads.'
+                    ),
+                )
+            else:
+                import_probe_targets = normalized_targets
+        record['import_probe_targets'] = import_probe_targets
         record['specifier'] = _normalized_requirement_specifier(record['specifier'])
         if not all(record[field] for field in ('package', 'module', 'required_for')) or not IMPORT_MODULE_PATTERN.fullmatch(record['module']):
             add_error('invalid_dependency_import_entry', path, 'Dependency entry requires package, importable module, and purpose.')
@@ -3370,11 +3433,13 @@ def _validate_dependency_contract(
             failure_category = 'spec_missing'
 
         import_probe_preloads = tuple(record['import_probe_preloads'])
+        import_probe_targets = tuple(record['import_probe_targets'])
         if failure_category is None:
             probe_key = _dependency_import_probe_cache_key(
                 root,
                 module,
                 import_probe_preloads,
+                import_probe_targets,
             )
             cached_result = _DEPENDENCY_IMPORT_PROBE_CACHE.get(probe_key)
             if cached_result is not None:
@@ -3392,6 +3457,7 @@ def _validate_dependency_contract(
                         root,
                         module,
                         import_probe_preloads,
+                        import_probe_targets,
                         timeout_seconds=min(
                             DEPENDENCY_IMPORT_PROBE_TIMEOUT_SECONDS,
                             remaining_probe_budget,
@@ -3404,6 +3470,7 @@ def _validate_dependency_contract(
             'kind': 'dependency_import', 'package': record['package'], 'module': module,
             'required_for': record['required_for'], 'role': record['role'], 'available': available,
             'import_probe_preloads': list(import_probe_preloads),
+            'import_probe_targets': list(import_probe_targets),
         }
         if failure_category is not None:
             dependency_check['failure_category'] = failure_category
@@ -3421,8 +3488,8 @@ def _validate_dependency_contract(
                 'unimportable_declared_dependency',
                 'requirements.txt',
                 (
-                    f'`{record["package"]}` does not import successfully '
-                    f'as `{module}` in the isolated dependency probe.'
+                    f'`{record["package"]}` does not satisfy the '
+                    f'manifest-owned isolated import probe for `{module}`.'
                 ),
                 module=module,
                 failure_category=failure_category,
