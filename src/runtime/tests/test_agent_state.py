@@ -18,6 +18,12 @@ from runtime.agent_state import (
 
 
 ROOT = Path(__file__).resolve().parents[3]
+PYMATGEN_CORE_SYMBOLS = (
+    'Composition',
+    'Element',
+    'Structure',
+    'Lattice',
+)
 
 
 @pytest.fixture
@@ -333,6 +339,9 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
     assert dependencies['pymatgen']['import_probe_targets'] == [
         'pymatgen.core'
     ]
+    assert dependencies['pymatgen']['import_probe_symbols'] == {
+        'pymatgen.core': list(PYMATGEN_CORE_SYMBOLS),
+    }
     assert all(
         'import_probe_preloads' not in dependency
         for package, dependency in dependencies.items()
@@ -340,6 +349,11 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
     )
     assert all(
         'import_probe_targets' not in dependency
+        for package, dependency in dependencies.items()
+        if package != 'pymatgen'
+    )
+    assert all(
+        'import_probe_symbols' not in dependency
         for package, dependency in dependencies.items()
         if package != 'pymatgen'
     )
@@ -370,6 +384,28 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
     assert import_checks['pymatgen']['import_probe_targets'] == [
         'pymatgen.core'
     ]
+    assert import_checks['pymatgen']['import_probe_symbols'] == {
+        'pymatgen.core': list(PYMATGEN_CORE_SYMBOLS),
+    }
+    pymatgen_core_symbols = set()
+    for python_path in ROOT.rglob('*.py'):
+        relative_path = python_path.relative_to(ROOT)
+        if (
+            relative_path.parts[0] in {'human_docs', 'data', 'artifacts'}
+            or '__pycache__' in relative_path.parts
+        ):
+            continue
+        for node in ast.walk(
+            ast.parse(python_path.read_text(encoding='utf-8'))
+        ):
+            if (
+                isinstance(node, ast.ImportFrom)
+                and node.module == 'pymatgen.core'
+            ):
+                pymatgen_core_symbols.update(
+                    alias.name for alias in node.names
+                )
+    assert pymatgen_core_symbols == set(PYMATGEN_CORE_SYMBOLS)
     assert all(check['available'] for check in import_checks.values())
     ownership_checks = {
         check['package']: check
@@ -451,6 +487,37 @@ def test_dependency_contract_rejects_invalid_import_probe_targets(
     assert validation['status'] == 'error'
     assert any(
         error['code'] == 'invalid_dependency_import_probe_targets'
+        for error in validation['errors']
+    )
+
+
+@pytest.mark.parametrize(
+    'invalid_symbols',
+    [
+        [],
+        {},
+        {'pymatgen.io.cif': ['CifParser']},
+        {'pymatgen.core': []},
+        {'pymatgen.core': 'Composition'},
+        {'pymatgen.core': ['Composition', 'Composition']},
+        {'pymatgen.core': ['not-valid!']},
+        {'pymatgen.core': ['class']},
+        {'pymatgen.core': [1]},
+    ],
+)
+def test_dependency_contract_rejects_invalid_import_probe_symbols(
+    invalid_symbols,
+):
+    manifest = load_agent_manifest(ROOT)
+    _dependency_by_package(manifest, 'pymatgen')['import_probe_symbols'] = (
+        invalid_symbols
+    )
+
+    validation = validate_agent_layout(ROOT, manifest)
+
+    assert validation['status'] == 'error'
+    assert any(
+        error['code'] == 'invalid_dependency_import_probe_symbols'
         for error in validation['errors']
     )
 
@@ -4664,6 +4731,7 @@ def test_dependency_import_probe_propagates_preloads_and_caches_by_full_key(
     assert json.loads(command[-1]) == {
         'preloads': ['numpy', 'sklearn'],
         'targets': [],
+        'symbols': {},
     }
     assert command[-3] == str(ROOT.resolve())
     assert kwargs['cwd'] == ROOT.resolve()
@@ -4696,6 +4764,41 @@ def test_dependency_import_probe_propagates_preloads_and_caches_by_full_key(
         timeout_seconds=10.0,
     ) == (True, None)
     assert len(calls) == 4
+
+    target = ('pymatgen.core',)
+    symbols = (('pymatgen.core', ('Composition',)),)
+    assert agent_state._probe_dependency_import(
+        ROOT,
+        'pymatgen',
+        (),
+        target,
+        symbols,
+        timeout_seconds=10.0,
+    ) == (True, None)
+    assert agent_state._probe_dependency_import(
+        ROOT,
+        'pymatgen',
+        (),
+        target,
+        symbols,
+        timeout_seconds=1.0,
+    ) == (True, None)
+    assert len(calls) == 5
+    assert json.loads(calls[-1][0][-1]) == {
+        'preloads': [],
+        'targets': ['pymatgen.core'],
+        'symbols': {'pymatgen.core': ['Composition']},
+    }
+
+    assert agent_state._probe_dependency_import(
+        ROOT,
+        'pymatgen',
+        (),
+        target,
+        (('pymatgen.core', ('Element',)),),
+        timeout_seconds=10.0,
+    ) == (True, None)
+    assert len(calls) == 6
 
 
 def test_public_dependency_probe_cache_invalidates_after_pythonpath_change(
@@ -4811,7 +4914,7 @@ def test_public_pymatgen_probe_rejects_changed_required_namespace_submodule(
     core_dir.mkdir(parents=True)
     core_init = core_dir / '__init__.py'
     core_init.write_text(
-        'Composition = Element = Structure = object\n',
+        'Composition = Element = Structure = Lattice = object\n',
         encoding='utf-8',
     )
     monkeypatch.syspath_prepend(str(shim_root))
@@ -4870,6 +4973,101 @@ def test_public_pymatgen_probe_rejects_changed_required_namespace_submodule(
     assert pymatgen_check['import_probe_targets'] == ['pymatgen.core']
     assert pymatgen_check['available'] is False
     assert pymatgen_check['failure_category'] == 'nonzero_exit'
+
+
+@pytest.mark.parametrize('missing_symbol', PYMATGEN_CORE_SYMBOLS)
+def test_public_pymatgen_probe_rejects_missing_required_consumer_symbol(
+    monkeypatch,
+    tmp_path,
+    cleared_dependency_import_probe_cache,
+    missing_symbol,
+):
+    shim_root = tmp_path / 'shim'
+    core_dir = shim_root / 'pymatgen' / 'core'
+    core_dir.mkdir(parents=True)
+    core_init = core_dir / '__init__.py'
+
+    def write_symbols(symbols):
+        core_init.write_text(
+            ''.join(f'{symbol} = object\n' for symbol in symbols)
+            + (
+                'def __getattr__(name):\n'
+                '    raise AttributeError("synthetic private symbol failure")\n'
+            ),
+            encoding='utf-8',
+        )
+        monkeypatch.delitem(sys.modules, 'pymatgen', raising=False)
+        monkeypatch.delitem(sys.modules, 'pymatgen.core', raising=False)
+        agent_state.importlib.invalidate_caches()
+
+    write_symbols(PYMATGEN_CORE_SYMBOLS)
+    monkeypatch.syspath_prepend(str(shim_root))
+    monkeypatch.setenv('PYTHONPATH', str(shim_root))
+    real_run = subprocess.run
+    pymatgen_calls = 0
+
+    def selective_run(command, **kwargs):
+        nonlocal pymatgen_calls
+        if command[-2] != 'pymatgen':
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                stdout=b'',
+                stderr=b'',
+            )
+        pymatgen_calls += 1
+        return real_run(command, **kwargs)
+
+    monkeypatch.setattr(agent_state.subprocess, 'run', selective_run)
+
+    assert validate_agent_layout(ROOT)['status'] == 'ok'
+
+    write_symbols(
+        symbol
+        for symbol in PYMATGEN_CORE_SYMBOLS
+        if symbol != missing_symbol
+    )
+    probe_environment = os.environ.copy()
+    probe_environment['PYTHONDONTWRITEBYTECODE'] = '1'
+    direct_module = real_run(
+        [sys.executable, '-c', 'import pymatgen.core'],
+        cwd=ROOT,
+        env=probe_environment,
+        capture_output=True,
+        check=False,
+    )
+    direct_symbol = real_run(
+        [
+            sys.executable,
+            '-c',
+            f'from pymatgen.core import {missing_symbol}',
+        ],
+        cwd=ROOT,
+        env=probe_environment,
+        capture_output=True,
+        check=False,
+    )
+    repeated_validation = validate_agent_layout(ROOT)
+    agent_state._clear_dependency_import_probe_cache()
+    uncached_validation = validate_agent_layout(ROOT)
+
+    assert direct_module.returncode == 0
+    assert direct_symbol.returncode == 1
+    assert repeated_validation['status'] == 'error'
+    assert uncached_validation['status'] == 'error'
+    assert pymatgen_calls == 3
+    for validation in (repeated_validation, uncached_validation):
+        pymatgen_check = next(
+            check
+            for check in validation['checks']
+            if check.get('kind') == 'dependency_import'
+            and check.get('module') == 'pymatgen'
+        )
+        assert pymatgen_check['import_probe_symbols'] == {
+            'pymatgen.core': list(PYMATGEN_CORE_SYMBOLS),
+        }
+        assert pymatgen_check['available'] is False
+        assert pymatgen_check['failure_category'] == 'nonzero_exit'
 
 
 @pytest.mark.parametrize(
@@ -5037,6 +5235,7 @@ def test_verify_agent_contract_rejects_spec_present_broken_pyarrow_import(
         'available': False,
         'import_probe_preloads': [],
         'import_probe_targets': [],
+        'import_probe_symbols': {},
         'failure_category': 'nonzero_exit',
     }
     assert any(
@@ -5095,6 +5294,9 @@ def test_verify_agent_contract_rejects_broken_pymatgen_consumer_probe(
         'available': False,
         'import_probe_preloads': [],
         'import_probe_targets': ['pymatgen.core'],
+        'import_probe_symbols': {
+            'pymatgen.core': list(PYMATGEN_CORE_SYMBOLS),
+        },
         'failure_category': 'nonzero_exit',
     }
     assert any(
@@ -5104,6 +5306,84 @@ def test_verify_agent_contract_rejects_broken_pymatgen_consumer_probe(
         for error in payload['validation']['errors']
     )
     assert 'synthetic required consumer failure' not in completed.stdout
+
+
+@pytest.mark.parametrize('missing_symbol', PYMATGEN_CORE_SYMBOLS)
+def test_verify_agent_contract_rejects_missing_pymatgen_consumer_symbol(
+    tmp_path,
+    missing_symbol,
+):
+    core_dir = tmp_path / 'pymatgen' / 'core'
+    core_dir.mkdir(parents=True)
+    (core_dir / '__init__.py').write_text(
+        ''.join(
+            f'{symbol} = object\n'
+            for symbol in PYMATGEN_CORE_SYMBOLS
+            if symbol != missing_symbol
+        )
+        + (
+            'def __getattr__(name):\n'
+            '    raise AttributeError("synthetic private symbol failure")\n'
+        ),
+        encoding='utf-8',
+    )
+    probe_environment = os.environ.copy()
+    existing_pythonpath = probe_environment.get('PYTHONPATH', '')
+    probe_environment['PYTHONPATH'] = os.pathsep.join(
+        part
+        for part in (str(tmp_path), existing_pythonpath)
+        if part
+    )
+    probe_environment['PYTHONDONTWRITEBYTECODE'] = '1'
+
+    direct_module = subprocess.run(
+        [sys.executable, '-c', 'import pymatgen.core'],
+        cwd=ROOT,
+        env=probe_environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    direct_symbol = subprocess.run(
+        [
+            sys.executable,
+            '-c',
+            f'from pymatgen.core import {missing_symbol}',
+        ],
+        cwd=ROOT,
+        env=probe_environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    completed = subprocess.run(
+        [sys.executable, str(ROOT / 'main.py'), '--verify-agent-contract'],
+        cwd=ROOT,
+        env=probe_environment,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+
+    assert direct_module.returncode == 0
+    assert direct_symbol.returncode == 1
+    assert completed.returncode == 1
+    assert completed.stderr == ''
+    payload = json.loads(completed.stdout)
+    assert payload['status'] == 'error'
+    pymatgen_check = next(
+        check
+        for check in payload['validation']['checks']
+        if check.get('kind') == 'dependency_import'
+        and check.get('module') == 'pymatgen'
+    )
+    assert pymatgen_check['import_probe_symbols'] == {
+        'pymatgen.core': list(PYMATGEN_CORE_SYMBOLS),
+    }
+    assert pymatgen_check['available'] is False
+    assert pymatgen_check['failure_category'] == 'nonzero_exit'
+    assert 'synthetic private symbol failure' not in completed.stdout
 
 
 def test_validate_agent_layout_rejects_unresolved_project_skill_reference(

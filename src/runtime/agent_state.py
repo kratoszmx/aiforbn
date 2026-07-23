@@ -6,6 +6,7 @@ import hashlib
 from importlib import metadata
 import json
 import importlib.util
+import keyword
 import os
 from pathlib import Path
 import re
@@ -329,6 +330,10 @@ IMPORT_MODULE_PATTERN = re.compile(
 )
 DEPENDENCY_IMPORT_PROBE_TIMEOUT_SECONDS = 10.0
 DEPENDENCY_IMPORT_PROBE_TOTAL_BUDGET_SECONDS = 30.0
+_DependencyImportProbeSymbols = tuple[
+    tuple[str, tuple[str, ...]],
+    ...,
+]
 _DEPENDENCY_IMPORT_PROBE_ENVIRONMENT_KEYS = (
     'PYTHONCASEOK',
     'PYTHONHOME',
@@ -346,10 +351,20 @@ DEPENDENCY_IMPORT_PROBE_SCRIPT = (
     '    importlib.import_module(module_name)\n'
     'importlib.import_module(sys.argv[2])\n'
     'for module_name in probe_plan["targets"]:\n'
-    '    importlib.import_module(module_name)\n'
+    '    target_module = importlib.import_module(module_name)\n'
+    '    for symbol_name in probe_plan["symbols"].get(module_name, []):\n'
+    '        getattr(target_module, symbol_name)\n'
 )
 _DEPENDENCY_IMPORT_PROBE_CACHE: dict[
-    tuple[str, str, str, tuple[str, ...], tuple[str, ...], str],
+    tuple[
+        str,
+        str,
+        str,
+        tuple[str, ...],
+        tuple[str, ...],
+        _DependencyImportProbeSymbols,
+        str,
+    ],
     tuple[bool, str | None],
 ] = {}
 
@@ -455,13 +470,23 @@ def _dependency_import_probe_cache_key(
     module: str,
     import_probe_preloads: tuple[str, ...],
     import_probe_targets: tuple[str, ...] = (),
-) -> tuple[str, str, str, tuple[str, ...], tuple[str, ...], str]:
+    import_probe_symbols: _DependencyImportProbeSymbols = (),
+) -> tuple[
+    str,
+    str,
+    str,
+    tuple[str, ...],
+    tuple[str, ...],
+    _DependencyImportProbeSymbols,
+    str,
+]:
     return (
         sys.executable,
         str(root.resolve()),
         module,
         import_probe_preloads,
         import_probe_targets,
+        import_probe_symbols,
         _dependency_import_probe_context_digest(
             module,
             import_probe_preloads,
@@ -479,6 +504,7 @@ def _probe_dependency_import(
     module: str,
     import_probe_preloads: tuple[str, ...],
     import_probe_targets: tuple[str, ...] = (),
+    import_probe_symbols: _DependencyImportProbeSymbols = (),
     *,
     timeout_seconds: float,
 ) -> tuple[bool, str | None]:
@@ -487,6 +513,7 @@ def _probe_dependency_import(
         module,
         import_probe_preloads,
         import_probe_targets,
+        import_probe_symbols,
     )
     if probe_key in _DEPENDENCY_IMPORT_PROBE_CACHE:
         return _DEPENDENCY_IMPORT_PROBE_CACHE[probe_key]
@@ -504,6 +531,7 @@ def _probe_dependency_import(
                 json.dumps({
                     'preloads': import_probe_preloads,
                     'targets': import_probe_targets,
+                    'symbols': dict(import_probe_symbols),
                 }),
             ],
             cwd=root.resolve(),
@@ -3234,6 +3262,59 @@ def _validate_dependency_contract(
             else:
                 import_probe_targets = normalized_targets
         record['import_probe_targets'] = import_probe_targets
+        import_probe_symbols: _DependencyImportProbeSymbols = ()
+        if 'import_probe_symbols' in entry:
+            raw_import_probe_symbols = entry.get('import_probe_symbols')
+            symbols_are_valid = (
+                isinstance(raw_import_probe_symbols, dict)
+                and bool(raw_import_probe_symbols)
+            )
+            normalized_symbol_map: dict[str, tuple[str, ...]] = {}
+            if symbols_are_valid:
+                for target, raw_symbols in raw_import_probe_symbols.items():
+                    if not isinstance(target, str):
+                        symbols_are_valid = False
+                        break
+                    normalized_target = target.strip()
+                    if (
+                        normalized_target not in import_probe_targets
+                        or normalized_target in normalized_symbol_map
+                        or not isinstance(raw_symbols, list)
+                        or not raw_symbols
+                        or not all(
+                            isinstance(symbol, str)
+                            and symbol.isidentifier()
+                            and not keyword.iskeyword(symbol)
+                            for symbol in raw_symbols
+                        )
+                    ):
+                        symbols_are_valid = False
+                        break
+                    normalized_symbols = tuple(raw_symbols)
+                    if len(normalized_symbols) != len(set(normalized_symbols)):
+                        symbols_are_valid = False
+                        break
+                    normalized_symbol_map[normalized_target] = (
+                        normalized_symbols
+                    )
+            if not symbols_are_valid:
+                add_error(
+                    'invalid_dependency_import_probe_symbols',
+                    path,
+                    (
+                        '`import_probe_symbols`, when present, must be a '
+                        'non-empty target-to-symbol-list mapping whose targets '
+                        'are declared probe targets and whose symbols are '
+                        'non-empty, unique valid identifiers.'
+                    ),
+                )
+            else:
+                import_probe_symbols = tuple(
+                    (target, normalized_symbol_map[target])
+                    for target in import_probe_targets
+                    if target in normalized_symbol_map
+                )
+        record['import_probe_symbols'] = import_probe_symbols
         record['specifier'] = _normalized_requirement_specifier(record['specifier'])
         if not all(record[field] for field in ('package', 'module', 'required_for')) or not IMPORT_MODULE_PATTERN.fullmatch(record['module']):
             add_error('invalid_dependency_import_entry', path, 'Dependency entry requires package, importable module, and purpose.')
@@ -3434,12 +3515,14 @@ def _validate_dependency_contract(
 
         import_probe_preloads = tuple(record['import_probe_preloads'])
         import_probe_targets = tuple(record['import_probe_targets'])
+        import_probe_symbols = tuple(record['import_probe_symbols'])
         if failure_category is None:
             probe_key = _dependency_import_probe_cache_key(
                 root,
                 module,
                 import_probe_preloads,
                 import_probe_targets,
+                import_probe_symbols,
             )
             cached_result = _DEPENDENCY_IMPORT_PROBE_CACHE.get(probe_key)
             if cached_result is not None:
@@ -3458,6 +3541,7 @@ def _validate_dependency_contract(
                         module,
                         import_probe_preloads,
                         import_probe_targets,
+                        import_probe_symbols,
                         timeout_seconds=min(
                             DEPENDENCY_IMPORT_PROBE_TIMEOUT_SECONDS,
                             remaining_probe_budget,
@@ -3471,6 +3555,10 @@ def _validate_dependency_contract(
             'required_for': record['required_for'], 'role': record['role'], 'available': available,
             'import_probe_preloads': list(import_probe_preloads),
             'import_probe_targets': list(import_probe_targets),
+            'import_probe_symbols': {
+                target: list(symbols)
+                for target, symbols in import_probe_symbols
+            },
         }
         if failure_category is not None:
             dependency_check['failure_category'] = failure_category
