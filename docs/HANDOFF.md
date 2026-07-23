@@ -55,8 +55,8 @@ Latest validated tree (2026-07-24):
 
 - agent contract, nine-field command-index parity, and ordered pytest target rendering: `ok`, 0 errors, 0 warnings;
 - dry-run pipeline wiring: passed;
-- emitted architecture/docs focused profile: 530 passed;
-- cache-disabled collection/full `src` suite: 1085 collected, 1085 passed;
+- emitted architecture/docs focused profile: 536 passed;
+- cache-disabled collection/full `src` suite: 1091 collected, 1091 passed;
 - manifest pytest non-vacuity regression: all three declared commands reject zero-call exit-0 runs while preserving partial, collect-only, failure, interrupt, and no-test outcomes;
 - warning classification: one upstream PyTorch nested-tensor prototype warning, no project warning regression;
 - Streamlit AppTest: 104 passed;

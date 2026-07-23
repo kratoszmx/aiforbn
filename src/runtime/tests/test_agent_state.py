@@ -18,6 +18,15 @@ from runtime.agent_state import (
 
 
 ROOT = Path(__file__).resolve().parents[3]
+MATMINER_TARGET_SYMBOLS = {
+    'matminer.featurizers.base': (
+        'MultipleFeaturizer',
+    ),
+    'matminer.featurizers.composition': (
+        'ElementProperty',
+        'Stoichiometry',
+    ),
+}
 PYMATGEN_CORE_SYMBOLS = (
     'Composition',
     'Element',
@@ -336,6 +345,13 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
     assert dependencies['jarvis-tools']['module'] == 'jarvis'
     assert dependencies['pyarrow']['import_kind'] == 'backend'
     assert dependencies['torch']['import_probe_preloads'] == ['numpy', 'sklearn']
+    assert dependencies['matminer']['import_probe_targets'] == list(
+        MATMINER_TARGET_SYMBOLS
+    )
+    assert dependencies['matminer']['import_probe_symbols'] == {
+        target: list(symbols)
+        for target, symbols in MATMINER_TARGET_SYMBOLS.items()
+    }
     assert dependencies['pymatgen']['import_probe_targets'] == [
         'pymatgen.core'
     ]
@@ -350,12 +366,12 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
     assert all(
         'import_probe_targets' not in dependency
         for package, dependency in dependencies.items()
-        if package != 'pymatgen'
+        if package not in {'matminer', 'pymatgen'}
     )
     assert all(
         'import_probe_symbols' not in dependency
         for package, dependency in dependencies.items()
-        if package != 'pymatgen'
+        if package not in {'matminer', 'pymatgen'}
     )
     assert dependencies['pytest']['role'] == 'test_tool'
     assert all(
@@ -381,13 +397,26 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
     }
     assert import_checks['torch']['import_probe_preloads'] == ['numpy', 'sklearn']
     assert import_checks['pyarrow']['import_probe_preloads'] == []
+    assert import_checks['matminer']['import_probe_targets'] == list(
+        MATMINER_TARGET_SYMBOLS
+    )
+    assert import_checks['matminer']['import_probe_symbols'] == {
+        target: list(symbols)
+        for target, symbols in MATMINER_TARGET_SYMBOLS.items()
+    }
     assert import_checks['pymatgen']['import_probe_targets'] == [
         'pymatgen.core'
     ]
     assert import_checks['pymatgen']['import_probe_symbols'] == {
         'pymatgen.core': list(PYMATGEN_CORE_SYMBOLS),
     }
-    pymatgen_core_symbols = set()
+    source_import_symbols = {
+        target: set()
+        for target in (
+            *MATMINER_TARGET_SYMBOLS,
+            'pymatgen.core',
+        )
+    }
     for python_path in ROOT.rglob('*.py'):
         relative_path = python_path.relative_to(ROOT)
         if (
@@ -400,12 +429,21 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
         ):
             if (
                 isinstance(node, ast.ImportFrom)
-                and node.module == 'pymatgen.core'
+                and node.module in source_import_symbols
             ):
-                pymatgen_core_symbols.update(
+                source_import_symbols[node.module].update(
                     alias.name for alias in node.names
                 )
-    assert pymatgen_core_symbols == set(PYMATGEN_CORE_SYMBOLS)
+    assert {
+        target: source_import_symbols[target]
+        for target in MATMINER_TARGET_SYMBOLS
+    } == {
+        target: set(symbols)
+        for target, symbols in MATMINER_TARGET_SYMBOLS.items()
+    }
+    assert source_import_symbols['pymatgen.core'] == set(
+        PYMATGEN_CORE_SYMBOLS
+    )
     assert all(check['available'] for check in import_checks.values())
     ownership_checks = {
         check['package']: check
@@ -4902,6 +4940,198 @@ def test_public_dependency_probe_cache_invalidates_after_module_bytes_change(
         and error['failure_category'] == 'nonzero_exit'
         for error in validation['errors']
     )
+
+
+@pytest.mark.parametrize(
+    ('mutation', 'target', 'missing_symbol'),
+    [
+        (
+            'missing-submodule',
+            'matminer.featurizers.base',
+            None,
+        ),
+        (
+            'missing-submodule',
+            'matminer.featurizers.composition',
+            None,
+        ),
+        (
+            'missing-symbol',
+            'matminer.featurizers.base',
+            'MultipleFeaturizer',
+        ),
+        (
+            'missing-symbol',
+            'matminer.featurizers.composition',
+            'ElementProperty',
+        ),
+        (
+            'missing-symbol',
+            'matminer.featurizers.composition',
+            'Stoichiometry',
+        ),
+        (
+            'raising-target',
+            'matminer.featurizers.base',
+            None,
+        ),
+    ],
+)
+def test_public_and_cli_matminer_probe_rejects_invalid_consumer_import(
+    monkeypatch,
+    tmp_path,
+    cleared_dependency_import_probe_cache,
+    mutation,
+    target,
+    missing_symbol,
+):
+    package_dir = tmp_path / 'matminer'
+    featurizers_dir = package_dir / 'featurizers'
+    featurizers_dir.mkdir(parents=True)
+    (package_dir / '__init__.py').write_text(
+        'OWNER = True\n',
+        encoding='utf-8',
+    )
+    (featurizers_dir / '__init__.py').write_text('', encoding='utf-8')
+    target_paths = {
+        'matminer.featurizers.base': featurizers_dir / 'base.py',
+        'matminer.featurizers.composition': (
+            featurizers_dir / 'composition.py'
+        ),
+    }
+    for target_name, symbols in MATMINER_TARGET_SYMBOLS.items():
+        target_paths[target_name].write_text(
+            ''.join(
+                f'class {symbol}:\n    pass\n'
+                for symbol in symbols
+            ),
+            encoding='utf-8',
+        )
+
+    def reset_matminer_modules():
+        for module_name in tuple(sys.modules):
+            if (
+                module_name == 'matminer'
+                or module_name.startswith('matminer.')
+            ):
+                monkeypatch.delitem(
+                    sys.modules,
+                    module_name,
+                    raising=False,
+                )
+        agent_state.importlib.invalidate_caches()
+
+    reset_matminer_modules()
+    monkeypatch.syspath_prepend(str(tmp_path))
+    monkeypatch.setenv('PYTHONPATH', str(tmp_path))
+    real_run = subprocess.run
+    matminer_calls = 0
+
+    def selective_run(command, **kwargs):
+        nonlocal matminer_calls
+        if command[-2] != 'matminer':
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                stdout=b'',
+                stderr=b'',
+            )
+        matminer_calls += 1
+        return real_run(command, **kwargs)
+
+    monkeypatch.setattr(agent_state.subprocess, 'run', selective_run)
+
+    baseline_validation = validate_agent_layout(ROOT)
+    cached_baseline_validation = validate_agent_layout(ROOT)
+
+    assert baseline_validation['status'] == 'ok'
+    assert cached_baseline_validation['status'] == 'ok'
+    assert matminer_calls == 1
+
+    target_path = target_paths[target]
+    private_diagnostic = 'synthetic private matminer consumer failure'
+    if mutation == 'missing-submodule':
+        target_path.unlink()
+    elif mutation == 'raising-target':
+        target_path.write_text(
+            f'raise RuntimeError({private_diagnostic!r})\n',
+            encoding='utf-8',
+        )
+    else:
+        target_path.write_text(
+            ''.join(
+                f'class {symbol}:\n    pass\n'
+                for symbol in MATMINER_TARGET_SYMBOLS[target]
+                if symbol != missing_symbol
+            )
+            + (
+                'def __getattr__(name):\n'
+                f'    raise AttributeError({private_diagnostic!r})\n'
+            ),
+            encoding='utf-8',
+        )
+    reset_matminer_modules()
+    probe_environment = os.environ.copy()
+    probe_environment['PYTHONDONTWRITEBYTECODE'] = '1'
+    direct_consumer = real_run(
+        [
+            sys.executable,
+            '-c',
+            (
+                'from matminer.featurizers.base import MultipleFeaturizer; '
+                'from matminer.featurizers.composition import '
+                'ElementProperty, Stoichiometry'
+            ),
+        ],
+        cwd=ROOT,
+        env=probe_environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    repeated_validation = validate_agent_layout(ROOT)
+    agent_state._clear_dependency_import_probe_cache()
+    uncached_validation = validate_agent_layout(ROOT)
+    completed = real_run(
+        [
+            sys.executable,
+            str(ROOT / 'main.py'),
+            '--verify-agent-contract',
+        ],
+        cwd=ROOT,
+        env=probe_environment,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+
+    assert direct_consumer.returncode == 1
+    assert repeated_validation['status'] == 'error'
+    assert uncached_validation['status'] == 'error'
+    assert matminer_calls == 3
+    for validation in (repeated_validation, uncached_validation):
+        matminer_check = next(
+            check
+            for check in validation['checks']
+            if check.get('kind') == 'dependency_import'
+            and check.get('module') == 'matminer'
+        )
+        assert matminer_check['import_probe_targets'] == list(
+            MATMINER_TARGET_SYMBOLS
+        )
+        assert matminer_check['import_probe_symbols'] == {
+            target_name: list(symbols)
+            for target_name, symbols in MATMINER_TARGET_SYMBOLS.items()
+        }
+        assert matminer_check['available'] is False
+        assert matminer_check['failure_category'] == 'nonzero_exit'
+
+    assert completed.returncode == 1
+    assert completed.stderr == ''
+    payload = json.loads(completed.stdout)
+    assert payload['status'] == 'error'
+    assert private_diagnostic not in completed.stdout
 
 
 def test_public_pymatgen_probe_rejects_changed_required_namespace_submodule(

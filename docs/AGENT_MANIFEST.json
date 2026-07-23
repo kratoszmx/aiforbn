@@ -392,6 +392,19 @@
       "package": "matminer",
       "specifier": ">=0.9.2",
       "module": "matminer",
+      "import_probe_targets": [
+        "matminer.featurizers.base",
+        "matminer.featurizers.composition"
+      ],
+      "import_probe_symbols": {
+        "matminer.featurizers.base": [
+          "MultipleFeaturizer"
+        ],
+        "matminer.featurizers.composition": [
+          "ElementProperty",
+          "Stoichiometry"
+        ]
+      },
       "role": "scientific_pipeline",
       "import_kind": "direct",
       "required_for": "composition_featurization"
