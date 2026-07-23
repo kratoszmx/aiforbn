@@ -416,6 +416,10 @@
       "package": "torch",
       "specifier": ">=2.11",
       "module": "torch",
+      "import_probe_preloads": [
+        "numpy",
+        "sklearn"
+      ],
       "role": "scientific_pipeline",
       "import_kind": "direct",
       "required_for": "torch_model_families"

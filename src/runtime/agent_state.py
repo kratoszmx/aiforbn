@@ -5,10 +5,12 @@ from datetime import datetime, timezone
 from importlib import metadata
 import json
 import importlib.util
+import os
 from pathlib import Path
 import re
 import subprocess
 import sys
+import time
 from typing import Any
 
 from runtime.utils import _path_is_same_or_descendant
@@ -324,6 +326,20 @@ DEPENDENCY_IMPORT_KINDS = {'direct', 'backend'}
 IMPORT_MODULE_PATTERN = re.compile(
     r'^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$'
 )
+DEPENDENCY_IMPORT_PROBE_TIMEOUT_SECONDS = 10.0
+DEPENDENCY_IMPORT_PROBE_TOTAL_BUDGET_SECONDS = 30.0
+DEPENDENCY_IMPORT_PROBE_SCRIPT = (
+    'import importlib, json, pathlib, sys\n'
+    'root = pathlib.Path(sys.argv[1]).resolve()\n'
+    "sys.path.insert(0, str(root / 'src'))\n"
+    'for module_name in json.loads(sys.argv[3]):\n'
+    '    importlib.import_module(module_name)\n'
+    'importlib.import_module(sys.argv[2])\n'
+)
+_DEPENDENCY_IMPORT_PROBE_CACHE: dict[
+    tuple[str, str, str, tuple[str, ...]],
+    tuple[bool, str | None],
+] = {}
 
 
 def _project_root(path: str | Path = '.') -> Path:
@@ -358,6 +374,73 @@ def _normalized_requirement_name(value: str) -> str:
 
 def _normalized_requirement_specifier(value: str) -> str:
     return re.sub(r'\s+', '', value)
+
+
+def _dependency_import_probe_cache_key(
+    root: Path,
+    module: str,
+    import_probe_preloads: tuple[str, ...],
+) -> tuple[str, str, str, tuple[str, ...]]:
+    return (
+        sys.executable,
+        str(root.resolve()),
+        module,
+        import_probe_preloads,
+    )
+
+
+def _clear_dependency_import_probe_cache() -> None:
+    _DEPENDENCY_IMPORT_PROBE_CACHE.clear()
+
+
+def _probe_dependency_import(
+    root: Path,
+    module: str,
+    import_probe_preloads: tuple[str, ...],
+    *,
+    timeout_seconds: float,
+) -> tuple[bool, str | None]:
+    probe_key = _dependency_import_probe_cache_key(
+        root,
+        module,
+        import_probe_preloads,
+    )
+    if probe_key in _DEPENDENCY_IMPORT_PROBE_CACHE:
+        return _DEPENDENCY_IMPORT_PROBE_CACHE[probe_key]
+
+    probe_environment = os.environ.copy()
+    probe_environment['PYTHONDONTWRITEBYTECODE'] = '1'
+    try:
+        completed = subprocess.run(
+            [
+                sys.executable,
+                '-c',
+                DEPENDENCY_IMPORT_PROBE_SCRIPT,
+                str(root.resolve()),
+                module,
+                json.dumps(import_probe_preloads),
+            ],
+            cwd=root.resolve(),
+            env=probe_environment,
+            capture_output=True,
+            check=False,
+            timeout=timeout_seconds,
+        )
+    except subprocess.TimeoutExpired:
+        result = (False, 'timeout')
+    except (OSError, ValueError):
+        result = (False, 'launch_error')
+    else:
+        if completed.returncode == 0:
+            result = (True, None)
+        elif completed.returncode < 0:
+            result = (False, 'signal')
+        else:
+            result = (False, 'nonzero_exit')
+
+    if result[0]:
+        _DEPENDENCY_IMPORT_PROBE_CACHE[probe_key] = result
+    return result
 
 
 def _declared_requirements(
@@ -2976,7 +3059,7 @@ def _validate_dependency_contract(
     if not isinstance(entries, list) or not entries:
         add_error('invalid_dependency_imports', 'docs/AGENT_MANIFEST.json:dependency_imports', '`dependency_imports` must be a non-empty object list.')
         entries = []
-    dependencies: dict[str, dict[str, str]] = {}
+    dependencies: dict[str, dict[str, Any]] = {}
     module_owners: dict[str, str] = {}
     for index, entry in enumerate(entries):
         path = f'docs/AGENT_MANIFEST.json:dependency_imports[{index}]'
@@ -2987,6 +3070,40 @@ def _validate_dependency_contract(
             field: str(entry.get(field, '')).strip()
             for field in ('package', 'specifier', 'module', 'role', 'import_kind', 'required_for')
         }
+        import_probe_preloads: tuple[str, ...] = ()
+        if 'import_probe_preloads' in entry:
+            raw_import_probe_preloads = entry.get('import_probe_preloads')
+            preloads_are_valid = (
+                isinstance(raw_import_probe_preloads, list)
+                and bool(raw_import_probe_preloads)
+                and all(
+                    isinstance(preload, str)
+                    and bool(preload.strip())
+                    and IMPORT_MODULE_PATTERN.fullmatch(preload.strip()) is not None
+                    for preload in raw_import_probe_preloads
+                )
+            )
+            if preloads_are_valid:
+                normalized_preloads = tuple(
+                    preload.strip()
+                    for preload in raw_import_probe_preloads
+                )
+                preloads_are_valid = (
+                    len(normalized_preloads) == len(set(normalized_preloads))
+                    and record['module'] not in normalized_preloads
+                )
+            if not preloads_are_valid:
+                add_error(
+                    'invalid_dependency_import_probe_preloads',
+                    path,
+                    (
+                        '`import_probe_preloads`, when present, must be a non-empty '
+                        'ordered list of unique import modules excluding the target module.'
+                    ),
+                )
+            else:
+                import_probe_preloads = normalized_preloads
+        record['import_probe_preloads'] = import_probe_preloads
         record['specifier'] = _normalized_requirement_specifier(record['specifier'])
         if not all(record[field] for field in ('package', 'module', 'required_for')) or not IMPORT_MODULE_PATTERN.fullmatch(record['module']):
             add_error('invalid_dependency_import_entry', path, 'Dependency entry requires package, importable module, and purpose.')
@@ -3006,6 +3123,24 @@ def _validate_dependency_contract(
             continue
         dependencies[package_key] = record
         module_owners[record['module']] = record['package']
+
+    for record in dependencies.values():
+        undeclared_preloads = [
+            preload
+            for preload in record['import_probe_preloads']
+            if preload not in module_owners
+        ]
+        if undeclared_preloads:
+            add_error(
+                'invalid_dependency_import_probe_preloads',
+                'docs/AGENT_MANIFEST.json:dependency_imports',
+                (
+                    f'Dependency `{record["module"]}` import preloads must name '
+                    f'declared dependency modules: {undeclared_preloads}.'
+                ),
+                module=record['module'],
+            )
+            record['import_probe_preloads'] = ()
 
     for key in sorted(set(dependencies) - set(requirements)):
         add_error('missing_dependency_requirement', 'requirements.txt', f'Manifest dependency `{dependencies[key]["package"]}` is not required.')
@@ -3070,6 +3205,7 @@ def _validate_dependency_contract(
             add_error('undeclared_external_import', path, f'Unclassified external import: {module}.', module=module)
 
     distributions_by_module = metadata.packages_distributions()
+    dependency_probe_started_at = time.monotonic()
     for package_key, record in dependencies.items():
         declaration = requirements.get(package_key)
         matches = declaration is not None and declaration['specifier'] == record['specifier']
@@ -3157,16 +3293,73 @@ def _validate_dependency_contract(
                 f'Dependency `{module}` has no production consumer for role `{record["role"]}`.',
                 module=module,
             )
+        failure_category: str | None = None
         try:
-            available = importlib.util.find_spec(module) is not None
+            module_spec = importlib.util.find_spec(module)
         except (ImportError, AttributeError, ValueError):
+            module_spec = None
+            failure_category = 'spec_error'
+        if module_spec is None and failure_category is None:
+            failure_category = 'spec_missing'
+
+        import_probe_preloads = tuple(record['import_probe_preloads'])
+        if failure_category is None:
+            probe_key = _dependency_import_probe_cache_key(
+                root,
+                module,
+                import_probe_preloads,
+            )
+            cached_result = _DEPENDENCY_IMPORT_PROBE_CACHE.get(probe_key)
+            if cached_result is not None:
+                available, failure_category = cached_result
+            else:
+                remaining_probe_budget = (
+                    DEPENDENCY_IMPORT_PROBE_TOTAL_BUDGET_SECONDS
+                    - (time.monotonic() - dependency_probe_started_at)
+                )
+                if remaining_probe_budget <= 0:
+                    available = False
+                    failure_category = 'budget_exhausted'
+                else:
+                    available, failure_category = _probe_dependency_import(
+                        root,
+                        module,
+                        import_probe_preloads,
+                        timeout_seconds=min(
+                            DEPENDENCY_IMPORT_PROBE_TIMEOUT_SECONDS,
+                            remaining_probe_budget,
+                        ),
+                    )
+        else:
             available = False
-        checks.append({
+
+        dependency_check = {
             'kind': 'dependency_import', 'package': record['package'], 'module': module,
             'required_for': record['required_for'], 'role': record['role'], 'available': available,
-        })
-        if not available:
-            add_error('missing_declared_dependency', 'requirements.txt', f'`{record["package"]}` is not importable as `{module}`.', module=module)
+            'import_probe_preloads': list(import_probe_preloads),
+        }
+        if failure_category is not None:
+            dependency_check['failure_category'] = failure_category
+        checks.append(dependency_check)
+        if failure_category in {'spec_missing', 'spec_error'}:
+            add_error(
+                'missing_declared_dependency',
+                'requirements.txt',
+                f'`{record["package"]}` is not discoverable as `{module}`.',
+                module=module,
+                failure_category=failure_category,
+            )
+        elif not available:
+            add_error(
+                'unimportable_declared_dependency',
+                'requirements.txt',
+                (
+                    f'`{record["package"]}` does not import successfully '
+                    f'as `{module}` in the isolated dependency probe.'
+                ),
+                module=module,
+                failure_category=failure_category,
+            )
 
     for module, record in sorted(local_modules.items()):
         consumers = consumers_by_module.get(module.split('.', 1)[0], [])

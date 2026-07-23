@@ -1,6 +1,9 @@
 import ast
-from pathlib import Path
 import json
+import os
+from pathlib import Path
+import subprocess
+import sys
 
 import pytest
 
@@ -15,6 +18,13 @@ from runtime.agent_state import (
 
 
 ROOT = Path(__file__).resolve().parents[3]
+
+
+@pytest.fixture
+def cleared_dependency_import_probe_cache():
+    agent_state._clear_dependency_import_probe_cache()
+    yield
+    agent_state._clear_dependency_import_probe_cache()
 
 
 def test_agent_manifest_loads_machine_readable_contract():
@@ -319,6 +329,12 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
     assert dependencies['scikit-learn']['module'] == 'sklearn'
     assert dependencies['jarvis-tools']['module'] == 'jarvis'
     assert dependencies['pyarrow']['import_kind'] == 'backend'
+    assert dependencies['torch']['import_probe_preloads'] == ['numpy', 'sklearn']
+    assert all(
+        'import_probe_preloads' not in dependency
+        for package, dependency in dependencies.items()
+        if package != 'torch'
+    )
     assert dependencies['pytest']['role'] == 'test_tool'
     assert all(
         {'dependency_declarations', 'dependency_import_availability'}.issubset(
@@ -336,6 +352,14 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
     assert 'main.py' in source_checks['pandas']['consumers']
     assert source_checks['pytest']['consumers']
     assert source_checks['pyarrow']['consumers'] == []
+    import_checks = {
+        check['module']: check
+        for check in validation['checks']
+        if check['kind'] == 'dependency_import'
+    }
+    assert import_checks['torch']['import_probe_preloads'] == ['numpy', 'sklearn']
+    assert import_checks['pyarrow']['import_probe_preloads'] == []
+    assert all(check['available'] for check in import_checks.values())
     ownership_checks = {
         check['package']: check
         for check in validation['checks']
@@ -362,6 +386,34 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
     assert discovered_python_files == expected_python_files
     assert source_classification['unsupported_dynamic_imports'] == []
     assert validation['status'] == 'ok'
+
+
+@pytest.mark.parametrize(
+    'invalid_preloads',
+    [
+        [],
+        'numpy',
+        ['torch'],
+        ['numpy', 'numpy'],
+        ['not-valid!'],
+        ['numpy', 'missing_dependency_module'],
+    ],
+)
+def test_dependency_contract_rejects_invalid_import_probe_preloads(
+    invalid_preloads,
+):
+    manifest = load_agent_manifest(ROOT)
+    _dependency_by_package(manifest, 'torch')['import_probe_preloads'] = (
+        invalid_preloads
+    )
+
+    validation = validate_agent_layout(ROOT, manifest)
+
+    assert validation['status'] == 'error'
+    assert any(
+        error['code'] == 'invalid_dependency_import_probe_preloads'
+        for error in validation['errors']
+    )
 
 
 @pytest.mark.parametrize(
@@ -4508,8 +4560,275 @@ def test_validate_agent_layout_rejects_missing_declared_dependency(monkeypatch):
     assert any(
         error['code'] == 'missing_declared_dependency'
         and error['module'] == 'pydantic'
+        and error['failure_category'] == 'spec_missing'
         for error in validation['errors']
     )
+
+
+def test_validate_agent_layout_classifies_dependency_spec_errors(monkeypatch):
+    real_find_spec = agent_state.importlib.util.find_spec
+
+    def find_spec_with_broken_pydantic(module_name):
+        if module_name == 'pydantic':
+            raise ValueError('synthetic spec failure that must stay private')
+        return real_find_spec(module_name)
+
+    monkeypatch.setattr(
+        agent_state.importlib.util,
+        'find_spec',
+        find_spec_with_broken_pydantic,
+    )
+
+    validation = validate_agent_layout(ROOT)
+
+    assert validation['status'] == 'error'
+    error = next(
+        error
+        for error in validation['errors']
+        if error['code'] == 'missing_declared_dependency'
+        and error['module'] == 'pydantic'
+    )
+    assert error['failure_category'] == 'spec_error'
+    assert 'synthetic spec failure' not in json.dumps(validation)
+
+
+def test_dependency_import_probe_propagates_preloads_and_caches_by_full_key(
+    monkeypatch,
+    tmp_path,
+    cleared_dependency_import_probe_cache,
+):
+    calls = []
+
+    def successful_run(command, **kwargs):
+        calls.append((command, kwargs))
+        return subprocess.CompletedProcess(command, 0, stdout=b'', stderr=b'')
+
+    monkeypatch.setattr(agent_state.subprocess, 'run', successful_run)
+    preloads = ('numpy', 'sklearn')
+
+    assert agent_state._probe_dependency_import(
+        ROOT,
+        'torch',
+        preloads,
+        timeout_seconds=10.0,
+    ) == (True, None)
+    assert agent_state._probe_dependency_import(
+        ROOT,
+        'torch',
+        preloads,
+        timeout_seconds=1.0,
+    ) == (True, None)
+    assert len(calls) == 1
+    command, kwargs = calls[0]
+    assert command[0] == sys.executable
+    assert command[-2] == 'torch'
+    assert json.loads(command[-1]) == ['numpy', 'sklearn']
+    assert command[-3] == str(ROOT.resolve())
+    assert kwargs['cwd'] == ROOT.resolve()
+    assert kwargs['capture_output'] is True
+    assert kwargs['check'] is False
+    assert kwargs['timeout'] == 10.0
+    assert kwargs['env']['PYTHONDONTWRITEBYTECODE'] == '1'
+
+    assert agent_state._probe_dependency_import(
+        ROOT,
+        'torch',
+        ('numpy',),
+        timeout_seconds=10.0,
+    ) == (True, None)
+    other_root = tmp_path / 'other-root'
+    other_root.mkdir()
+    assert agent_state._probe_dependency_import(
+        other_root,
+        'torch',
+        preloads,
+        timeout_seconds=10.0,
+    ) == (True, None)
+    assert len(calls) == 3
+
+    agent_state._clear_dependency_import_probe_cache()
+    assert agent_state._probe_dependency_import(
+        ROOT,
+        'torch',
+        preloads,
+        timeout_seconds=10.0,
+    ) == (True, None)
+    assert len(calls) == 4
+
+
+@pytest.mark.parametrize(
+    ('failure_mode', 'expected_category'),
+    [
+        ('nonzero', 'nonzero_exit'),
+        ('signal', 'signal'),
+        ('timeout', 'timeout'),
+        ('launch', 'launch_error'),
+    ],
+)
+def test_dependency_import_probe_redacts_bounded_failure_categories(
+    monkeypatch,
+    cleared_dependency_import_probe_cache,
+    failure_mode,
+    expected_category,
+):
+    private_diagnostic = b'synthetic-private-dependency-diagnostic'
+
+    def failed_run(command, **kwargs):
+        if failure_mode == 'timeout':
+            raise subprocess.TimeoutExpired(
+                command,
+                timeout=kwargs['timeout'],
+                output=private_diagnostic,
+                stderr=private_diagnostic,
+            )
+        if failure_mode == 'launch':
+            raise OSError(private_diagnostic.decode())
+        return subprocess.CompletedProcess(
+            command,
+            -6 if failure_mode == 'signal' else 1,
+            stdout=private_diagnostic,
+            stderr=private_diagnostic,
+        )
+
+    monkeypatch.setattr(agent_state.subprocess, 'run', failed_run)
+
+    result = agent_state._probe_dependency_import(
+        ROOT,
+        'pydantic',
+        (),
+        timeout_seconds=10.0,
+    )
+
+    assert result == (False, expected_category)
+    assert private_diagnostic.decode() not in repr(result)
+
+
+def test_dependency_import_probe_does_not_cache_transient_failures(
+    monkeypatch,
+    cleared_dependency_import_probe_cache,
+):
+    timeouts = []
+
+    def timeout_then_succeed(command, **kwargs):
+        timeouts.append(kwargs['timeout'])
+        if len(timeouts) == 1:
+            raise subprocess.TimeoutExpired(
+                command,
+                timeout=kwargs['timeout'],
+            )
+        return subprocess.CompletedProcess(command, 0, stdout=b'', stderr=b'')
+
+    monkeypatch.setattr(agent_state.subprocess, 'run', timeout_then_succeed)
+
+    assert agent_state._probe_dependency_import(
+        ROOT,
+        'pydantic',
+        (),
+        timeout_seconds=0.01,
+    ) == (False, 'timeout')
+    assert agent_state._probe_dependency_import(
+        ROOT,
+        'pydantic',
+        (),
+        timeout_seconds=10.0,
+    ) == (True, None)
+    assert timeouts == [0.01, 10.0]
+
+
+def test_dependency_import_probe_cache_is_consulted_before_shared_budget(
+    monkeypatch,
+    cleared_dependency_import_probe_cache,
+):
+    cached_key = agent_state._dependency_import_probe_cache_key(
+        ROOT,
+        'pydantic',
+        (),
+    )
+    agent_state._DEPENDENCY_IMPORT_PROBE_CACHE[cached_key] = (True, None)
+    monkeypatch.setattr(
+        agent_state,
+        'DEPENDENCY_IMPORT_PROBE_TOTAL_BUDGET_SECONDS',
+        0.0,
+    )
+    monkeypatch.setattr(
+        agent_state,
+        '_probe_dependency_import',
+        lambda *args, **kwargs: pytest.fail('budget exhaustion must skip new probes'),
+    )
+
+    validation = validate_agent_layout(ROOT)
+    checks = {
+        check['module']: check
+        for check in validation['checks']
+        if check['kind'] == 'dependency_import'
+    }
+
+    assert checks['pydantic']['available'] is True
+    assert 'failure_category' not in checks['pydantic']
+    assert checks['pyarrow']['available'] is False
+    assert checks['pyarrow']['failure_category'] == 'budget_exhausted'
+    assert any(
+        error['code'] == 'unimportable_declared_dependency'
+        and error['module'] == 'pyarrow'
+        and error['failure_category'] == 'budget_exhausted'
+        for error in validation['errors']
+    )
+
+
+def test_verify_agent_contract_rejects_spec_present_broken_pyarrow_import(
+    tmp_path,
+):
+    shim_path = tmp_path / 'pyarrow.py'
+    shim_path.write_text(
+        'from synthetic_missing_native_backend import ABI_SYMBOL\n',
+        encoding='utf-8',
+    )
+    probe_environment = os.environ.copy()
+    existing_pythonpath = probe_environment.get('PYTHONPATH', '')
+    probe_environment['PYTHONPATH'] = os.pathsep.join(
+        part
+        for part in (str(tmp_path), existing_pythonpath)
+        if part
+    )
+    probe_environment['PYTHONDONTWRITEBYTECODE'] = '1'
+
+    completed = subprocess.run(
+        [sys.executable, str(ROOT / 'main.py'), '--verify-agent-contract'],
+        cwd=ROOT,
+        env=probe_environment,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+
+    assert completed.returncode == 1
+    assert completed.stderr == ''
+    payload = json.loads(completed.stdout)
+    assert payload['status'] == 'error'
+    pyarrow_check = next(
+        check
+        for check in payload['validation']['checks']
+        if check.get('kind') == 'dependency_import'
+        and check.get('module') == 'pyarrow'
+    )
+    assert pyarrow_check == {
+        'kind': 'dependency_import',
+        'package': 'pyarrow',
+        'module': 'pyarrow',
+        'required_for': 'pandas_parquet_dataset_cache',
+        'role': 'optional_lazy',
+        'available': False,
+        'import_probe_preloads': [],
+        'failure_category': 'nonzero_exit',
+    }
+    assert any(
+        error['code'] == 'unimportable_declared_dependency'
+        and error['module'] == 'pyarrow'
+        and error['failure_category'] == 'nonzero_exit'
+        for error in payload['validation']['errors']
+    )
+    assert 'synthetic_missing_native_backend' not in completed.stdout
 
 
 def test_validate_agent_layout_rejects_unresolved_project_skill_reference(
