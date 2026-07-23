@@ -129,6 +129,8 @@ REQUIRED_VALIDATION_COMMANDS = {
 }
 
 REQUIRED_VALIDATION_COMMAND_NAMES = set(REQUIRED_VALIDATION_COMMANDS)
+PYTEST_NON_VACUITY_COMMAND_PREFIX = 'python3 -m pytest -q '
+PYTEST_NON_VACUITY_TARGETS_FIELD = 'pytest_non_vacuity_targets'
 
 REQUIRED_VALIDATION_PROFILES = {
     'architecture_doc_skill_edit': {
@@ -2814,6 +2816,113 @@ def _validate_required_validation_command_contracts(
     return capabilities_by_name
 
 
+def _validate_pytest_non_vacuity_contracts(
+    root: Path,
+    manifest_payload: dict[str, Any],
+    errors: list[dict[str, str]],
+) -> None:
+    entries = manifest_payload.get('validation_commands', [])
+    if not isinstance(entries, list):
+        return
+    canonical_root = root.resolve()
+    for index, entry in enumerate(entries):
+        if not isinstance(entry, dict):
+            continue
+        raw_command = entry.get('command', '')
+        command = raw_command if isinstance(raw_command, str) else ''
+        command_name = str(entry.get('name', '')).strip() or f'index-{index}'
+        targets_present = PYTEST_NON_VACUITY_TARGETS_FIELD in entry
+        command_is_bounded_pytest = command.startswith(
+            PYTEST_NON_VACUITY_COMMAND_PREFIX
+        )
+        contract_path = (
+            f'docs/AGENT_MANIFEST.json:validation_commands.{command_name}'
+        )
+        if command_is_bounded_pytest and not targets_present:
+            errors.append({
+                'code': 'missing_pytest_non_vacuity_targets',
+                'path': contract_path,
+                'message': (
+                    f'Pytest validation command `{command_name}` must declare '
+                    f'`{PYTEST_NON_VACUITY_TARGETS_FIELD}`.'
+                ),
+            })
+            continue
+        if targets_present and not command_is_bounded_pytest:
+            errors.append({
+                'code': 'forbidden_pytest_non_vacuity_targets',
+                'path': contract_path,
+                'message': (
+                    f'Only commands beginning with exact prefix '
+                    f'`{PYTEST_NON_VACUITY_COMMAND_PREFIX}` may declare '
+                    f'`{PYTEST_NON_VACUITY_TARGETS_FIELD}`.'
+                ),
+            })
+            continue
+        if not targets_present:
+            continue
+
+        targets = entry.get(PYTEST_NON_VACUITY_TARGETS_FIELD)
+        targets_are_strings = (
+            isinstance(targets, list)
+            and bool(targets)
+            and all(isinstance(target, str) and target for target in targets)
+        )
+        normalized_targets = targets if targets_are_strings else []
+        unique_targets = (
+            targets_are_strings
+            and len(normalized_targets) == len(set(normalized_targets))
+        )
+        valid_targets = bool(unique_targets)
+        for target in normalized_targets:
+            relative_target = Path(target)
+            target_parts = relative_target.parts
+            candidate = (canonical_root / relative_target).resolve(strict=False)
+            try:
+                candidate.relative_to(canonical_root)
+            except ValueError:
+                inside_root = False
+            else:
+                inside_root = True
+            if (
+                relative_target.is_absolute()
+                or target in {'.', '..'}
+                or target.startswith('-')
+                or '::' in target
+                or any(character.isspace() for character in target)
+                or target != relative_target.as_posix()
+                or any(part in {'.', '..'} for part in target_parts)
+                or not inside_root
+                or not (candidate.is_file() or candidate.is_dir())
+            ):
+                valid_targets = False
+        if not valid_targets:
+            errors.append({
+                'code': 'invalid_pytest_non_vacuity_targets',
+                'path': contract_path,
+                'message': (
+                    f'`{PYTEST_NON_VACUITY_TARGETS_FIELD}` must be a non-empty '
+                    'list of unique normalized repo-relative existing file or '
+                    'directory targets without options, node ids, whitespace, '
+                    'or path escapes.'
+                ),
+            })
+            continue
+
+        rendered_command = (
+            PYTEST_NON_VACUITY_COMMAND_PREFIX + ' '.join(normalized_targets)
+        )
+        if command != rendered_command:
+            errors.append({
+                'code': 'pytest_non_vacuity_command_target_mismatch',
+                'path': contract_path,
+                'message': (
+                    f'Pytest validation command `{command_name}` must exactly '
+                    'render its ordered non-vacuity targets.'
+                ),
+            })
+
+
 def _validate_local_instruction_paths(
     root: Path,
     manifest_payload: dict[str, Any],
@@ -3352,6 +3461,7 @@ def validate_agent_layout(
         'validation_commands',
         errors,
     )
+    _validate_pytest_non_vacuity_contracts(root, manifest_payload, errors)
     validation_command_capabilities = (
         _validate_required_validation_command_contracts(
             manifest_payload,

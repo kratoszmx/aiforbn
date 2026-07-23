@@ -191,6 +191,21 @@ def test_build_agent_command_index_returns_validation_profiles():
         'full_src_tests',
         'ui_render_smoke',
     }.issubset(validation_names)
+    pytest_non_vacuity_targets = {
+        entry['name']: entry['pytest_non_vacuity_targets']
+        for entry in command_index['validation_commands']
+        if 'pytest_non_vacuity_targets' in entry
+    }
+    assert pytest_non_vacuity_targets == {
+        'focused_regression': [
+            'src/tests/test_main.py',
+            'src/tests/test_public_surfaces.py',
+            'src/runtime/tests/test_agent_state.py',
+            'src/runtime/tests/test_io_utils.py',
+        ],
+        'full_src_tests': ['src'],
+        'ui_render_smoke': ['src/ui/tests/test_streamlit_app.py'],
+    }
     assert any(profile['name'] == 'architecture_doc_skill_edit' for profile in command_index['validation_profiles'])
     ui_profile = next(
         profile
@@ -4945,6 +4960,58 @@ def test_validate_agent_layout_rejects_validation_scope_claim_drift(
     ],
 )
 def test_validate_agent_layout_rejects_incomplete_command_surface(
+    mutate_manifest,
+    expected_error_code,
+):
+    manifest = json.loads(json.dumps(load_agent_manifest(ROOT)))
+    mutate_manifest(manifest)
+
+    validation = validate_agent_layout(ROOT, manifest)
+
+    assert validation['status'] == 'error'
+    assert any(error['code'] == expected_error_code for error in validation['errors'])
+
+
+@pytest.mark.parametrize(
+    ('mutate_manifest', 'expected_error_code'),
+    [
+        (
+            lambda manifest: next(
+                entry
+                for entry in manifest['validation_commands']
+                if entry['name'] == 'focused_regression'
+            ).pop('pytest_non_vacuity_targets'),
+            'missing_pytest_non_vacuity_targets',
+        ),
+        (
+            lambda manifest: next(
+                entry
+                for entry in manifest['validation_commands']
+                if entry['name'] == 'full_src_tests'
+            ).update({'pytest_non_vacuity_targets': ['src/tests']}),
+            'pytest_non_vacuity_command_target_mismatch',
+        ),
+        (
+            lambda manifest: next(
+                entry
+                for entry in manifest['validation_commands']
+                if entry['name'] == 'fast_smoke'
+            ).update({'pytest_non_vacuity_targets': ['src']}),
+            'forbidden_pytest_non_vacuity_targets',
+        ),
+        (
+            lambda manifest: next(
+                entry
+                for entry in manifest['validation_commands']
+                if entry['name'] == 'ui_render_smoke'
+            ).update({
+                'pytest_non_vacuity_targets': ['.'],
+            }),
+            'invalid_pytest_non_vacuity_targets',
+        ),
+    ],
+)
+def test_validate_agent_layout_rejects_invalid_pytest_non_vacuity_contracts(
     mutate_manifest,
     expected_error_code,
 ):

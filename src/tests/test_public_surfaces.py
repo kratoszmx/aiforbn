@@ -663,18 +663,71 @@ def test_imported_runtime_json_helpers_count_as_live_public_reexports():
     assert {'make_json_safe', 'read_json_file'}.issubset(defined_names)
 
 
-def test_ui_renderer_profile_requires_a_passed_call_phase(tmp_path):
+def test_manifest_pytest_commands_require_a_passed_call_phase(tmp_path):
     project_root = tmp_path / 'project'
+    docs_dir = project_root / 'docs'
     runtime_dir = project_root / 'src' / 'runtime'
-    ui_test_dir = project_root / 'src' / 'ui' / 'tests'
+    docs_dir.mkdir(parents=True)
     runtime_dir.mkdir(parents=True)
-    ui_test_dir.mkdir(parents=True)
     shutil.copyfile(ROOT / 'conftest.py', project_root / 'conftest.py')
     (runtime_dir / 'io_utils.py').write_text(
-        'def clear_project_cache(project_root_path):\n    return None\n',
+        'import json\n'
+        'from pathlib import Path\n\n'
+        'def clear_project_cache(project_root_path):\n    return None\n\n'
+        'def read_json_file(path):\n'
+        "    return json.loads(Path(path).read_text(encoding='utf-8'))\n",
         encoding='utf-8',
     )
-    ui_test_path = ui_test_dir / 'test_streamlit_app.py'
+
+    focused_targets = (
+        'src/tests/test_main.py',
+        'src/tests/test_public_surfaces.py',
+        'src/runtime/tests/test_agent_state.py',
+        'src/runtime/tests/test_io_utils.py',
+    )
+    ui_target = 'src/ui/tests/test_streamlit_app.py'
+    manifest_commands = {
+        'focused_regression': focused_targets,
+        'full_src_tests': ('src',),
+        'ui_render_smoke': (ui_target,),
+    }
+    manifest = {
+        'validation_commands': [
+            {
+                'name': command_name,
+                'pytest_non_vacuity_targets': list(targets),
+            }
+            for command_name, targets in manifest_commands.items()
+        ],
+    }
+    (docs_dir / 'AGENT_MANIFEST.json').write_text(
+        json.dumps(manifest),
+        encoding='utf-8',
+    )
+
+    test_paths = {
+        relative_path: project_root / relative_path
+        for relative_path in (*focused_targets, ui_target)
+    }
+    for test_path in test_paths.values():
+        test_path.parent.mkdir(parents=True, exist_ok=True)
+
+    skipped_test = (
+        "import pytest\npytestmark = pytest.mark.skip(reason='disabled')\n"
+        'def test_contract():\n    assert False\n'
+    )
+    passed_test = 'def test_contract():\n    assert True\n'
+    failed_test = 'def test_contract():\n    assert False\n'
+    interrupted_test = (
+        'def test_contract():\n    raise KeyboardInterrupt("interrupted")\n'
+    )
+
+    def write_test(relative_path, content):
+        test_paths[relative_path].write_text(content, encoding='utf-8')
+
+    def write_all_tests(content):
+        for relative_path in test_paths:
+            write_test(relative_path, content)
 
     environment = os.environ.copy()
     environment.pop('PYTHONPATH', None)
@@ -691,22 +744,54 @@ def test_ui_renderer_profile_requires_a_passed_call_phase(tmp_path):
             env=environment,
         )
 
-    relative_target = 'src/ui/tests/test_streamlit_app.py'
-    ui_test_path.write_text(
-        "import pytest\npytestmark = pytest.mark.skip(reason='disabled')\n"
-        'def test_renderer_contract():\n    assert False\n',
-        encoding='utf-8',
-    )
-    skipped = run_pytest(relative_target)
-    assert skipped.returncode == 1
-    assert '1 skipped' in skipped.stdout
-    assert 'passed no non-xfail renderer test calls' in skipped.stdout
-    assert run_pytest('--collect-only', relative_target).returncode == 0
+    write_all_tests(skipped_test)
+    for command_name, targets in manifest_commands.items():
+        skipped = run_pytest(*targets)
+        assert skipped.returncode == 1
+        assert 'skipped' in skipped.stdout
+        assert (
+            f'ERROR: {command_name} passed no non-xfail test calls.'
+            in skipped.stdout
+        )
 
-    ui_test_path.write_text(
-        'def test_renderer_contract():\n    assert True\n', encoding='utf-8'
-    )
-    absolute_nodeid = f'{ui_test_path.resolve()}::test_renderer_contract'
-    passed = run_pytest(absolute_nodeid)
-    assert passed.returncode == 0
-    assert '1 passed' in passed.stdout
+        collected = run_pytest('--collect-only', *targets)
+        assert collected.returncode == 0
+        assert 'passed no non-xfail test calls' not in collected.stdout
+
+    partial = run_pytest(focused_targets[0])
+    assert partial.returncode == 0
+    assert 'passed no non-xfail test calls' not in partial.stdout
+    extra = run_pytest(ui_target, focused_targets[0])
+    assert extra.returncode == 0
+    assert 'passed no non-xfail test calls' not in extra.stdout
+
+    write_test(focused_targets[0], passed_test)
+    focused_passed = run_pytest(*focused_targets)
+    assert focused_passed.returncode == 0
+    assert '1 passed' in focused_passed.stdout
+    full_passed = run_pytest('src')
+    assert full_passed.returncode == 0
+    assert '1 passed' in full_passed.stdout
+
+    write_test(ui_target, passed_test)
+    absolute_nodeid = f'{test_paths[ui_target].resolve()}::test_contract'
+    ui_passed = run_pytest(absolute_nodeid)
+    assert ui_passed.returncode == 0
+    assert '1 passed' in ui_passed.stdout
+
+    write_all_tests(skipped_test)
+    write_test(focused_targets[0], failed_test)
+    failed = run_pytest('src')
+    assert failed.returncode == 1
+    assert 'passed no non-xfail test calls' not in failed.stdout
+
+    write_test(focused_targets[0], interrupted_test)
+    interrupted = run_pytest('src')
+    assert interrupted.returncode == 2
+    assert 'passed no non-xfail test calls' not in interrupted.stdout
+
+    for relative_path in focused_targets:
+        write_test(relative_path, 'VALUE = 1\n')
+    no_tests = run_pytest(*focused_targets)
+    assert no_tests.returncode == 5
+    assert 'passed no non-xfail test calls' not in no_tests.stdout

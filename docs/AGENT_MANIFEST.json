@@ -228,6 +228,12 @@
     {
       "name": "focused_regression",
       "command": "python3 -m pytest -q src/tests/test_main.py src/tests/test_public_surfaces.py src/runtime/tests/test_agent_state.py src/runtime/tests/test_io_utils.py",
+      "pytest_non_vacuity_targets": [
+        "src/tests/test_main.py",
+        "src/tests/test_public_surfaces.py",
+        "src/runtime/tests/test_agent_state.py",
+        "src/runtime/tests/test_io_utils.py"
+      ],
       "scope": "entrypoints_runtime_agent_state_public_surfaces",
       "provides": [
         "entrypoint_runtime_public_surface_regressions"
@@ -236,6 +242,9 @@
     {
       "name": "full_src_tests",
       "command": "python3 -m pytest -q src",
+      "pytest_non_vacuity_targets": [
+        "src"
+      ],
       "scope": "complete_src_test_suite_with_declared_dependencies",
       "provides": [
         "complete_src_test_suite"
@@ -244,6 +253,9 @@
     {
       "name": "ui_render_smoke",
       "command": "python3 -m pytest -q src/ui/tests/test_streamlit_app.py",
+      "pytest_non_vacuity_targets": [
+        "src/ui/tests/test_streamlit_app.py"
+      ],
       "scope": "real_streamlit_render_and_artifact_viewer_contract",
       "provides": [
         "streamlit_renderer_contract"
