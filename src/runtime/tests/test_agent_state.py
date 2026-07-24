@@ -1091,11 +1091,73 @@ def test_validate_agent_layout_dependency_descendant_source_controls(
         ]
 
 
-def _validate_agent_layout_with_config_prefix(monkeypatch, source_prefix):
+@pytest.mark.parametrize(
+    ('source_prefix', 'declare_target'),
+    [
+        (
+            'import importlib\nimportlib.import_module("numpy.linalg")\n',
+            False,
+        ),
+        ('__import__("numpy.linalg")\n', False),
+        (
+            'import importlib\nimportlib.import_module("numpy.linalg")\n',
+            True,
+        ),
+    ],
+    ids=('importlib-missing', 'builtin-missing', 'declared'),
+)
+def test_validate_agent_layout_literal_dynamic_descendant_target_contract(
+    monkeypatch,
+    source_prefix,
+    declare_target,
+):
+    manifest = json.loads(json.dumps(load_agent_manifest(ROOT)))
+    if declare_target:
+        numpy = _dependency_by_package(manifest, 'numpy')
+        numpy['import_probe_targets'] = ['numpy.linalg']
+
+    validation = _validate_agent_layout_with_config_prefix(
+        monkeypatch,
+        source_prefix,
+        manifest=manifest,
+    )
+    matching_errors = [
+        (
+            error['code'],
+            error['path'],
+            error['module'],
+            error['target'],
+        )
+        for error in validation['errors']
+        if error['code'] == 'unprobed_dependency_import_target'
+    ]
+
+    assert matching_errors == (
+        []
+        if declare_target
+        else [
+            (
+                'unprobed_dependency_import_target',
+                'src/config.py',
+                'numpy',
+                'numpy.linalg',
+            )
+        ]
+    )
+    assert validation['status'] == ('ok' if declare_target else 'error')
+
+
+def _validate_agent_layout_with_config_prefix(
+    monkeypatch,
+    source_prefix,
+    *,
+    manifest=None,
+):
     return _validate_agent_layout_with_source_prefix(
         monkeypatch,
         'src/config.py',
         source_prefix,
+        manifest=manifest,
     )
 
 
@@ -1103,6 +1165,8 @@ def _validate_agent_layout_with_source_prefix(
     monkeypatch,
     relative_path,
     source_prefix,
+    *,
+    manifest=None,
 ):
     original_read = agent_state._read_text_if_present
     target_path = (ROOT / relative_path).resolve()
@@ -1117,7 +1181,7 @@ def _validate_agent_layout_with_source_prefix(
 
     monkeypatch.setattr(agent_state, '_read_text_if_present', read_with_external_import)
 
-    return validate_agent_layout(ROOT)
+    return validate_agent_layout(ROOT, manifest)
 
 
 def _validate_agent_layout_with_main_suffix(monkeypatch, source_suffix):

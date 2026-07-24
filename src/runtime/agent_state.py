@@ -2807,6 +2807,8 @@ def _source_import_analysis(
             unsupported_dynamic_import_lines.add(line_number)
             return
         import_roots.add(module_name.split('.', 1)[0])
+        if '.' in module_name:
+            descendant_imports.add((module_name, None))
 
     for node in calls:
         if id(node) in direct_bind_missing_call_ids:
