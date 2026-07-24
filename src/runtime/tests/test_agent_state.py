@@ -39,6 +39,43 @@ PYMATGEN_CORE_SYMBOLS = (
     'Structure',
     'Lattice',
 )
+STRICT_DESCENDANT_TARGET_SYMBOLS = {
+    'matplotlib': {'matplotlib.pyplot': ()},
+    'sklearn': {
+        'sklearn.base': ('BaseEstimator', 'RegressorMixin'),
+        'sklearn.dummy': ('DummyRegressor',),
+        'sklearn.ensemble': (
+            'HistGradientBoostingRegressor',
+            'RandomForestRegressor',
+        ),
+        'sklearn.linear_model': ('LinearRegression',),
+        'sklearn.metrics': (
+            'mean_absolute_error',
+            'mean_squared_error',
+            'r2_score',
+        ),
+        'sklearn.model_selection': ('GroupKFold',),
+        'sklearn.neighbors': ('NearestNeighbors',),
+    },
+    'torch': {'torch.nn': ()},
+}
+STRICT_DESCENDANT_PROBE_CASES = [
+    ('missing-target', owner, target, None)
+    for owner, targets in STRICT_DESCENDANT_TARGET_SYMBOLS.items()
+    for target in targets
+] + [
+    ('missing-symbol', owner, target, symbol)
+    for owner, targets in STRICT_DESCENDANT_TARGET_SYMBOLS.items()
+    for target, symbols in targets.items()
+    for symbol in symbols
+] + [
+    ('raising-target', owner, target, None)
+    for owner, target in (
+        ('matplotlib', 'matplotlib.pyplot'),
+        ('sklearn', 'sklearn.base'),
+        ('torch', 'torch.nn'),
+    )
+]
 
 
 @pytest.fixture
@@ -371,6 +408,18 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
     assert dependencies['pymatgen']['import_probe_symbols'] == {
         'pymatgen.core': list(PYMATGEN_CORE_SYMBOLS),
     }
+    for owner, target_symbols in STRICT_DESCENDANT_TARGET_SYMBOLS.items():
+        dependency = next(
+            dependency
+            for dependency in dependencies.values()
+            if dependency['module'] == owner
+        )
+        assert dependency['import_probe_targets'] == list(target_symbols)
+        assert dependency.get('import_probe_symbols', {}) == {
+            target: list(symbols)
+            for target, symbols in target_symbols.items()
+            if symbols
+        }
     assert all(
         'import_probe_preloads' not in dependency
         for package, dependency in dependencies.items()
@@ -379,12 +428,26 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
     assert all(
         'import_probe_targets' not in dependency
         for package, dependency in dependencies.items()
-        if package not in {'jarvis-tools', 'matminer', 'pymatgen'}
+        if package
+        not in {
+            'jarvis-tools',
+            'matminer',
+            'matplotlib',
+            'pymatgen',
+            'scikit-learn',
+            'torch',
+        }
     )
     assert all(
         'import_probe_symbols' not in dependency
         for package, dependency in dependencies.items()
-        if package not in {'jarvis-tools', 'matminer', 'pymatgen'}
+        if package
+        not in {
+            'jarvis-tools',
+            'matminer',
+            'pymatgen',
+            'scikit-learn',
+        }
     )
     assert dependencies['pytest']['role'] == 'test_tool'
     assert all(
@@ -430,6 +493,15 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
     assert import_checks['pymatgen']['import_probe_symbols'] == {
         'pymatgen.core': list(PYMATGEN_CORE_SYMBOLS),
     }
+    for owner, target_symbols in STRICT_DESCENDANT_TARGET_SYMBOLS.items():
+        assert import_checks[owner]['import_probe_targets'] == list(
+            target_symbols
+        )
+        assert import_checks[owner]['import_probe_symbols'] == {
+            target: list(symbols)
+            for target, symbols in target_symbols.items()
+            if symbols
+        }
     source_import_symbols = {
         target: set()
         for target in (
@@ -472,6 +544,44 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
     assert source_import_symbols['pymatgen.core'] == set(
         PYMATGEN_CORE_SYMBOLS
     )
+    production_descendant_imports = set()
+    for python_path in ROOT.rglob('*.py'):
+        relative_path = python_path.relative_to(ROOT)
+        if (
+            relative_path.parts[0] != 'src'
+            or 'tests' in relative_path.parts
+            or python_path.name.startswith('test_')
+        ):
+            continue
+        for node in ast.walk(
+            ast.parse(python_path.read_text(encoding='utf-8'))
+        ):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    owner = alias.name.split('.', 1)[0]
+                    if (
+                        owner in STRICT_DESCENDANT_TARGET_SYMBOLS
+                        and alias.name != owner
+                    ):
+                        production_descendant_imports.add(
+                            (owner, alias.name, None)
+                        )
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                owner = node.module.split('.', 1)[0]
+                if (
+                    owner in STRICT_DESCENDANT_TARGET_SYMBOLS
+                    and node.module != owner
+                ):
+                    production_descendant_imports.update(
+                        (owner, node.module, alias.name)
+                        for alias in node.names
+                    )
+    assert production_descendant_imports == {
+        (owner, target, symbol)
+        for owner, target_symbols in STRICT_DESCENDANT_TARGET_SYMBOLS.items()
+        for target, symbols in target_symbols.items()
+        for symbol in (symbols or (None,))
+    }
     assert all(check['available'] for check in import_checks.values())
     ownership_checks = {
         check['package']: check
@@ -5322,6 +5432,231 @@ def test_public_and_cli_matminer_probe_rejects_invalid_consumer_import(
     payload = json.loads(completed.stdout)
     assert payload['status'] == 'error'
     assert private_diagnostic not in completed.stdout
+
+
+def _reset_dependency_owner_modules(monkeypatch, owner):
+    for module_name in tuple(sys.modules):
+        if module_name == owner or module_name.startswith(f'{owner}.'):
+            monkeypatch.delitem(sys.modules, module_name, raising=False)
+    agent_state.importlib.invalidate_caches()
+
+
+def _write_probe_target(
+    path,
+    symbols,
+    *,
+    missing_symbol=None,
+    import_failure=None,
+):
+    if path.exists() or path.is_symlink():
+        path.unlink()
+    if import_failure is not None:
+        path.write_text(
+            f'raise RuntimeError({import_failure!r})\n',
+            encoding='utf-8',
+        )
+        return
+    missing_detail = f'missing synthetic symbol: {missing_symbol}'
+    path.write_text(
+        ''.join(
+            f'{symbol} = object\n'
+            for symbol in symbols
+            if symbol != missing_symbol
+        )
+        + (
+            'def __getattr__(name):\n'
+            f'    raise AttributeError({missing_detail!r})\n'
+            if missing_symbol is not None
+            else ''
+        ),
+        encoding='utf-8',
+    )
+
+
+def _build_strict_descendant_shim(tmp_path, owner):
+    package_dir = tmp_path / owner
+    target_symbols = STRICT_DESCENDANT_TARGET_SYMBOLS[owner]
+    if owner == 'matplotlib':
+        real_spec = agent_state.importlib.util.find_spec(owner)
+        assert real_spec is not None
+        assert real_spec.origin is not None
+        real_package_dir = Path(real_spec.origin).parent
+        package_dir.mkdir()
+        for child in real_package_dir.iterdir():
+            if child.name == '__pycache__':
+                continue
+            (package_dir / child.name).symlink_to(
+                child,
+                target_is_directory=child.is_dir(),
+            )
+        return {
+            'matplotlib.pyplot': package_dir / 'pyplot.py',
+        }
+
+    package_dir.mkdir()
+    (package_dir / '__init__.py').write_text(
+        'OWNER = True\n',
+        encoding='utf-8',
+    )
+    target_paths = {}
+    for target, symbols in target_symbols.items():
+        target_name = target.removeprefix(f'{owner}.')
+        assert target_name.isidentifier()
+        target_path = package_dir / f'{target_name}.py'
+        _write_probe_target(target_path, symbols)
+        target_paths[target] = target_path
+    return target_paths
+
+
+def _strict_descendant_consumer_statement(owner):
+    if owner == 'matplotlib':
+        return 'import matplotlib.pyplot as plt'
+    if owner == 'torch':
+        return 'import torch; import torch.nn as nn'
+    return '; '.join(
+        f'from {target} import {", ".join(symbols)}'
+        for target, symbols in STRICT_DESCENDANT_TARGET_SYMBOLS[owner].items()
+    )
+
+
+@pytest.mark.parametrize(
+    ('mutation', 'owner', 'target', 'missing_symbol'),
+    STRICT_DESCENDANT_PROBE_CASES,
+    ids=[
+        '-'.join(filter(None, (
+            owner,
+            target.rsplit('.', 1)[-1],
+            mutation,
+            missing_symbol,
+        )))
+        for mutation, owner, target, missing_symbol
+        in STRICT_DESCENDANT_PROBE_CASES
+    ],
+)
+def test_public_dependency_probe_rejects_invalid_strict_descendant_import(
+    monkeypatch,
+    tmp_path,
+    cleared_dependency_import_probe_cache,
+    mutation,
+    owner,
+    target,
+    missing_symbol,
+):
+    target_paths = _build_strict_descendant_shim(tmp_path, owner)
+    monkeypatch.syspath_prepend(str(tmp_path))
+    existing_pythonpath = os.environ.get('PYTHONPATH', '')
+    monkeypatch.setenv(
+        'PYTHONPATH',
+        os.pathsep.join(
+            part
+            for part in (str(tmp_path), existing_pythonpath)
+            if part
+        ),
+    )
+    _reset_dependency_owner_modules(monkeypatch, owner)
+    real_run = subprocess.run
+    owner_probe_calls = 0
+
+    def selective_run(command, **kwargs):
+        nonlocal owner_probe_calls
+        if command[-2] != owner:
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                stdout=b'',
+                stderr=b'',
+            )
+        owner_probe_calls += 1
+        return real_run(command, **kwargs)
+
+    monkeypatch.setattr(agent_state.subprocess, 'run', selective_run)
+    probe_environment = os.environ.copy()
+    probe_environment['PYTHONDONTWRITEBYTECODE'] = '1'
+    consumer_statement = _strict_descendant_consumer_statement(owner)
+    baseline_consumer = real_run(
+        [sys.executable, '-c', consumer_statement],
+        cwd=ROOT,
+        env=probe_environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert baseline_consumer.returncode == 0
+    cache_transition_control = (
+        owner == 'matplotlib'
+        or mutation == 'raising-target'
+    )
+    if cache_transition_control:
+        assert validate_agent_layout(ROOT)['status'] == 'ok'
+        assert validate_agent_layout(ROOT)['status'] == 'ok'
+        assert owner_probe_calls == 1
+
+    private_diagnostic = (
+        f'synthetic private {owner} strict-descendant failure'
+    )
+    target_path = target_paths[target]
+    if mutation == 'missing-target':
+        target_path.unlink()
+    elif mutation == 'raising-target':
+        _write_probe_target(
+            target_path,
+            STRICT_DESCENDANT_TARGET_SYMBOLS[owner][target],
+            import_failure=private_diagnostic,
+        )
+    else:
+        _write_probe_target(
+            target_path,
+            STRICT_DESCENDANT_TARGET_SYMBOLS[owner][target],
+            missing_symbol=missing_symbol,
+        )
+    _reset_dependency_owner_modules(monkeypatch, owner)
+    direct_consumer = real_run(
+        [sys.executable, '-c', consumer_statement],
+        cwd=ROOT,
+        env=probe_environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    invalid_validations = []
+    if cache_transition_control:
+        invalid_validations.append(validate_agent_layout(ROOT))
+    agent_state._clear_dependency_import_probe_cache()
+    invalid_validations.append(validate_agent_layout(ROOT))
+
+    assert direct_consumer.returncode == 1
+    assert owner_probe_calls == (3 if cache_transition_control else 1)
+    for validation in invalid_validations:
+        assert validation['status'] == 'error'
+        owner_check = next(
+            check
+            for check in validation['checks']
+            if check.get('kind') == 'dependency_import'
+            and check.get('module') == owner
+        )
+        assert owner_check['available'] is False
+        assert owner_check['failure_category'] == 'nonzero_exit'
+        assert private_diagnostic not in json.dumps(validation)
+
+    if owner == 'matplotlib' and mutation != 'missing-symbol':
+        completed = real_run(
+            [
+                sys.executable,
+                str(ROOT / 'main.py'),
+                '--verify-agent-contract',
+            ],
+            cwd=ROOT,
+            env=probe_environment,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=60,
+        )
+        assert completed.returncode == 1
+        assert completed.stderr == ''
+        payload = json.loads(completed.stdout)
+        assert payload['status'] == 'error'
+        assert private_diagnostic not in completed.stdout
 
 
 def test_public_pymatgen_probe_rejects_changed_required_namespace_submodule(

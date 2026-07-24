@@ -352,6 +352,42 @@
       "package": "scikit-learn",
       "specifier": ">=1.5",
       "module": "sklearn",
+      "import_probe_targets": [
+        "sklearn.base",
+        "sklearn.dummy",
+        "sklearn.ensemble",
+        "sklearn.linear_model",
+        "sklearn.metrics",
+        "sklearn.model_selection",
+        "sklearn.neighbors"
+      ],
+      "import_probe_symbols": {
+        "sklearn.base": [
+          "BaseEstimator",
+          "RegressorMixin"
+        ],
+        "sklearn.dummy": [
+          "DummyRegressor"
+        ],
+        "sklearn.ensemble": [
+          "HistGradientBoostingRegressor",
+          "RandomForestRegressor"
+        ],
+        "sklearn.linear_model": [
+          "LinearRegression"
+        ],
+        "sklearn.metrics": [
+          "mean_absolute_error",
+          "mean_squared_error",
+          "r2_score"
+        ],
+        "sklearn.model_selection": [
+          "GroupKFold"
+        ],
+        "sklearn.neighbors": [
+          "NearestNeighbors"
+        ]
+      },
       "role": "scientific_pipeline",
       "import_kind": "direct",
       "required_for": "model_baselines"
@@ -368,6 +404,9 @@
       "package": "matplotlib",
       "specifier": ">=3.9",
       "module": "matplotlib",
+      "import_probe_targets": [
+        "matplotlib.pyplot"
+      ],
       "role": "scientific_pipeline",
       "import_kind": "direct",
       "required_for": "artifact_plot_generation"
@@ -452,6 +491,9 @@
       "import_probe_preloads": [
         "numpy",
         "sklearn"
+      ],
+      "import_probe_targets": [
+        "torch.nn"
       ],
       "role": "scientific_pipeline",
       "import_kind": "direct",
