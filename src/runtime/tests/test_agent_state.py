@@ -382,6 +382,27 @@ def _swap_dependency_modules(manifest, left_package, right_package):
     left['module'], right['module'] = right['module'], left['module']
 
 
+def _remove_dependency_probe_target(manifest, package, target):
+    dependency = _dependency_by_package(manifest, package)
+    dependency['import_probe_targets'].remove(target)
+    if not dependency['import_probe_targets']:
+        dependency.pop('import_probe_targets')
+    symbols = dependency.get('import_probe_symbols', {})
+    symbols.pop(target, None)
+    if not symbols:
+        dependency.pop('import_probe_symbols', None)
+
+
+def _remove_dependency_probe_symbol(manifest, package, target, symbol):
+    dependency = _dependency_by_package(manifest, package)
+    symbols = dependency['import_probe_symbols']
+    symbols[target].remove(symbol)
+    if not symbols[target]:
+        symbols.pop(target)
+    if not symbols:
+        dependency.pop('import_probe_symbols')
+
+
 def test_dependency_contract_covers_requirements_source_imports_and_profiles():
     manifest = load_agent_manifest(ROOT)
     validation = validate_agent_layout(ROOT, manifest)
@@ -523,86 +544,6 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
             for target, symbols in target_symbols.items()
             if symbols
         }
-    source_import_symbols = {
-        target: set()
-        for target in (
-            *JARVIS_TARGET_SYMBOLS,
-            *MATMINER_TARGET_SYMBOLS,
-            'pymatgen.core',
-        )
-    }
-    for python_path in ROOT.rglob('*.py'):
-        relative_path = python_path.relative_to(ROOT)
-        if (
-            relative_path.parts[0] in {'human_docs', 'data', 'artifacts'}
-            or '__pycache__' in relative_path.parts
-        ):
-            continue
-        for node in ast.walk(
-            ast.parse(python_path.read_text(encoding='utf-8'))
-        ):
-            if (
-                isinstance(node, ast.ImportFrom)
-                and node.module in source_import_symbols
-            ):
-                source_import_symbols[node.module].update(
-                    alias.name for alias in node.names
-                )
-    assert {
-        target: source_import_symbols[target]
-        for target in JARVIS_TARGET_SYMBOLS
-    } == {
-        target: set(symbols)
-        for target, symbols in JARVIS_TARGET_SYMBOLS.items()
-    }
-    assert {
-        target: source_import_symbols[target]
-        for target in MATMINER_TARGET_SYMBOLS
-    } == {
-        target: set(symbols)
-        for target, symbols in MATMINER_TARGET_SYMBOLS.items()
-    }
-    assert source_import_symbols['pymatgen.core'] == set(
-        PYMATGEN_CORE_SYMBOLS
-    )
-    production_descendant_imports = set()
-    for python_path in ROOT.rglob('*.py'):
-        relative_path = python_path.relative_to(ROOT)
-        if (
-            relative_path.parts[0] != 'src'
-            or 'tests' in relative_path.parts
-            or python_path.name.startswith('test_')
-        ):
-            continue
-        for node in ast.walk(
-            ast.parse(python_path.read_text(encoding='utf-8'))
-        ):
-            if isinstance(node, ast.Import):
-                for alias in node.names:
-                    owner = alias.name.split('.', 1)[0]
-                    if (
-                        owner in STRICT_DESCENDANT_TARGET_SYMBOLS
-                        and alias.name != owner
-                    ):
-                        production_descendant_imports.add(
-                            (owner, alias.name, None)
-                        )
-            elif isinstance(node, ast.ImportFrom) and node.module:
-                owner = node.module.split('.', 1)[0]
-                if (
-                    owner in STRICT_DESCENDANT_TARGET_SYMBOLS
-                    and node.module != owner
-                ):
-                    production_descendant_imports.update(
-                        (owner, node.module, alias.name)
-                        for alias in node.names
-                    )
-    assert production_descendant_imports == {
-        (owner, target, symbol)
-        for owner, target_symbols in STRICT_DESCENDANT_TARGET_SYMBOLS.items()
-        for target, symbols in target_symbols.items()
-        for symbol in (symbols or (None,))
-    }
     assert all(check['available'] for check in import_checks.values())
     ownership_checks = {
         check['package']: check
@@ -972,6 +913,182 @@ def test_validate_agent_layout_enforces_dependency_root_symbol_parity(
             (error['path'], error['module'], error['symbol'])
             for error in matching_errors
         ] == [(relative_path, 'pydantic', expected_symbol)]
+
+
+@pytest.mark.parametrize(
+    ('package', 'target', 'expected_paths'),
+    [
+        (
+            'matplotlib',
+            'matplotlib.pyplot',
+            ('src/materials/plots.py',),
+        ),
+        (
+            'scikit-learn',
+            'sklearn.metrics',
+            (
+                'src/materials/benchmarking.py',
+                'src/materials/modeling.py',
+            ),
+        ),
+        (
+            'jarvis-tools',
+            'jarvis.db.figshare',
+            ('src/materials/data.py',),
+        ),
+        (
+            'torch',
+            'torch.nn',
+            ('src/torch_models/base.py',),
+        ),
+    ],
+    ids=('import', 'import-from', 'lazy-import-from', 'nested-import'),
+)
+def test_validate_agent_layout_enforces_dependency_descendant_target_parity(
+    package,
+    target,
+    expected_paths,
+):
+    manifest = json.loads(json.dumps(load_agent_manifest(ROOT)))
+    _remove_dependency_probe_target(manifest, package, target)
+
+    validation = validate_agent_layout(ROOT, manifest)
+    matching_errors = [
+        error
+        for error in validation['errors']
+        if error['code'] == 'unprobed_dependency_import_target'
+        and error['target'] == target
+    ]
+
+    assert validation['status'] == 'error'
+    assert tuple(error['path'] for error in matching_errors) == expected_paths
+
+
+@pytest.mark.parametrize(
+    ('package', 'target', 'symbol', 'expected_paths'),
+    [
+        (
+            'scikit-learn',
+            'sklearn.metrics',
+            'mean_absolute_error',
+            (
+                'src/materials/benchmarking.py',
+                'src/materials/modeling.py',
+            ),
+        ),
+        (
+            'jarvis-tools',
+            'jarvis.db.figshare',
+            'get_request_data',
+            ('src/materials/data.py',),
+        ),
+        (
+            'matminer',
+            'matminer.featurizers.composition',
+            'ElementProperty',
+            ('src/materials/feature_building.py',),
+        ),
+        (
+            'pymatgen',
+            'pymatgen.core',
+            'Structure',
+            (
+                'src/materials/structure_execution.py',
+                'src/materials/structure_helpers.py',
+            ),
+        ),
+    ],
+    ids=('sklearn', 'lazy-jarvis', 'matminer', 'pymatgen'),
+)
+def test_validate_agent_layout_enforces_dependency_descendant_symbol_parity(
+    package,
+    target,
+    symbol,
+    expected_paths,
+):
+    manifest = json.loads(json.dumps(load_agent_manifest(ROOT)))
+    _remove_dependency_probe_symbol(manifest, package, target, symbol)
+
+    validation = validate_agent_layout(ROOT, manifest)
+    matching_errors = [
+        error
+        for error in validation['errors']
+        if error['code'] == 'unprobed_dependency_import_symbol'
+        and error['target'] == target
+        and error['symbol'] == symbol
+    ]
+
+    assert validation['status'] == 'error'
+    assert tuple(error['path'] for error in matching_errors) == expected_paths
+
+
+def test_validate_agent_layout_allows_test_only_dependency_probe_removal():
+    manifest = json.loads(json.dumps(load_agent_manifest(ROOT)))
+    _remove_dependency_probe_symbol(
+        manifest,
+        'pymatgen',
+        'pymatgen.core',
+        'Lattice',
+    )
+
+    validation = validate_agent_layout(ROOT, manifest)
+
+    assert validation['status'] == 'ok'
+
+
+@pytest.mark.parametrize(
+    ('source_prefix', 'expected_error_code'),
+    [
+        (
+            'from sklearn.metrics import mean_absolute_error as metric\n',
+            None,
+        ),
+        (
+            'from sklearn.metrics import *\n',
+            'unsupported_dependency_import_wildcard',
+        ),
+    ],
+    ids=('imported-name-not-alias', 'wildcard-fails-closed'),
+)
+def test_validate_agent_layout_dependency_descendant_source_controls(
+    monkeypatch,
+    source_prefix,
+    expected_error_code,
+):
+    validation = _validate_agent_layout_with_config_prefix(
+        monkeypatch,
+        source_prefix,
+    )
+    matching_errors = [
+        error
+        for error in validation['errors']
+        if error['code']
+        in {
+            'unprobed_dependency_import_target',
+            'unprobed_dependency_import_symbol',
+            'unsupported_dependency_import_wildcard',
+        }
+    ]
+
+    if expected_error_code is None:
+        assert matching_errors == []
+    else:
+        assert [
+            (
+                error['code'],
+                error['path'],
+                error['module'],
+                error['target'],
+            )
+            for error in matching_errors
+        ] == [
+            (
+                expected_error_code,
+                'src/config.py',
+                'sklearn',
+                'sklearn.metrics',
+            )
+        ]
 
 
 def _validate_agent_layout_with_config_prefix(monkeypatch, source_prefix):

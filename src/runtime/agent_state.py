@@ -603,7 +603,12 @@ def _source_import_analysis(
     source_text: str,
     *,
     relative_path: str,
-) -> tuple[set[str], list[int], set[tuple[str, str]]]:
+) -> tuple[
+    set[str],
+    list[int],
+    set[tuple[str, str]],
+    set[tuple[str, str | None]],
+]:
     tree = ast.parse(source_text)
     parent_by_node = {
         id(child): parent
@@ -716,6 +721,7 @@ def _source_import_analysis(
 
     import_roots: set[str] = set()
     root_import_symbols: set[tuple[str, str]] = set()
+    descendant_imports: set[tuple[str, str | None]] = set()
     local_names: dict[int, set[str]] = {}
     owner_event_kinds: dict[tuple[int, str, int], set[str]] = {}
     assignment_nodes: list[
@@ -783,6 +789,8 @@ def _source_import_analysis(
         elif isinstance(node, ast.Import):
             for alias in node.names:
                 import_roots.add(alias.name.split('.', 1)[0])
+                if '.' in alias.name:
+                    descendant_imports.add((alias.name, None))
                 bound_name = alias.asname or alias.name.split('.', 1)[0]
                 if alias.name == 'importlib' or (
                     alias.name.startswith('importlib.')
@@ -811,6 +819,11 @@ def _source_import_analysis(
                     (node.module, alias.name)
                     for alias in node.names
                 )
+                if '.' in node.module:
+                    descendant_imports.update(
+                        (node.module, alias.name)
+                        for alias in node.names
+                    )
             for alias in node.names:
                 bound_name = alias.asname or alias.name
                 if (
@@ -2821,6 +2834,7 @@ def _source_import_analysis(
         import_roots,
         sorted(unsupported_dynamic_import_lines),
         root_import_symbols,
+        descendant_imports,
     )
 
 
@@ -2831,11 +2845,13 @@ def _source_import_consumers(
     list[tuple[str, str]],
     list[tuple[str, int]],
     list[tuple[str, str, str]],
+    list[tuple[str, str | None, str]],
 ]:
     consumers: dict[str, list[str]] = {}
     parse_errors: list[tuple[str, str]] = []
     unsupported_dynamic_imports: list[tuple[str, int]] = []
     root_symbol_consumers: list[tuple[str, str, str]] = []
+    descendant_import_consumers: list[tuple[str, str | None, str]] = []
     for source_path in _project_python_source_paths(root):
         relative_path = str(source_path.relative_to(root))
         try:
@@ -2843,6 +2859,7 @@ def _source_import_consumers(
                 import_roots,
                 unsupported_lines,
                 root_import_symbols,
+                descendant_imports,
             ) = _source_import_analysis(
                 _read_text_if_present(source_path),
                 relative_path=relative_path,
@@ -2860,6 +2877,10 @@ def _source_import_consumers(
             root_symbol_consumers.append(
                 (module_name, symbol, relative_path)
             )
+        for module_name, symbol in descendant_imports:
+            descendant_import_consumers.append(
+                (module_name, symbol, relative_path)
+            )
     return (
         {
             module_name: sorted(set(paths))
@@ -2868,6 +2889,10 @@ def _source_import_consumers(
         parse_errors,
         unsupported_dynamic_imports,
         sorted(set(root_symbol_consumers)),
+        sorted(
+            set(descendant_import_consumers),
+            key=lambda item: (item[0], item[1] or '', item[2]),
+        ),
     )
 
 
@@ -3427,6 +3452,7 @@ def _validate_dependency_contract(
         parse_errors,
         unsupported_dynamic_imports,
         root_symbol_consumers,
+        descendant_import_consumers,
     ) = _source_import_consumers(root)
     for path, detail in parse_errors:
         add_error('dependency_source_parse_error', path, f'Cannot classify imports: {detail}')
@@ -3526,6 +3552,60 @@ def _validate_dependency_contract(
                     'descendant target.'
                 ),
                 module=module,
+                symbol=symbol,
+            )
+        declared_targets = set(record['import_probe_targets'])
+        declared_symbols = dict(record['import_probe_symbols'])
+        reported_missing_targets: set[tuple[str, str]] = set()
+        for target, symbol, path in descendant_import_consumers:
+            if (
+                _is_test_source_path(path)
+                or not target.startswith(target_prefix)
+            ):
+                continue
+            if target not in declared_targets:
+                missing_target = (target, path)
+                if missing_target not in reported_missing_targets:
+                    add_error(
+                        'unprobed_dependency_import_target',
+                        path,
+                        (
+                            f'Production import target `{target}` must be '
+                            f'declared beneath dependency owner `{module}`.'
+                        ),
+                        module=module,
+                        target=target,
+                    )
+                    reported_missing_targets.add(missing_target)
+                continue
+            if symbol is None:
+                continue
+            if symbol == '*':
+                add_error(
+                    'unsupported_dependency_import_wildcard',
+                    path,
+                    (
+                        f'Production wildcard import from `{target}` cannot '
+                        'prove an exact dependency symbol contract.'
+                    ),
+                    module=module,
+                    target=target,
+                )
+                continue
+            if (
+                symbol in declared_symbols.get(target, ())
+                or f'{target}.{symbol}' in declared_targets
+            ):
+                continue
+            add_error(
+                'unprobed_dependency_import_symbol',
+                path,
+                (
+                    f'Production import `{target}.{symbol}` must be covered '
+                    'by a target symbol probe or exact descendant target.'
+                ),
+                module=module,
+                target=target,
                 symbol=symbol,
             )
         if record['role'] == 'test_tool':
