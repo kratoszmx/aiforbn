@@ -603,7 +603,7 @@ def _source_import_analysis(
     source_text: str,
     *,
     relative_path: str,
-) -> tuple[set[str], list[int]]:
+) -> tuple[set[str], list[int], set[tuple[str, str]]]:
     tree = ast.parse(source_text)
     parent_by_node = {
         id(child): parent
@@ -715,6 +715,7 @@ def _source_import_analysis(
             current = parent
 
     import_roots: set[str] = set()
+    root_import_symbols: set[tuple[str, str]] = set()
     local_names: dict[int, set[str]] = {}
     owner_event_kinds: dict[tuple[int, str, int], set[str]] = {}
     assignment_nodes: list[
@@ -806,6 +807,10 @@ def _source_import_analysis(
         elif isinstance(node, ast.ImportFrom):
             if node.level == 0 and node.module:
                 import_roots.add(node.module.split('.', 1)[0])
+                root_import_symbols.update(
+                    (node.module, alias.name)
+                    for alias in node.names
+                )
             for alias in node.names:
                 bound_name = alias.asname or alias.name
                 if (
@@ -2812,7 +2817,11 @@ def _source_import_analysis(
         elif id(node) not in allowed_nonliteral_import_calls:
             unsupported_dynamic_import_lines.add(node.lineno)
 
-    return import_roots, sorted(unsupported_dynamic_import_lines)
+    return (
+        import_roots,
+        sorted(unsupported_dynamic_import_lines),
+        root_import_symbols,
+    )
 
 
 def _source_import_consumers(
@@ -2821,14 +2830,20 @@ def _source_import_consumers(
     dict[str, list[str]],
     list[tuple[str, str]],
     list[tuple[str, int]],
+    list[tuple[str, str, str]],
 ]:
     consumers: dict[str, list[str]] = {}
     parse_errors: list[tuple[str, str]] = []
     unsupported_dynamic_imports: list[tuple[str, int]] = []
+    root_symbol_consumers: list[tuple[str, str, str]] = []
     for source_path in _project_python_source_paths(root):
         relative_path = str(source_path.relative_to(root))
         try:
-            import_roots, unsupported_lines = _source_import_analysis(
+            (
+                import_roots,
+                unsupported_lines,
+                root_import_symbols,
+            ) = _source_import_analysis(
                 _read_text_if_present(source_path),
                 relative_path=relative_path,
             )
@@ -2841,10 +2856,19 @@ def _source_import_consumers(
         )
         for module_name in import_roots:
             consumers.setdefault(module_name, []).append(relative_path)
-    return {
-        module_name: sorted(set(paths))
-        for module_name, paths in consumers.items()
-    }, parse_errors, unsupported_dynamic_imports
+        for module_name, symbol in root_import_symbols:
+            root_symbol_consumers.append(
+                (module_name, symbol, relative_path)
+            )
+    return (
+        {
+            module_name: sorted(set(paths))
+            for module_name, paths in consumers.items()
+        },
+        parse_errors,
+        unsupported_dynamic_imports,
+        sorted(set(root_symbol_consumers)),
+    )
 
 
 def _project_import_roots(root: Path) -> set[str]:
@@ -3402,6 +3426,7 @@ def _validate_dependency_contract(
         consumers_by_module,
         parse_errors,
         unsupported_dynamic_imports,
+        root_symbol_consumers,
     ) = _source_import_consumers(root)
     for path, detail in parse_errors:
         add_error('dependency_source_parse_error', path, f'Cannot classify imports: {detail}')
@@ -3476,6 +3501,33 @@ def _validate_dependency_contract(
         production_consumers = [
             path for path in consumers if not _is_test_source_path(path)
         ]
+        owner_symbol_probes = set(
+            dict(record['import_probe_symbols']).get(module, ())
+        )
+        target_prefix = f'{module}.'
+        immediate_target_probes = {
+            target[len(target_prefix):]
+            for target in record['import_probe_targets']
+            if target.startswith(target_prefix)
+            and '.' not in target[len(target_prefix):]
+        }
+        covered_root_symbols = owner_symbol_probes | immediate_target_probes
+        for imported_module, symbol, path in root_symbol_consumers:
+            if imported_module != module or _is_test_source_path(path):
+                continue
+            if symbol in covered_root_symbols:
+                continue
+            add_error(
+                'unprobed_dependency_root_symbol',
+                path,
+                (
+                    f'Production import `{module}.{symbol}` must be '
+                    'covered by an owner symbol probe or exact '
+                    'descendant target.'
+                ),
+                module=module,
+                symbol=symbol,
+            )
         if record['role'] == 'test_tool':
             if production_consumers:
                 add_error('test_tool_imported_by_production', production_consumers[0], f'Test tool `{module}` has production consumers.', module=module)

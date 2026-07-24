@@ -566,7 +566,6 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
         PYMATGEN_CORE_SYMBOLS
     )
     production_descendant_imports = set()
-    production_pydantic_root_symbols = set()
     for python_path in ROOT.rglob('*.py'):
         relative_path = python_path.relative_to(ROOT)
         if (
@@ -589,10 +588,6 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
                             (owner, alias.name, None)
                         )
             elif isinstance(node, ast.ImportFrom) and node.module:
-                if node.module == 'pydantic':
-                    production_pydantic_root_symbols.update(
-                        alias.name for alias in node.names
-                    )
                 owner = node.module.split('.', 1)[0]
                 if (
                     owner in STRICT_DESCENDANT_TARGET_SYMBOLS
@@ -608,7 +603,6 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
         for target, symbols in target_symbols.items()
         for symbol in (symbols or (None,))
     }
-    assert production_pydantic_root_symbols == set(PYDANTIC_ROOT_SYMBOLS)
     assert all(check['available'] for check in import_checks.values())
     ownership_checks = {
         check['package']: check
@@ -915,9 +909,86 @@ def test_validate_agent_layout_rejects_compile_valid_undeclared_source_import(
     )
 
 
+@pytest.mark.parametrize(
+    ('relative_path', 'source_prefix', 'expected_symbol'),
+    [
+        (
+            'src/runtime/schema.py',
+            'from pydantic import ValidationError\n',
+            'ValidationError',
+        ),
+        (
+            'src/runtime/schema.py',
+            'from pydantic import ValidationError as ContractValidationError\n',
+            'ValidationError',
+        ),
+        ('src/runtime/schema.py', 'from pydantic import *\n', '*'),
+        (
+            'src/config.py',
+            'from sklearn import metrics as scoring_metrics\n',
+            None,
+        ),
+        (
+            'src/config.py',
+            'from pathlib import PurePath as LocalPurePath\n',
+            None,
+        ),
+        (
+            'src/config.py',
+            'from runtime import schema as runtime_schema\n',
+            None,
+        ),
+    ],
+    ids=(
+        'direct-symbol',
+        'aliased-symbol',
+        'wildcard',
+        'declared-descendant',
+        'stdlib',
+        'project-local',
+    ),
+)
+def test_validate_agent_layout_enforces_dependency_root_symbol_parity(
+    monkeypatch,
+    relative_path,
+    source_prefix,
+    expected_symbol,
+):
+    validation = _validate_agent_layout_with_source_prefix(
+        monkeypatch,
+        relative_path,
+        source_prefix,
+    )
+    matching_errors = [
+        error
+        for error in validation['errors']
+        if error['code'] == 'unprobed_dependency_root_symbol'
+    ]
+
+    if expected_symbol is None:
+        assert matching_errors == []
+    else:
+        assert [
+            (error['path'], error['module'], error['symbol'])
+            for error in matching_errors
+        ] == [(relative_path, 'pydantic', expected_symbol)]
+
+
 def _validate_agent_layout_with_config_prefix(monkeypatch, source_prefix):
+    return _validate_agent_layout_with_source_prefix(
+        monkeypatch,
+        'src/config.py',
+        source_prefix,
+    )
+
+
+def _validate_agent_layout_with_source_prefix(
+    monkeypatch,
+    relative_path,
+    source_prefix,
+):
     original_read = agent_state._read_text_if_present
-    target_path = (ROOT / 'src' / 'config.py').resolve()
+    target_path = (ROOT / relative_path).resolve()
 
     def read_with_external_import(path):
         text = original_read(path)
