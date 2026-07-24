@@ -5189,6 +5189,203 @@ def test_validate_agent_layout_accepts_exact_bind_missing_attribute_contract(
 
 
 @pytest.mark.parametrize(
+    (
+        'source_suffix',
+        'package',
+        'target',
+        'declared_symbol',
+        'expected_code',
+        'expected_symbol',
+    ),
+    [
+        (
+            'getattr(importlib.import_module("numpy.linalg"), "inv")\n',
+            'numpy',
+            'numpy.linalg',
+            None,
+            'unprobed_dependency_import_symbol',
+            'inv',
+        ),
+        (
+            'getattr(importlib.import_module("pandas"), "DataFrame")\n',
+            'pandas',
+            None,
+            None,
+            'unprobed_dependency_root_symbol',
+            'DataFrame',
+        ),
+        (
+            'getattr(\n'
+            '    importlib.import_module("numpy.linalg"), "inv", None\n'
+            ')\n',
+            'numpy',
+            'numpy.linalg',
+            None,
+            'unprobed_dependency_import_symbol',
+            'inv',
+        ),
+        (
+            'from importlib import import_module as load\n'
+            'getattr(load("numpy.linalg"), "inv")\n',
+            'numpy',
+            'numpy.linalg',
+            None,
+            'unprobed_dependency_import_symbol',
+            'inv',
+        ),
+        (
+            'import builtins\n'
+            'builtins.getattr(\n'
+            '    importlib.import_module("numpy.linalg"), "inv"\n'
+            ')\n',
+            'numpy',
+            'numpy.linalg',
+            None,
+            'unprobed_dependency_import_symbol',
+            'inv',
+        ),
+        (
+            'dynamic_attr = "inv"\n'
+            'getattr(\n'
+            '    importlib.import_module("numpy.linalg"), dynamic_attr\n'
+            ')\n',
+            'numpy',
+            'numpy.linalg',
+            None,
+            'unsupported_dynamic_import',
+            None,
+        ),
+        (
+            'getattr(importlib.import_module("numpy.linalg"), "inv")\n',
+            'numpy',
+            'numpy.linalg',
+            'inv',
+            None,
+            None,
+        ),
+        (
+            'getattr(importlib.import_module("pandas"), "DataFrame")\n',
+            'pandas',
+            None,
+            'DataFrame',
+            None,
+            None,
+        ),
+        (
+            'def getattr(value, name, *args):\n'
+            '    return None\n'
+            'getattr(importlib.import_module("numpy.linalg"), "inv")\n',
+            'numpy',
+            'numpy.linalg',
+            None,
+            None,
+            None,
+        ),
+        (
+            'importlib.import_module("numpy.linalg")\n',
+            'numpy',
+            'numpy.linalg',
+            None,
+            None,
+            None,
+        ),
+        (
+            'getattr(\n'
+            '    importlib.import_module("runtime.io_utils"), "load_config"\n'
+            ')\n',
+            None,
+            None,
+            None,
+            None,
+            None,
+        ),
+        (
+            'getattr(\n'
+            '    importlib.import_module(".utils", __package__), "value", None\n'
+            ')\n',
+            None,
+            None,
+            None,
+            None,
+            None,
+        ),
+        (
+            'getattr(object(), "value", None)\n',
+            None,
+            None,
+            None,
+            None,
+            None,
+        ),
+    ],
+    ids=(
+        'descendant-target-only',
+        'root-owner-only',
+        'optional-default-target-only',
+        'importlib-alias-target-only',
+        'builtins-getattr-target-only',
+        'nonliteral-attribute',
+        'descendant-exact',
+        'root-exact',
+        'shadowed-getattr',
+        'plain-dynamic-import',
+        'project-local',
+        'relative-local',
+        'no-dynamic-import',
+    ),
+)
+def test_validate_agent_layout_direct_getattr_dynamic_import_contract(
+    monkeypatch,
+    source_suffix,
+    package,
+    target,
+    declared_symbol,
+    expected_code,
+    expected_symbol,
+):
+    manifest = json.loads(json.dumps(load_agent_manifest(ROOT)))
+    if package is not None:
+        _declare_test_dependency_probe(
+            manifest,
+            package,
+            target=target,
+            symbol=declared_symbol,
+        )
+
+    validation = _validate_agent_layout_with_main_suffix(
+        monkeypatch,
+        source_suffix,
+        manifest=manifest,
+    )
+    relevant_errors = [
+        error
+        for error in validation['errors']
+        if error['code']
+        in {
+            'unprobed_dependency_import_symbol',
+            'unprobed_dependency_root_symbol',
+            'unsupported_dynamic_import',
+        }
+    ]
+
+    if expected_code is None:
+        assert validation['status'] == 'ok'
+        assert relevant_errors == []
+        return
+
+    assert len(relevant_errors) == 1
+    error = relevant_errors[0]
+    assert error['code'] == expected_code
+    assert error['path'] == 'main.py'
+    if expected_code != 'unsupported_dynamic_import':
+        assert error['module'] == package
+        assert error['symbol'] == expected_symbol
+        if target is not None:
+            assert error['target'] == target
+    assert validation['status'] == 'error'
+
+
+@pytest.mark.parametrize(
     'source_suffix',
     [
         '_bind_missing = lambda name, module_name, attr_name=None: None\n',

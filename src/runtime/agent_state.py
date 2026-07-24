@@ -2440,6 +2440,13 @@ def _source_import_analysis(
             for event_scope, binding_node in events
         )
 
+    def builtin_fallback_kinds(name: str) -> set[str]:
+        if name == '__import__':
+            return {'builtins_callable'}
+        if name == 'getattr':
+            return {'builtins_getattr_callable'}
+        return set()
+
     def resolve_name_at(
         scope: ast.AST,
         name: str,
@@ -2513,17 +2520,13 @@ def _source_import_analysis(
                         and (possible_before_lookup or class_definition_lookup)
                     ),
                 )
-            return {'builtins_callable'} if name == '__import__' else set()
+            return builtin_fallback_kinds(name)
 
         def deleted_name_fallback_kinds() -> set[str]:
             if name in nonlocal_names.get(id(scope), set()):
                 return set()
             if name in global_names.get(id(scope), set()):
-                return (
-                    {'builtins_callable'}
-                    if name == '__import__'
-                    else set()
-                )
+                return builtin_fallback_kinds(name)
             return fallback_name_kinds()
 
         direct_fallback_possible = False
@@ -2552,9 +2555,10 @@ def _source_import_analysis(
                 use_node,
             )
         if has_event:
+            builtin_kinds = builtin_fallback_kinds(name)
             if (
                 scope is tree
-                and name == '__import__'
+                and builtin_kinds
                 and (runtime_lookup or possible_before_lookup)
                 and not event_kinds
                 and module_builtin_fallback_possible(
@@ -2565,7 +2569,7 @@ def _source_import_analysis(
                     observation_node=use_node,
                 )
             ):
-                return {'builtins_callable'}
+                return builtin_kinds
             resolved_kinds = set(event_kinds)
             if direct_delete_is_definite:
                 resolved_kinds.update(deleted_name_fallback_kinds())
@@ -2676,6 +2680,32 @@ def _source_import_analysis(
         if 'builtins_module' in owner_kinds and node.attr == '__import__':
             callable_kinds.add('builtins_callable')
         return callable_kinds
+
+    def resolves_to_builtin_getattr(node: ast.expr) -> bool:
+        if isinstance(node, ast.Name):
+            if is_comprehension_shadowed(node, node.id):
+                return False
+            return 'builtins_getattr_callable' in resolve_name_at(
+                evaluation_scope(node),
+                node.id,
+                node,
+            )
+        if not isinstance(node, ast.Attribute) or not isinstance(
+            node.value,
+            ast.Name,
+        ):
+            return False
+        if is_comprehension_shadowed(node.value, node.value.id):
+            return False
+        owner_kinds = resolve_name_at(
+            evaluation_scope(node.value),
+            node.value.id,
+            node.value,
+        )
+        return (
+            node.attr == 'getattr'
+            and 'builtins_module' in owner_kinds
+        )
 
     unresolved_assignments = assignment_nodes
     while unresolved_assignments:
@@ -2844,6 +2874,31 @@ def _source_import_analysis(
             return False, None
         return True, attr_node.value
 
+    def direct_getattr_literal_symbol(
+        node: ast.Call,
+    ) -> tuple[bool, str | None]:
+        parent = parent_by_node.get(id(node))
+        if not (
+            isinstance(parent, ast.Call)
+            and parent.args
+            and parent.args[0] is node
+            and resolves_to_builtin_getattr(parent.func)
+        ):
+            return True, None
+        if (
+            len(parent.args) not in {2, 3}
+            or parent.keywords
+            or any(isinstance(argument, ast.Starred) for argument in parent.args)
+        ):
+            return False, None
+        attr_node = parent.args[1]
+        if not isinstance(attr_node, ast.Constant) or not isinstance(
+            attr_node.value,
+            str,
+        ):
+            return False, None
+        return True, attr_node.value
+
     for node in calls:
         if id(node) in direct_bind_missing_call_ids:
             if (
@@ -2863,14 +2918,25 @@ def _source_import_analysis(
             else:
                 unsupported_dynamic_import_lines.add(node.lineno)
             continue
-        if not resolve_dynamic_callable(node.func):
+        dynamic_callable_kinds = resolve_dynamic_callable(node.func)
+        if not dynamic_callable_kinds:
             continue
         if (
             node.args
             and isinstance(node.args[0], ast.Constant)
             and isinstance(node.args[0].value, str)
         ):
-            record_literal_module(node.args[0].value, node.lineno)
+            symbol_is_literal, symbol = True, None
+            if dynamic_callable_kinds == {'importlib_callable'}:
+                symbol_is_literal, symbol = direct_getattr_literal_symbol(node)
+            if not symbol_is_literal:
+                unsupported_dynamic_import_lines.add(node.lineno)
+                continue
+            record_literal_module(
+                node.args[0].value,
+                node.lineno,
+                symbol,
+            )
         elif id(node) not in allowed_nonliteral_import_calls:
             unsupported_dynamic_import_lines.add(node.lineno)
 
