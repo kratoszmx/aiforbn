@@ -396,6 +396,12 @@
       "package": "pydantic",
       "specifier": ">=2.8",
       "module": "pydantic",
+      "import_probe_symbols": {
+        "pydantic": [
+          "BaseModel",
+          "Field"
+        ]
+      },
       "role": "core_runtime",
       "import_kind": "direct",
       "required_for": "runtime_dataset_and_artifact_schemas"

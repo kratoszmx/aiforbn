@@ -18,6 +18,11 @@ from runtime.agent_state import (
 
 
 ROOT = Path(__file__).resolve().parents[3]
+REAL_MATPLOTLIB_SPEC = agent_state.importlib.util.find_spec('matplotlib')
+PYDANTIC_ROOT_SYMBOLS = (
+    'BaseModel',
+    'Field',
+)
 JARVIS_TARGET_SYMBOLS = {
     'jarvis.db.figshare': (
         'get_db_info',
@@ -75,6 +80,14 @@ STRICT_DESCENDANT_PROBE_CASES = [
         ('sklearn', 'sklearn.base'),
         ('torch', 'torch.nn'),
     )
+]
+ACTIVE_IMPORT_PROBE_CASES = [
+    *STRICT_DESCENDANT_PROBE_CASES,
+    *(
+        ('missing-symbol', 'pydantic', 'pydantic', symbol)
+        for symbol in PYDANTIC_ROOT_SYMBOLS
+    ),
+    ('raising-symbol', 'pydantic', 'pydantic', 'Field'),
 ]
 
 
@@ -408,6 +421,9 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
     assert dependencies['pymatgen']['import_probe_symbols'] == {
         'pymatgen.core': list(PYMATGEN_CORE_SYMBOLS),
     }
+    assert dependencies['pydantic']['import_probe_symbols'] == {
+        'pydantic': list(PYDANTIC_ROOT_SYMBOLS),
+    }
     for owner, target_symbols in STRICT_DESCENDANT_TARGET_SYMBOLS.items():
         dependency = next(
             dependency
@@ -446,6 +462,7 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
             'jarvis-tools',
             'matminer',
             'pymatgen',
+            'pydantic',
             'scikit-learn',
         }
     )
@@ -492,6 +509,10 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
     ]
     assert import_checks['pymatgen']['import_probe_symbols'] == {
         'pymatgen.core': list(PYMATGEN_CORE_SYMBOLS),
+    }
+    assert import_checks['pydantic']['import_probe_targets'] == []
+    assert import_checks['pydantic']['import_probe_symbols'] == {
+        'pydantic': list(PYDANTIC_ROOT_SYMBOLS),
     }
     for owner, target_symbols in STRICT_DESCENDANT_TARGET_SYMBOLS.items():
         assert import_checks[owner]['import_probe_targets'] == list(
@@ -545,6 +566,7 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
         PYMATGEN_CORE_SYMBOLS
     )
     production_descendant_imports = set()
+    production_pydantic_root_symbols = set()
     for python_path in ROOT.rglob('*.py'):
         relative_path = python_path.relative_to(ROOT)
         if (
@@ -567,6 +589,10 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
                             (owner, alias.name, None)
                         )
             elif isinstance(node, ast.ImportFrom) and node.module:
+                if node.module == 'pydantic':
+                    production_pydantic_root_symbols.update(
+                        alias.name for alias in node.names
+                    )
                 owner = node.module.split('.', 1)[0]
                 if (
                     owner in STRICT_DESCENDANT_TARGET_SYMBOLS
@@ -582,6 +608,7 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
         for target, symbols in target_symbols.items()
         for symbol in (symbols or (None,))
     }
+    assert production_pydantic_root_symbols == set(PYDANTIC_ROOT_SYMBOLS)
     assert all(check['available'] for check in import_checks.values())
     ownership_checks = {
         check['package']: check
@@ -5447,6 +5474,7 @@ def _write_probe_target(
     *,
     missing_symbol=None,
     import_failure=None,
+    symbol_failure=None,
 ):
     if path.exists() or path.is_symlink():
         path.unlink()
@@ -5457,6 +5485,8 @@ def _write_probe_target(
         )
         return
     missing_detail = f'missing synthetic symbol: {missing_symbol}'
+    failure_type = 'RuntimeError' if symbol_failure is not None else 'AttributeError'
+    failure_detail = symbol_failure or missing_detail
     path.write_text(
         ''.join(
             f'{symbol} = object\n'
@@ -5465,7 +5495,7 @@ def _write_probe_target(
         )
         + (
             'def __getattr__(name):\n'
-            f'    raise AttributeError({missing_detail!r})\n'
+            f'    raise {failure_type}({failure_detail!r})\n'
             if missing_symbol is not None
             else ''
         ),
@@ -5473,14 +5503,19 @@ def _write_probe_target(
     )
 
 
-def _build_strict_descendant_shim(tmp_path, owner):
+def _build_dependency_import_shim(tmp_path, owner):
     package_dir = tmp_path / owner
+    if owner == 'pydantic':
+        package_dir.mkdir()
+        owner_path = package_dir / '__init__.py'
+        _write_probe_target(owner_path, PYDANTIC_ROOT_SYMBOLS)
+        return {'pydantic': owner_path}
+
     target_symbols = STRICT_DESCENDANT_TARGET_SYMBOLS[owner]
     if owner == 'matplotlib':
-        real_spec = agent_state.importlib.util.find_spec(owner)
-        assert real_spec is not None
-        assert real_spec.origin is not None
-        real_package_dir = Path(real_spec.origin).parent
+        assert REAL_MATPLOTLIB_SPEC is not None
+        assert REAL_MATPLOTLIB_SPEC.origin is not None
+        real_package_dir = Path(REAL_MATPLOTLIB_SPEC.origin).parent
         package_dir.mkdir()
         for child in real_package_dir.iterdir():
             if child.name == '__pycache__':
@@ -5508,7 +5543,9 @@ def _build_strict_descendant_shim(tmp_path, owner):
     return target_paths
 
 
-def _strict_descendant_consumer_statement(owner):
+def _dependency_import_consumer_statement(owner):
+    if owner == 'pydantic':
+        return 'from pydantic import BaseModel, Field'
     if owner == 'matplotlib':
         return 'import matplotlib.pyplot as plt'
     if owner == 'torch':
@@ -5521,7 +5558,7 @@ def _strict_descendant_consumer_statement(owner):
 
 @pytest.mark.parametrize(
     ('mutation', 'owner', 'target', 'missing_symbol'),
-    STRICT_DESCENDANT_PROBE_CASES,
+    ACTIVE_IMPORT_PROBE_CASES,
     ids=[
         '-'.join(filter(None, (
             owner,
@@ -5530,10 +5567,10 @@ def _strict_descendant_consumer_statement(owner):
             missing_symbol,
         )))
         for mutation, owner, target, missing_symbol
-        in STRICT_DESCENDANT_PROBE_CASES
+        in ACTIVE_IMPORT_PROBE_CASES
     ],
 )
-def test_public_dependency_probe_rejects_invalid_strict_descendant_import(
+def test_public_dependency_probe_rejects_invalid_active_import(
     monkeypatch,
     tmp_path,
     cleared_dependency_import_probe_cache,
@@ -5542,7 +5579,7 @@ def test_public_dependency_probe_rejects_invalid_strict_descendant_import(
     target,
     missing_symbol,
 ):
-    target_paths = _build_strict_descendant_shim(tmp_path, owner)
+    target_paths = _build_dependency_import_shim(tmp_path, owner)
     monkeypatch.syspath_prepend(str(tmp_path))
     existing_pythonpath = os.environ.get('PYTHONPATH', '')
     monkeypatch.setenv(
@@ -5572,7 +5609,7 @@ def test_public_dependency_probe_rejects_invalid_strict_descendant_import(
     monkeypatch.setattr(agent_state.subprocess, 'run', selective_run)
     probe_environment = os.environ.copy()
     probe_environment['PYTHONDONTWRITEBYTECODE'] = '1'
-    consumer_statement = _strict_descendant_consumer_statement(owner)
+    consumer_statement = _dependency_import_consumer_statement(owner)
     baseline_consumer = real_run(
         [sys.executable, '-c', consumer_statement],
         cwd=ROOT,
@@ -5583,7 +5620,7 @@ def test_public_dependency_probe_rejects_invalid_strict_descendant_import(
     )
     assert baseline_consumer.returncode == 0
     cache_transition_control = (
-        owner == 'matplotlib'
+        owner in {'matplotlib', 'pydantic'}
         or mutation == 'raising-target'
     )
     if cache_transition_control:
@@ -5592,7 +5629,9 @@ def test_public_dependency_probe_rejects_invalid_strict_descendant_import(
         assert owner_probe_calls == 1
 
     private_diagnostic = (
-        f'synthetic private {owner} strict-descendant failure'
+        f'missing synthetic symbol: {missing_symbol}'
+        if mutation == 'missing-symbol'
+        else f'synthetic private {owner} active-import failure'
     )
     target_path = target_paths[target]
     if mutation == 'missing-target':
@@ -5604,10 +5643,20 @@ def test_public_dependency_probe_rejects_invalid_strict_descendant_import(
             import_failure=private_diagnostic,
         )
     else:
+        target_symbols = (
+            PYDANTIC_ROOT_SYMBOLS
+            if owner == 'pydantic'
+            else STRICT_DESCENDANT_TARGET_SYMBOLS[owner][target]
+        )
         _write_probe_target(
             target_path,
-            STRICT_DESCENDANT_TARGET_SYMBOLS[owner][target],
+            target_symbols,
             missing_symbol=missing_symbol,
+            symbol_failure=(
+                private_diagnostic
+                if mutation == 'raising-symbol'
+                else None
+            ),
         )
     _reset_dependency_owner_modules(monkeypatch, owner)
     direct_consumer = real_run(
@@ -5637,8 +5686,16 @@ def test_public_dependency_probe_rejects_invalid_strict_descendant_import(
         assert owner_check['available'] is False
         assert owner_check['failure_category'] == 'nonzero_exit'
         assert private_diagnostic not in json.dumps(validation)
+        if owner == 'pydantic':
+            assert owner_check['import_probe_targets'] == []
+            assert owner_check['import_probe_symbols'] == {
+                'pydantic': list(PYDANTIC_ROOT_SYMBOLS),
+            }
 
-    if owner == 'matplotlib' and mutation != 'missing-symbol':
+    if (
+        owner == 'matplotlib' and mutation != 'missing-symbol'
+        or owner == 'pydantic' and mutation == 'raising-symbol'
+    ):
         completed = real_run(
             [
                 sys.executable,
@@ -5912,6 +5969,8 @@ def test_dependency_import_probe_cache_is_consulted_before_shared_budget(
         ROOT,
         'pydantic',
         (),
+        (),
+        (('pydantic', PYDANTIC_ROOT_SYMBOLS),),
     )
     agent_state._DEPENDENCY_IMPORT_PROBE_CACHE[cached_key] = (True, None)
     monkeypatch.setattr(

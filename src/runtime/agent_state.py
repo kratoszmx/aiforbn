@@ -349,7 +349,9 @@ DEPENDENCY_IMPORT_PROBE_SCRIPT = (
     'probe_plan = json.loads(sys.argv[3])\n'
     'for module_name in probe_plan["preloads"]:\n'
     '    importlib.import_module(module_name)\n'
-    'importlib.import_module(sys.argv[2])\n'
+    'owner_module = importlib.import_module(sys.argv[2])\n'
+    'for symbol_name in probe_plan["symbols"].get(sys.argv[2], []):\n'
+    '    getattr(owner_module, symbol_name)\n'
     'for module_name in probe_plan["targets"]:\n'
     '    target_module = importlib.import_module(module_name)\n'
     '    for symbol_name in probe_plan["symbols"].get(module_name, []):\n'
@@ -3270,6 +3272,10 @@ def _validate_dependency_contract(
                 and bool(raw_import_probe_symbols)
             )
             normalized_symbol_map: dict[str, tuple[str, ...]] = {}
+            allowed_symbol_targets = (
+                record['module'],
+                *import_probe_targets,
+            )
             if symbols_are_valid:
                 for target, raw_symbols in raw_import_probe_symbols.items():
                     if not isinstance(target, str):
@@ -3277,7 +3283,7 @@ def _validate_dependency_contract(
                         break
                     normalized_target = target.strip()
                     if (
-                        normalized_target not in import_probe_targets
+                        normalized_target not in allowed_symbol_targets
                         or normalized_target in normalized_symbol_map
                         or not isinstance(raw_symbols, list)
                         or not raw_symbols
@@ -3304,14 +3310,15 @@ def _validate_dependency_contract(
                     (
                         '`import_probe_symbols`, when present, must be a '
                         'non-empty target-to-symbol-list mapping whose targets '
-                        'are declared probe targets and whose symbols are '
+                        'are the dependency owner or declared probe targets '
+                        'and whose symbols are '
                         'non-empty, unique valid identifiers.'
                     ),
                 )
             else:
                 import_probe_symbols = tuple(
                     (target, normalized_symbol_map[target])
-                    for target in import_probe_targets
+                    for target in allowed_symbol_targets
                     if target in normalized_symbol_map
                 )
         record['import_probe_symbols'] = import_probe_symbols
