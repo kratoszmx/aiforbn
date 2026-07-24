@@ -2800,7 +2800,11 @@ def _source_import_analysis(
     }
     unsupported_dynamic_import_lines: set[int] = set()
 
-    def record_literal_module(module_name: str, line_number: int) -> None:
+    def record_literal_module(
+        module_name: str,
+        line_number: int,
+        symbol: str | None = None,
+    ) -> None:
         if module_name.startswith('.'):
             return
         if not IMPORT_MODULE_PATTERN.fullmatch(module_name):
@@ -2808,7 +2812,37 @@ def _source_import_analysis(
             return
         import_roots.add(module_name.split('.', 1)[0])
         if '.' in module_name:
-            descendant_imports.add((module_name, None))
+            descendant_imports.add((module_name, symbol))
+        elif symbol is not None:
+            root_import_symbols.add((module_name, symbol))
+
+    def bind_missing_literal_symbol(node: ast.Call) -> tuple[bool, str | None]:
+        if (
+            len(node.args) not in {2, 3}
+            or any(
+                keyword_node.arg != 'attr_name'
+                for keyword_node in node.keywords
+            )
+        ):
+            return False, None
+        attr_nodes = [
+            *node.args[2:],
+            *(
+                keyword_node.value
+                for keyword_node in node.keywords
+                if keyword_node.arg == 'attr_name'
+            ),
+        ]
+        if len(attr_nodes) > 1:
+            return False, None
+        if not attr_nodes:
+            return True, None
+        attr_node = attr_nodes[0]
+        if not isinstance(attr_node, ast.Constant) or not (
+            attr_node.value is None or isinstance(attr_node.value, str)
+        ):
+            return False, None
+        return True, attr_node.value
 
     for node in calls:
         if id(node) in direct_bind_missing_call_ids:
@@ -2817,7 +2851,15 @@ def _source_import_analysis(
                 and isinstance(node.args[1], ast.Constant)
                 and isinstance(node.args[1].value, str)
             ):
-                record_literal_module(node.args[1].value, node.lineno)
+                attr_is_literal, symbol = bind_missing_literal_symbol(node)
+                if not attr_is_literal:
+                    unsupported_dynamic_import_lines.add(node.lineno)
+                    continue
+                record_literal_module(
+                    node.args[1].value,
+                    node.lineno,
+                    symbol,
+                )
             else:
                 unsupported_dynamic_import_lines.add(node.lineno)
             continue

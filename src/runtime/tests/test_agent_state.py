@@ -376,6 +376,22 @@ def _dependency_by_package(manifest, package):
     )
 
 
+def _declare_test_dependency_probe(
+    manifest,
+    package,
+    *,
+    target=None,
+    symbol=None,
+):
+    dependency = _dependency_by_package(manifest, package)
+    if target is not None:
+        dependency['import_probe_targets'] = [target]
+    if symbol is not None:
+        dependency['import_probe_symbols'] = {
+            target or dependency['module']: [symbol],
+        }
+
+
 def _swap_dependency_modules(manifest, left_package, right_package):
     left = _dependency_by_package(manifest, left_package)
     right = _dependency_by_package(manifest, right_package)
@@ -1184,7 +1200,12 @@ def _validate_agent_layout_with_source_prefix(
     return validate_agent_layout(ROOT, manifest)
 
 
-def _validate_agent_layout_with_main_suffix(monkeypatch, source_suffix):
+def _validate_agent_layout_with_main_suffix(
+    monkeypatch,
+    source_suffix,
+    *,
+    manifest=None,
+):
     original_read = agent_state._read_text_if_present
     target_path = (ROOT / 'main.py').resolve()
 
@@ -1198,7 +1219,7 @@ def _validate_agent_layout_with_main_suffix(monkeypatch, source_suffix):
 
     monkeypatch.setattr(agent_state, '_read_text_if_present', read_with_indirect_loader)
 
-    return validate_agent_layout(ROOT)
+    return validate_agent_layout(ROOT, manifest)
 
 
 @pytest.mark.parametrize(
@@ -5016,6 +5037,155 @@ def test_validate_agent_layout_keeps_real_bind_missing_calls_identity_bound(
         and error['path'] == 'main.py'
         for error in validation['errors']
     )
+
+
+@pytest.mark.parametrize(
+    ('source_suffix', 'package', 'target', 'symbol', 'expected_code'),
+    [
+        (
+            '_bind_missing("numpy_inv_probe", "numpy.linalg", "inv")\n',
+            'numpy',
+            'numpy.linalg',
+            'inv',
+            'unprobed_dependency_import_symbol',
+        ),
+        (
+            '_bind_missing("pandas_dataframe_probe", "pandas", "DataFrame")\n',
+            'pandas',
+            None,
+            'DataFrame',
+            'unprobed_dependency_root_symbol',
+        ),
+        (
+            '_bind_missing(\n'
+            '    "numpy_inv_probe", "numpy.linalg", attr_name="inv"\n'
+            ')\n',
+            'numpy',
+            'numpy.linalg',
+            'inv',
+            'unprobed_dependency_import_symbol',
+        ),
+        (
+            'attr_name = "inv"\n'
+            '_bind_missing("numpy_inv_probe", "numpy.linalg", attr_name)\n',
+            'numpy',
+            'numpy.linalg',
+            None,
+            'unsupported_dynamic_import',
+        ),
+        (
+            'attr_name = "inv"\n'
+            '_bind_missing(\n'
+            '    "numpy_inv_probe", "numpy.linalg", attr_name=attr_name\n'
+            ')\n',
+            'numpy',
+            'numpy.linalg',
+            None,
+            'unsupported_dynamic_import',
+        ),
+    ],
+    ids=(
+        'descendant-positional-literal',
+        'root-positional-literal',
+        'descendant-keyword-literal',
+        'descendant-positional-nonliteral',
+        'descendant-keyword-nonliteral',
+    ),
+)
+def test_validate_agent_layout_enforces_bind_missing_attribute_contract(
+    monkeypatch,
+    source_suffix,
+    package,
+    target,
+    symbol,
+    expected_code,
+):
+    manifest = json.loads(json.dumps(load_agent_manifest(ROOT)))
+    if target is not None:
+        _declare_test_dependency_probe(manifest, package, target=target)
+
+    validation = _validate_agent_layout_with_main_suffix(
+        monkeypatch,
+        source_suffix,
+        manifest=manifest,
+    )
+
+    matching_errors = [
+        error
+        for error in validation['errors']
+        if error['code'] == expected_code
+    ]
+    assert len(matching_errors) == 1
+    error = matching_errors[0]
+    assert error['path'] == 'main.py'
+    if expected_code != 'unsupported_dynamic_import':
+        assert error['module'] == package
+        assert error['symbol'] == symbol
+        if target is not None:
+            assert error['target'] == target
+    assert validation['status'] == 'error'
+
+
+@pytest.mark.parametrize(
+    ('source_suffix', 'package', 'target', 'symbol'),
+    [
+        (
+            '_bind_missing("numpy_inv_probe", "numpy.linalg", "inv")\n',
+            'numpy',
+            'numpy.linalg',
+            'inv',
+        ),
+        (
+            '_bind_missing(\n'
+            '    "numpy_inv_probe", "numpy.linalg", attr_name="inv"\n'
+            ')\n',
+            'numpy',
+            'numpy.linalg',
+            'inv',
+        ),
+        (
+            '_bind_missing("pandas_dataframe_probe", "pandas", "DataFrame")\n',
+            'pandas',
+            None,
+            'DataFrame',
+        ),
+        (
+            '_bind_missing("pandas_probe", "pandas", None)\n',
+            'pandas',
+            None,
+            None,
+        ),
+    ],
+    ids=(
+        'descendant-positional-exact',
+        'descendant-keyword-exact',
+        'root-exact',
+        'explicit-none',
+    ),
+)
+def test_validate_agent_layout_accepts_exact_bind_missing_attribute_contract(
+    monkeypatch,
+    source_suffix,
+    package,
+    target,
+    symbol,
+):
+    manifest = json.loads(json.dumps(load_agent_manifest(ROOT)))
+    _declare_test_dependency_probe(
+        manifest,
+        package,
+        target=target,
+        symbol=symbol,
+    )
+
+    validation = _validate_agent_layout_with_main_suffix(
+        monkeypatch,
+        source_suffix,
+        manifest=manifest,
+    )
+
+    assert validation['status'] == 'ok'
+    assert validation['errors'] == []
 
 
 @pytest.mark.parametrize(
