@@ -210,6 +210,32 @@ CFG = {
 }
 
 
+def _small_torch_model_config(model_type: str) -> dict:
+    """Keep tiny CPU training settings shared across model integration tests."""
+    common = {
+        'dropout': 0.0,
+        'learning_rate': 0.01,
+        'weight_decay': 0.0,
+        'max_epochs': 8,
+        'patience': 2,
+        'min_delta': 0.0,
+        'val_fraction': 0.2,
+        'device': 'cpu',
+        'random_seed': 42,
+    }
+    if model_type in {'torch_mlp', 'torch_mlp_ensemble'}:
+        common.update(hidden_dim=32, depth=2)
+        if model_type == 'torch_mlp_ensemble':
+            common['member_seeds'] = [42, 43]
+    else:
+        common.update(embedding_dim=32, head_hidden_dim=32, expected_input_dim=118)
+        if model_type == 'torch_roost_like':
+            common.update(num_message_layers=2, message_hidden_dim=48)
+        else:
+            common.update(num_heads=4, num_layers=2)
+    return common
+
+
 def _sample_training_df() -> pd.DataFrame:
     formulas = [
         'BN', 'BN', 'AlN', 'AlN', 'GaN', 'GaN', 'InN', 'InN', 'BP', 'BP',
@@ -496,54 +522,8 @@ def test_select_feature_model_combo_marks_attention_models_as_feature_specific()
         'torch_sparse_fractional_attention',
         'torch_roost_like',
     ]
-    selection_cfg['model']['torch_fractional_attention'] = {
-        'embedding_dim': 32,
-        'num_heads': 4,
-        'num_layers': 2,
-        'head_hidden_dim': 32,
-        'dropout': 0.0,
-        'learning_rate': 0.01,
-        'weight_decay': 0.0,
-        'max_epochs': 8,
-        'patience': 2,
-        'min_delta': 0.0,
-        'val_fraction': 0.2,
-        'device': 'cpu',
-        'random_seed': 42,
-        'expected_input_dim': 118,
-    }
-    selection_cfg['model']['torch_sparse_fractional_attention'] = {
-        'embedding_dim': 32,
-        'num_heads': 4,
-        'num_layers': 2,
-        'head_hidden_dim': 32,
-        'dropout': 0.0,
-        'learning_rate': 0.01,
-        'weight_decay': 0.0,
-        'max_epochs': 8,
-        'patience': 2,
-        'min_delta': 0.0,
-        'val_fraction': 0.2,
-        'device': 'cpu',
-        'random_seed': 42,
-        'expected_input_dim': 118,
-    }
-    selection_cfg['model']['torch_roost_like'] = {
-        'embedding_dim': 32,
-        'num_message_layers': 2,
-        'message_hidden_dim': 48,
-        'head_hidden_dim': 32,
-        'dropout': 0.0,
-        'learning_rate': 0.01,
-        'weight_decay': 0.0,
-        'max_epochs': 8,
-        'patience': 2,
-        'min_delta': 0.0,
-        'val_fraction': 0.2,
-        'device': 'cpu',
-        'random_seed': 42,
-        'expected_input_dim': 118,
-    }
+    for model_type in selection_cfg['model']['candidate_types'][1:]:
+        selection_cfg['model'][model_type] = _small_torch_model_config(model_type)
     dataset_df = _sample_training_df()
     feature_tables = build_feature_tables(dataset_df, selection_cfg)
     split_masks = make_split_masks(dataset_df, selection_cfg)
@@ -1515,86 +1495,22 @@ def test_screen_candidates_can_apply_bn_local_band_gap_alignment_penalty():
     assert ge2bn_row['bn_band_gap_alignment_penalty'] <= 0.08 + 1e-12
 
 
-def test_fractional_composition_feature_table_and_torch_models_fit_predict():
+@pytest.mark.parametrize('model_type', [
+    'torch_mlp',
+    'torch_mlp_ensemble',
+    'torch_fractional_attention',
+    'torch_sparse_fractional_attention',
+    'torch_roost_like',
+])
+def test_fractional_composition_feature_table_and_torch_models_fit_predict(model_type):
     pytest.importorskip('torch')
 
     cfg = copy.deepcopy(CFG)
     cfg['features']['candidate_sets'] = [FRACTIONAL_COMPOSITION_FEATURE_SET]
-    cfg['model']['torch_mlp'] = {
-        'hidden_dim': 32,
-        'depth': 2,
-        'dropout': 0.0,
-        'learning_rate': 0.01,
-        'weight_decay': 0.0,
-        'max_epochs': 12,
-        'patience': 3,
-        'min_delta': 0.0,
-        'val_fraction': 0.2,
-        'device': 'cpu',
-        'random_seed': 42,
-    }
-    cfg['model']['torch_mlp_ensemble'] = {
-        'hidden_dim': 32,
-        'depth': 2,
-        'dropout': 0.0,
-        'learning_rate': 0.01,
-        'weight_decay': 0.0,
-        'max_epochs': 10,
-        'patience': 2,
-        'min_delta': 0.0,
-        'val_fraction': 0.2,
-        'device': 'cpu',
-        'random_seed': 42,
-        'member_seeds': [42, 43],
-    }
-    cfg['model']['torch_fractional_attention'] = {
-        'embedding_dim': 32,
-        'num_heads': 4,
-        'num_layers': 2,
-        'head_hidden_dim': 32,
-        'dropout': 0.0,
-        'learning_rate': 0.01,
-        'weight_decay': 0.0,
-        'max_epochs': 10,
-        'patience': 2,
-        'min_delta': 0.0,
-        'val_fraction': 0.2,
-        'device': 'cpu',
-        'random_seed': 42,
-        'expected_input_dim': 118,
-    }
-    cfg['model']['torch_sparse_fractional_attention'] = {
-        'embedding_dim': 32,
-        'num_heads': 4,
-        'num_layers': 2,
-        'head_hidden_dim': 32,
-        'dropout': 0.0,
-        'learning_rate': 0.01,
-        'weight_decay': 0.0,
-        'max_epochs': 10,
-        'patience': 2,
-        'min_delta': 0.0,
-        'val_fraction': 0.2,
-        'device': 'cpu',
-        'random_seed': 42,
-        'expected_input_dim': 118,
-    }
-    cfg['model']['torch_roost_like'] = {
-        'embedding_dim': 32,
-        'num_message_layers': 2,
-        'message_hidden_dim': 48,
-        'head_hidden_dim': 32,
-        'dropout': 0.0,
-        'learning_rate': 0.01,
-        'weight_decay': 0.0,
-        'max_epochs': 10,
-        'patience': 2,
-        'min_delta': 0.0,
-        'val_fraction': 0.2,
-        'device': 'cpu',
-        'random_seed': 42,
-        'expected_input_dim': 118,
-    }
+    cfg['model'][model_type] = _small_torch_model_config(model_type)
+    cfg['model'][model_type]['max_epochs'] = 12 if model_type == 'torch_mlp' else 10
+    if model_type == 'torch_mlp':
+        cfg['model'][model_type]['patience'] = 3
 
     dataset_df = _sample_training_df()
     split_masks = make_split_masks(dataset_df, cfg)
@@ -1607,47 +1523,25 @@ def test_fractional_composition_feature_table_and_torch_models_fit_predict():
     assert feature_df['frac_b'].sum() > 0.0
     assert feature_df['frac_n'].sum() > 0.0
 
-    for model_type in [
-        'torch_mlp',
-        'torch_mlp_ensemble',
-        'torch_fractional_attention',
-        'torch_sparse_fractional_attention',
-        'torch_roost_like',
-    ]:
-        model, feature_columns = train_baseline_model(
-            feature_df,
-            split_masks,
-            cfg,
-            model_type=model_type,
-            include_validation=False,
-        )
-        metrics, prediction_df = evaluate_predictions(feature_df, split_masks, model, feature_columns)
+    model, feature_columns = train_baseline_model(
+        feature_df,
+        split_masks,
+        cfg,
+        model_type=model_type,
+        include_validation=False,
+    )
+    metrics, prediction_df = evaluate_predictions(feature_df, split_masks, model, feature_columns)
 
-        assert prediction_df['prediction'].notna().all()
-        assert np.isfinite(prediction_df['prediction']).all()
-        assert metrics['mae'] >= 0.0
+    assert prediction_df['prediction'].notna().all()
+    assert np.isfinite(prediction_df['prediction']).all()
+    assert metrics['mae'] >= 0.0
 
-    ensemble_model = make_model(cfg, model_type='torch_mlp_ensemble')
-    feature_columns = [column for column in feature_df.columns if column.startswith('frac_')]
-    ensemble_model.fit(feature_df[feature_columns], feature_df['target'])
-    member_predictions = ensemble_model.predict_members(feature_df[feature_columns])
-    assert member_predictions.shape[0] == 2
-    assert member_predictions.shape[1] == len(feature_df)
-
-    attention_model = make_model(cfg, model_type='torch_fractional_attention')
-    attention_model.fit(feature_df[feature_columns], feature_df['target'])
-    attention_predictions = attention_model.predict(feature_df[feature_columns])
-    assert np.isfinite(attention_predictions).all()
-
-    sparse_attention_model = make_model(cfg, model_type='torch_sparse_fractional_attention')
-    sparse_attention_model.fit(feature_df[feature_columns], feature_df['target'])
-    sparse_attention_predictions = sparse_attention_model.predict(feature_df[feature_columns])
-    assert np.isfinite(sparse_attention_predictions).all()
-
-    roost_like_model = make_model(cfg, model_type='torch_roost_like')
-    roost_like_model.fit(feature_df[feature_columns], feature_df['target'])
-    roost_like_predictions = roost_like_model.predict(feature_df[feature_columns])
-    assert np.isfinite(roost_like_predictions).all()
+    if model_type == 'torch_mlp_ensemble':
+        features = feature_df[feature_columns]
+        member_predictions = model.predict_members(features)
+        assert member_predictions.shape == (2, len(feature_df))
+        assert np.isfinite(member_predictions).all()
+        np.testing.assert_allclose(model.predict(features), member_predictions.mean(axis=0))
 
 
 def test_torch_mlp_ensemble_expands_candidate_uncertainty_sources():
@@ -1657,20 +1551,8 @@ def test_torch_mlp_ensemble_expands_candidate_uncertainty_sources():
     cfg['features']['candidate_sets'] = [FRACTIONAL_COMPOSITION_FEATURE_SET]
     cfg['model']['type'] = 'torch_mlp_ensemble'
     cfg['model']['candidate_types'] = ['torch_mlp_ensemble']
-    cfg['model']['torch_mlp_ensemble'] = {
-        'hidden_dim': 24,
-        'depth': 2,
-        'dropout': 0.0,
-        'learning_rate': 0.01,
-        'weight_decay': 0.0,
-        'max_epochs': 8,
-        'patience': 2,
-        'min_delta': 0.0,
-        'val_fraction': 0.2,
-        'device': 'cpu',
-        'random_seed': 42,
-        'member_seeds': [42, 43],
-    }
+    cfg['model']['torch_mlp_ensemble'] = _small_torch_model_config('torch_mlp_ensemble')
+    cfg['model']['torch_mlp_ensemble']['hidden_dim'] = 24
 
     dataset_df = _sample_training_df()
     split_masks = make_split_masks(dataset_df, cfg)
@@ -1704,22 +1586,9 @@ def test_candidate_prediction_members_skip_incompatible_attention_feature_pairs(
         FRACTIONAL_COMPOSITION_FEATURE_SET,
     ]
     cfg['model']['candidate_types'] = ['linear_regression', 'torch_fractional_attention']
-    cfg['model']['torch_fractional_attention'] = {
-        'embedding_dim': 32,
-        'num_heads': 4,
-        'num_layers': 2,
-        'head_hidden_dim': 32,
-        'dropout': 0.0,
-        'learning_rate': 0.01,
-        'weight_decay': 0.0,
-        'max_epochs': 8,
-        'patience': 2,
-        'min_delta': 0.0,
-        'val_fraction': 0.2,
-        'device': 'cpu',
-        'random_seed': 42,
-        'expected_input_dim': 118,
-    }
+    cfg['model']['torch_fractional_attention'] = _small_torch_model_config(
+        'torch_fractional_attention'
+    )
 
     dataset_df = _sample_training_df()
     split_masks = make_split_masks(dataset_df, cfg)

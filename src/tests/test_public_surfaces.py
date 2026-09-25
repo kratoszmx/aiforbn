@@ -732,6 +732,8 @@ def test_manifest_pytest_commands_require_a_passed_call_phase(tmp_path):
     environment = os.environ.copy()
     environment.pop('PYTHONPATH', None)
     environment.pop('PYTEST_ADDOPTS', None)
+    environment.pop('PYTEST_PLUGINS', None)
+    environment['PYTEST_DISABLE_PLUGIN_AUTOLOAD'] = '1'
     environment['PYTHONDONTWRITEBYTECODE'] = '1'
 
     def run_pytest(*arguments):
@@ -742,6 +744,7 @@ def test_manifest_pytest_commands_require_a_passed_call_phase(tmp_path):
             capture_output=True,
             text=True,
             env=environment,
+            timeout=30,
         )
 
     write_all_tests(skipped_test)
@@ -758,6 +761,25 @@ def test_manifest_pytest_commands_require_a_passed_call_phase(tmp_path):
         assert collected.returncode == 0
         assert 'passed no non-xfail test calls' not in collected.stdout
 
+    for test_body, outcome in [('assert False', 'xfailed'), ('assert True', 'xpassed')]:
+        write_all_tests(
+            'import pytest\n'
+            '@pytest.mark.xfail(strict=False, reason="expected failure")\n'
+            f'def test_contract():\n    {test_body}\n'
+        )
+        result = run_pytest('src')
+        assert result.returncode == 1, result.stdout + result.stderr
+        assert outcome in result.stdout
+        assert 'ERROR: full_src_tests passed no non-xfail test calls.' in result.stdout
+
+        # An expected-failure marker must not hide a separate, real passed call.
+        write_test(focused_targets[0], passed_test)
+        mixed = run_pytest('src')
+        assert mixed.returncode == 0, mixed.stdout + mixed.stderr
+        assert '1 passed' in mixed.stdout
+        assert outcome in mixed.stdout
+
+    write_all_tests(skipped_test)
     partial = run_pytest(focused_targets[0])
     assert partial.returncode == 0
     assert 'passed no non-xfail test calls' not in partial.stdout
