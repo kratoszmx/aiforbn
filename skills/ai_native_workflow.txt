@@ -1,56 +1,21 @@
-AI-native workflow guidance for aiforbn.
+AI-native runtime routing for aiforbn.
 
-Purpose:
-- Operate this repository as an autonomous-agent research codebase.
-- Optimize only for agent search, execution, verification, rollback, and handoff.
-- Do not optimize for manual operation, onboarding, notebooks, tutorials, or user-facing ergonomics.
-- Preserve scientific honesty: candidate ranking is low-confidence formula-level follow-up prioritization, not discovery.
+HUMAN_DOCS_POLICY=user_owned_read_only_unless_explicit_human_document_task
+human_docs/ is user-owned context, not agent state; changes require an explicit task for those documents.
 
-Canonical agent state:
-- `HUMAN_DOCS_POLICY=user_owned_read_only_unless_explicit_human_document_task`.
-- `human_docs/` is user-owned, read-only unless the task explicitly requests human-document work, and never an agent contract or state surface.
-- First inspection: `python3 main.py --verify-agent-contract`.
-- Command index: `python3 main.py --emit-agent-commands`.
-- Machine-readable contract: `docs/AGENT_MANIFEST.json`.
-- Human-style manuals are noncanonical; do not add root `README.md` or restore retired skill shards.
+Start with AGENTS.md and HANDOFF.md. Use the nearest module instructions/API summary for implementation details; COMMON_FUNCTIONS.md routes shared helpers, TESTING.md explains execution, and SERVICES.md describes the optional viewer.
 
-First reads before edits:
-1. `AGENTS.md`
-2. `docs/AGENT_MANIFEST.json`
-3. `docs/HANDOFF.md`
-4. Nearest module `AGENTS.md` when touching `src/**`
-5. This file
+First inspection: python3 main.py --verify-agent-contract
+Command index: python3 main.py --emit-agent-commands
+Run both with the verified quant interpreter (see TESTING.md).
 
-Architecture contract:
-- `runtime` owns config loading, runtime dirs, cache clearing, schemas, agent-state, and command-index inspection.
-- `materials` owns dataset, features, models, benchmarks, screening, reporting, and structure artifacts.
-- `torch_models` owns repo-local sklearn-style PyTorch regressors.
-- `ui` is artifact display only; it is never the primary operation surface.
-- `src/tests` is pytest coverage, not a production API.
-- Keep `main.py` linear as an agent trace of the pipeline; do not turn it into a wrapper launcher.
-- Do not add wrapper compatibility layers for old module names; directly update imports and tests.
+Select from the emitted profiles:
+- `architecture_doc_skill_edit`: documentation, skills, handoff, manifest.
+- `module_logic_edit`: public API, dependency, model or module logic.
+- `scientific_pipeline_edit`: scientific pipeline/artifact behavior; recompute only when the task needs fresh outputs.
+- `ui_edit`: UI/rendering; bounded HTTP startup checks are useful when launch wiring changes.
+The manifest's requires/provides fields define coverage; the smallest sufficient profile is normally enough.
 
-Validation profiles:
-- Architecture/docs/skills/contract edit: run emitted profile `architecture_doc_skill_edit`.
-- UI edit: run emitted profile `ui_edit`; use a bounded real headless server health check when startup wiring changes.
-- Public Python/module logic edit: run emitted profile `module_logic_edit`.
-- Scientific pipeline or artifact-logic edit: run emitted profile `scientific_pipeline_edit`; run full `python3 main.py` only when regenerated artifacts are required or the task explicitly asks for full recomputation.
-- Treat each profile's machine-readable `requires` and each command's `provides` as the reachability contract; do not copy command sequences into guidance prose.
-- Always prefer the smallest validation profile that proves the touched behavior.
-- Avoid unbounded long-running commands. If a full pipeline run is necessary, make the expected runtime and artifact writes explicit first.
-
-Testing policy:
-- Clear project cache through `runtime.clear_project_cache('.')` or existing project helpers before meaningful validation.
-- Important behavior needs tests; line-by-line coverage is not the goal.
-- Use small deterministic pilots before expanding expensive scientific changes.
-- Update the nearest `PY_FILES_SUMMARY.md` when public commands, functions, classes, or module boundaries change.
-
-Delegation policy:
-- Before risky edits, establish the recovery path and ask the smallest user question only for a true blocker.
-- Use `spark_coder` only for low-risk, narrow, quickly verifiable coding/debug slices.
-- Give delegated coding agents English, file-scoped, validation-scoped prompts.
-- Main Codex must inspect diffs and verification results before accepting subagent output.
-
-Retired guidance:
-- Legacy files `skills/codex_skill.txt`, `skills/coding_skill.txt`, `skills/docs_skill.txt`, `skills/model_skill.txt`, `skills/python_skill.txt`, `skills/template.txt`, and `skills/workflow.txt` are retired.
-- Their still-current rules are consolidated here, in `AGENTS.md`, in module `AGENTS.md`, or in repo-scoped `.agents/skills/*/SKILL.md`.
+Preserve formula-only screening, grouped evaluation, and the distinction between ranking, unrelaxed prototypes, and physical validation. Use provenance to assess artifact currentness.
+Keep main.py traceable and cross-module calls on documented public APIs. Reuse helpers where compatible without discarding project-specific guards.
+The repo-scoped workflow skill carries maintenance decisions; the proposal skill applies to authorized research-plan/Overleaf work. Legacy guidance files listed as retired in the manifest remain retired.

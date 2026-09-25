@@ -60,3 +60,7 @@ Anything underscore-prefixed or omitted here should be treated as internal.
 
 - No public functions are currently exposed.
 - Internal pure-stdlib helpers centralize filesystem identity/descendant and symlink-component checks for the two runtime guard surfaces; the project-specific human-document policy remains in this repository rather than `myutils`.
+
+## tests/
+
+Run `conda run -n quant python -m pytest -q src/runtime/tests` from the repository root. `test_agent_state.py` covers manifest/skill/dependency and command-index contracts; `test_io_utils.py` covers config, JSON, path/cache guards and provenance; `test_schema.py` covers the data schemas. Environment, profile selection and result interpretation are in [TESTING.md](../../TESTING.md).

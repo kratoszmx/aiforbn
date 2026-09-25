@@ -1,69 +1,49 @@
-# AGENTS.md
+# aiforbn — agent entrypoint
 
-This repository is maintained for autonomous AI agents. Do not treat it as an app, tutorial, or manual workflow.
+`aiforbn` is a research PoC for boron-nitride (BN) themed materials screening. It loads 2D-material data, predicts band gaps, evaluates formula/family holdouts, ranks formula-only candidates, and builds deterministic unrelaxed structure prototypes for follow-up. Ranking and prototype generation do not establish discovery, stability, synthesizability, or a direct band gap.
 
-## Purpose
+## First useful run
 
-`aiforbn` is a research-grade AI-for-BN demo project.
+Run from the repository root with Conda `quant` and the local `myutils` checkout available:
 
-The project combines literature/research planning, materials data pipelines, structure generation, model experiments, reporting, and demo artifacts. Treat `.agents/skills/aiforbn-workflow/SKILL.md` and `.agents/skills/aiforbn-overleaf-proposal/SKILL.md` as the repo-scoped Codex skills. Treat `skills/ai_native_workflow.txt` as the compact project runtime guidance. Treat `human_docs/research_context/deep-research-report.md` and `human_docs/research_context/poc_workflow_brief.txt` as read-only research/planning context rather than fixed or agent-owned contracts.
+```sh
+conda run -n quant python -c 'import sys; print(sys.executable)'
+conda run -n quant python main.py --verify-agent-contract
+conda run -n quant python main.py --emit-agent-commands
+conda run -n quant python main.py --dry-run
+```
 
-## Human Document Boundary
+The first command should resolve inside `envs/quant`. [TESTING.md](TESTING.md) explains interpreter/PATH diagnosis, the `MYUTILS_ROOT` override, validation profiles, and results. Inspection emits JSON; dry-run checks config, candidate features, and model construction without training or rewriting research outputs. It can clear caches and create configured runtime directories.
 
-- `HUMAN_DOCS_POLICY=user_owned_read_only_unless_explicit_human_document_task`
-- Everything under `human_docs/` is user-owned and read-only unless the current task explicitly requests human-document work. It may provide evidence or context, but it is never agent-owned state or an AI-facing source of truth.
+For an authorized artifact refresh, `conda run -n quant python main.py` runs the complete pipeline using [src/config.py](src/config.py). A raw-cache miss can download the dataset; the run writes data caches and `artifacts/`. Inspect provenance before interpreting existing results.
 
-## AI-Native Working Mode
+## Find the right context
 
-- Optimize structure, names, docs, scripts, and state records for agent search, execution, verification, rollback, and handoff.
-- Do not optimize this repository for onboarding or manual operation.
-- Prefer `AGENTS.md` as the root entry point. Root `README.md` should not be introduced unless an external platform requires it.
-- Treat `docs/AGENT_MANIFEST.json` plus `python3 main.py --verify-agent-contract` as the machine-readable project contract and first inspection command.
-- Use `python3 main.py --emit-agent-commands` when choosing the smallest sufficient validation profile for a change.
-- The section layout in this file is guidance, not a fixed process. If an agent invents a better workflow, record the reason in this file or a nearby state file before relying on it.
+| Need | Entry |
+| --- | --- |
+| Current progress and next work | [HANDOFF.md](HANDOFF.md) |
+| Scientific/publication boundaries; deferred work | [docs/HANDOFF.md](docs/HANDOFF.md) |
+| Commands, dependencies, module ownership, profiles | [docs/AGENT_MANIFEST.json](docs/AGENT_MANIFEST.json) |
+| Shared helpers, imports, inputs/outputs | [COMMON_FUNCTIONS.md](COMMON_FUNCTIONS.md) |
+| Python callable index | [docs/PY_FILES_SUMMARY.md](docs/PY_FILES_SUMMARY.md), then the module's summary |
+| Tests, including each child module | [TESTING.md](TESTING.md) |
+| Services, optional viewer, MCP ownership | [SERVICES.md](SERVICES.md) |
+| Maintenance decisions | [.agents/skills/aiforbn-workflow/SKILL.md](.agents/skills/aiforbn-workflow/SKILL.md) |
+| Authorized proposal/Overleaf work | [.agents/skills/aiforbn-overleaf-proposal/SKILL.md](.agents/skills/aiforbn-overleaf-proposal/SKILL.md) |
+| Compact runtime routing | [skills/ai_native_workflow.txt](skills/ai_native_workflow.txt) |
 
-## Directory Map
+The two `docs/` index paths remain because runtime validation and public-surface tests consume them. Root documents provide short task-oriented entrypoints; module summaries own detailed API behavior. Git history holds completed maintenance chronology.
 
-- `src/materials/`: materials data, feature building, candidate screening, ranking, structure artifacts, and reporting logic.
-- `src/runtime/`: shared runtime schemas and IO helpers.
-- `src/template/`: template utilities.
-- `src/torch_models/`: neural model components and experiments.
-- `src/ui/`: optional artifact viewer; not a primary operation surface.
-- `src/tests/`: cross-module tests.
-- `docs/`: agent handoff notes, machine-readable state, and Python surface summaries.
-- `human_docs/`: user-owned, read-only-by-default research context, reports, proposal sources, task notes, and images.
-- `data/`: raw and processed project data.
-- `artifacts/`: generated research/demo artifacts; check sensitivity and reproducibility before committing new files.
-- `.agents/skills/`: repo-scoped Codex `SKILL.md` files that trigger only for this project scope.
-- `skills/`: compact project runtime guidance; only `ai_native_workflow.txt` should remain active.
+## Ownership and working boundaries
 
-## Current State
+- `HUMAN_DOCS_POLICY=user_owned_read_only_unless_explicit_human_document_task`. Everything under `human_docs/` is user-owned context. Editing, moving, deleting, regenerating, or staging it requires an explicit task for those documents. General repository maintenance does not grant that scope.
+- Keep credentials, private datasets, environment files, caches, and scratch output out of commits. Review generated data/artifacts against the authorized research task before staging them.
+- Preserve unrelated worktree edits and stage only owned paths or hunks. Work on `main` and verify the existing remote refs after synchronization.
+- Prefer text and reproducible commands for execution, verification, rollback, and handoff. `AGENTS.md` is the entrypoint; a root README or manual onboarding layer is unnecessary.
+- Read the nearest module `AGENTS.md` when touching `src/**`. Cross-module calls use documented public APIs and the manifest's dependency directions; underscore-prefixed helpers remain internal.
+- When changing helpers, consult local `utils.py` and the `myutils` API for relevant reuse. Move code between repositories only when task scope and behavioral compatibility justify it; project-specific policy stays local.
+- Keep `main.py` traceable as a linear pipeline. Update the nearest `PY_FILES_SUMMARY.md` when public callables or module boundaries change, and choose validation through the emitted command index.
 
-- Several subtrees already have local `AGENTS.md` and `PY_FILES_SUMMARY.md`; keep them aligned when changing public modules or task boundaries.
-- `human_docs/` is human-managed and already contains tracked research context and proposal material. Do not edit, move, delete, regenerate, stage, or reclassify anything there unless the task explicitly asks for the exact human-document work.
-- `docs/AGENT_MANIFEST.json` records the AI-native contract for entrypoints, module boundaries, validation commands, and safety boundaries.
-- Legacy `skills/*_skill.txt`, `skills/template.txt`, and `skills/workflow.txt` are retired; their still-current instructions are consolidated into `skills/ai_native_workflow.txt`, `.agents/skills/`, this file, or module-local `AGENTS.md`.
-- `.DS_Store`, caches, local environment files, and generated scratch outputs should remain untracked.
+## Source map
 
-## Safety Boundary
-
-- Do not commit private datasets, credentials, unpublished external documents, local caches, or large generated artifacts without checking task intent.
-- Treat all human documents, including task notes and professor/user feedback, as contextual evidence only; summarize rather than exposing unnecessary personal or institutional detail.
-- Prefer text, code, structured data, and reproducible scripts over notebook-only or visual-only workflows.
-
-## Validation
-
-- Use the conda `quant` environment by default.
-- Run `python3 main.py --emit-agent-commands` when selecting a validation profile.
-- Run `python3 main.py --verify-agent-contract` before larger architecture/workflow edits.
-- Run `python3 main.py --dry-run` for fast config / feature / model wiring checks.
-- Run focused pytest tests for the touched module when possible.
-- If changing public functions or module boundaries, update the nearest `PY_FILES_SUMMARY.md`.
-- UI/demo changes should still have a text-verifiable path through tests, logs, or generated structured output.
-
-## Git
-
-- Current branch is `main`.
-- Main remote is `origin`.
-- Commit only intentional source, tests, research docs, and agent-maintenance documentation.
-- Keep unrelated untracked research-plan bundles unstaged unless explicitly requested.
+`src/materials/` owns data, features, models, evaluation, screening and report/structure artifacts; `src/runtime/` owns config, guarded IO, schemas and agent inspection; `src/torch_models/` owns sklearn-style neural regressors; `src/ui/` is an optional artifact viewer. `src/tests/` covers entrypoints and cross-module contracts; `src/template/` is a starting point for new modules. Local tests sit under each production module's `tests/` directory.

@@ -1,26 +1,13 @@
-# Module Instructions for Codex
+# Runtime
 
-- `HUMAN_DOCS_POLICY=user_owned_read_only_unless_explicit_human_document_task`; `human_docs/` is user-owned contextual evidence, never runtime-owned state.
+`HUMAN_DOCS_POLICY=user_owned_read_only_unless_explicit_human_document_task`; `human_docs/` is user-owned read-only context unless the task explicitly authorizes work on those documents.
 
-## Essential check before working
+Owns trusted config loading, guarded IO/cache handling, provenance, schemas and agent inspection. It has no production dependency on other project modules.
 
-Common module-level utilities are stored in `utils.py`. Before starting work each time, you must check:
+- Keep filesystem/provenance policy in the project wrappers; reuse `myutils` IO behind those guards.
+- Public functions live in `io_utils.py` and `agent_state.py`; shared schemas/role constants live in `schema.py`. Bootstrap paths and underscore-prefixed helpers are implementation details.
+- The output guard, writer preflight and viewer assessment have separate failure boundaries; retain each when simplifying.
 
-- Whether `utils.py` contains sufficiently general-purpose functions. If so, move them to an appropriate location under `/Users/zmx/Projects/myutils`, and update `/Users/zmx/Projects/myutils/docs/PUBLIC_API.md` accordingly.
-- `/Users/zmx/Projects/myutils/docs/PUBLIC_API.md` to determine whether there are already useful functions that can be reused directly for the current task.
+Public API: [PY_FILES_SUMMARY.md](PY_FILES_SUMMARY.md). Shared reuse and ownership guidance: [root AGENTS.md](../../AGENTS.md) and [COMMON_FUNCTIONS.md](../../COMMON_FUNCTIONS.md).
 
-This check must not be removed and must be performed every time.
-
-## Template rules that apply to this module
-
-- This module must stay independent, complete, and non-subordinate.
-- Cross-module calls must go through documented public functions or classes only.
-- `utils.py` stores reusable helpers that are local to this module. If a helper becomes general enough for multiple modules or projects, move it to `/Users/zmx/Projects/myutils`.
-- Public callable functions and classes belong in `PY_FILES_SUMMARY.md`. Internal helpers, especially underscore-prefixed ones, should be documented here only when future maintainers need guidance.
-
-## Runtime-specific guidance
-
-- `runtime` is the shared runtime-support module. It is allowed to expose configuration loading, runtime-directory preparation, cache clearing, schema contracts, agent-state inspection, and command-index inspection.
-- Keep the public surface small and stable. External callers should use the documented functions in `io_utils.py` and the documented schema classes in `schema.py`.
-- Do not expose `sys.path` bootstrapping details as part of the public contract. Treat that logic as implementation detail unless a deliberate interface change is needed.
-- No other module should import underscore-prefixed names from `runtime`.
+Validation: [TESTING.md](../../TESTING.md); focused target from the repository root: `conda run -n quant python -m pytest -q src/runtime/tests`.

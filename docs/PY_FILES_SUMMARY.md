@@ -1,171 +1,83 @@
-# PY_FILES_SUMMARY.md
+# Python callable index
 
-AI-facing quick summary for the current Python surface of `ai_for_bn`.
-This project is **not** maintained as a Python package. Default usage is from the repo root in the `quant` environment.
-Top-level code is organized as flat `src/*` module directories, without relying on `__init__.py` package wiring or package-relative imports.
-`HUMAN_DOCS_POLICY=user_owned_read_only_unless_explicit_human_document_task`; `human_docs/` is contextual evidence, never an agent-owned Python or contract surface.
+`HUMAN_DOCS_POLICY=user_owned_read_only_unless_explicit_human_document_task`; `human_docs/` is contextual evidence, never agent-owned Python or contract state.
 
----
+Run from the repository root in `quant`. This flat `src/` tree is not an installed Python package. [COMMON_FUNCTIONS.md](../COMMON_FUNCTIONS.md) explains imports and shared helpers; module summaries list the complete supported public surfaces. Signatures below intentionally remain machine-checkable by `test_public_surfaces.py`; `...` means consult the implementation for remaining options.
+
+Configuration is owned by [src/config.py](../src/config.py), not copied parameter lists. Test bootstrap, cache cleanup and non-vacuity rules are in [conftest.py](../conftest.py) and [TESTING.md](../TESTING.md). For detailed module contracts read [runtime](../src/runtime/PY_FILES_SUMMARY.md), [materials](../src/materials/PY_FILES_SUMMARY.md), [models](../src/torch_models/PY_FILES_SUMMARY.md), or [UI](../src/ui/PY_FILES_SUMMARY.md).
 
 ## main.py
 
 ### `main()`
-Linear project entrypoint.
 
-What it does, in order:
-1. clears project cache
-2. loads config
-3. builds or reloads the normalized dataset
-4. creates grouped split masks
-5. builds all configured feature tables
-6. selects `{feature_set} x {model_type}` on validation
-7. retrains the selected overall-evaluation combo on `train + val`
-8. benchmarks all configured combos on `test`
-9. runs grouped-by-formula robustness benchmarking across configured combos
-10. runs a dedicated BN-focused leave-one-BN-formula-out benchmark across configured combos plus baselines
-11. runs a BN-family holdout benchmark across configured combos plus baselines
-12. runs grouped BN-vs-non-BN stratified error benchmarking
-13. builds full-fit candidate-member predictions plus grouped-fold candidate-member predictions for ranking-stability analysis
-14. ranks candidates with the best candidate-compatible combo
-15. builds deterministic structure first-pass execution artifacts for the highest-priority follow-up candidates
-16. writes metrics / plots / benchmark / robustness / BN-benchmark / ranking / uncertainty / abstention / shortlist / structure-execution artifacts
-
-Important:
-- overall evaluation combo and formula-only screening combo may differ
-- `main.py` is intentionally kept linear as an agent-traceable pipeline, not as a wrapper launcher
-- command-only agent control flags avoid importing heavy scientific/plotting modules before JSON emission
+Runs the linear pipeline: cache/config → dataset → grouped splits and feature tables → validation selection → train+val refit and held-out/grouped/BN diagnostics → formula-only ranking → unrelaxed structure follow-up → artifacts and plots. Returns `None`. Data-cache misses may download JARVIS data. Overall evaluation and screening can use different feature/model combinations.
 
 ### `run_dry_run()`
-Fast smoke-check entrypoint used by `python3 main.py --dry-run`.
 
-What it does:
-- lazily loads only dry-run dependencies, not plotting/reporting/full artifact writers
-- clears project cache
-- loads `src/config.py`
-- ensures configured runtime directories exist
-- generates the BN candidate space and verifies it is non-empty
-- builds feature tables on a tiny in-memory dataset with lightweight structure-summary placeholders
-- checks that at least one overall feature/model combo and one formula-only screening combo are compatible
-- instantiates each configured candidate model plus configured benchmark baselines to catch broken imports or bad config wiring early
-
-What it does **not** do:
-- does not build the real dataset cache
-- does not train models
-- does not run the full benchmark/ranking pipeline
-
-Use it as the short per-round smoke test before the agent decides whether the authorized task requires a full `main.py` run and its artifact writes.
+Returns and prints a compatibility report using three in-memory rows. Clears project caches, prepares runtime directories, generates candidates, builds features and constructs configured candidate/baseline models. It does not load the real dataset, train models or publish research outputs.
 
 ### `emit_agent_state(write_path=None, fail_on_error=False)`
-Machine-readable AI-native project inspection entrypoint used by agent control commands:
-- `python3 main.py --emit-agent-state`
-- `python3 main.py --verify-agent-contract`
-- `python3 main.py --write-agent-state /tmp/aiforbn-agent-state.json`
 
-What it does:
-- loads `docs/AGENT_MANIFEST.json`
-- validates source-of-truth files, the human-document ownership policy on every declared agent instruction surface, module-local `AGENTS.md` / `PY_FILES_SUMMARY.md` / `utils.py` contracts, and known layout warnings
-- validates the strict machine-readable v18 research-plan alignment contract and source files
-- checks whether manifest-declared runtime imports such as `pyarrow` are available
-- reports Git branch / HEAD / remote-main state and tracked `human_docs/research_plan/` file count
-- prints a JSON state payload to stdout
-- exits nonzero under `--verify-agent-contract` only when blocking layout errors are present
-
-Use it as the first machine-readable handoff check before larger edits.
+Returns and prints JSON with Git state, manifest and validation results. `fail_on_error=True` makes blocking validation errors exit nonzero; `write_path` additionally writes guarded state. Control flags avoid importing the full scientific pipeline; dependency checks use isolated import probes.
 
 ### `emit_agent_commands()`
-Machine-readable command-index entrypoint used by:
-- `python3 main.py --emit-agent-commands`
 
-What it does:
-- loads `docs/AGENT_MANIFEST.json`
-- prints entrypoints, validation commands, validation profiles, project skills, the human-document policy, source-of-truth files, retired guidance files, and v18 research-plan alignment as JSON
-
-Use it to choose the smallest sufficient validation profile for a change without rereading long prose docs.
-
----
-
-## Current src layout
-
-### config and test bootstrap
-- `src/config.py`
-  - actual default `CONFIG` payload used by `main.py` and tests; mandatory formula screening has no umbrella `screening.enabled` switch, while explicitly declared nested diagnostic and handoff gates remain configurable
-- `conftest.py`
-  - shared pytest bootstrap plus manifest-driven non-vacuity enforcement for every declared pytest validation command; exact target selection requires at least one passed non-xfail call while collect-only and pre-existing nonzero outcomes retain native pytest semantics
-
-### top-level modules
-- `src/runtime/`
-  - runtime helpers and schema models
-  - also carries module-local `AGENTS.md`, `PY_FILES_SUMMARY.md`, and `utils.py`
-- `src/materials/`
-  - the unified business module: dataset normalization, candidate space, feature building, model selection, benchmarking, screening, artifacts, summaries, and structure-execution logic
-  - also carries module-local `AGENTS.md`, `PY_FILES_SUMMARY.md`, and `utils.py`
-- `src/torch_models/`
-  - repo-local PyTorch model implementations
-  - also carries module-local `AGENTS.md`, `PY_FILES_SUMMARY.md`, and `utils.py`
-- `src/ui/`
-  - Streamlit UI
-  - also carries module-local `AGENTS.md`, `PY_FILES_SUMMARY.md`, and `utils.py`
-
-There are no longer `src/pipeline/*.py` façade modules, and the earlier `core / dataset / features / reporting / structure_execution` top-level split has been collapsed into the current flatter live layout.
-
-### test layout
-- `src/runtime/tests/`
-- `src/materials/tests/`
-- `src/torch_models/tests/`
-- `src/ui/tests/`
-- `src/tests/`
-  - top-level entrypoint/config tests, plus its own local `AGENTS.md`, `PY_FILES_SUMMARY.md`, and `utils.py`
-
-Root `tests/` has been removed.
-
----
+Returns and prints the command index: entrypoints, exact validation commands/profiles, dependencies, project skills, document ownership and research-plan alignment. Use it with [TESTING.md](../TESTING.md) to choose validation.
 
 ## src/runtime/io_utils.py
 
-Purpose:
-- locates the nearest ancestor-adjacent `myutils` checkout, with `MYUTILS_ROOT` as an explicit override, and adds only `file_utils/` to `sys.path`
-- exposes the repo's config loading / runtime-dir / cache-clear helpers
-- reuses shared JSON helpers from `myutils/file_utils/json_io.py`
-
 ### `load_config(path)`
-Compiles a trusted Python config without emitting `__pycache__`, returns its `CONFIG` dict, and rejects user-owned `human_docs/` as executable configuration state.
+
+Trusted Python config path → `CONFIG` dict, compiled without bytecode. Rejects executable config under user-owned `human_docs/`.
 
 ### `validate_runtime_output_path(path, project_root_path=None, *, required_parent_path=None, reject_leaf_symlink=False, expected_output_kind=None)`
-Returns the canonical path used by writers after enforcing canonical/declared human-doc exclusion, optional configured-root containment, leaf kind and symlink rules, directory-only parent chains, and hardlink rejection. An alternate declared root cannot weaken the canonical guard. Public dataset, artifact, plot, and JSON writers call this before mutation.
+
+Path plus optional root/parent/kind/alias constraints → canonical guarded `Path`. Enforces human-document exclusion, configured containment, directory-only parent chains, leaf kind/symlink and hardlink rules before writes; alternate declared roots cannot weaken the canonical guard.
 
 ### `configure_matplotlib_cache()`
-Treats unset or blank `MPLCONFIGDIR` as the safe temporary default, validates and canonicalizes it before Matplotlib or JARVIS import-time cache creation, exports the exact guarded path back to the environment, and leaves directory creation to the dependency.
+
+Guards/canonicalizes `MPLCONFIGDIR` (safe temporary default when blank/unset), returns the `Path` and exports it before Matplotlib/JARVIS imports; leaves directory creation to the dependency.
 
 ### `ensure_runtime_dirs(cfg, project_root_path='.')`
-Preflights all configured runtime directories before creating any of them, so invalid file leaves or parent chains fail without partial directory creation.
-Currently this means the config-driven data/cache/artifact directories, rather than legacy source-tree folders like `apps/` or `notebooks/`.
 
-### `build_artifact_provenance(cfg, dataset_manifest=None, *, published_output_paths, project_root_path=None)` / `assess_artifact_provenance(...)`
-Builds and assesses local-only v2 artifact provenance using stable source revision, source dirty/unknown state, effective-config hash, dataset-manifest hash, and artifact-relative SHA-256 commitments derived from actual successful writer returns. Root Python shadow modules participate in dirty identity. Assessment is `current`, `stale`, or `unverified`; legacy/malformed markers, invalid manifests, and missing/unreadable/changed committed outputs fail closed.
+Config and project root → preflight every configured data/cache/artifact directory, then create them. Invalid leaves or parent chains fail before partial creation.
+
+### `build_artifact_provenance(cfg, dataset_manifest=None, *, published_output_paths, project_root_path=None)`
+
+Config, dataset manifest and successfully published paths → v2 identity dict containing source revision/dirty state, effective-config/dataset hashes, and artifact-relative output SHA-256 commitments. Root Python shadow modules participate in source identity.
+
+### `assess_artifact_provenance(provenance, cfg, dataset_manifest=None, *, project_root_path=None)`
+
+Stored provenance and current config/dataset/root → `{status, reason}` with `current`, `stale`, or `unverified`. Legacy/malformed markers, invalid manifests, unavailable/dirty source identity, or missing/changed committed bytes cannot assess current.
 
 ### `validate_json_payload(payload, ...)`
-Runs the same JSON-safe serialization contract as `write_json_file` without touching the filesystem, so multi-output writers can reject late invalid payloads before their first mutation.
+
+Payload and JSON serialization options → `None` on success, exception on invalid serialization; no filesystem mutation. Used before multi-output publication.
 
 ### `clear_project_cache(project_root_path='.')`
-Rejects roots inside user-owned `human_docs/` and caller roots containing any symlink component before discovery, then uses the current `myutils/file_utils/filesystem.py` discovery API and removes only real cache directories that resolve beneath the canonical root and outside protected human-doc paths.
-Use before tests or batch runs, per project skill requirements.
 
-### `read_json_file(path)` / `write_json_file(payload, path, ...)` / `make_json_safe(value)`
-Shared JSON helpers from `myutils`; the write wrapper enforces the runtime output and filesystem-alias boundary, then serializes and encode-checks before any parent creation.
-Use these instead of ad hoc `json.loads(path.read_text())` or `path.write_text(json.dumps(...))` patterns when reading/writing repo artifacts.
+Existing project root → remove real cache directories within that root, preserving `human_docs/` and discovered cache symlinks. Rejects symlink components in the supplied root and escaping paths; concurrent already-removed caches are tolerated. Pytest and pipeline entrypoints already call it.
 
----
+### `read_json_file`
+
+Imported public helper: `read_json_file(path, ...)` → decoded JSON through the shared `myutils/file_utils/json_io.py` module.
+
+### `write_json_file(payload, path, ...)`
+
+Payload, guarded path and serialization options → shared JSON write. Canonicalizes the output and preflights serialization/encoding before creating parents.
+
+### `make_json_safe`
+
+Imported public helper: `make_json_safe(value)` → JSON-safe objects from NumPy/pandas/path-like values via `myutils`.
 
 ## src/runtime/agent_state.py
 
-Purpose:
-- provides the AI-native layout manifest loader and live project-state doctor
-- keeps agent handoff metadata machine-readable rather than scattered across prose
-
 ### `load_agent_manifest(project_root_path='.', manifest_path='docs/AGENT_MANIFEST.json')`
-Loads the checked-in agent manifest.
+
+Project root and manifest path → checked-in manifest dict.
 
 ### `validate_agent_layout(project_root_path='.', manifest=None)`
+
 Checks required agent-facing files; exact control and validation command/scope/capability records; profile reachability including mandatory dependency capabilities; repo-skill trigger frontmatter and repo-local `$skill` reference resolution; bidirectional normalized requirements/manifest specifier parity; source-derived external-import ownership (including production root-symbol parity against owner-symbol or exact immediate-descendant probes, exact static descendant target/symbol, literal-dynamic descendant target, and direct literal `getattr(importlib-import, symbol)` parity with fail-closed wildcards/ambiguous attributes, evaluation-scope and binding-position-aware `importlib`/`__import__` aliases, ambiguous late-bound owner sets, branch-compatible direct-call reaching owners, declared `global`/`nonlocal` targets, match-pattern shadows, precise comprehension shadows, fail-closed nonliteral dynamic names and delegated wrappers, relative-local exclusion, and identity-resolved direct literal module/attribute calls to the unique `main.py` `_bind_missing` loader); distribution/module identity; direct/backend and core/scientific/UI/test consumer constraints; local shared-owner records; timeout-bounded isolated dependency import probes with manifest-owned ordered preloads and active-consumer targets/symbols plus opaque import-environment/owner/target/symbol success-cache identity; exact retired-guidance and six-module records; local instruction paths; and the stable v18 alignment/scientific boundaries.
 Returns:
 - `status`
@@ -174,819 +86,229 @@ Returns:
 - per-path `checks`
 
 ### `build_agent_state(project_root_path='.', manifest_path='docs/AGENT_MANIFEST.json')`
-Builds the JSON-serializable live state used by `main.py --emit-agent-state` and `main.py --verify-agent-contract`.
+
+Project root/manifest → live JSON-ready project state used by inspection and contract verification.
 
 ### `build_agent_command_index(project_root_path='.', manifest_path='docs/AGENT_MANIFEST.json')`
-Builds the JSON-serializable command index used by `main.py --emit-agent-commands`, including module dependencies and the v18 research-plan alignment contract.
+
+Project root/manifest → JSON-ready command index, including module dependencies, ownership and v18 alignment.
 
 ### `agent_state_to_json(state)`
-Serializes the live state for stdout or log capture.
+
+State dict → serialized JSON for stdout or logs.
 
 ### `write_agent_state(state, path)`
-Serializes before parent creation, then writes the live state while refusing canonical, state-declared, or filesystem-equivalent user-owned `human_docs/` targets and multi-hardlink leaves; the payload cannot redirect the canonical guard.
 
----
+State dict and path → serialized state file after preflight. Rejects canonical, state-declared or filesystem-equivalent `human_docs/` targets and multi-hardlink leaves.
 
 ## src/runtime/schema.py
 
 ### `STRUCTURE_EXECUTION_OUTPUT_ROLES`
-Canonical runtime-schema mapping for the three structure-execution viewer roles, experiment-summary fields, configured output fields, required suffixes, and canonical default filenames. Structure building, materials publication, and UI persisted-state validation consume the same records without importing one another.
+
+Three-role mapping of viewer key, summary field, configured path, suffix and default filename, shared by structure building, publication and persisted-state validation.
 
 ### `FIXED_REPORT_ARTIFACT_NAMES`
-Canonical fixed report filename set shared by materials collision preflight and UI persisted-state role validation so configurable structure-execution outputs cannot relabel fixed bundle files.
 
----
+Fixed report filename set used by collision preflight and UI role validation; configured structure outputs cannot relabel fixed files.
 
 ## src/materials/data.py
 
 ### `load_or_build_dataset(cfg)`
-Builds the normalized dataframe from raw JARVIS / 2DMatPedia data or reloads the processed cache.
-Preflights the concrete raw JSON, processed Parquet, and manifest leaves before any cache write so symlink or hardlink aliases cannot redirect output into user-owned `human_docs/`.
-Returns:
-- normalized dataframe
-- manifest dict
 
-Current behavior:
-- prefers cached processed parquet only when its manifest matches the requested dataset, source, and target column and the dataframe has all required normalized columns
-- rebuilds stale processed cache from cached raw JSON when needed
-- downloads from JARVIS only when cached raw JSON is absent
-- guards `MPLCONFIGDIR` before the JARVIS import, validates one metadata snapshot as a plain JSON archive name, preflights that concrete archive leaf, and passes the same URL/tag plus canonical raw `store_dir` directly to JARVIS instead of trusting `ATOMGPTLAB_CACHE`
-- writes lightweight structure-summary columns derived from cached `atoms` / lattice data
+Config → `(normalized_dataframe, manifest_dict)`. Reuses processed Parquet only when dataset/source/target/required-column identity matches; otherwise rebuilds from cached raw JSON, downloading through JARVIS only on a raw-cache miss. Preflights raw/processed/manifest/archive/cache paths before imports or writes, uses one validated metadata snapshot, and removes only newly created invalid/partial dependency archives on failure. Normalized source properties and structure columns are defined by `REFERENCE_PROPERTY_COLUMNS` and `STRUCTURE_SUMMARY_COLUMNS`.
 
-Important normalized columns include:
-- `record_id`
-- `source`
-- `formula`
-- `target`
-- `energy_per_atom`
-- `exfoliation_energy_per_atom`
-- `total_magnetization`
-- `abs_total_magnetization`
-- `structure_n_sites`
-- `structure_lattice_a`
-- `structure_lattice_b`
-- `structure_lattice_c`
-- `structure_lattice_gamma`
-- `structure_inplane_area`
-- `structure_cell_height`
-- `structure_thickness`
-- `structure_vacuum`
-- `structure_areal_number_density`
-- `structure_thickness_fraction`
-
----
-
-## src/materials/
-
-Main top-level feature module directory.
-Implementation is split across:
-- `src/materials/constants.py`
-- `src/materials/candidate_space.py`
-- `src/materials/feature_building.py`
-- `src/materials/modeling.py`
-- `src/materials/selection.py`
-- `src/materials/benchmarking.py`
-- `src/materials/screening.py`
+## src/materials/candidate_space.py
 
 ### `extract_elements(formula)`
-Regex-based element-token extraction from a chemical formula string.
+
+Formula string → regex-extracted element-symbol list (preserves token order and duplicates).
 
 ### `filter_bn(df, formula_col='formula')`
-Returns the BN-themed slice, defined here as formulas containing both `B` and `N`.
+
+Dataframe and formula column → rows whose formulas contain both B and N.
 
 ### `generate_bn_candidates(cfg=None)`
-Builds the current BN-anchored demo candidate space.
-The returned plausibility annotations honor the supplied `screening.chemical_plausibility`
-configuration rather than falling back to annotation defaults.
-Default space is no longer the plain Group 13 / Group 15 cartesian product. It is now a 25-formula
-BN-containing formula-family grid anchored by:
-- BCN / h-BCN-style ternary motifs
-- BC2N-style ternary motifs
-- Si2BN-like motifs already observed in the dataset
 
-The generator also writes source-space provenance fields such as:
-- `candidate_generation_strategy`
-- `candidate_space_name`
-- `candidate_space_kind`
-- `candidate_family`
-- `candidate_template`
-- `candidate_family_note`
-
-And it adds lightweight formula-level chemical-plausibility annotations, including:
-- `chemical_plausibility_pass`
-- `chemical_plausibility_guess_count`
-- `chemical_plausibility_primary_oxidation_state_guess`
-- `chemical_plausibility_note`
-
-### `get_candidate_feature_sets(cfg)`
-Returns the ordered feature-set search space from config.
-Current default search space:
-- `basic_formula_composition`
-- `matminer_composition`
-- `fractional_composition_vector`
-- `matminer_composition_plus_structure_summary`
-
-### `get_candidate_screening_feature_sets(cfg)`
-Returns only the candidate-compatible feature sets.
-Current default result:
-- `basic_formula_composition`
-- `matminer_composition`
-- `fractional_composition_vector`
-
-### `get_candidate_model_types(cfg)`
-Returns the ordered model-type search space from config.
-Current default search space:
-- `hist_gradient_boosting`
-- `linear_regression`
-- `torch_mlp`
-- `torch_mlp_ensemble`
-
-Important current nuance:
-- the config also contains experimental model blocks for:
-  - `torch_fractional_attention`
-  - `torch_sparse_fractional_attention`
-  - `torch_roost_like`
-- but these are **not** in the default `candidate_types` sweep
-- they currently exist only for short pilot work unless future evidence justifies rollout
-
-### `build_feature_table(df, formula_col='formula', feature_set='basic_formula_composition')`
-Builds one feature table for one configured feature representation.
-Adds:
-- feature columns
-- `feature_set`
-- `feature_generation_failed`
-- `feature_generation_error`
-
-Supported feature sets:
-- `basic_formula_composition`
-- `matminer_composition`
-- `fractional_composition_vector`
-- `matminer_composition_plus_structure_summary`
-
-Current feature counts:
-- `basic_formula_composition`: 7
-- `matminer_composition`: 19
-- `fractional_composition_vector`: 118
-- `matminer_composition_plus_structure_summary`: 30
-
-### `build_feature_tables(df, cfg, formula_col='formula')`
-Builds all configured feature tables at once and returns a `{feature_set: dataframe}` mapping.
-
-### `make_split_masks(df, cfg)`
-Builds split masks.
-Current important mode:
-- `group_by_formula`
-
-Also stores split metadata including overlap counts.
-
-### `summarize_feature_table(feature_df, feature_set=None)`
-Returns metadata for one feature table, including:
-- `feature_family`
-- `candidate_compatible`
-- `n_features`
-- `status`
-- whether the feature set is selection-eligible
-- failed formula examples if featurization was incomplete
-
-### `make_model(cfg, model_type=None)`
-Factory for supported regressors.
-Currently supports:
-- `linear_regression`
-- `hist_gradient_boosting`
-- `torch_mlp`
-- `torch_mlp_ensemble`
-- `torch_fractional_attention`
-- `torch_sparse_fractional_attention`
-- `torch_roost_like`
-- `random_forest`
-- `dummy_mean`
-
-Important:
-- `torch_fractional_attention`
-- `torch_sparse_fractional_attention`
-- `torch_roost_like`
-are currently defined only for `feature_set='fractional_composition_vector'`
-- this compatibility is enforced explicitly by helper functions such as:
-  - `model_type_supports_feature_set(...)`
-  - `compatible_model_types_for_feature_set(...)`
-  - `incompatible_model_feature_note(...)`
-
-### `train_baseline_model(df, split_masks, cfg, model_type=None, include_validation=False)`
-Fits a regressor on the requested split scope and returns:
-- trained model
-- feature column list
-
-### `evaluate_predictions(df, split_masks, model, feature_columns, split_name='test')`
-Runs prediction on one split and returns:
-- metrics dict (`mae`, `rmse`, `r2`)
-- row-level prediction dataframe
-
-Fails loudly if the requested feature set cannot evaluate every row in that split.
-
----
-
-## src/torch_models/
-
-Repo-local PyTorch model directory.
-Implementation is split across:
-- `src/torch_models/base.py`
-- `src/torch_models/attention.py`
-- `src/torch_models/sparse_attention.py`
-- `src/torch_models/roost_like.py`
-- `src/torch_models/ensemble.py`
-
-### `TorchMLPRegressor`
-A repo-local PyTorch neural regressor with a sklearn-like `fit` / `predict` interface.
-
-What it does:
-- accepts any numeric feature matrix emitted by the current feature-table pipeline
-- standardizes `X` and `y`
-- trains a small LayerNorm + GELU MLP with AdamW
-- uses an internal deterministic validation split plus early stopping
-- auto-selects device (`cuda`, `mps`, then `cpu`) unless config overrides it
-
-Why it exists:
-- to add a low-dependency learned neural baseline without depending on the old external CrabNet package
-- to keep formula-only screening candidate-compatible while still testing a more modern neural model family
-
-### `TorchMLPEnsembleRegressor`
-A multi-seed wrapper around `TorchMLPRegressor`.
-
-What it does:
-- fits several `TorchMLPRegressor` members with different seeds
-- averages their predictions for the main model output
-- exposes `predict_members(...)` so reporting can treat ensemble members as additional uncertainty sources
-
-Why it exists:
-- to reduce the chance that the BN-facing result is driven by one lucky seed
-- to strengthen the candidate-compatible neural line without jumping straight to a much heavier model family
-
-### `TorchFractionalAttentionRegressor`
-An experimental dense attention model over the full 118-dimensional fractional-composition vector.
-
-What it does:
-- interprets the fractional composition vector as element-token inputs
-- combines learned element embeddings with stoichiometric signals
-- applies a compact Transformer encoder and weighted pooling
-
-Important:
-- candidate-compatible, because it uses only composition-derived inputs
-- experimental only, not part of the default sweep
-- under `device='auto'`, it prefers `cpu` instead of `mps` because the current transformer padding-mask path is not reliable on this macOS/PyTorch stack
-
-### `TorchSparseFractionalAttentionRegressor`
-An experimental sparse-token attention variant.
-
-What it does:
-- builds tokens only for the elements actually present in the formula
-- sorts them by fraction, pads within batch, and applies a compact Transformer encoder
-- pools token states with normalized fraction weights
-
-Important:
-- candidate-compatible
-- experimental only, not part of the default sweep
-- also restricted to `fractional_composition_vector`
-
-### `TorchRoostLikeRegressor`
-An experimental present-element stoichiometry network inspired by Roost.
-
-What it does:
-- converts the 118-dimensional fraction vector into present-element tokens
-- applies lightweight message passing over token pairs using stoichiometric edge features
-- pools the final token states with fraction weights to predict the target
-
-Important:
-- candidate-compatible
-- experimental only, not part of the default sweep
-- currently intended for short BN-slice pilots rather than mainline rollout
-
----
-
-## src/materials/
-
-### Torch model factory integration
-The existing `make_model(...)` factory in `src/materials/modeling.py` lazily imports these PyTorch regressors from this module.
-
-### `fractional_composition_vector`
-The new composition-only feature set is designed to pair naturally with `torch_mlp`, `torch_mlp_ensemble`, and the current experimental present-element / attention baselines.
-It exposes a 118-dimensional periodic-table fraction vector so the neural baseline can learn directly from raw composition fractions rather than only from hand-crafted descriptors.
-
-### `select_feature_model_combo(feature_tables, split_masks, cfg)`
-Core validation-time selection routine.
-Searches the configured `{feature_set} x {model_type}` space and returns a structured summary with:
-- best overall evaluation feature set and model type
-- best formula-only screening feature set and model type
-- whether screening reuses the overall best combo
-- per-feature-set status
-- validation results for every candidate combo
-
-Important:
-- overall evaluation can select the structure-aware route
-- formula-only screening is restricted to candidate-compatible feature sets
-
-### `benchmark_regressors(feature_tables, split_masks, cfg, selected_feature_set, selected_model_type)`
-Evaluates the candidate feature/model combos plus dummy baseline on the test split and returns the benchmark dataframe.
-
-Useful benchmark columns include:
-- `feature_set`
-- `feature_family`
-- `candidate_compatible`
-- `n_features`
-- `model_type`
-- `benchmark_role`
-- `selected_by_validation`
-- `benchmark_status`
-- `mae`
-- `rmse`
-- `r2`
-
-### `benchmark_grouped_robustness(feature_tables, cfg, selected_feature_set, selected_model_type)`
-Runs grouped-by-formula cross-validation robustness benchmarking over the configured feature/model combos.
-This is the new layer that checks whether the evaluation story survives more than one split.
-
-Useful robustness columns include:
-- `feature_set`
-- `feature_family`
-- `candidate_compatible`
-- `model_type`
-- `benchmark_role`
-- `selected_by_validation`
-- `robustness_method`
-- `robustness_group_column`
-- `requested_folds`
-- `actual_folds`
-- `completed_folds`
-- `robustness_status`
-- `mae_mean`
-- `mae_std`
-- `rmse_mean`
-- `rmse_std`
-- `r2_mean`
-- `r2_std`
-
-### `benchmark_bn_slice(dataset_df, feature_tables, cfg, selected_feature_set, selected_model_type, screening_feature_set, screening_model_type)`
-Runs the dedicated BN-focused leave-one-BN-formula-out benchmark.
-It returns two dataframes:
-- a benchmark summary table across all configured feature/model combos plus `dummy_mean` and `bn_local_knn_mean`
-- a per-held-out-formula prediction table for deeper inspection
-
-Important:
-- this exists because the standard grouped split can place all BN rows in train
-- it is a small-sample BN-centered diagnostic, not a definitive BN-only benchmark
-- the BN-slice best combo can differ from both the overall selected combo and the formula-only screening combo
-
-Useful benchmark columns include:
-- `feature_set`
-- `feature_family`
-- `candidate_compatible`
-- `model_type`
-- `benchmark_role`
-- `selected_by_validation`
-- `bn_slice_method`
-- `bn_slice_train_scope`
-- `bn_formula_count`
-- `bn_row_count`
-- `completed_holds`
-- `benchmark_status`
-- `mae`
-- `rmse`
-- `r2`
-- `k_neighbors`
-
-### `benchmark_bn_family_holdout(dataset_df, feature_tables, cfg, selected_feature_set, selected_model_type, screening_feature_set, screening_model_type)`
-Runs the dedicated BN-family leave-one-family-out benchmark.
-It returns two dataframes:
-- a benchmark summary across configured feature/model combos plus `dummy_mean` and `bn_local_knn_mean`
-- a per-row prediction table annotated with BN family labels
-
-Important:
-- this groups BN formulas by reduced BN-local chemical system and leaves one family out at a time
-- it is still a small-sample BN diagnostic, but stricter than formula-level leave-one-out for family-local extrapolation claims
-
-### `benchmark_bn_stratified_errors(feature_tables, cfg, selected_feature_set, selected_model_type, screening_feature_set, screening_model_type)`
-Runs grouped-by-formula cross-validation and reports separate BN vs non-BN errors.
-It returns one dataframe with:
-- `bn_mae`, `bn_rmse`, `bn_r2`
-- `non_bn_mae`, `non_bn_rmse`, `non_bn_r2`
-- `bn_to_non_bn_mae_ratio`
-
-Important:
-- this does not prove BN generalization
-- it quantifies whether BN-containing systems are systematically harder than the broader 2D-material population
-- its group column must match the configured formula column so duplicate formula rows cannot cross train/test folds; metrics are aggregated once per unique held-out formula
-
-### `select_bn_centered_candidate_screening_combo(bn_slice_benchmark_df, cfg, fallback_feature_set=None, fallback_model_type=None)`
-Selects the **best candidate-compatible BN-centered screening combo** from the BN-slice benchmark.
-Current behavior:
-- filters to `benchmark_status == 'ok'`
-- keeps only candidate-compatible feature/model rows
-- excludes the global dummy and BN-local reference baselines
-- picks the lowest-MAE row
-- returns metadata for the new BN-centered alternative ranking artifact
-
-Important:
-- this is not a new global selection rule for the whole project
-- it exists to build a **BN-centered comparison view** alongside the default general ranking
-- the chosen combo can differ from both the overall selected combo and the default formula-only screening combo
-
-### `build_candidate_structure_generation_seeds(candidate_df, dataset_df, split_masks, cfg=None, bn_centered_candidate_df=None, formula_col='formula')`
-Builds a **structure-generation bridge artifact** from the current screening outputs.
-Current behavior:
-- starts from the union of:
-  - the general proposal shortlist
-  - the formula-level extrapolation shortlist
-  - the top-`n` BN-centered alternative ranking view
-- parses nearby BN analog formulas already attached to each candidate
-- maps each analog formula to a deterministic exemplar `train + val` BN reference record with observed structure summary columns
-- writes a candidate-to-prototype seed table for downstream substitution / enumeration / relaxation work
-
-Useful output fields include:
-- `structure_generation_candidate_priority_reason`
-- `bn_centered_ranking_rank`
-- `seed_reference_formula`
-- `seed_reference_record_id`
-- `seed_reference_band_gap`
-- `seed_formula_shared_elements`
-- `seed_formula_candidate_only_elements`
-- `seed_formula_seed_only_elements`
-- `seed_formula_element_count_l1_distance`
-- `seed_formula_edit_strategy`
-- `simple_element_relabeling_feasible` (in the job-plan JSON, not the seed CSV)
-- `candidate_formula_element_counts` (job-plan JSON)
-- `seed_formula_element_counts` (job-plan JSON)
-- `element_count_deltas` (job-plan JSON)
-- `edit_operations` (job-plan JSON)
-- `edit_complexity_score` (job-plan JSON)
-- `seed_reference_energy_per_atom`
-- `seed_reference_exfoliation_energy_per_atom`
-- `seed_reference_structure_n_sites`
-- `seed_reference_structure_inplane_area`
-- `seed_reference_structure_thickness`
-
-Important:
-- this does **not** generate or validate new structures
-- it is a handoff artifact that makes the pipeline less purely formula-only by surfacing concrete BN analog prototypes for follow-up work
-
----
-
-## src/materials/
-
-Top-level structure-execution module directory.
-Implementation is split across:
-- `src/materials/structure_helpers.py`
-- `src/materials/structure_execution.py`
-
-### `build_structure_first_pass_execution_artifacts(structure_generation_seed_df, *, cfg, formula_col='formula', structure_model=None, structure_feature_columns=None, structure_feature_set=None, structure_model_type=None)`
-Builds the current **first-pass structure execution layer** from the prototype-grounded shortlist / queue view.
-Current behavior:
-- takes the top follow-up candidates implied by the structure-generation bridge
-- reuses reference cells when the candidate formula already matches the seed reference formula
-- otherwise applies deterministic low-complexity species relabeling and/or vacancy-style edits when the reduced formula scales cleanly to the reference record
-- computes lightweight geometry sanity heuristics from pair-distance statistics
-- optionally attaches a structure-aware band-gap proxy when a real `STRUCTURE_AWARE_FEATURE_SET` model is available
-- emits three outputs:
-  - candidate-level execution summary dataframe
-  - variant-level execution dataframe
-  - machine-readable JSON-safe payload including atoms + CIF text for writing
-
-Useful output fields include:
-- `execution_variant_id`
-- `execution_plan_type`
-- `relabel_site_indices`
-- `relabel_target_elements`
-- `removed_site_indices`
-- `geometry_min_distance_ratio`
-- `geometry_sanity_pass`
-- `relaxation_status`
-- `final_status`
-- `generated_structure_cif_path`
-- `structure_band_gap_proxy`
-
-Important:
-- this is **not** structure relaxation or stability validation
-- successful first-pass execution only means the candidate could be materialized as an explicit unrelaxed prototype under the current deterministic edit rules
-- the candidate summary selects the canonical successful variant by geometry pass, formula match, structure proxy, selection score, and rank, then projects the same ten selected-row fields that publication preflight verifies across payload, summary, and variants
-- builder and publication preflight consume the same finite candidate-status vocabulary, while dynamic invalid-reference exception text remains a separate selected-final detail
-- `reference_control_ready` and `ready_for_external_relaxation` are workflow states, not discovery claims
-
-### `build_candidate_prediction_ensemble(candidate_df, feature_tables, split_masks, cfg, candidate_feature_sets=None)`
-Trains the tiny candidate-compatible feature/model pool on `train + val` and computes candidate-level ensemble prediction statistics:
-- `ensemble_predicted_band_gap_mean`
-- `ensemble_predicted_band_gap_std`
-- `ensemble_member_count`
-
-Important:
-- this is a **small disagreement heuristic**, not calibrated physical uncertainty
-- by default it only uses formula-only feature sets that can featurize candidates
-
-### `build_candidate_grouped_robustness_predictions(candidate_df, feature_df, split_masks, cfg, feature_set, model_type, formula_col='formula')`
-Builds candidate-level grouped-fold prediction statistics from the selected formula-only screening combo.
-This layer is trained only on `train + val` reference formulas, so it does not leak test labels into candidate ranking.
-
-Useful fields include:
-- `grouped_robustness_prediction_enabled`
-- `grouped_robustness_prediction_method`
-- `grouped_robustness_prediction_fold_count`
-- `grouped_robustness_predicted_band_gap_mean`
-- `grouped_robustness_predicted_band_gap_std`
-
-Interpretation:
-- this is a **split-robustness heuristic**, not calibrated uncertainty
-- large std means the candidate moves more across grouped-by-formula training folds
-
-### `annotate_candidate_dataset_overlap(candidate_df, dataset_df, split_masks=None, formula_col='formula')`
-Adds honesty-oriented candidate annotations such as:
-- `seen_in_dataset`
-- `dataset_formula_row_count`
-- `seen_in_train_plus_val`
-- `train_plus_val_formula_row_count`
-
-Use this to distinguish demo-space rediscovery from true formula-level novelty.
-
-### `annotate_candidate_novelty(candidate_df, formula_col='formula')`
-Builds a simple novelty / rediscovery layer from the overlap fields.
-This is still formula-level novelty inside the current demo candidate space, not validated discovery.
-Adds:
-- `candidate_is_seen_in_dataset`
-- `candidate_is_seen_in_train_plus_val`
-- `candidate_is_formula_level_extrapolation`
-- `candidate_novelty_bucket`
-- `candidate_novelty_priority`
-- `candidate_novelty_note`
-
-Current novelty buckets:
-- `train_plus_val_rediscovery`
-- `held_out_known_formula`
-- `formula_level_extrapolation`
+Optional config → bounded BN formula-family grid with generation strategy/family/template provenance and configured chemical-plausibility annotations. Candidate definitions live in `candidate_space.py`; default settings come from `src/config.py`.
 
 ### `annotate_candidate_proposal_shortlist(ranked_candidate_df, cfg=None)`
-Builds a separate advisor-facing shortlist from the raw ranking.
-Current behavior:
-- walks the raw ranking in order
-- keeps chemical-plausibility priority
-- caps repeats from the same `candidate_family`
-- does not replace or mutate the full ranking artifact
 
-Useful fields include:
-- `proposal_shortlist_selected`
-- `proposal_shortlist_rank`
-- `proposal_shortlist_decision`
-- `proposal_shortlist_family_count_before_selection`
+Ranking/optional config → family-capped shortlist annotations in plausibility/ranking order, preserving the full ranking.
 
 ### `annotate_candidate_extrapolation_shortlist(ranked_candidate_df, cfg=None)`
-Builds a second advisor-facing shortlist that only considers `formula_level_extrapolation` candidates.
-Current behavior:
-- filters to the configured novelty bucket
-- keeps chemical-plausibility priority
-- applies an explicit `candidate_family` cap for diversity
-- leaves the raw ranking artifact and general proposal shortlist untouched
 
-Useful fields include:
-- `extrapolation_shortlist_target_novelty_bucket`
-- `extrapolation_shortlist_selected`
-- `extrapolation_shortlist_rank`
-- `extrapolation_shortlist_decision`
-- `extrapolation_shortlist_family_count_before_selection`
+Ranking/optional config → separate shortlist annotations restricted to the configured novelty bucket, with plausibility and family-diversity limits.
+
+## src/materials/feature_building.py
+
+### `get_candidate_feature_sets(cfg)`
+
+Config → ordered feature-set search space. Current families are basic formula, matminer composition, fractional composition, and composition plus structure summaries.
+
+### `get_candidate_screening_feature_sets(cfg)`
+
+Config → candidate-compatible formula-only feature sets; excludes structure-dependent representations.
+
+### `get_candidate_model_types(cfg)`
+
+Config → ordered model search space. Default candidate types and baseline choices belong to `src/config.py`; attention/sparse-attention/Roost-like blocks remain experimental and outside the default sweep.
+
+### `build_feature_table(df, formula_col='formula', feature_set='basic_formula_composition')`
+
+Dataframe/formula column/feature-set name → feature dataframe including `feature_set`, `feature_generation_failed` and error information. The fractional representation has 118 element fractions; structure-summary features require actual structure evidence.
+
+### `build_feature_tables(df, cfg, formula_col='formula')`
+
+Dataframe/config/formula column → `{feature_set: dataframe}` mapping.
+
+### `make_split_masks(df, cfg)`
+
+Dataframe/config → split masks plus grouping/overlap metadata. The default `group_by_formula` keeps duplicate formulas in one split.
+
+### `summarize_feature_table(feature_df, feature_set=None)`
+
+Feature dataframe/name → family, candidate compatibility, feature count, status, selection eligibility and failed-formula examples.
+
+## src/materials/modeling.py
+
+### `make_model(cfg, model_type=None)`
+
+Config/model type → unfitted regressor. Supports linear, HGB, random forest, dummy mean and local Torch families. Attention/sparse-attention/Roost-like models require `fractional_composition_vector`; compatibility helpers enforce that restriction.
+
+### `train_baseline_model(df, split_masks, cfg, model_type=None, include_validation=False)`
+
+Feature dataframe, masks and config → `(fitted_model, feature_columns)`; `include_validation` controls train versus train+val scope.
+
+### `evaluate_predictions(df, split_masks, model, feature_columns, split_name='test')`
+
+Feature dataframe, masks, model and columns → `(metrics_dict, prediction_dataframe)` for the chosen split. Metrics are MAE/RMSE/R²; incomplete feature coverage fails rather than dropping evaluation rows.
+
+## src/torch_models/base.py
+
+### `TorchMLPRegressor`
+
+Numeric X/y → sklearn-style fit/predict regressor: standardized inputs/targets, LayerNorm/GELU MLP, AdamW, deterministic validation and early stopping. Auto device order is CUDA, MPS, CPU.
+
+## src/torch_models/ensemble.py
+
+### `TorchMLPEnsembleRegressor`
+
+Multi-seed MLP ensemble; averages predictions and exposes `predict_members` for member disagreement.
+
+## src/torch_models/attention.py
+
+### `TorchFractionalAttentionRegressor`
+
+Experimental attention over 118 element fractions with stoichiometric signals and weighted pooling. Auto device uses CUDA when available, otherwise CPU; explicit device settings are retained.
+
+## src/torch_models/sparse_attention.py
+
+### `TorchSparseFractionalAttentionRegressor`
+
+Experimental attention using only present-element tokens, batch padding and fraction-weighted pooling; inherits the dense model's input/device contract.
+
+## src/torch_models/roost_like.py
+
+### `TorchRoostLikeRegressor`
+
+Experimental present-element stoichiometric message-passing regressor with fraction-weighted pooling. These experimental families remain formula-compatible but do not establish a validated BN model.
+
+## src/materials/selection.py
+
+### `select_feature_model_combo(feature_tables, split_masks, cfg)`
+
+Feature tables, masks and config → validation-selection summary: best overall and formula-only combinations, reuse decision, feature statuses and per-combination validation results.
+
+## src/materials/benchmarking.py
+
+### `benchmark_regressors(feature_tables, split_masks, cfg, selected_feature_set, selected_model_type)`
+
+Feature tables/masks/config and selected identity → held-out test benchmark dataframe for configured combinations and baseline, including status, role and MAE/RMSE/R².
+
+### `benchmark_grouped_robustness(feature_tables, cfg, selected_feature_set, selected_model_type)`
+
+Feature tables/config and selected identity → formula-grouped cross-validation dataframe with requested/actual/completed folds, status and metric means/spreads.
+
+### `benchmark_bn_slice(dataset_df, feature_tables, cfg, selected_feature_set, selected_model_type, screening_feature_set, screening_model_type)`
+
+Dataset/features/config and model identities → `(summary_dataframe, held_out_prediction_dataframe)` for leave-one-BN-formula-out diagnostics, including global dummy and BN-local neighbor baselines. This small-sample view matters when ordinary splits place all BN rows in training; its best combination can differ from both main model roles.
+
+### `benchmark_bn_family_holdout(dataset_df, feature_tables, cfg, selected_feature_set, selected_model_type, screening_feature_set, screening_model_type)`
+
+Dataset/features/config and model identities → `(summary_dataframe, family_annotated_prediction_dataframe)` for reduced-BN-chemical-system family holdouts. This is still a small-sample diagnostic.
+
+### `benchmark_bn_stratified_errors(feature_tables, cfg, selected_feature_set, selected_model_type, screening_feature_set, screening_model_type)`
+
+Feature tables/config and model identities → dataframe of BN/non-BN MAE/RMSE/R² and their MAE ratio. Requires grouping by the active formula column; aggregates once per held-out formula to avoid duplicate-formula leakage.
+
+### `select_bn_centered_candidate_screening_combo(bn_slice_benchmark_df, cfg, fallback_feature_set=None, fallback_model_type=None)`
+
+BN-slice benchmark/config and optional fallback → alternative screening metadata. Selects the lowest-MAE successful candidate-compatible non-baseline row; this is a comparison view, not a replacement global selection rule.
+
+## src/materials/screening.py
+
+### `build_candidate_structure_generation_seeds(candidate_df, dataset_df, split_masks, cfg=None, bn_centered_candidate_df=None, formula_col='formula')`
+
+Ranked candidates, dataset, masks and optional alternative ranking → candidate-to-reference seed dataframe. Uses the union of proposal/extrapolation shortlists and top BN-centered candidates, choosing deterministic train+val BN exemplars. Preserves record/source/property/structure evidence; edit-plan fields live in downstream job-plan JSON. A disabled stage returns an empty schema. This bridge itself does not generate or validate a structure.
+
+### `build_candidate_prediction_ensemble(candidate_df, feature_tables, split_masks, cfg, candidate_feature_sets=None)`
+
+Candidates/features/masks/config → candidate-level mean/std/member-count dataframe from small formula-compatible train+val model pools. Disagreement is a heuristic, not calibrated physical uncertainty.
+
+### `build_candidate_grouped_robustness_predictions(candidate_df, feature_df, split_masks, cfg, feature_set, model_type, formula_col='formula')`
+
+Candidates/reference features/masks/config and model identity → grouped-fold mean/std/count dataframe using train+val reference formulas only. Fold spread measures split sensitivity without test-label leakage.
+
+### `annotate_candidate_dataset_overlap(candidate_df, dataset_df, split_masks=None, formula_col='formula')`
+
+Candidates/dataset and optional masks → annotations distinguishing dataset presence from train+val presence, with formula row counts.
+
+### `annotate_candidate_novelty(candidate_df, formula_col='formula')`
+
+Candidates with overlap fields → formula-level novelty annotations: `train_plus_val_rediscovery`, `held_out_known_formula`, `formula_level_extrapolation`. Novelty is relative to this dataset/demo space.
 
 ### `annotate_candidate_domain_support(candidate_feature_df, reference_feature_df, split_masks, feature_columns, cfg=None, formula_col='formula')`
-Annotates formula-only candidates with a lightweight train+val feature-space support signal.
-Useful fields include:
-- `domain_support_nearest_formula`
-- `domain_support_nearest_distance`
-- `domain_support_mean_k_distance`
-- `domain_support_percentile`
-- `domain_support_penalty`
+
+Candidate/reference features, masks and columns → train+val feature-space neighbor/distance/percentile/penalty annotations.
 
 ### `annotate_candidate_bn_support(candidate_feature_df, reference_feature_df, split_masks, feature_columns, cfg=None, formula_col='formula')`
-Annotates candidates against the **known BN slice only**.
-This is the new BN-local support layer that tries to make BN part of the screening logic,
-not just part of the report wording.
-Useful fields include:
-- `bn_support_nearest_formula`
-- `bn_support_neighbor_formulas`
-- `bn_support_nearest_distance`
-- `bn_support_mean_k_distance`
-- `bn_support_percentile`
-- `bn_support_penalty`
+
+Candidate/reference features, masks and columns → BN-local train+val support annotations, including neighbor formulas and penalties.
 
 ### `annotate_candidate_bn_analog_evidence(candidate_df, dataset_df, split_masks, cfg=None, formula_col='formula')`
-Adds observed-property evidence from nearby BN-containing train+val formulas.
-This is meant to ground the ranking in **actual BN analog evidence**, not just feature-space distance.
-Useful fields include:
-- `bn_analog_nearest_formula`
-- `bn_analog_neighbor_formulas`
-- `bn_analog_nearest_band_gap`
-- `bn_analog_nearest_energy_per_atom`
-- `bn_analog_nearest_exfoliation_energy_per_atom`
-- `bn_analog_neighbor_band_gap_mean`
-- `bn_analog_neighbor_energy_per_atom_mean`
-- `bn_analog_neighbor_exfoliation_energy_per_atom_mean`
-- `bn_analog_exfoliation_support_label`
-- `bn_analog_energy_support_label`
-- `bn_analog_abs_total_magnetization_support_label`
-- `bn_analog_support_vote_count`
-- `bn_analog_support_available_metric_count`
-- `bn_analog_validation_label`
-- `bn_analog_validation_support_fraction`
-- `bn_analog_validation_penalty`
+
+Candidates/dataset/masks → observed BN train+val analog-property evidence (band gap, energy, exfoliation, magnetization), alignment labels and vote/penalty context. These are conservative analog proxies.
 
 ### `screen_candidates(candidate_df, model, feature_columns, cfg, feature_set, model_type, best_overall_feature_set=None, best_overall_model_type=None, screening_selection_note=None, dataset_df=None, split_masks=None, ensemble_prediction_df=None, grouped_robustness_prediction_df=None, reference_feature_df=None)`
-Builds the final demo ranking dataframe.
-Current behavior:
-- fails the ranking atomically when any candidate formula cannot be featurized, rather than silently dropping failed formulas and writing a partial artifact
-- sorts candidates by `chemical_plausibility_pass` first, then by ranking score
-- marks the reported top-k explicitly with `screening_selected_for_top_k`
-- records why a formula was or was not selected via `screening_selection_decision`
-- predicts with the selected formula-only screening model
-- merges small-pool disagreement statistics
-- optionally merges grouped-fold candidate robustness predictions from the selected formula-only screening combo
-- optionally merges dataset-overlap annotations
-- optionally adds train+val feature-space domain-support annotations
-- optionally adds BN-local support annotations against the known BN slice
-- optionally adds BN analog-evidence annotations from observed BN reference properties
-- optionally derives a lightweight BN analog-validation label from analog exfoliation / energy / magnetization alignment
-- optionally applies a mild grouped candidate-robustness penalty in ranking space from fold-to-fold prediction spread
-- optionally applies a mild BN analog-validation penalty in ranking space from the analog vote fraction
-- adds novelty / rediscovery annotations from the overlap fields
-- computes `ranking_score` and preserves `ranking_score_before_grouped_robustness_penalty`, `ranking_score_before_domain_support_penalty`, `ranking_score_before_bn_support_penalty`, and `ranking_score_before_bn_analog_validation_penalty`
-- now also writes explicit ranking-objective / score-decomposition fields, including `objective_*`, `ranking_signal_*`, `ranking_uncertainty_penalty_component`, `ranking_total_penalty`, `ranking_score_formula`, `ranking_active_penalty_terms`, `ranking_main_penalty_driver`, `ranking_penalty_rank_shift`, `ranking_penalty_impact_label`, and `ranking_decision_summary`
-- writes explicit honesty fields about whether screening matches the overall best evaluation combo
-- annotates a family-aware proposal shortlist without replacing the raw ranking artifact
-- annotates a second formula-level extrapolation shortlist for discovery-style follow-up inside the current demo space
-- keeps the full ranking artifact and exposes novelty ranks instead of truncating the file to top-k only
 
-Useful output columns include:
-- `predicted_band_gap`
-- `ensemble_predicted_band_gap_mean`
-- `ensemble_predicted_band_gap_std`
-- `ranking_score`
-- `ranking_signal_value`
-- `ranking_signal_rank`
-- `ranking_total_penalty`
-- `ranking_penalty_rank_shift`
-- `ranking_penalty_impact_label`
-- `ranking_decision_summary`
-- `grouped_robustness_predicted_band_gap_std`
-- `grouped_robustness_uncertainty_penalty`
-- `domain_support_percentile`
-- `bn_support_percentile`
-- `bn_analog_neighbor_exfoliation_energy_per_atom_mean`
-- `bn_analog_exfoliation_support_label`
-- `bn_analog_validation_label`
-- `bn_analog_validation_penalty`
-- `candidate_novelty_bucket`
-- `novelty_rank_within_bucket`
-- `novel_formula_rank`
-- `proposal_shortlist_selected`
-- `proposal_shortlist_rank`
-- `extrapolation_shortlist_selected`
-- `extrapolation_shortlist_rank`
-- `ranking_feature_set`
-- `ranking_model_type`
-- `best_overall_evaluation_feature_set`
-- `best_overall_evaluation_model_type`
-- `screening_matches_best_overall_evaluation`
-- `screening_selection_note`
+Candidates, formula-compatible model/columns/config and optional reference evidence → full ranked dataframe. Rejects structure-aware features and any unfeaturizable candidate atomically. Sorts by plausibility then score, retains top-k decisions without truncating the full output, and records objective/signal/penalty decomposition, overlap, novelty, support and shortlist annotations. Overall/screening model identities stay explicit. Ranking-stability, abstention and application-track action columns are added downstream by artifact/summary writers, where multi-source predictions can be combined.
 
-Note:
-- ranking-stability and decision-policy columns such as `predicted_band_gap_mean/std`, `rank_mean/std`, `top_3_selection_frequency`, `abstain_flag`, `reason_for_abstention`, `recommended_action_label`, `final_action_label`, and `application_track_*` are added downstream in the materials artifact/summary writers so they can aggregate multiple prediction-member sources without overloading the ranking function itself.
+## src/materials/structure_execution.py
 
----
+### `build_structure_first_pass_execution_artifacts(structure_generation_seed_df, *, cfg, formula_col='formula', structure_model=None, structure_feature_columns=None, structure_feature_set=None, structure_model_type=None)`
 
-## src/materials/
+Seed dataframe, config and optional real structure-aware model → `(candidate_summary, variant_dataframe, JSON_payload)` including atoms/CIF text. Reuses reference cells or performs supported deterministic relabel/vacancy edits, geometry heuristics and optional band-gap proxies. No relaxation occurs. The canonical successful winner is selected by geometry, formula match, proxy, score and rank; ten selected fields and finite status vocabularies are shared with publication checks. Workflow-ready statuses are not physical validation.
 
-Reporting and artifact-writing sub-surface inside the top-level `materials` module directory.
-Implementation is split across:
-- `src/materials/common.py`
-- `src/materials/ranking_tables.py`
-- `src/materials/structure_artifacts.py`
-- `src/materials/summary.py`
-- `src/materials/artifacts.py`
-- `src/materials/plots.py`
+## src/materials/summary.py
 
 ### `build_experiment_summary(dataset_df, bn_df, candidate_df, split_masks, selection_summary, cfg, robustness_df=None, bn_slice_benchmark_df=None, bn_family_benchmark_df=None, bn_stratified_error_df=None, bn_centered_candidate_df=None, bn_centered_screening_selection=None, structure_generation_seed_df=None, candidate_prediction_member_df=None, candidate_grouped_robustness_member_df=None, bn_centered_grouped_robustness_member_df=None, structure_first_pass_execution_summary_df=None, structure_first_pass_execution_payload=None, bn_slice_prediction_df=None, bn_family_prediction_df=None)`
-Builds the structured experiment summary dict written to `artifacts/experiment_summary.json`.
-Data-insufficient BN diagnostics remain reportable with unavailable metric comparisons represented
-as `null`; BN slice/family prediction paths are advertised only when the corresponding prediction
-frames contain rows, matching the writer and v2 published-output inventory.
-Includes:
-- dataset stats
-- feature summary
-- joint feature/model selection summary
-- benchmark metadata
-- grouped robustness metadata
-- BN-slice benchmark metadata
-- candidate ranking metadata
-- BN-centered alternative ranking metadata and overlap diagnostics versus the default ranking
 
-Important:
-- preserves the distinction between best overall evaluation combo and formula-only screening combo
-- now also records candidate-space provenance such as `candidate_generation_strategy` and `candidate_family_counts`
-- now also summarizes BN-local support metadata so the screening story is not purely global-data driven
-- now also summarizes BN analog-evidence metadata from observed BN reference properties
-- now also summarizes analog-validation label counts derived from BN reference property alignment
-- now also summarizes whether the BN analog-validation proxy is active in ranking and how many rows were penalized
-- now also summarizes grouped-by-formula robustness results for the selected model, screening fallback, and dummy baseline
-- now also summarizes the BN-slice benchmark, including standard-split BN row placement, selected/screening/baseline BN metrics, and the current BN-slice best configured combo
-- now also summarizes the BN-family holdout benchmark, including family grouping method, selected/screening/baseline metrics, and whether any candidate combo beats the global dummy baseline
-- now also summarizes BN-vs-non-BN stratified errors, including grouped-fold BN/non-BN metrics and the BN/non-BN MAE ratio
-- now also summarizes the explicit screening objective, so the machine-readable output states this is low-confidence BN-themed formula-level follow-up prioritization rather than direct discovery
-- now also summarizes the BN-centered alternative ranking view, including the chosen candidate-compatible combo, rank-shift statistics, Spearman / Kendall correlation, and top-k overlap against the default ranking
-- now also summarizes the ranking-stability / uncertainty layer, including source count, prediction interval settings, rank-spread thresholds, and the `demo_candidate_ranking_uncertainty.csv` artifact path
-- now also summarizes the heuristic decision policy / abstention layer, including application-track metadata, abstained candidate count, and final/recommended action counts
-- now also summarizes the BN-slice candidate-compatible evaluation view and the `bn_candidate_compatible_evaluation.csv` artifact path
-- now also summarizes the structure-generation bridge artifact, including seeded candidate count, seed row count, unique BN reference prototype count, the JSON handoff artifact path, the reference-record payload artifact path, the job-plan artifact path, the first-pass queue artifact path, the candidate-level follow-up shortlist artifact path, and the novelty-aware follow-up extrapolation shortlist artifact path plus job-action counts / complexity stats
-- now also summarizes the first-pass structure execution layer, including artifact paths, executed formula count, variant count, success counts, status counts, selected model metadata, and the structure output directory
-- now also summarizes grouped candidate-robustness penalty settings, fold count, average spread, and penalized-row count
-- now also summarizes the family-aware proposal shortlist and the formula-level extrapolation shortlist as separate advisor-facing outputs
+Dataset, split, selection and optional diagnostic/ranking/structure evidence → JSON-ready experiment-summary dict. Records separate overall/screening roles, BN comparisons, ranking stability, uncertainty, decisions, shortlist and structure bridge/execution metadata. Data-insufficient comparisons are `null`; optional prediction paths are advertised only when corresponding rows will be emitted.
+
+## src/materials/artifacts.py
 
 ### `save_metrics_and_predictions(metrics, prediction_df, bn_df, screened_df, benchmark_df, robustness_df, bn_slice_benchmark_df, bn_slice_prediction_df, bn_centered_screened_df, structure_generation_seed_df, experiment_summary, manifest, cfg, ...)`
-Writes the main artifact files under `artifacts/`.
-Every fixed, configurable, dynamic, and stale-cleanup CIF leaf is preflighted in its originally declared form before directory creation. Configurable structure-execution outputs must remain under that directory, use the expected JSON/CSV types, avoid core/pairwise/alias collisions, and place CIF files directly under the configured structure directory. Empty execution results remove only preflighted stale execution outputs from a previous run.
-The writer also preflights experiment-summary container shape and each declared dynamic output role against the shared runtime role mapping before artifact-directory creation or prior-marker invalidation. Semantically empty absent/null/empty containers and matching normalized or filesystem-identical same-role paths remain accepted.
-Nonempty structure-execution summary and variants frames must carry every canonical relation field, use the builder-owned finite candidate-status vocabulary, and agree with the execution payload on candidate/variant membership, counts, statuses, geometry results, the deterministic canonical winner, and all ten selected-row projections before publication. Candidates without a successful variant keep selected ID/rank/path/formula/site/geometry/proxy/relaxation fields null and use the canonical `not_executed` or invalid-reference error final status. This prevents swapped, relabelled, arbitrary-status, or internally contradictory builder outputs from reaching a current bundle while retaining canonical inactive, empty, error, partial, full, failed-variant, custom-formula-column, custom-path, and non-first-winner outputs.
-Configured enabled/label/method/note metadata, structure-aware model availability, and any experiment-summary execution metadata/count/model fields must be exact projections of the canonical configuration and payload before publication; this keeps structure outputs labeled as unrelaxed handoff evidence rather than synthesis, stability, or discovery proof.
-For formula-grouped splits, seed formula row counts and target means are reconstructed from the complete BN frame and must match the builder's train+validation aggregate before publication; record-level seed evidence remains bound to the cached raw record.
-Ranking-stability, decision-policy, shortlist, and structure-seed gates control their declared outputs; disabling a layer removes stale files from prior runs, including case-equivalent CIF suffixes. Caller JSON and parity inputs are preflighted before mutation, CSV replacement is atomic, and successful fixed/optional/configured/CIF/plot writes feed one source-derived commitment. Any prior marker is invalidated before mutation; failed plotting/publication leaves no marker, while `artifact_provenance.json` is always the final action and excludes absent optional outputs.
-Each compact BN model-role row uses one canonical feature/model identity across diagnostic scopes; unavailable identity-matched metrics stay empty rather than borrowing a different model's best value.
-This now includes both shortlist CSVs, BN-slice benchmark artifacts, BN-family / stratified BN evaluation artifacts, the BN-centered alternative ranking artifact, the ranking-stability / abstention artifact, the BN candidate-compatible evaluation artifact, and the structure-generation bridge artifacts in addition to the full ranking artifact:
-- `bn_slice_benchmark_results.csv`
-- `bn_slice_predictions.csv`
-- `bn_family_benchmark_results.csv`
-- `bn_family_predictions.csv`
-- `bn_stratified_error_results.csv`
-- `bn_evaluation_matrix.csv`
-- `bn_model_role_comparison.csv`
-- `bn_candidate_compatible_evaluation.csv`
-- `demo_candidate_bn_centered_ranking.csv`
-- `demo_candidate_rank_stability_summary.csv`
-- `demo_candidate_ranking_uncertainty.csv`
-- `demo_candidate_structure_generation_seeds.csv`
-- `demo_candidate_structure_generation_handoff.json`
-- `demo_candidate_structure_generation_reference_records.json`
-- `demo_candidate_structure_generation_job_plan.json`
-- `demo_candidate_structure_generation_first_pass_queue.json`
-- `demo_candidate_structure_generation_followup_shortlist.csv`
-- `demo_candidate_structure_generation_followup_extrapolation_shortlist.csv`
-- `demo_candidate_structure_generation_first_pass_execution.json`
-- `demo_candidate_structure_generation_first_pass_execution_summary.csv`
-- `demo_candidate_structure_generation_first_pass_execution_variants.csv`
-- `demo_candidate_structure_followup_report.csv`
-- `demo_candidate_proposal_shortlist.csv`
-- `demo_candidate_extrapolation_shortlist.csv`
-- `artifact_provenance.json`
+
+Metrics, prediction/benchmark/ranking/structure frames, summary, manifest and config → published artifact bundle. Preflights every output path, caller JSON, semantic role and structure/source/seed/edit-plan/selected-row relation before mutation. Honors optional gates and removes only preflighted stale outputs; uses atomic CSV replacement. Invalidates the old marker before writing and publishes the v2 commitment last; failures leave no completion marker. Detailed invariants are maintained once in [materials API](../src/materials/PY_FILES_SUMMARY.md#artifactspy).
+
+## src/materials/plots.py
 
 ### `save_basic_plots(prediction_df, cfg)`
-Guards and canonicalizes the Matplotlib cache before pyplot import, then preflights and writes the parity plot without following a leaf alias into user-owned `human_docs/`.
 
----
+Predictions/config → guarded canonical parity-plot path after publication. Configures Matplotlib cache before pyplot import, invalidates an old marker before mutation and closes figures on failure.
 
 ## src/ui/streamlit_app.py
 
 ### `render_streamlit_app()`
-Renders the artifact viewer from the configured artifact root and guarded execution paths, reads JSON through the documented runtime helper, and verifies every v2 committed output digest before labeling provenance current. A summary-declared execution path is accepted only when it identifies the corresponding configured file under the same canonical role mapping used by publication; wrong-shaped nested summary objects, cross-role relabeling, invalid/missing paths, and uncommitted paths fail closed. Absent/null/empty nested containers retain the configured baseline so disabled execution cannot revive stale outputs. Report content requires the final viewer assessment to remain current with a concrete committed-path set; malformed or legacy markers, missing/changed content, incomplete bundles, and known viewer outputs absent from the successful-run inventory are non-green and fully suppressed. Unrelated extras remain ignored, and JSON/CSV parse failures warn instead of crashing.
-It displays:
-- `metrics.json`
-- `experiment_summary.json`
-- `benchmark_results.csv`
-- `robustness_results.csv`
-- `bn_slice_benchmark_results.csv`
-- `bn_slice_predictions.csv`
-- `bn_family_benchmark_results.csv`
-- `bn_family_predictions.csv`
-- `bn_stratified_error_results.csv`
-- `bn_evaluation_matrix.csv`
-- `bn_model_role_comparison.csv`
-- `bn_candidate_compatible_evaluation.csv`
-- `predictions.csv`
-- `demo_candidate_ranking.csv`
-- `demo_candidate_bn_centered_ranking.csv`
-- `demo_candidate_ranking_uncertainty.csv`
-- `demo_candidate_rank_stability_summary.csv`
-- `demo_candidate_structure_generation_seeds.csv`
-- `demo_candidate_structure_generation_handoff.json`
-- `demo_candidate_structure_generation_reference_records.json`
-- `demo_candidate_structure_generation_job_plan.json`
-- `demo_candidate_structure_generation_first_pass_queue.json`
-- `demo_candidate_structure_generation_followup_shortlist.csv`
-- `demo_candidate_structure_generation_followup_extrapolation_shortlist.csv`
-- `demo_candidate_structure_generation_first_pass_execution.json`
-- `demo_candidate_structure_generation_first_pass_execution_summary.csv`
-- `demo_candidate_structure_generation_first_pass_execution_variants.csv`
-- `demo_candidate_structure_followup_report.csv`
-- `demo_candidate_proposal_shortlist.csv`
-- `demo_candidate_extrapolation_shortlist.csv`
 
----
-
-## Practical notes
-
-- Keep `main.py` linear as an agent-traceable pipeline.
-- Agent-facing docs should track verified runtime behavior, not planned behavior.
-- Before any commit or stage-worthy milestone, choose the smallest sufficient validation profile from `python3 main.py --emit-agent-commands`.
-- Default architecture/docs/skills validation:
-  - `python3 main.py --verify-agent-contract`
-  - `python3 main.py --dry-run`
-  - focused tests around the touched entrypoint/module
-- Run `python3 -m pytest -q src` when public Python/module logic changed or when dependencies are available and the blast radius is broad.
-- Run full `python3 main.py` only when scientific pipeline behavior changed or regenerated artifacts are required.
+No arguments → Streamlit artifact view (`None` return). Displays current committed outputs only after independent provenance, digest, role/path and shape checks. Missing/changed/legacy/uncommitted-known bundles suppress report tables; malformed JSON/CSV produces text warnings. Absent optional outputs stay absent. Rendering tests and optional startup commands are in [TESTING.md](../TESTING.md) and [SERVICES.md](../SERVICES.md).

@@ -1,11 +1,11 @@
-# Agent Handoff
+# Operational and scientific context
 
-## Current state
+## Role of this document
 
 - Project: `aiforbn`, a research-grade AI-for-BN demonstration repository maintained for autonomous agents.
 - Default environment: conda `quant`; run from the repository root.
 - `HUMAN_DOCS_POLICY=user_owned_read_only_unless_explicit_human_document_task`
-- No active repository blocker is recorded. Start new work from a reproduced defect or an explicit scientific-delivery request, not from historical maintenance chronology.
+- Short current status and next work: [root HANDOFF.md](../HANDOFF.md). This file retains scientific/publication boundaries and deferred implementation details.
 - Git history is the forensic record for completed maintenance rounds; this file records only current operational truth.
 
 ## Scientific contract
@@ -27,7 +27,9 @@ The machine-readable v18 anchors, non-claims, and deliverable chain are canonica
 | Entrypoints, modules, dependencies, profiles, v18 boundaries | `docs/AGENT_MANIFEST.json` |
 | Routine execution and profile selection | `.agents/skills/aiforbn-workflow/SKILL.md` and `skills/ai_native_workflow.txt` |
 | Proposal/Overleaf delivery | `.agents/skills/aiforbn-overleaf-proposal/SKILL.md` |
-| Public Python callables and signatures | root and nearest module `PY_FILES_SUMMARY.md` |
+| Public Python callables and signatures | `COMMON_FUNCTIONS.md`, `docs/PY_FILES_SUMMARY.md`, then the nearest module summary |
+| Environment, profiles and child test commands | `TESTING.md` |
+| Optional viewer and service/MCP ownership | `SERVICES.md` |
 | Runtime defaults | `src/config.py` |
 | Historical changes and rollback | Git commits and diffs |
 
@@ -51,28 +53,14 @@ Do not duplicate exact commands, dependency lists, public signatures, or round n
 - Do not commit credentials, private datasets, caches, local environment state, or scratch outputs.
 - An installed local package, authorization state, or historical artifact is not current project truth unless it is declared by the machine contract and verified in the active environment.
 
-## Validated checkpoint
+## Verification evidence
 
-Latest validated tree (2026-07-24):
-
-- agent contract, nine-field command-index parity, and ordered pytest target rendering: `ok`, 0 errors, 0 warnings;
-- dry-run pipeline wiring: passed;
-- emitted architecture/docs focused profile: 608 passed;
-- cache-disabled collection/full `src` suite: 1163 collected, 1163 passed;
-- manifest pytest non-vacuity regression: all three declared commands reject zero-call exit-0 runs while preserving partial, collect-only, failure, interrupt, and no-test outcomes;
-- warning classification: one upstream PyTorch nested-tensor prototype warning, no project warning regression;
-- Streamlit AppTest: 104 passed;
-- bounded loopback renderer: health 200, root 200, clean shutdown, zero remaining listener;
-- both repo skills valid; external-cache compile, diff, residue, and protected-tree checks clean.
-
-These checks do not regenerate scientific artifacts. Select commands from `python3 main.py --emit-agent-commands`; do not copy this snapshot forward after behavior or test inventory changes without rerunning the exact affected checks.
+Fresh validation commands and result interpretation live in [TESTING.md](../TESTING.md). Historical full-suite/renderer counts remain available in Git; they do not prove the current source/docs tree or refresh scientific artifacts.
 
 ## Resume and recovery
 
-1. Read `AGENTS.md`, `docs/AGENT_MANIFEST.json`, this file, `skills/ai_native_workflow.txt`, and the relevant repo skill.
-2. Run `python3 main.py --emit-agent-commands` and `python3 main.py --verify-agent-contract`.
-3. Classify the task and select the smallest emitted validation profile. For `src/**` work, also read the nearest module `AGENTS.md` and `PY_FILES_SUMMARY.md`.
-4. Keep scientific regeneration separate from code/docs maintenance. Use artifact provenance rather than file presence to judge currentness.
-5. Before handoff, review the complete diff, validate the frozen tree, stage only intentional paths, synchronize the existing remotes, and prove clean ref equality.
+1. Start from root `AGENTS.md` and `HANDOFF.md`, then read only the task-relevant module/skill.
+2. Use the verified `quant` interpreter and emitted command index to choose validation; current paths and prerequisites are in `TESTING.md`.
+3. Review the intended diff, validate those bytes, stage only owned changes, synchronize existing remotes and read back their refs.
 
 There is no separate active chronology or archive document. Use `git log -- docs/HANDOFF.md` and the relevant commit diff for forensic recovery.

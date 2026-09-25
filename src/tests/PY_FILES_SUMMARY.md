@@ -21,5 +21,6 @@
 
 ## Notes
 
+- From the repository root, run `conda run -n quant python -m pytest -q src/tests`; the broader emitted focused profile also covers runtime regressions. See [TESTING.md](../../TESTING.md) for all child suites and result interpretation.
 - Production code must not import from `src/tests`.
 - Keep shared test helpers private unless a clearly reusable test-only helper emerges.

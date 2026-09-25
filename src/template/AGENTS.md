@@ -1,24 +1,13 @@
-# Module Instructions for Codex
+# Module template
 
-- `HUMAN_DOCS_POLICY=user_owned_read_only_unless_explicit_human_document_task`; copied modules inherit the user-owned, read-only-by-default `human_docs/` boundary.
+`HUMAN_DOCS_POLICY=user_owned_read_only_unless_explicit_human_document_task`; `human_docs/` is user-owned read-only context unless the task explicitly authorizes work on those documents.
 
-## Essential check before working
+This directory supplies a starting shape for a new module; it has no production callable surface.
 
-Common module-level utilities are stored in `utils.py`. Before starting work each time, you must check:
+- Adapt `AGENTS.md`, `PY_FILES_SUMMARY.md` and `utils.py` to the actual module instead of copying generic rules unchanged.
+- Record public callables, module dependencies, test locations and the relevant manifest changes together.
+- Keep project-wide rules in root `AGENTS.md`; add only module-specific context here.
 
-- Whether `utils.py` contains sufficiently general-purpose functions. If so, move them to an appropriate location under `/Users/zmx/Projects/myutils`, and update `/Users/zmx/Projects/myutils/docs/PUBLIC_API.md` accordingly.
-- `/Users/zmx/Projects/myutils/docs/PUBLIC_API.md` to determine whether there are already useful functions that can be reused directly for the current task.
+Public API: [PY_FILES_SUMMARY.md](PY_FILES_SUMMARY.md). Shared reuse and ownership guidance: [root AGENTS.md](../../AGENTS.md) and [COMMON_FUNCTIONS.md](../../COMMON_FUNCTIONS.md).
 
-This check must not be removed and must be performed every time.
-
-## Template rules that apply to every module
-
-- `src/template` is the module template. If you create a new module, copy this template first and then fill in the module-specific details.
-- Each module must stay independent, complete, and non-subordinate. Cross-module calls should go through documented public functions or classes only.
-- `AGENTS.md` stores the module-specific rules, implementation guidance, and any internal details that future Codex runs must follow.
-- `utils.py` stores reusable helpers that are local to the module. If a helper becomes general enough for multiple modules or projects, move it to `/Users/zmx/Projects/myutils`.
-- Public callable functions and classes belong in `PY_FILES_SUMMARY.md`. Internal helpers, especially underscore-prefixed ones, should be documented here only when future maintainers need guidance.
-
-## Template-specific note
-
-- Keep this template generic. Do not put project-specific implementation details here unless they should be inherited by every new module copied from this template.
+Validation: [TESTING.md](../../TESTING.md); this template has no separate suite, so validate a new module's behavior and public-surface/manifest integration.

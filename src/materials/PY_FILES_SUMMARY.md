@@ -54,7 +54,7 @@ No callable public surface. The following non-callable contracts are imported ac
   - Keep only BN-containing rows from a dataframe.
 - `annotate_bn_families(df, *, formula_col='formula', grouping_method=...)`
   - Add BN-family labels for BN-local grouping logic.
-- `generate_bn_candidates(cfg)`
+- `generate_bn_candidates(cfg=None)`
   - Build the configured BN candidate space and apply the same configured chemical-plausibility policy to its returned annotations.
 - `annotate_candidate_proposal_shortlist(ranked_candidate_df, cfg=None)`
   - Add the family-aware proposal-shortlist annotations.
@@ -188,6 +188,10 @@ These files currently expose no supported external call surface:
 
 ## tests/
 
+- Run `conda run -n quant python -m pytest -q src/materials/tests` from the repository root; prerequisites, emitted validation profiles and proof limits are in [TESTING.md](../../TESTING.md).
+- `test_data.py` covers normalization, processed-cache identity, guarded JARVIS download fixtures and partial-archive cleanup; it is not a live provider check.
+- `test_bn_filter.py` covers the B-and-N formula slice.
+- `test_features_pipeline.py` covers features, grouped splits, model selection, candidate annotations/ranking and BN follow-up integration.
 - `test_diagnostic_edge_cases.py` locks disabled and insufficient-data status semantics for BN diagnostics and alternative screening selection.
 - `test_reporting.py` locks artifact publication, provenance, finite candidate/variant structure-execution status vocabularies, exact builder-selected seed/raw-formula/source-atom and record-level normalized evidence identity, raw-source/edit-plan/final-structure identity, atom/metadata/CIF identity, evidence-compatible variant states, role-schema preflight, repeat-run cleanup, and failure-order behavior.
 - `test_structure_execution_contracts.py` locks relabel, vacancy, unsupported edit, and structure-aware proxy execution behavior.

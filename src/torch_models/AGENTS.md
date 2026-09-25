@@ -1,26 +1,13 @@
-# Module Instructions for Codex
+# Torch models
 
-- `HUMAN_DOCS_POLICY=user_owned_read_only_unless_explicit_human_document_task`; `human_docs/` is user-owned contextual evidence, never model-owned state.
+`HUMAN_DOCS_POLICY=user_owned_read_only_unless_explicit_human_document_task`; `human_docs/` is user-owned read-only context unless the task explicitly authorizes work on those documents.
 
-## Essential check before working
+Owns sklearn-style regressors with no production dependency on other project modules.
 
-Common module-level utilities are stored in `utils.py`. Before starting work each time, you must check:
+- Public classes are in `base.py`, `ensemble.py`, `attention.py`, `sparse_attention.py` and `roost_like.py`; business code usually reaches them through `materials.modeling.make_model`.
+- Keep fit/predict, input validation, reproducible seeds and device policy independently testable.
+- Attention/Roost-like implementations are experimental and outside the default sweep; successful model construction does not establish training quality or GPU execution.
 
-- Whether `utils.py` contains sufficiently general-purpose functions. If so, move them to an appropriate location under `/Users/zmx/Projects/myutils`, and update `/Users/zmx/Projects/myutils/docs/PUBLIC_API.md` accordingly.
-- `/Users/zmx/Projects/myutils/docs/PUBLIC_API.md` to determine whether there are already useful functions that can be reused directly for the current task.
+Public API: [PY_FILES_SUMMARY.md](PY_FILES_SUMMARY.md). Shared reuse and ownership guidance: [root AGENTS.md](../../AGENTS.md) and [COMMON_FUNCTIONS.md](../../COMMON_FUNCTIONS.md).
 
-This check must not be removed and must be performed every time.
-
-## Template rules that apply to this module
-
-- This module must stay independent, complete, and non-subordinate.
-- Cross-module calls must go through documented public functions or classes only.
-- `utils.py` stores reusable helpers that are local to this module. If a helper becomes general enough for multiple modules or projects, move it to `/Users/zmx/Projects/myutils`.
-- Public callable functions and classes belong in `PY_FILES_SUMMARY.md`. Internal helpers, especially underscore-prefixed ones, should be documented here only when future maintainers need guidance.
-
-## Torch-model-specific guidance
-
-- `torch_models` exposes model classes, not a broad utility grab bag.
-- The documented public surface is the regressor classes in `base.py`, `ensemble.py`, `attention.py`, `sparse_attention.py`, and `roost_like.py`.
-- Underscore-prefixed helpers in `base.py` are internal implementation details for this module only.
-- External business logic should normally instantiate these models through documented public call sites, especially `materials.modeling.make_model(...)`, unless a direct class import is explicitly warranted.
+Validation: [TESTING.md](../../TESTING.md); focused target from the repository root: `conda run -n quant python -m pytest -q src/torch_models/tests`.

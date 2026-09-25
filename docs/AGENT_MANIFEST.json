@@ -39,6 +39,10 @@
   },
   "source_of_truth_files": [
     "AGENTS.md",
+    "HANDOFF.md",
+    "COMMON_FUNCTIONS.md",
+    "TESTING.md",
+    "SERVICES.md",
     ".agents/skills/aiforbn-workflow/SKILL.md",
     ".agents/skills/aiforbn-overleaf-proposal/SKILL.md",
     "docs/AGENT_MANIFEST.json",

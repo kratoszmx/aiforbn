@@ -19,5 +19,6 @@ This directory is the module template used when a new top-level module is create
 
 ## Notes
 
+- There is no separate template test suite. A new module needs behavior tests and manifest/public-surface validation as described in [TESTING.md](../../TESTING.md).
 - When you copy this template into a new module, update this file immediately to describe the new module's real public surface.
 - Internal helper notes belong in `AGENTS.md`, not here.

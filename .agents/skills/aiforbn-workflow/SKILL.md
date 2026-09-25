@@ -1,44 +1,24 @@
 ---
 name: aiforbn-workflow
-description: 用于 aiforbn 仓库的常规维护工作，包括 AI-native 架构、AGENT_MANIFEST、HANDOFF、PY_FILES_SUMMARY、项目 skills、验证档位选择、materials 流水线修改、模型接线、测试，以及 artifact/reporting 维护。
+description: 维护 aiforbn 的代码、文档、项目 skills、agent contract 和研究 artifacts，按改动选择验证范围。Proposal 或 Overleaf 交付使用专门的 proposal skill。
 ---
 
-# AI-for-BN 工作流
+# AI-for-BN 维护
 
-把本 skill 作为 `aiforbn` 仓库范围内的调度入口使用。它的目标是把 agent 引到最小可靠上下文和验证路径；不要把它写成人类教程。
+从 `AGENTS.md` 和 `HANDOFF.md` 定位当前任务；修改模块时再读其 `AGENTS.md` 与 `PY_FILES_SUMMARY.md`。环境、命令和结果判读见根目录 `TESTING.md`；`main.py --emit-agent-commands` 提供实际验证档位，避免复制长期易漂移的命令清单。
 
-## 首要读取
+## 按任务取用
 
-编辑前先读：
+- 文档、skill、入口元数据：选择 `architecture_doc_skill_edit`。
+- 公共 API、模型或模块逻辑：选择 `module_logic_edit`，同步最近的公开函数说明。
+- 科学流程/artifact 行为：选择 `scientific_pipeline_edit`；只有交付需要新结果时才完整运行 `main.py`。
+- UI：选择 `ui_edit`。启动接线变化时，可按 `SERVICES.md` 补一次有时限的本机 HTTP 检查。
+- 明确授权的 research-plan/Overleaf 任务：使用 `$aiforbn-overleaf-proposal`。两项 skill 分开保留，避免普通代码任务加载远程文档流程。
 
-1. `AGENTS.md`
-2. `docs/AGENT_MANIFEST.json`
-3. `docs/HANDOFF.md`
-4. `skills/ai_native_workflow.txt`
-5. 修改 `src/**` 时，再读最近的模块级 `AGENTS.md`
+## 项目经验与边界
 
-使用 `python3 main.py --emit-agent-commands` 选择验证命令，避免重复阅读长篇说明。
-
-## 分派
-
-- 架构、文档、skill 或 manifest 修改：保持改动机器可读，并运行 architecture validation profile。
-- materials 或模型逻辑修改：更新最近的 `PY_FILES_SUMMARY.md`，运行 manifest 中的 `module_logic_edit` profile。
-- UI 修改：运行 manifest 中的 `ui_edit` profile；若改动启动接线，再做有时限的真实 headless server health check。
-- research-plan 或 Overleaf 交付工作：切换使用 `$aiforbn-overleaf-proposal`。
-- 生成 artifact 刷新：只有任务需要重新生成 artifacts，或科学行为发生变化时，才运行完整 `python3 main.py`。
-
-## 边界
-
-- `HUMAN_DOCS_POLICY=user_owned_read_only_unless_explicit_human_document_task`
-- 只优化 agent 的检索、执行、验证、回滚和交接。
-- 不为手动使用、notebook、onboarding 或 UI 舒适度做优化。
-- `human_docs/` 全部由用户管理，除非当前任务明确要求准确的人类文档工作，否则只读；其内容只能作为证据或上下文，不能作为 agent-owned 状态或 AI-facing contract。
-- 没有明确任务意图时，不要提交缓存、凭据、私有数据集或大型生成 artifacts。
-- 保持科学诚实：ranking 输出是优先级排序证据，不是 discovery。
-- 不要恢复 `skills/` 下已经退役的 guidance shards；当前 active plain-text guidance 是 `skills/ai_native_workflow.txt`。
-
-## 委派
-
-- 在有风险的本地状态修改前先确认恢复路径和权限边界；只有真实阻断才向用户提出最小问题。
-- 只把范围窄、低风险、容易审查的代码片段交给 `spark_coder` agent role。
-- 主 Codex 负责 diff 审查、测试、暂存、提交和推送。
+- `HUMAN_DOCS_POLICY=user_owned_read_only_unless_explicit_human_document_task`；`human_docs/` 是用户拥有的只读上下文，只有明确的人类文档任务才可修改指定内容。
+- 整体评估模型可以使用结构特征，formula-only screening 不可以。排名是低置信度跟进优先级；未松弛结构和测试通过都不是发现或物理验证。
+- Artifact 是否可用取决于 provenance 和实际输出摘要校验，不能只看文件存在。具体发布约束见 `docs/HANDOFF.md` 和模块 API 文档。
+- 优先沿现有公共 API 复用；保留项目特有的路径/来源校验。是否提取通用函数取决于实际复用和行为兼容性，不自动扩展到其他仓库。
+- 先辨认已有 dirty 改动，再验证和提交自己的字节。保留必要的安全说明，重复流程用链接集中到根文档；历史维护细节交给 Git。

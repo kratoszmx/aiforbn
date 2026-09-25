@@ -1,25 +1,13 @@
-# Module Instructions for Codex
+# Entrypoint and cross-module tests
 
-- `HUMAN_DOCS_POLICY=user_owned_read_only_unless_explicit_human_document_task`; `human_docs/` is user-owned contextual evidence, never test-owned state.
+`HUMAN_DOCS_POLICY=user_owned_read_only_unless_explicit_human_document_task`; `human_docs/` is user-owned read-only context unless the task explicitly authorizes work on those documents.
 
-## Essential check before working
+`src/tests` covers config, main orchestration, public APIs and manifest-driven validation. It is not a production API.
 
-Common module-level utilities are stored in `utils.py`. Before starting work each time, you must check:
+- Production code does not import test helpers.
+- Keep shared test helpers private unless a reusable test-only surface is needed.
+- `conftest.py` owns `src/` import setup, cache cleanup and declared-command non-vacuity checks. Preserve the difference between a collected test and a passed call.
 
-- Whether `utils.py` contains sufficiently general-purpose functions. If so, move them to an appropriate location under `/Users/zmx/Projects/myutils`, and update `/Users/zmx/Projects/myutils/docs/PUBLIC_API.md` accordingly.
-- `/Users/zmx/Projects/myutils/docs/PUBLIC_API.md` to determine whether there are already useful functions that can be reused directly for the current task.
+Public API: [PY_FILES_SUMMARY.md](PY_FILES_SUMMARY.md). Shared reuse and ownership guidance: [root AGENTS.md](../../AGENTS.md) and [COMMON_FUNCTIONS.md](../../COMMON_FUNCTIONS.md).
 
-This check must not be removed and must be performed every time.
-
-## Template rules that apply to this module
-
-- This module must stay independent, complete, and non-subordinate.
-- Cross-module calls must go through documented public functions or classes only.
-- `utils.py` stores reusable helpers that are local to this module. If a helper becomes general enough for multiple modules or projects, move it to `/Users/zmx/Projects/myutils`.
-- Public callable functions and classes belong in `PY_FILES_SUMMARY.md`. Internal helpers, especially underscore-prefixed ones, should be documented here only when future maintainers need guidance.
-
-## Test-module-specific guidance
-
-- `src/tests` is not a production API module. It exists for pytest-driven coverage of top-level entry surfaces.
-- Production code must not import from `src/tests`.
-- Keep test helpers private unless a shared test-only helper is clearly worth keeping in `utils.py`.
+Validation: [TESTING.md](../../TESTING.md); focused target from the repository root: `conda run -n quant python -m pytest -q src/tests`.

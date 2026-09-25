@@ -21,6 +21,7 @@ Anything underscore-prefixed or omitted here should be treated as internal.
 
 ## tests/
 
+- Run `conda run -n quant python -m pytest -q src/ui/tests/test_streamlit_app.py` from the repository root. [TESTING.md](../../TESTING.md) covers prerequisites/profiles; [SERVICES.md](../../SERVICES.md) covers optional loopback startup, health and shutdown.
 - `test_streamlit_app.py`
   - Covers the source-derived fixed/dynamic render inventory, completion/provenance/content-mutation states, configured/nested path transitions, nested object-shape matrices, guarded file-identity and role matching, unrelated-extra tolerance, and malformed JSON/CSV handling while verifying the supported `width='stretch'` dataframe contract.
   - Runs the app through Streamlit's real `AppTest` renderer, including asymmetric BN slice/family prediction states and malformed/legacy/non-current provenance suppression, so import and render failures remain text-verifiable.
