@@ -21,4 +21,4 @@ curl --fail --max-time 5 http://127.0.0.1:8501/_stcore/health
 curl --fail --max-time 5 --output /dev/null http://127.0.0.1:8501/
 ```
 
-HTTP 200 proves listener/HTTP startup only. Use the `ui_render_smoke` profile for application rendering and artifact validation. A startup smoke should stop its process after checking and confirm that its listener has exited. This viewer is optional; routine docs work does not need a live listener.
+HTTP 200 proves listener/HTTP startup only. Use the emitted `ui_render_smoke` validation command for application rendering and artifact validation. A startup smoke should stop its process after checking and confirm that its listener has exited. This viewer is optional; routine docs work does not need a live listener.
