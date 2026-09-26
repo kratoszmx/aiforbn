@@ -4,3 +4,7 @@ __pycache__/
 .env
 claw_memory/
 
+# Private meeting source material stays local; source metadata remains tracked.
+/official_docs/meetings/*/audio/
+/official_docs/meetings/*/transcripts/
+/official_docs/meetings/*/evidence/

@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "archived_on": "2026-09-27",
+  "meeting_date_from_source_filename": "2026-09-09",
+  "duration_seconds": 10539.85,
+  "source_context_thread_id": "01a06a3e-1df1-7863-9f52-c6ed083f2a37",
+  "source_context_note": "Named predecessor chat provides pre-meeting context; the later recording and reviewed transcript were located in Downloads with matching existing delivery hashes.",
+  "preferred_transcript": "transcripts/transcript_reviewed_zh.txt",
+  "transcript_status": "Machine transcription and cross-provider review, not human line-by-line approval; speaker names remain inferred and disputed turns remain marked.",
+  "privacy": "Audio, transcripts and review evidence are local-only, owner-readable, and excluded from Git. This manifest contains file metadata only.",
+  "archive_method": "Byte-preserving copies; originals in Downloads retained. No audio decoding, listening, transcription, screenshots or image/PDF rendering in this task.",
+  "historical_notes": "original_delivery_notes.md describes the initial 20-minute fourth-provider review; the preferred reviewed transcript records the later total of 63 minutes.",
+  "files": [
+    {
+      "path": "audio/recording_original.mp4",
+      "role": "original_recording",
+      "source_path": "/Users/zmx/Downloads/WhatsApp Audio 2026-09-09 at 10.59.33 PM.mp4",
+      "bytes": 65723677,
+      "sha256": "a59eb0f7c4f2a6696153744b7825769353fc3ab063c85ff226db026585ba9e9e"
+    },
+    {
+      "path": "transcripts/transcript_reviewed_zh.txt",
+      "role": "preferred_machine_reviewed_transcript",
+      "source_path": "/Users/zmx/Downloads/三人會議逐字稿_2026-09-09_背景核對版.txt",
+      "bytes": 297519,
+      "sha256": "96add5863c83159faddda787220f137918245136570c74c49bff15e95d316b5e"
+    },
+    {
+      "path": "transcripts/transcript_original_zh.txt",
+      "role": "original_machine_transcript",
+      "source_path": "/Users/zmx/Downloads/三人會議逐字稿_2026-09-09/01_會議逐字稿_含時間與說話人.txt",
+      "bytes": 225391,
+      "sha256": "bcfaf29a64a9066ec2a5b4bc4458f8d43e9a8ddeecfd25822cc9624b69901e9f"
+    },
+    {
+      "path": "evidence/original_delivery_notes.md",
+      "role": "historical_reading_notes",
+      "source_path": "/Users/zmx/Downloads/三人會議逐字稿_2026-09-09/00_閱讀說明.md",
+      "bytes": 1865,
+      "sha256": "9a2de132d8d5c49ab6eaab9728f2638f95747bca053985fd7d8a09bf9566ec9b"
+    },
+    {
+      "path": "evidence/model_disagreements.md",
+      "role": "original_disagreement_notes",
+      "source_path": "/Users/zmx/Downloads/三人會議逐字稿_2026-09-09/02_優先核對與模型差異.md",
+      "bytes": 36833,
+      "sha256": "327f13374dcdb660c63b26c2be974682b28121f0469a155bf66e4fc2534ecc8d"
+    },
+    {
+      "path": "evidence/minute_comparison.md",
+      "role": "original_minute_comparison",
+      "source_path": "/Users/zmx/Downloads/三人會議逐字稿_2026-09-09/03_完整逐分鐘對照.md",
+      "bytes": 326268,
+      "sha256": "18e7e2ae5d296fa0ee6e472eb94360237bbcd468b416514888899fbbffeffb00"
+    },
+    {
+      "path": "evidence/context_review.json",
+      "role": "context_and_speaker_review",
+      "source_path": "/Users/zmx/Downloads/三人會議逐字稿_2026-09-09/保留資料/2026-09-16_背景核對/校訂與說話人核對.json",
+      "bytes": 1738021,
+      "sha256": "94abf5f4c93e598cf1f53f2eb49dbe8605eec8339430e8391490c0b08d031f9d"
+    },
+    {
+      "path": "evidence/context_delivery_validation.json",
+      "role": "historical_delivery_verification",
+      "source_path": "/Users/zmx/Downloads/三人會議逐字稿_2026-09-09/保留資料/2026-09-16_背景核對/交付驗證.json",
+      "bytes": 648,
+      "sha256": "120e3e4d199ef47ad564c4562285cae54517c9b49d67b850bc5051c0e13e8ef9"
+    },
+    {
+      "path": "evidence/provider_transcripts/ElevenLabs_僅002500至004500.md",
+      "role": "provider_transcript",
+      "source_path": "/Users/zmx/Downloads/三人會議逐字稿_2026-09-09/各模型原稿/ElevenLabs_僅002500至004500.md",
+      "bytes": 24088,
+      "sha256": "dc2e76a986042552c8dc1ee3c93f320c0f5902acef4c78d23efebb61ba4e956a"
+    },
+    {
+      "path": "evidence/provider_transcripts/google_全程可定位文字.md",
+      "role": "provider_transcript",
+      "source_path": "/Users/zmx/Downloads/三人會議逐字稿_2026-09-09/各模型原稿/google_全程可定位文字.md",
+      "bytes": 292611,
+      "sha256": "a00163e1659ed204de01a8d3d04b495056050bc654376f6abf5b15d55f2f7477"
+    },
+    {
+      "path": "evidence/provider_transcripts/google_分段原文含未定時詞.md",
+      "role": "provider_transcript",
+      "source_path": "/Users/zmx/Downloads/三人會議逐字稿_2026-09-09/各模型原稿/google_分段原文含未定時詞.md",
+      "bytes": 91772,
+      "sha256": "395eb9ac39b72342937092159bab8aa0d8a28ba29163de77cc5cec42ff9b49d3"
+    },
+    {
+      "path": "evidence/provider_transcripts/soniox_全長.md",
+      "role": "provider_transcript",
+      "source_path": "/Users/zmx/Downloads/三人會議逐字稿_2026-09-09/各模型原稿/soniox_全長.md",
+      "bytes": 194391,
+      "sha256": "e0e76c9bb61125ec92d0a0f0e21f9ed961770826553cdafae7c94c7507752791"
+    },
+    {
+      "path": "evidence/provider_transcripts/speechmatics_全長.md",
+      "role": "provider_transcript",
+      "source_path": "/Users/zmx/Downloads/三人會議逐字稿_2026-09-09/各模型原稿/speechmatics_全長.md",
+      "bytes": 103158,
+      "sha256": "72099945da54d2c4f74b0a235b83812941409e0e96b9b2644152eba117e9d021"
+    }
+  ]
+}

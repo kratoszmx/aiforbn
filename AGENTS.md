@@ -22,6 +22,8 @@ For an authorized artifact refresh, `conda run -n quant python main.py` runs the
 | Need | Entry |
 | --- | --- |
 | Current progress and next work | [HANDOFF.md](HANDOFF.md) |
+| Proposed research next steps after the teacher meeting | [docs/research/next_steps_en.md](docs/research/next_steps_en.md); user copy: [human_docs/next_steps_zh.md](human_docs/next_steps_zh.md) |
+| Recording/transcript provenance and research source leads | [official_docs/INDEX.md](official_docs/INDEX.md) |
 | Scientific/publication boundaries; deferred work | [docs/HANDOFF.md](docs/HANDOFF.md) |
 | Commands, dependencies, module ownership, profiles | [docs/AGENT_MANIFEST.json](docs/AGENT_MANIFEST.json) |
 | Shared helpers, imports, inputs/outputs | [COMMON_FUNCTIONS.md](COMMON_FUNCTIONS.md) |

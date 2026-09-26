@@ -1,0 +1,508 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-27",
+  "authorization": "User explicitly requested human_docs cleanup, v18 preservation, and bilingual next-step planning.",
+  "base_commit": "5fadf17502c9ddbed6072309833cb38a9b354c5c",
+  "active_plan": "human_docs/next_steps_zh.md",
+  "agent_plan": "docs/research/next_steps_en.md",
+  "actions": [
+    {
+      "source": "human_docs/README.md",
+      "sha256": "2294f5bda2da6c112295fa2a7f53f41257684ef4f07f1aff57483f1d7409bf96",
+      "action": "delete",
+      "reason": "Explicitly requested README removal."
+    },
+    {
+      "source": "human_docs/images/parity_plot.png",
+      "sha256": "631b8d3320c7ddf2c71feccee0224686114cb15ad429891a3f9ff8fbfe467129",
+      "action": "archive",
+      "destination": "human_docs/deprecated/images/parity_plot.png",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/project_reports/给见微的说明.md",
+      "sha256": "5d0703793d46d99517b876f18b7e46de978efcdae88b91cf3ea231e198b26268",
+      "action": "archive",
+      "destination": "human_docs/deprecated/project_reports/给见微的说明.md",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/project_reports/老師回覆.txt",
+      "sha256": "9f2ca59e949295611870230b4bdfc7698124a1997f1ca5479e2095b09178f163",
+      "action": "archive",
+      "destination": "human_docs/deprecated/project_reports/老師回覆.txt",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/project_reports/项目汇报.md",
+      "sha256": "71d4052ea78aefc136f518d1c6562522886a1edfc4a2f4ae134f5dc14b94ac22",
+      "action": "archive",
+      "destination": "human_docs/deprecated/project_reports/项目汇报.md",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_context/deep-research-report.md",
+      "sha256": "6040f13dbfa1bf18b053020c24182cccbbd0f991efef35dfb29cf5207940c1e2",
+      "action": "delete",
+      "reason": "Explicitly requested removal of deep research context."
+    },
+    {
+      "source": "human_docs/research_context/poc_workflow_brief.txt",
+      "sha256": "9ec5a40dbe56216a824979574d7da250e4168aa72cb9ac85c622759f3ee30800",
+      "action": "delete",
+      "reason": "Explicitly requested removal of PoC workflow context."
+    },
+    {
+      "source": "human_docs/research_context/prompt.txt",
+      "sha256": "55ecafc05fe0f6c6d71e447fa5326d30f0c0337ef9599e19a9d14e1106e49a13",
+      "action": "delete",
+      "reason": "Obsolete generic coding prompt, not research evidence."
+    },
+    {
+      "source": "human_docs/research_context/teacherprompt.txt",
+      "sha256": "32b5466d6a08cc4c3f562aa8716bb522a6ccd9b0c04376392542900e94956cf5",
+      "action": "delete",
+      "reason": "Obsolete role-play prompt using an incorrect PhD identity."
+    },
+    {
+      "source": "human_docs/research_plan/Project Plan Template_Prof Ma Chen_donation - 深圳市中能天奕.doc",
+      "sha256": "136e7062a533522767740fb10b1c7c3ed58649b8caa655eac876e5f1ab49d167",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/Project Plan Template_Prof Ma Chen_donation - 深圳市中能天奕.doc",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/Project Plan Template_Prof Ma Chen_donation - 深圳市中能天奕.docx",
+      "sha256": "45461660cc9626a56bd382f971fe30237e8a9e67eeae49b4d56a5e225cec745c",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/Project Plan Template_Prof Ma Chen_donation - 深圳市中能天奕.docx",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/ai_for_bn_research_plan_v10.pdf",
+      "sha256": "c851a0bc02e028ce2c4926ad1dd31f35360de8bdad9bdceefe50ae52d341cd3d",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/ai_for_bn_research_plan_v10.pdf",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/ai_for_bn_research_plan_v10.tex",
+      "sha256": "603d3085d0b41686ba0e13a1ae84f76133ac30cfe3dcb7351d12daea9eccc2e7",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/ai_for_bn_research_plan_v10.tex",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/ai_for_bn_research_plan_v11.pdf",
+      "sha256": "29aaca66be30be03b9b6fa701bc8c2a07698ba7ae6f72d7ba3d277f323a73d4b",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/ai_for_bn_research_plan_v11.pdf",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/ai_for_bn_research_plan_v11.tex",
+      "sha256": "4594230824043261ee395bbcb390ce7ad094b0493862cc181dc44e364dcbe5f3",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/ai_for_bn_research_plan_v11.tex",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/ai_for_bn_research_plan_v12.pdf",
+      "sha256": "16e09ebc890b138f9a32301d5bee5673654e7efd3d9b757302d1752c61b02bea",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/ai_for_bn_research_plan_v12.pdf",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/ai_for_bn_research_plan_v12.tex",
+      "sha256": "727b0a1c335c322243e0df23b19e41b6c1cccbc6026d2a300f05634477b88bbb",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/ai_for_bn_research_plan_v12.tex",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/ai_for_bn_research_plan_v13.pdf",
+      "sha256": "8c9e84542773f91b589601f3e043c525593b0fcf0b7ba6f9fde51bd2300643a7",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/ai_for_bn_research_plan_v13.pdf",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/ai_for_bn_research_plan_v13.tex",
+      "sha256": "bdea7f162dcc09e10c0a62a90d182279fc9b886c3d8f63a4299c5977dba693fd",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/ai_for_bn_research_plan_v13.tex",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/ai_for_bn_research_plan_v14.pdf",
+      "sha256": "75b62146cfae9861f9523a444229b5fa826065a50dbca231dd36a3cf8f61030a",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/ai_for_bn_research_plan_v14.pdf",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/ai_for_bn_research_plan_v14.tex",
+      "sha256": "4f037b5ecab4340efc36ead9fd81d782506dcd890809e88073f33c4dc8a2070c",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/ai_for_bn_research_plan_v14.tex",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/ai_for_bn_research_plan_v15.pdf",
+      "sha256": "981aba690fa0902d9aaee31b7242013ae6550b3c85ccbeeb8ba890fea172ba05",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/ai_for_bn_research_plan_v15.pdf",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/ai_for_bn_research_plan_v15.tex",
+      "sha256": "678c1119174455abf6997f7effae3a9381dbebcfee90bce674629a50f097120c",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/ai_for_bn_research_plan_v15.tex",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/ai_for_bn_research_plan_v16.pdf",
+      "sha256": "a64bd15f1c393187ac0e946c511bed613e7a470e71a4abf3335c238a0a135575",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/ai_for_bn_research_plan_v16.pdf",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/ai_for_bn_research_plan_v16.tex",
+      "sha256": "b467f89c2cd102dfb062a14974f58a320e4721f4d1856fd0064b9f0d0de4a588",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/ai_for_bn_research_plan_v16.tex",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/ai_for_bn_research_plan_v17.pdf",
+      "sha256": "170eaf33950118e53d36cf9b3541cc302be3febd0f1f00804b315f62101b675c",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/ai_for_bn_research_plan_v17.pdf",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/ai_for_bn_research_plan_v17.tex",
+      "sha256": "cb70a38b1925327d89ba39287c24e67d70b8601dd9e4a7abb36c702d252725d6",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/ai_for_bn_research_plan_v17.tex",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/ai_for_bn_research_plan_v18.bib",
+      "sha256": "8f557cdac5064ddc46ffa33346ba0c58ae9408f626c2e283b839386ea0355c34",
+      "action": "preserve",
+      "destination": "human_docs/research_plan/ai_for_bn_research_plan_v18.bib",
+      "reason": "Active v18 bundle; bytes and paths preserved."
+    },
+    {
+      "source": "human_docs/research_plan/ai_for_bn_research_plan_v18.pdf",
+      "sha256": "a1de32c7586e8d2c4f0ca68a527bb6a58bfa7c56137eceb48821119c6b689fd5",
+      "action": "preserve",
+      "destination": "human_docs/research_plan/ai_for_bn_research_plan_v18.pdf",
+      "reason": "Active v18 bundle; bytes and paths preserved."
+    },
+    {
+      "source": "human_docs/research_plan/ai_for_bn_research_plan_v18.tex",
+      "sha256": "9fee3b5af0a326fe80d7729b6583c89790ca74f1d5d775dbf67f917ebf9ec1ca",
+      "action": "preserve",
+      "destination": "human_docs/research_plan/ai_for_bn_research_plan_v18.tex",
+      "reason": "Active v18 bundle; bytes and paths preserved."
+    },
+    {
+      "source": "human_docs/research_plan/ai_for_bn_research_plan_v3.pdf",
+      "sha256": "f0d726629e0213815ff65c0fb49316ff71e476b32c66601ff6be42b8845ac190",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/ai_for_bn_research_plan_v3.pdf",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/ai_for_bn_research_plan_v3.tex",
+      "sha256": "4178e8a204a18d38f13a6acb613d364f851bf3056cd3b56cedb5b8e055104063",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/ai_for_bn_research_plan_v3.tex",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/ai_for_bn_research_plan_v4.pdf",
+      "sha256": "1ac6be7eb70a2806bc8ccdafa6b93ff4165ccc9327f9ec0dd6f848d2a32fa8de",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/ai_for_bn_research_plan_v4.pdf",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/ai_for_bn_research_plan_v4.tex",
+      "sha256": "289b4b52795b74f00d2ccdca3fd68db9fd7294a3cb3e5ac2c6dfac3a75bee3aa",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/ai_for_bn_research_plan_v4.tex",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/ai_for_bn_research_plan_v5.pdf",
+      "sha256": "e1cf5accd3e31a25067f91a916ed61e79b0c27f415cda2172e9617ef11344c77",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/ai_for_bn_research_plan_v5.pdf",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/ai_for_bn_research_plan_v5.tex",
+      "sha256": "6861f88c78951dfa92ae952572c90c96c1f3ef963c3854d25311701a9b38ae3d",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/ai_for_bn_research_plan_v5.tex",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/ai_for_bn_research_plan_v6.pdf",
+      "sha256": "f7e144df151c7db33118e7f6800edf32cffff8c879d95a353f46edb78c5367a0",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/ai_for_bn_research_plan_v6.pdf",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/ai_for_bn_research_plan_v6.tex",
+      "sha256": "be85b0d012182752c5f6f42ceef804ddfb04b8fcc74ab85026763e029153e402",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/ai_for_bn_research_plan_v6.tex",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/ai_for_bn_research_plan_v7.pdf",
+      "sha256": "d5340b4e1df0b4bef62a25874873841d8e205de1bc63c07fede844c16bc33075",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/ai_for_bn_research_plan_v7.pdf",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/ai_for_bn_research_plan_v7.tex",
+      "sha256": "291d9484ade9327070d1d6c09f51750086dc8f40dd123765d0d893e1a606ccfd",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/ai_for_bn_research_plan_v7.tex",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/ai_for_bn_research_plan_v8.pdf",
+      "sha256": "9b04575e3b9b9955baeb24ad7cb2ecf58728fc1ac7f042eb1149442414aad3da",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/ai_for_bn_research_plan_v8.pdf",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/ai_for_bn_research_plan_v8.tex",
+      "sha256": "72041f4b1fd4fe95039972c06840c8cdf6d0afff0c3b30e2cb43d7b2433ee29a",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/ai_for_bn_research_plan_v8.tex",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/ai_for_bn_research_plan_v9.pdf",
+      "sha256": "b0c12ff58fd7909ccf0a1ee39ded2966a3faaf206533553be486137c5ce23d44",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/ai_for_bn_research_plan_v9.pdf",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/ai_for_bn_research_plan_v9.tex",
+      "sha256": "d9135271c46b877f7366808d0d69568c02006364dec24162ad2628cab0880917",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/ai_for_bn_research_plan_v9.tex",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/archive/2026-06-29-before-general-title/MANIFEST.md",
+      "sha256": "5b52deef60de50961222340bd3332b37bab8aebd40e0ca3fba571bb2ecee931b",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/archive/2026-06-29-before-general-title/MANIFEST.md",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/archive/2026-06-29-before-general-title/drafts/ai_for_bn_research_plan_v3.pdf",
+      "sha256": "f0d726629e0213815ff65c0fb49316ff71e476b32c66601ff6be42b8845ac190",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/archive/2026-06-29-before-general-title/drafts/ai_for_bn_research_plan_v3.pdf",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/archive/2026-06-29-before-general-title/drafts/ai_for_bn_research_plan_v3.tex",
+      "sha256": "4178e8a204a18d38f13a6acb613d364f851bf3056cd3b56cedb5b8e055104063",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/archive/2026-06-29-before-general-title/drafts/ai_for_bn_research_plan_v3.tex",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/archive/2026-06-29-before-general-title/drafts/ai_for_bn_research_plan_v4.pdf",
+      "sha256": "1ac6be7eb70a2806bc8ccdafa6b93ff4165ccc9327f9ec0dd6f848d2a32fa8de",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/archive/2026-06-29-before-general-title/drafts/ai_for_bn_research_plan_v4.pdf",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/archive/2026-06-29-before-general-title/drafts/ai_for_bn_research_plan_v4.tex",
+      "sha256": "289b4b52795b74f00d2ccdca3fd68db9fd7294a3cb3e5ac2c6dfac3a75bee3aa",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/archive/2026-06-29-before-general-title/drafts/ai_for_bn_research_plan_v4.tex",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/archive/2026-06-29-before-general-title/drafts/ai_for_bn_research_plan_v5.pdf",
+      "sha256": "e1cf5accd3e31a25067f91a916ed61e79b0c27f415cda2172e9617ef11344c77",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/archive/2026-06-29-before-general-title/drafts/ai_for_bn_research_plan_v5.pdf",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/archive/2026-06-29-before-general-title/drafts/ai_for_bn_research_plan_v5.tex",
+      "sha256": "6861f88c78951dfa92ae952572c90c96c1f3ef963c3854d25311701a9b38ae3d",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/archive/2026-06-29-before-general-title/drafts/ai_for_bn_research_plan_v5.tex",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/archive/2026-06-29-before-general-title/drafts/ai_for_bn_research_plan_v6.pdf",
+      "sha256": "f7e144df151c7db33118e7f6800edf32cffff8c879d95a353f46edb78c5367a0",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/archive/2026-06-29-before-general-title/drafts/ai_for_bn_research_plan_v6.pdf",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/archive/2026-06-29-before-general-title/drafts/ai_for_bn_research_plan_v6.tex",
+      "sha256": "be85b0d012182752c5f6f42ceef804ddfb04b8fcc74ab85026763e029153e402",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/archive/2026-06-29-before-general-title/drafts/ai_for_bn_research_plan_v6.tex",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/archive/2026-06-29-before-general-title/drafts/ai_for_bn_research_plan_v7.pdf",
+      "sha256": "d5340b4e1df0b4bef62a25874873841d8e205de1bc63c07fede844c16bc33075",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/archive/2026-06-29-before-general-title/drafts/ai_for_bn_research_plan_v7.pdf",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/archive/2026-06-29-before-general-title/drafts/ai_for_bn_research_plan_v7.tex",
+      "sha256": "291d9484ade9327070d1d6c09f51750086dc8f40dd123765d0d893e1a606ccfd",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/archive/2026-06-29-before-general-title/drafts/ai_for_bn_research_plan_v7.tex",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/archive/2026-06-29-before-general-title/drafts/ai_for_bn_research_plan_v8.pdf",
+      "sha256": "9b04575e3b9b9955baeb24ad7cb2ecf58728fc1ac7f042eb1149442414aad3da",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/archive/2026-06-29-before-general-title/drafts/ai_for_bn_research_plan_v8.pdf",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/archive/2026-06-29-before-general-title/drafts/ai_for_bn_research_plan_v8.tex",
+      "sha256": "72041f4b1fd4fe95039972c06840c8cdf6d0afff0c3b30e2cb43d7b2433ee29a",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/archive/2026-06-29-before-general-title/drafts/ai_for_bn_research_plan_v8.tex",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/archive/2026-06-29-before-general-title/template/Project Plan Template_Prof Ma Chen_donation - 深圳市中能天奕.doc",
+      "sha256": "136e7062a533522767740fb10b1c7c3ed58649b8caa655eac876e5f1ab49d167",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/archive/2026-06-29-before-general-title/template/Project Plan Template_Prof Ma Chen_donation - 深圳市中能天奕.doc",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/archive/2026-06-29-before-general-title/template/projectplan_totxt.txt",
+      "sha256": "e95fcd5789456c23ba58546d59f9b8c915ec6a79fa3741d3347f101b3c3f0e21",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/archive/2026-06-29-before-general-title/template/projectplan_totxt.txt",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/archive/2026-06-29-before-general-title/template/template_requirements.txt",
+      "sha256": "5d36b50297e70f62b0e008911a0fc8fbfe8122f7e56f33d575dbf0a7158706bb",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/archive/2026-06-29-before-general-title/template/template_requirements.txt",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/external/teacher_huawei_seed_grant_2026-06-29/MANIFEST.md",
+      "sha256": "8b1ca1c1cc42389ec80a4ab0250ff46a40acf52e004bed012f3a020679c6413b",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/external/teacher_huawei_seed_grant_2026-06-29/MANIFEST.md",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/external/teacher_huawei_seed_grant_2026-06-29/proposal-grf-20.tex",
+      "sha256": "6764c902617344cb37e6620713796c7a899bc1667d9c5fa060291bfab80d078b",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/external/teacher_huawei_seed_grant_2026-06-29/proposal-grf-20.tex",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/external/teacher_huawei_seed_grant_2026-06-29/proposal.bib",
+      "sha256": "0d808f333dffd67f90066779785c45bee4f9756f248e61e058c0dfa48b4685bb",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/external/teacher_huawei_seed_grant_2026-06-29/proposal.bib",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/external/teacher_huawei_seed_grant_2026-06-29/proposal.pdf",
+      "sha256": "3208c70752324dbd93ad0111bf98b16dde50cae57ed8d7ea0b960667a867b4ac",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/external/teacher_huawei_seed_grant_2026-06-29/proposal.pdf",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/external/teacher_huawei_seed_grant_2026-06-29/template.pdf",
+      "sha256": "2f840d8dfa3abab20f9604cfc4980af757947938747e5e3f296763d1f72e8f0d",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/external/teacher_huawei_seed_grant_2026-06-29/template.pdf",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/projectplan_totxt.txt",
+      "sha256": "e95fcd5789456c23ba58546d59f9b8c915ec6a79fa3741d3347f101b3c3f0e21",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/projectplan_totxt.txt",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/research_plan/template_requirements.txt",
+      "sha256": "5d36b50297e70f62b0e008911a0fc8fbfe8122f7e56f33d575dbf0a7158706bb",
+      "action": "archive",
+      "destination": "human_docs/deprecated/research_plan/template_requirements.txt",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/task_notes/literature_mining/MODEL_UPGRADE_RESEARCH_2026-04-20.md",
+      "sha256": "3ab8e81aaa01ab31ed698e5d3b2303cea3a96650e1befb4c0eae0afd48b30845",
+      "action": "archive",
+      "destination": "human_docs/deprecated/task_notes/literature_mining/MODEL_UPGRADE_RESEARCH_2026-04-20.md",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/task_notes/literature_mining/README.md",
+      "sha256": "7034c1fdd9d7382d1a9b9ed40e7ea5f9323c11d5ea937016de2962b115ccc2b1",
+      "action": "delete",
+      "reason": "One-line placeholder without substantive research content."
+    },
+    {
+      "source": "human_docs/task_notes/stm_image_analysis/README.md",
+      "sha256": "cd49c3e8a9c7a38c19e0dc1e937cd4ea238b4a0e22ee4a16bfaee08941c859ae",
+      "action": "delete",
+      "reason": "One-line placeholder without substantive research content."
+    },
+    {
+      "source": "human_docs/task_notes/structure_generation/README.md",
+      "sha256": "fbdcaaf5c54e89665de5439c03fbb6b438883abe558faecc299e0605e178788f",
+      "action": "archive",
+      "destination": "human_docs/deprecated/task_notes/structure_generation.md",
+      "reason": "Historical reference value uncertain; preserve original bytes outside active documents."
+    },
+    {
+      "source": "human_docs/task_notes/surrogate_potentials/README.md",
+      "sha256": "89df1a2b630400b2b74a12cae3c907270409f9393268aa3f9ce67753c07e2bc3",
+      "action": "delete",
+      "reason": "One-line placeholder without substantive research content."
+    }
+  ],
+  "source_archive": "official_docs/meetings/2026-09-09_bn_research/SOURCE_MANIFEST.json",
+  "recovery": "Archived files retain original bytes. Deleted tracked files can be recovered individually from base_commit with git show <base_commit>:<source>. No recursive checkout/reset is needed."
+}
