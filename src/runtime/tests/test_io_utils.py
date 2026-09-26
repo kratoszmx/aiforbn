@@ -1,4 +1,6 @@
 from pathlib import Path
+import hashlib
+import json
 import os
 import subprocess
 import sys
@@ -28,6 +30,58 @@ def _make_myutils_file_layout(root: Path) -> None:
     file_utils_dir.mkdir(parents=True)
     (file_utils_dir / 'filesystem.py').write_text('', encoding='utf-8')
     (file_utils_dir / 'json_io.py').write_text('', encoding='utf-8')
+
+
+@pytest.mark.parametrize(
+    'content', [b'', 'BN 氮化硼\n'.encode(), b'x' * (1024 * 1024 + 7)],
+    ids=['empty', 'unicode', 'multi-chunk'],
+)
+def test_shared_digests_preserve_normalized_provenance(tmp_path: Path, monkeypatch, content):
+    monkeypatch.setattr(
+        io_utils, '_read_local_source_state',
+        lambda _root: {'revision': 'abc123', 'dirty': False},
+    )
+    artifact_dir = tmp_path / 'artifacts'
+    artifact_dir.mkdir()
+    output = artifact_dir / 'metrics.json'
+    output.write_bytes(content)
+    cfg = {
+        'project': {'artifact_dir': artifact_dir},
+        'values': {
+            'unicode': '氮化硼', 'integer': np.int64(7),
+            'missing': (np.nan, pd.NA, pd.NaT),
+            'float': np.float64(1.5), 'infinity': float('inf'),
+            'path': Path('relative/檔案'), 'numeric_keys': {2: False},
+        },
+    }
+    normalized_cfg = {
+        'project': {'artifact_dir': str(artifact_dir)},
+        'values': {
+            'unicode': '氮化硼', 'integer': 7, 'missing': [None, None, None],
+            'float': 1.5, 'infinity': float('inf'),
+            'path': 'relative/檔案', 'numeric_keys': {'2': False},
+        },
+    }
+    manifest = {
+        'name': 'twod_matpd', 'source': 'jarvis-tools/figshare',
+        'retrieved_at': '2026-07-21T00:00:00+00:00', 'target_column': 'band_gap',
+        'rows': np.int64(7),
+    }
+    provenance = build_artifact_provenance(
+        cfg, manifest, published_output_paths=[output], project_root_path=tmp_path,
+    )
+    for field, normalized in (
+        ('config_sha256', normalized_cfg),
+        ('dataset_manifest_sha256', {**manifest, 'rows': 7}),
+    ):
+        legacy_bytes = json.dumps(
+            normalized, ensure_ascii=False, sort_keys=True, separators=(',', ':'),
+        ).encode('utf-8')
+        assert provenance[field] == hashlib.sha256(legacy_bytes).hexdigest()
+    assert provenance['published_outputs'] == {'metrics.json': hashlib.sha256(content).hexdigest()}
+    assert assess_artifact_provenance(
+        provenance, dict(reversed(list(cfg.items()))), manifest, project_root_path=tmp_path,
+    )['status'] == 'current'
 
 
 @pytest.mark.parametrize('checkout_prefix', [('aiforbn',), ('projects', 'aiforbn')])

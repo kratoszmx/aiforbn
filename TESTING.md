@@ -16,6 +16,12 @@ conda run -n quant python -m pytest -q -ra src
 
 The interpreter should be inside `envs/quant`. On this host, PATH ordering can make `conda run -n quant python3` resolve to Homebrew Python even though `CONDA_PREFIX` says `quant`. Use the verified `python` executable above or its absolute path. In emitted commands, `python3` means that same environment's interpreter; retain the command's arguments and pytest targets when substituting it. Missing imports under the wrong interpreter do not justify installing packages.
 
+For long full-suite runs, use `conda run --no-capture-output -n quant python -m pytest -q -ra src`
+to stream progress; default Conda capture hides it until completion. Agent-state
+parameterized cases repeatedly analyze production source, so a full run can take
+tens of minutes. Give large fixture parameters explicit short pytest IDs so
+individual-case selection does not exceed command-line size limits.
+
 Contract success is exit 0 with `validation.status == "ok"` and no errors. Inspect warnings separately. Dependency probes run isolated imports with per-probe and aggregate time bounds; missing modules, import failure, timeout and exhausted probe budget describe different failures. The command index is the authority for exact targets and each profile's `requires`/`provides` coverage.
 
 ## Choose the smallest sufficient profile
@@ -45,6 +51,11 @@ These are diagnostic/focused commands; use the full emitted profile for a change
 | `src` | All of the above; `src/template` has no separate test suite |
 
 Materials coverage is split across `test_data.py`, `test_bn_filter.py`, `test_features_pipeline.py`, `test_diagnostic_edge_cases.py`, `test_reporting.py`, and `test_structure_execution_contracts.py`. Data tests stub download responses; a pass is not a live JARVIS availability check. Model tests do not establish scientific quality or GPU success. UI tests prove renderer behavior, while a startup-wiring change can additionally use the bounded loopback procedure in [SERVICES.md](SERVICES.md).
+
+`src/runtime/tests/test_io_utils.py::test_shared_digests_preserve_normalized_provenance`
+compares config/dataset digests with the previous JSON byte format, including
+Unicode, Paths, NumPy/pandas missing values and non-finite numbers. It verifies
+empty, text and multi-chunk file hashes and assesses the resulting provenance.
 
 Test preparation stays beside its consumers: model integration cases share a private tiny CPU configuration helper, and each model has its own pytest case. Keep writer, provenance and viewer rejection tests separate because they guard different entrypoints. No additional shared-helper package or test runner is needed.
 

@@ -7,7 +7,7 @@ The executable PoC covers dataset normalization, grouped evaluation, BN diagnost
 - Runtime defaults: [src/config.py](src/config.py). Experimental attention/Roost-like models remain outside the default model sweep.
 - Current artifact evidence: inspect the v2 `artifact_provenance.json` and committed output digests before using results. At the 2026-09-25 audit, this checkout has no such completion marker; its checked-in research outputs are historical, not a freshly validated run.
 - Next research work should start from an explicit experiment/validation question. Ordinary documentation maintenance does not require recomputing the dataset, training, or rewriting artifacts.
-- Deferred implementation work: the file/JSON digest reuse candidates and their compatibility conditions remain in [docs/HANDOFF.md](docs/HANDOFF.md). They are optional follow-ups, not active blockers.
+- File/JSON digest reuse is implemented: runtime calls `myutils.sha256_file` and `sha256_json(make_json_safe(...))` directly. Byte-compatibility coverage is in `src/runtime/tests/test_io_utils.py`; project path/provenance guards remain local.
 
 ## Verification
 

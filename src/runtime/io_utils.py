@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 import json
-import hashlib
 import os
 from pathlib import Path
 import shutil
@@ -47,8 +46,8 @@ _MYUTILS_FILE_UTILS_DIR = _MYUTILS_ROOT / 'file_utils'
 if str(_MYUTILS_FILE_UTILS_DIR) not in sys.path:
     sys.path.insert(0, str(_MYUTILS_FILE_UTILS_DIR))
 
-from filesystem import ensure_dirs, find_cache_dirs
-from json_io import make_json_safe, read_json_file, write_json_file as _shared_write_json_file
+from filesystem import ensure_dirs, find_cache_dirs, sha256_file
+from json_io import make_json_safe, read_json_file, sha256_json, write_json_file as _shared_write_json_file
 from runtime.schema import DatasetManifest
 from runtime.utils import _path_has_symlink_component, _path_is_same_or_descendant
 
@@ -82,24 +81,6 @@ def load_config(path: str | Path) -> dict:
     return cfg
 
 
-def _canonical_json_sha256(payload) -> str:
-    serialized = json.dumps(
-        make_json_safe(payload),
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(',', ':'),
-    )
-    return hashlib.sha256(serialized.encode('utf-8')).hexdigest()
-
-
-def _file_sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open('rb') as file_handle:
-        for chunk in iter(lambda: file_handle.read(1024 * 1024), b''):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
 def _artifact_root_from_config(cfg: dict) -> Path:
     try:
         configured_root = cfg['project']['artifact_dir']
@@ -131,7 +112,7 @@ def _build_published_output_digests(
             raise ValueError('Artifact provenance must not commit to its own marker')
         if relative_path in published_outputs:
             raise ValueError(f'Duplicate published artifact output: {relative_path}')
-        published_outputs[relative_path] = _file_sha256(output_path)
+        published_outputs[relative_path] = sha256_file(output_path)
     if not published_outputs:
         raise ValueError('Artifact provenance requires at least one published output')
     return dict(sorted(published_outputs.items()))
@@ -183,8 +164,8 @@ def build_artifact_provenance(
         'schema': ARTIFACT_PROVENANCE_SCHEMA,
         'source_revision': source_state['revision'],
         'source_worktree_dirty': source_state['dirty'],
-        'config_sha256': _canonical_json_sha256(cfg),
-        'dataset_manifest_sha256': _canonical_json_sha256(dataset_manifest or {}),
+        'config_sha256': sha256_json(make_json_safe(cfg)),
+        'dataset_manifest_sha256': sha256_json(make_json_safe(dataset_manifest or {})),
         'published_outputs': _build_published_output_digests(
             cfg,
             published_output_paths,
@@ -271,7 +252,7 @@ def _assess_published_outputs(
         if not output_path.is_file():
             return {'status': 'unverified', 'reason': 'artifact_output_missing'}
         try:
-            actual_digest = _file_sha256(output_path)
+            actual_digest = sha256_file(output_path)
         except OSError:
             return {'status': 'unverified', 'reason': 'artifact_output_unreadable'}
         if actual_digest != expected_digest:
@@ -301,11 +282,9 @@ def assess_artifact_provenance(
     current_revision = current_source_state.get('revision')
     if stored_revision and current_revision and stored_revision != current_revision:
         return {'status': 'stale', 'reason': 'source_revision_mismatch'}
-    if provenance.get('config_sha256') != _canonical_json_sha256(cfg):
+    if provenance.get('config_sha256') != sha256_json(make_json_safe(cfg)):
         return {'status': 'stale', 'reason': 'effective_config_mismatch'}
-    if provenance.get('dataset_manifest_sha256') != _canonical_json_sha256(
-        dataset_manifest or {}
-    ):
+    if provenance.get('dataset_manifest_sha256') != sha256_json(make_json_safe(dataset_manifest or {})):
         return {'status': 'stale', 'reason': 'dataset_manifest_mismatch'}
     output_assessment = _assess_published_outputs(provenance, cfg)
     if output_assessment is not None:
@@ -419,28 +398,6 @@ def ensure_runtime_dirs(cfg: dict, project_root_path: str | Path = '.') -> None:
     ensure_dirs(runtime_dirs)
 
 
-def _serialize_json_payload(
-    payload,
-    *,
-    ensure_ascii: bool,
-    sort_keys: bool,
-    indent: int | None,
-    error_context: object,
-) -> str:
-    safe_payload = make_json_safe(payload)
-    try:
-        return json.dumps(
-            safe_payload,
-            ensure_ascii=ensure_ascii,
-            sort_keys=sort_keys,
-            indent=indent,
-        )
-    except (TypeError, ValueError) as exc:
-        raise ValueError(
-            f'Payload is not JSON-serializable for {error_context}: {exc}'
-        ) from exc
-
-
 def validate_json_payload(
     payload,
     *,
@@ -448,13 +405,18 @@ def validate_json_payload(
     sort_keys: bool = False,
     indent: int | None = 2,
 ) -> None:
-    _serialize_json_payload(
-        payload,
-        ensure_ascii=ensure_ascii,
-        sort_keys=sort_keys,
-        indent=indent,
-        error_context='preflight validation',
-    )
+    safe_payload = make_json_safe(payload)
+    try:
+        json.dumps(
+            safe_payload,
+            ensure_ascii=ensure_ascii,
+            sort_keys=sort_keys,
+            indent=indent,
+        )
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            f'Payload is not JSON-serializable for preflight validation: {exc}'
+        ) from exc
 
 
 def write_json_file(
@@ -471,18 +433,8 @@ def write_json_file(
         reject_leaf_symlink=True,
         expected_output_kind='file',
     )
-    safe_payload = make_json_safe(payload)
-    serialized = _serialize_json_payload(
-        safe_payload,
-        ensure_ascii=ensure_ascii,
-        sort_keys=sort_keys,
-        indent=indent,
-        error_context=output_path,
-    )
-    if encoding is not None:
-        serialized.encode(encoding)
     return _shared_write_json_file(
-        safe_payload,
+        payload,
         output_path,
         encoding=encoding,
         ensure_ascii=ensure_ascii,

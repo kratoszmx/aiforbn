@@ -16,7 +16,7 @@ Anything underscore-prefixed or omitted here should be treated as internal.
 - `ensure_runtime_dirs(cfg, project_root_path='.')`
   - Preflight every configured runtime directory, then create them together; invalid file leaves or parent chains fail without partial directory creation.
 - `build_artifact_provenance(cfg, dataset_manifest=None, *, published_output_paths, project_root_path=None)`
-  - Build local-only artifact provenance from the current source revision/dirty state, canonical effective-config and dataset-manifest hashes, and stable artifact-relative SHA-256 commitments for the supplied successfully published files; missing Git identity degrades to explicit unknown values.
+  - Build local-only artifact provenance from the current source revision/dirty state, effective-config and dataset-manifest hashes via `sha256_json(make_json_safe(...))`, and artifact-relative `sha256_file` commitments for the supplied successfully published files; missing Git identity degrades to explicit unknown values. Both digest functions are direct myutils imports; project path and normalization policy remain here.
 - `assess_artifact_provenance(provenance, cfg, dataset_manifest=None, *, project_root_path=None)`
   - Classify a stored bundle as `current`, `stale`, or `unverified` using stable local source/config/dataset/output identity; legacy or malformed markers, missing/schema-invalid dataset manifests, and missing/unreadable/changed committed outputs never assess current.
 - `validate_json_payload(payload, ...)`

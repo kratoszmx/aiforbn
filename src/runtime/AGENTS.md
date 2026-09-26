@@ -4,7 +4,7 @@
 
 Owns trusted config loading, guarded IO/cache handling, provenance, schemas and agent inspection. It has no production dependency on other project modules.
 
-- Keep filesystem/provenance policy in the project wrappers; reuse `myutils` IO behind those guards.
+- Keep filesystem/provenance policy in project guards; call `myutils` IO and digest APIs directly after validation. JSON writing uses the shared writer's normalization and staging; explicit multi-output preflight remains `validate_json_payload`.
 - Public functions live in `io_utils.py` and `agent_state.py`; shared schemas/role constants live in `schema.py`. Bootstrap paths and underscore-prefixed helpers are implementation details.
 - The output guard, writer preflight and viewer assessment have separate failure boundaries; retain each when simplifying.
 

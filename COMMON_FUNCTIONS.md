@@ -12,6 +12,14 @@ PYTHONPATH=src conda run -n quant python -c 'from runtime.io_utils import load_c
 
 Definitions and full signatures are in [src/runtime/io_utils.py](src/runtime/io_utils.py) and [its public summary](src/runtime/PY_FILES_SUMMARY.md).
 
+Provenance imports `sha256_file` from `myutils/file_utils/filesystem.py` and
+`sha256_json` from `myutils/file_utils/json_io.py` directly, with no forwarding
+functions. Config/dataset values pass through `make_json_safe` before hashing;
+sorted compact UTF-8 rendering and file-byte digests retain their previous
+values. File paths still pass the local output guards before reading.
+The guarded JSON writer lets myutils normalize, serialize and stage once;
+`validate_json_payload` retains the separate multi-output preflight contract.
+
 | Callable | Input → output / effect |
 | --- | --- |
 | `load_config` | Trusted Python config path → `CONFIG` dict; rejects executable state under `human_docs/` |
