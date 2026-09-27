@@ -1,110 +1,89 @@
-# BN modification and dispersion: next-step execution plan
+# BN separator research: execution steps
 
-Date: 2026-09-27. Status: proposed feasibility plan, prepared from v18 and the meeting transcript. It does not record a supervisor-approved pivot, allocated experimental resources, or a changed runtime contract.
+Updated: 2026-09-27. Owner: one MPhil researcher. User counterpart: [Chinese execution plan](../../human_docs/next_steps_zh.md).
 
-User-facing counterpart: [Chinese plan](../../human_docs/next_steps_zh.md). Source access and literature leads: [official_docs index](../../official_docs/INDEX.md). Owner: one MPhil researcher, currently the sole project executor. Use relative weeks from the actual start date; confirm the remaining degree time independently of the two-year grant duration in v18.
+The user's latest decisions govern this plan: **work on BN separators first; start from public data without expecting partner data; develop validation routes ourselves while progressing; preserve v18 and iterate these next-steps documents.** Steps follow dependencies, with no calendar deadlines. Substep IDs match the Chinese plan for progress reporting.
 
-## Evidence and interpretation
+Objective: predict the likely prepared BN separator material and its properties from ingredients, quantities and processing conditions; then recommend candidates for verification and test whether this reduces unproductive experiments.
 
-Preserve the existing [v18 source](../../human_docs/research_plan/ai_for_bn_research_plan_v18.tex), bibliography and PDF at their current paths. Read the [reviewed transcript](../../official_docs/meetings/2026-09-09_bn_research/transcripts/transcript_reviewed_zh.txt) with its speaker and terminology caveats. The [source manifest](../../official_docs/meetings/2026-09-09_bn_research/SOURCE_MANIFEST.json) records byte identity; it does not verify the truth of statements in the recording.
+## Step 1: implement preparation-outcome and property prediction
 
-| Evidence | Supported interpretation | Not established |
-| --- | --- | --- |
-| 00:52:48–00:53:49 | An AI entry point and publication-oriented work are desired; formulation improvement is suggested | Publication novelty or acceptance |
-| 00:57:06–00:57:43; 01:13:38–01:14:23 | An experimental contact and data/validation collaboration are discussed; separator work is proposed | Delivered data, confirmed identity/spelling of the experimental contact, a booked experiment, or publication permission |
-| 01:23:03–01:24:58 | Predictions should be checkable before expensive experiments; simulation is discussed | An available validated simulator, an 80–90% success guarantee, or permission to replace physical evidence with model output |
-| 02:12:38–02:17:17 | Later discussion narrows the initial task to dispersion/modification, public-source data and a small polymer-related workflow | A final matrix, chemical recipe, numerical target or a compatible training set |
-| 02:23:54–02:24:16; 02:48:06–02:48:21 | Start by organizing data and defining how to judge outputs | A commitment to train a foundation model first |
+The user's reactants-to-products example becomes an ingredient/condition-to-material-outcome task. Use a separate reaction-product task for an actual chemical transformation. Dispersion, coating and physical assembly require formulation/process representations; they do not necessarily produce a new molecule. One accessible BN composite-separator study explicitly reports physical binding in its system. [Primary study](https://pmc.ncbi.nlm.nih.gov/articles/PMC11596189/)
 
-Working interpretation: separator applications are the application context, while dispersion/modification is the smaller proposed entry task. Their exact experimental connection remains unresolved. Do not silently equate epoxy, polyurethane or silicone examples with the eventual separator slurry. Record competing interpretations until a material-system definition or data sample resolves them. Do not expand uncertain ASR terms such as agent names, functional groups or product codes into a definite formulation.
+1. **1.1 Collect public data.** Search original BN separator papers, supplementary tables, public repositories and patent examples. Capture formulations, procedures, controls, measured outcomes and reported failures. Start with BN-coated polypropylene (PP) separators; keep other BN separator substrates as separate cohorts. Partner data are optional future additions. Starting sources:
+   - [BN/graphene-coated PP separators](https://pubmed.ncbi.nlm.nih.gov/33010580/): the abstract confirms a relevant experimental study; obtain full text or supplementary material before extracting complete recipes. Full-text access is not established by the abstract.
+   - [Calcium-alginate-fibre/BN separators](https://pmc.ncbi.nlm.nih.gov/articles/PMC11596189/): accessible primary full text for schema development and a separate substrate cohort, not interchangeable PP data.
+   - [Open Reaction Database](https://open-reaction-database.org/about): an organic-reaction resource to inspect for relevant modification reactions. Its [schema](https://docs.open-reaction-database.org/en/latest/schema.html) records inputs, conditions, outcomes and provenance. Inspect actual coverage before adopting records; ORD availability does not establish BN separator coverage.
+2. **1.2 Build traceable records.** Retain source URL/DOI, version and table/row locator; study, sample, formulation, batch and measurement-series IDs; BN morphology/size and surface treatment; substrate, binder, solvent and amounts with their mass/volume basis; mixing, coating and drying conditions; thickness; test protocol; target, unit, uncertainty and controls. Distinguish specified settings from post-preparation measurements. Preserve original values, missingness, duplicate links and extraction confidence. Record access and redistribution permissions separately. Missing results do not establish failed experiments.
+3. **1.3 Fix the initial model contract.** Operational starting choice: BN-coated PP battery separators, initially seeking thermal shrinkage under specified temperature, duration and measurement definition as the primary target. Collect ionic transport, electrolyte wetting and mechanical properties separately. This is a researcher's starting choice, not a user-specified substrate or an established dataset. If the audit supports another quantitative separator endpoint better, document the change within BN separators and freeze it before model comparison. Viscosity/dispersion can be process subtasks; they do not replace the separator application. Preserve area versus linear shrinkage definitions and keep incompatible test protocols separate.
+4. **1.4 Implement the language-model outcome workflow.** Use an available existing model and retrieval over curated sources. Return structured preparation/material outcomes, reaction products where applicable, supporting records and missing conditions. Keep reaction examples and evaluation separate from coating records. Build reproducible inference before deciding on fine-tuning. Do not invent reaction equations for physical coating.
+5. **1.5 Add measured-property prediction.** Establish a simple baseline and a suitable tabular predictor trained on measured labels. Combine it with language-model retrieval and material descriptions. Mark outputs as reported evidence, prediction or unsupported/unknown. Generated values are not experimental labels. Use inputs available at the decision point: measured final thickness is not a pre-fabrication input unless separately predicted or explicitly specified as a design value.
 
-The transcript's informal publication discussion at 01:25:12–01:25:28 is not a formal degree requirement. Commercial, regulatory, supply-chain and military anecdotes are outside this plan and are not adopted as facts.
+Deliver: source inventory, data dictionary, first curated dataset, input/output specification and reproducible examples. Count independent sources/formulations separately from measurement rows. Completion establishes an operational flow; Step 2 establishes predictive evidence. If numeric labels are insufficient, deliver the retrieval/outcome component, continue acquisition, and mark the numeric predictor incomplete.
 
-## Relationship to v18 and the current repository
+## Step 2: benchmark and improve the model
 
-| v18 element | Reusable principle | Required change for the proposed task |
-| --- | --- | --- |
-| Provenance-aware BN data | Source identity, units, compatible labels, missingness | Observe formulation/process/test records instead of only composition and crystal-property rows |
-| Grouped formula/family evaluation | Test genuinely unseen groups; keep selection separate from evaluation | Group by original study, laboratory batch and formulation/measurement series as appropriate |
-| Uncertainty, support and action labels | Report uncertainty; abstain outside support | Recalibrate against the selected experimental label and its measurement conditions |
-| Formula ranking and structure handoff | Trace each recommendation to evidence and a reviewer | Handoff a constrained formulation/process proposal with test conditions; crystal prototypes cannot validate it |
-| UV/wide-gap and dielectric targets | Preserve the approved historical proposal | Do not reuse band-gap targets, 30-family/5–10-structure quotas or the old budget as new-task acceptance criteria |
+1. **2.1 Reserve independent evaluation groups.** Link duplicate publications/patents and reused datasets; group studies, formulations, batches and repeated measurements for the intended generalization claim. Keep test answers out of retrieval, examples and prompts. Public papers may be in language-model pretraining data: disclose that limitation and distinguish retrospective from prospective evidence.
+2. **2.2 Compare meaningful baselines.** Include a training-only mean/median, similar-formulation retrieval, simple regression and the selected predictor. Compare the language model with and without retrieval. Report property MAE/RMSE in original units and per-source performance. Score material outcomes on source support, material/product identity and condition completeness; compare actual reaction predictions with independently reported products using an appropriate chemical representation. Keep the scores separate.
+3. **2.3 Improve from observed errors.** Diagnose units, missing process variables, mixed substrates, sparse support and model failures. Compare incremental effects of condition features, retrieval and justified fine-tuning. Keep preprocessing, selection and tuning within training data. A final test used to revise the method becomes development data and requires another independent evaluation.
+4. **2.4 Characterize support and uncertainty.** Inspect errors by system and supported input range. Calibrate intervals on suitable held-out training-side data and assess coverage/width independently when group counts permit. With few groups, report exploratory performance and instability; do not promise fixed accuracy or coverage under arbitrary source shift.
 
-No new subproject or production module is created by this document task. Do not repurpose `main.py`, change the v18 manifest anchors, mix experimental labels into the 2D-material caches, or regenerate research artifacts just to implement this plan. Any later implementation should use the existing module rules and public APIs where semantics actually match, with dedicated data schemas and tests for new behaviour. Avoid wrappers and speculative abstractions.
+Deliver: benchmark table, group definitions/results, error cases, support limits and improvement log. Reliable improvement over a meaningful baseline supports quantitative recommendations. Negative or inconclusive results direct further data/method work and remain reportable.
 
-The current repository contains a BN-themed band-gap PoC and unrelaxed structure prototypes. Checked-in scientific artifacts are historical and lack the v2 completion marker; software checks do not turn them into fresh results. This planning task ran no full scientific pipeline and makes no new model-performance claim.
+## Step 3: generate and rank BN separator formulations
 
-## Primary question and scope
+1. **3.1 Define the candidate domain.** Use reported examples to bound BN form/modification, loading, binder and processing choices. Identify adjustable parameters and fixed conditions.
+2. **3.2 Generate and screen candidates.** Use source-grounded language-model proposals, then property predictors and explicit constraints. Display shrinkage, ionic transport, thickness, mechanics and cost separately. Essential missing evidence remains visible.
+3. **3.3 Reuse v18's decision principles.** Rank on target relevance, uncertainty, domain support, novelty and verification cost. Preserve action meanings `control`, `priority`, `explore`, `hold`; calibrate rules for separators rather than copying band-gap thresholds. Check ranking sensitivity to reasonable weights and model variation.
+4. **3.4 Produce formulation cards.** Give ingredients/quantity bases, processing, predicted properties/ranges, sources, unresolved fields, controls and proposed measurements. Unsupported suggestions remain exploratory, not effective formulations.
 
-Proposed question: within one explicit BN dispersion/modification system, can condition-aware data curation and a modest predictive method improve one measured property prediction over simple baselines under a defensible independent-group evaluation, while identifying unsupported inputs?
+Deliver: candidate table, ranking rationale, controls and formulation cards. Counts follow evidence and verification capacity; v18's crystal-family/prototype quotas are not separator acceptance criteria.
 
-The first candidate endpoint is viscosity under specified temperature and shear conditions, only if relevant data and partner needs support it. A specified sedimentation/dispersion-stability measurement is an alternative; select one endpoint after the source audit. Viscosity, suspension stability, cured-composite thermal conductivity, separator shrinkage and cell performance must not be pooled as interchangeable labels.
+## Step 4: independently validate and update
 
-Treat the baseline implementation as a feasibility result. Potential research contributions, still requiring literature comparison, include handling cross-source measurement conditions, uncertainty under source shift, or a later constrained experiment-selection policy. LLM retrieval/extraction can assist data work; generated answers and synthetic labels are not experimental observations. Do not assume that using BN or training another regressor supplies novelty; existing PAO/hBN viscosity ML is already documented in the [source index](../../official_docs/INDEX.md).
+1. **4.1 Start with public-data validation.** Freeze prediction and selection rules before retrospective evaluation on unused sources. Compare with similar-formulation retrieval, simple models or random selection under the same conditions. Acquire new sources if existing data were used for development. Report missing outcomes and publication bias; retrospective replay covers observed candidates only.
+2. **4.2 Establish relevant computational checks.** Select a named applicable material/interface or transport method for a specific question and check it against known cases. State which property it supports. Existing band-gap predictions and unrelaxed crystal prototypes do not validate separator processing or cell performance. If no applicable simulator is available, progress through independent data evaluation and experimental preparation.
+3. **4.3 Prepare an experimental route ourselves.** Starting alongside Step 1, identify university facilities or external testing services from public information. Prepare sample/control requirements, test definitions, repeat measurements, equipment and quotation requirements. Bring a concrete test package to resource/cost discussions. Do not wait for assumed commitments from meeting participants.
+4. **4.4 Obtain prospective measurements when resources are arranged.** Freeze formulations and evaluation rules before testing. Record successes, failures and protocol deviations. Evaluate the frozen model before adding results to the next version.
+5. **4.5 Test the cost-reduction objective.** Compare the candidate tests needed to meet a prespecified property requirement under the same pool/protocol. Account for actual time/expenditure when prospective experiments exist. Retrospective estimates are simulated selection savings, not realized laboratory cost savings.
 
-Keep foundation-model training, unrestricted recipe generation, cross-polymer generalization, production-line control, intelligent sensing separators and unrelated industry directions outside the initial six-week scope. Experimental suggestions remain subject to materials review.
+Deliver: independent validation report, experimental handoff, resource/cost options and, when acquired, prospective results with model updates. Report retrospective, computational and physical validation separately. Only measured results complete physical validation; lacking them does not block the other work.
 
-## Phase A: days 1–14, data feasibility before model commitment
+## Step 5: consolidate reproducible results and manuscript material
 
-| Work item | Output | Acceptance / stop condition |
-| --- | --- | --- |
-| A1, days 1–2: problem charter | One matrix/system, controllable inputs, one measured endpoint, intended decision, test protocol, reviewer and resource needs | Unknowns explicit; do not invent a matrix or target from garbled transcript terms |
-| A2, days 1–7: partner data request preparation | Request 3–5 concrete public sources and a few original experimental rows, including controls/failures, with test metadata; identify data and validation contacts | Draft only until messaging is authorized; oral willingness is not data access or a scheduled experiment |
-| A3, days 3–7: bounded source audit | Aim to screen 10–20 original sources and extract a pilot of 30–50 traceable records | Effort targets, not guaranteed yields or statistical sufficiency. Report independent studies, batches and formulations separately from repeated measurement rows |
-| A4, days 8–10: comparability audit | Duplicates, units, concentration bases, missingness, endpoint/protocol compatibility and use permissions | Each retained target has an original source location; keep incompatible domains separate and missing data missing |
-| A5, days 11–14: go/no-go | A short feasibility report, a candidate data specification and an evaluation design | Model work requires meaningful compatible labels and a defensible training/selection/evaluation arrangement; otherwise deliver gaps and a narrower task |
+1. **5.1 Freeze a reproducible release.** Record source/data versions, group splits, configurations, evaluation commands and candidate history.
+2. **5.2 Build a minimal demonstration.** Show inputs → predicted preparation outcome/properties → ranked candidates → evidence and validation status.
+3. **5.3 Establish the supported contribution.** Compare prior work and use ablations to test condition-aware prediction, cross-source generalization, uncertainty-guided selection or experimental efficiency. Base claims on results, not the presence of a language model.
+4. **5.4 Write the report and manuscript draft.** Assemble the problem, data, methods, comparisons, validation and limitations continuously. Separate predicted candidates from observations.
 
-Proposed future outputs, not files claimed to exist today: `problem_charter.md`, `source_inventory.csv`, `data_dictionary.md`, `pilot_records.csv`, `feasibility_report.md` under a task-scoped research directory. Keep private partner data in an explicitly excluded location. Decide permanent dataset placement only when its scope, access and schema are known.
+Deliver: reproducible research package, demonstration, technical report and manuscript draft.
 
-Minimum data dictionary:
+## Continuity with v18 and the meeting
 
-| Group | Fields to request/extract |
+Preserve [v18 source](../../human_docs/research_plan/ai_for_bn_research_plan_v18.tex), bibliography and PDF byte-for-byte at their current paths. Its original UV/wide-gap and dielectric aims remain there. This execution plan extends its methods to the user-selected separator application; it does not amend the formal proposal or treat band gaps as separator targets.
+
+| v18 element | Execution here |
 | --- | --- |
-| Traceability | Source ID, DOI/URL or partner record, source version/hash, page/table/row, extraction method, original value and unit, reviewer, permitted use |
-| Independent units | Study/lab, formulation ID, batch ID, sample ID, replicate/measurement-series ID, duplicate linkage |
-| Ingredients | BN morphology/grade/size and size definition; surface treatment; matrix/polymer grade; solvent; additive identity; supplier where relevant |
-| Amounts | Component quantities, loading and its mass/volume basis, solids fraction, conversion evidence; no wt%/vol% conversion without required densities |
-| Processing | Mixing/sonication/milling method, duration, energy or speed where recorded, temperature, pH and other relevant conditions |
-| Targets | Property name, value/unit, measurement method, temperature, shear condition, elapsed time, uncertainty/replicates, controls and failed runs |
-| Review state | Missing fields, transcription/terminology uncertainty, inclusion/exclusion reason, incompatible protocol/domain flag |
+| Provenance-aware BN data | Step 1: formulation, process, measurement and outcome records |
+| Grouped benchmarking and BN diagnostics | Step 2: source/formulation evaluation and system-specific errors |
+| Uncertainty, support, ranking and action labels | Step 3: evidence-aware formulation prioritization |
+| Structure handoff and validation | Step 4: formulation/process/test handoff, with structures for applicable computational checks |
+| Technical report and demonstration | Step 5: reproducible evidence, demonstration and manuscript material |
 
-Preserve both measured values and normalized representations; apply missing-data or scaling transformations only within training folds. If an input would be available only after measuring the target, exclude it from the deployable predictor. Inspect whether source identity merely proxies a label range.
+The [reviewed transcript](../../official_docs/meetings/2026-09-09_bn_research/transcripts/transcript_reviewed_zh.txt) supports starting with separators at 01:13:38–01:13:52, public-data dispersion/modification work at 02:12:38–02:17:17, and checking data/model outputs at 02:48:06–02:48:21. Speaker identities and some terms remain transcription inferences. The user's latest decisions resolve the former scope/data/validation questions. Provenance is in the [archive index](../../official_docs/INDEX.md).
 
-Use existing text/table/metadata tools in Conda `quant`. Save reusable lawful source documents under `official_docs/` with origin and retrieval metadata when acquired. For figure-only values, mark unavailable and seek text tables or original spreadsheets; do not render images, run multimodal extraction or guess numbers. No additional package installation without the user's approval.
+## Progress reporting
 
-## Phase B: weeks 3–4, baseline and honest evaluation
+For each report, identify the actual substep, linked artifact/version, observed result against its comparator, unresolved issue and attempted remedy, and next concrete action. Count studies, independent formulations and measurement rows separately. Mark work planned, in progress or completed according to evidence. Do not invent completed counts or set weekly completion deadlines.
 
-Proceed only after Phase A identifies a coherent dataset. Freeze the endpoint, units, group definition and primary metric before tuning. Start with a training-only mean/median baseline, regularized regression and one suitable nonlinear tabular method. Choose complexity from the available independent observations, not the raw row count.
+## Decisions and implementation boundaries
 
-Keep repeated measurements and near-duplicate recipes together. Separate original studies where testing cross-source use; use batch or formulation holdout for an explicitly narrower within-lab question. Where enough independent groups exist, reserve untouched groups and perform model selection within the training side. With too few groups, report exploratory leave-group-out results and their instability, without claiming validated generalization or calibration.
+No unanswered user decision blocks starting. BN separators, public data, self-organized validation and preservation of v18 are settled. Make and record routine substrate/endpoint/model choices from evidence instead of returning the previous four questions to the user.
 
-Report MAE/RMSE in the endpoint's units, per-group errors, relevant residual patterns and support failures. Quantify uncertainty at the independent-group level when the sample size permits it; report limitations when it does not. Estimate intervals/calibration on held-out calibration data within the training side, then assess coverage and width on untouched evaluation data. Do not promise nominal coverage under arbitrary source shift. If ranking is justified, assess meaningful small-K stability and sensitivity, not overlap dominated by selecting nearly the whole candidate set.
+Later decisions concern concrete expenditure (paid compute/data, materials or commissioned tests, with costs and alternatives), outgoing communications or collaboration commitments (prepare the content first), and authorship/submission/data-release arrangements. This document revision sends no messages and purchases no services.
 
-Promotion condition: credible improvement over a meaningful baseline on the intended unseen groups, with uncertainty and stability adequate for the decision. Define the minimum practically useful improvement with the materials reviewer using measurement repeatability and decision costs before viewing the final test results. If improvement is absent or indeterminate, document that result and revisit data or scope; do not conceal it with a larger model sweep.
+Use existing text/table/metadata tools in Conda `quant`; retain reusable permitted sources under `official_docs/` with provenance. Figure-only values remain unextracted until text/table data are obtained. No multimodal processing or new package installation without the user's authorization. Keep private meeting material locally excluded as documented in the source index.
 
-## Phase C: weeks 5–6, bounded validation
+The executable repository is a band-gap/prototype PoC, not an implemented separator formulation model. Later code work must use semantically appropriate public APIs, dedicated formulation schemas and relevant tests; preserve existing datasets/artifacts and v18 manifest anchors. This plan requires no new subproject.
 
-Requires an identified reviewer, an explicit feasible parameter region, and agreed validation capacity. Prepare a small set of suggestions (for example 3–5 for discussion, not a fixed promised experimental count), appropriate controls and a protocol. Agree replicate counts, measurements, cost, turnaround and stopping conditions with the experimental owner before work starts.
-
-Freeze suggestions before observing new results. A new batch/lab or prospective measurement is stronger evidence than a retrospective same-source split; report exactly which was obtained. If only existing holdouts are available, label the delivery retrospective. A proposed simulator must have a named implementation, applicable physics, parameter inputs and comparison against relevant measurements before its output is considered validation evidence. A language model judging its own suggestion is not validation.
-
-Deliver a traceable dataset/specification, baseline comparison, limitations and a next validation decision. A materials-facing claim requires the corresponding physical measurement; no synthesis, battery-safety, application-readiness or discovery claim follows from a passing code test.
-
-## Dependencies and fallback decisions
-
-| Dependency | Proposed owner / evidence needed | If absent |
-| --- | --- | --- |
-| Degree priorities, allowed v18 pivot, remaining timeline | User and supervisor; explicit scope decision | Continue reversible public-source audit; do not revise formal proposal or promise a grant/degree deliverable |
-| Material-system and endpoint definition | Collaboration contact plus an identified materials reviewer | Keep competing scopes separate; no quantitative recommendation |
-| Partner data and permitted use | Data owner; received sample/schema and usage conditions | Audit public data; do not claim partner availability |
-| Enough comparable independent observations | Researcher; completed source/data audit | Narrow the endpoint/system or deliver a provenance-backed knowledge/data-gap study |
-| Experimental or validated simulation access | Named validation owner; protocol and capacity | Limit work to retrospective evaluation and label the gap |
-| Novel contribution | Researcher with supervisor; comparison to prior work | Treat the baseline as groundwork, not a publication guarantee |
-
-At day 14 choose one main path. If there are only qualitative descriptions or incompatible labels, pause numerical performance promises and retain source-backed retrieval/data organization as an explicitly narrower outcome. If that is insufficient for the degree goal, discuss restoring the v18 track or another small problem. Do not silently run two main projects in parallel.
-
-## Immediate next action and completion state
-
-Next research action: draft A1 and A2 using the four questions at the end of the Chinese plan, then audit concrete public sources while partner answers are pending. Preparing this plan does not itself authorize sending messages, consuming paid APIs, installing packages or executing experiments.
-
-Completed in this documentation task: archive 13 source files with matching hashes; preserve v18's three files; relocate uncertain historical material under `human_docs/deprecated/`; remove the explicitly requested context/README files and obsolete placeholders/prompts; write bilingual plans and source/recovery indexes. No training corpus or new model result is asserted. The local source files are ignored by Git and absent from a fresh clone unless transferred separately.
+Current delivery is the revised bilingual plan only. No new separator training corpus, trained model or experiment is claimed. Next research action: **1.1, collect original public BN separator sources and supplementary tables**, while recording the initial contract in 1.3.
