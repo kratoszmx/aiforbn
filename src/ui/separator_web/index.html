@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BN 隔膜研究原型</title><link rel="stylesheet" href="/style.css"><script defer src="/app.js"></script></head>
+<body><header><span class="eyebrow">AI FOR BN · RESEARCH PREVIEW</span><h1>配方有依據，預測可核查。</h1><p>從公開文獻查找 BN 隔膜配方，試算未知配方，對照原始證據和簡單基準。</p><div id="summary" class="stats" aria-live="polite">正在載入已核對資料…</div></header>
+<main>
+<aside class="notice"><strong>研究原型，數值預測尚未驗證。</strong><p id="limits"></p><p>模型幫助安排待驗證的實驗；輸出不代表製備成功、電池安全或可以省略實驗。</p></aside>
+<nav aria-label="頁面導覽"><a href="#try">配方試算</a><a href="#records">公開配方</a><a href="#benchmark">模型對比</a><a href="#checks">原文核查</a><a href="#sources">資料來源</a></nav>
+<section id="try"><div class="section-head"><div><span class="eyebrow">01 / TRY A RECIPE</span><h2>用自己的參數試一試</h2></div><span class="tag">GPT-6 Astra</span></div>
+<p>本次數值任務：PP / BNNT 隔膜的離子導電率（mS/cm）。固定為超聲 1 小時、攪拌過夜、真空乾燥；測量溫度在來源中未明確報告。</p>
+<div class="examples"><button type="button" data-case="known">① 已知案例</button><button type="button" data-case="holdout">② 留出案例</button><button type="button" data-case="unsupported">③ 不支持的輸入</button></div>
+<form id="recipe-form"><div class="fields">
+<label>基材<select name="substrate"><option value="PP">PP 聚丙烯</option value="calcium_alginate">海藻酸鈣</option><option value="cellulose">纖維素</option><option value="PE">PE 聚乙烯</option><option value="other">其他</option></select></label>
+<label>BN 形態<select name="bn_form"><option value="raw_BNNT">未純化 BNNT</option><option value="purified_BNNT">純化 BNNT</option><option value="BN_nanopowder">BN 納米粉</option><option value="none">無 BN（對照）</option></select></label>
+<label>BN 載量（mg/cm²）<input name="loading_mg_cm2" type="number" min="0" max="10" step="0.01" value="0.3" required></label>
+<label>BN : 黏結劑比例（x : 1）<input name="bn_binder_ratio" type="number" min="0.01" max="100" step="0.1" value="4" required></label>
+<label>黏結劑<select name="binder"><option value="PVDF">PVDF</option><option value="none">無</option><option value="other">其他</option></select></label>
+<label>溶劑<select name="solvent"><option value="NMP">NMP</option><option value="DMF">DMF</option><option value="water">水</option><option value="none">無</option><option value="other">其他</option></select></label>
+<label>乾燥溫度（°C）<input name="dry_temperature_c" type="number" min="0" max="250" value="50" required></label>
+<label>乾燥時間（小時）<input name="dry_hours" type="number" min="0.1" max="200" step="0.1" value="24" required></label>
+<label>電解液<select name="electrolyte"><option value="LiTFSI_DOL_DME_LiNO3">LiTFSI + LiNO₃ / DOL:DME</option><option value="LiPF6_carbonates">LiPF₆ / 碳酸酯</option><option value="other">其他</option></select></label>
+<label>指定測量溫度（°C，可留空）<input name="test_temperature_c" type="number" min="-40" max="150" placeholder="同文獻未指定條件"></label>
+</div><p id="privacy" class="muted"></p><div class="actions"><button type="submit" class="primary">檢查適用範圍與相近配方</button><button type="button" id="predict">請 Astra 做探索性預測</button></div><label class="access">合作方試用碼 <input id="access-code" type="password" autocomplete="off" placeholder="只在調用模型時需要"></label></form>
+<div id="prediction" class="result" aria-live="polite"><p>選擇示範或輸入參數開始。查資料不會調用模型。</p></div>
+</section>
+<section id="records"><span class="eyebrow">02 / PUBLIC DATA</span><h2>20 個可追溯的配方案例</h2><div class="actions"><label>搜尋配方<input id="record-search" placeholder="例如 PVDF、CA@BN、failure"></label><a href="/api/download/records.csv">下載 CSV</a><a href="/api/download/public.sqlite">下載 SQLite 資料庫</a></div><div id="record-list" class="cards"></div></section>
+<section id="benchmark"><span class="eyebrow">03 / COMPARE</span><h2>模型比簡單方法好多少？</h2><p>固定兩個訓練配方，一個同研究的留出配方。答案不放入模型提示或檢索；公開論文可能已出現在模型預訓練資料中。</p><div id="evaluation"></div><p class="notice">這不是跨研究或前瞻實驗驗證。尚未量得實驗次數、時間或成本節省，不能聲稱節省某個百分比。</p></section>
+<section id="checks"><span class="eyebrow">04 / CHECK THE EVIDENCE</span><h2>原始數值，重新計算</h2><div id="check-list" class="cards"></div><h3>隔離的問題資料</h3><div id="quarantine"></div></section>
+<section id="sources"><span class="eyebrow">05 / SOURCES</span><h2>全文與待補來源分開標示</h2><p>全文以文字／表格抽取；沒有讀圖估值。保留來源授權、原始段落、缺失與測試條件。</p><a href="/api/download/sources.csv">下載來源清單</a><div id="source-list"></div></section>
+</main><footer><p id="expiry"></p><p>BN 隔膜研究原型 · 文獻事實與模型推測分開呈現 · separator-pilot-v1</p></footer></body></html>

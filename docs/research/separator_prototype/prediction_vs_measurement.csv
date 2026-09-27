@@ -1,0 +1,5 @@
+method,record_id,source_id,prediction_mS_cm,measured_mS_cm,absolute_error_mS_cm,status
+training_mean,kim_2022:p-BNNT-PP-0.5,kim_2022,0.57,0.84,0.27,predicted
+similar_formulation,kim_2022:p-BNNT-PP-0.5,kim_2022,0.71,0.84,0.13,predicted
+loading_linear_regression,kim_2022:p-BNNT-PP-0.5,kim_2022,0.8966666666666665,0.84,0.05666666666666653,predicted
+gpt-6-astra,kim_2022:p-BNNT-PP-0.5,kim_2022,0.9,0.84,0.06000000000000005,predicted

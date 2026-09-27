@@ -1,0 +1,911 @@
+
+<!DOCTYPE article
+  PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Archiving and Interchange DTD with MathML3 v1.4 20241031//EN" "JATS-archivearticle1-4-mathml3.dtd">
+<article article-type="research-article" xml:lang="en" dtd-version="1.4"><?da-xref-anchor-style superscripted?><front><journal-meta><journal-id journal-id-type="nlm-ta">Adv Sci (Weinh)</journal-id><journal-id journal-id-type="iso-abbrev">Adv Sci (Weinh)</journal-id><journal-id journal-id-type="pmc-domain-id">2933</journal-id><journal-id journal-id-type="pmc-domain">advsci</journal-id><journal-id journal-id-type="nlm-id">101664569</journal-id><journal-id journal-id-type="publisher-id">ADVS</journal-id><journal-title-group><journal-title>Advanced Science</journal-title></journal-title-group><issn pub-type="epub">2198-3844</issn><?publisher_abbrev blackwell?><publisher><publisher-name>Wiley</publisher-name></publisher></journal-meta><article-meta><article-id pub-id-type="pmcid">PMC7539184</article-id><article-id pub-id-type="pmcid-ver">PMC7539184.1</article-id><article-id pub-id-type="pmcaid">7539184</article-id><article-id pub-id-type="pmcaiid">7539184</article-id><article-id pub-id-type="pmid">33042749</article-id><article-id pub-id-type="doi">10.1002/advs.202001303</article-id><article-id pub-id-type="publisher-id">ADVS1982</article-id><article-version article-version-type="pmc-version">1</article-version><article-categories><subj-group subj-group-type="overline"><subject>Communication</subject></subj-group><subj-group subj-group-type="heading"><subject>Communications</subject></subj-group></article-categories><title-group><article-title>Thermal Conductive 2D Boron Nitride for High‐Performance All‐Solid‐State Lithium–Sulfur Batteries</article-title></title-group><contrib-group><contrib id="advs1982-cr-0001" contrib-type="author"><name name-style="western"><surname>Yin</surname><given-names initials="X">Xuesong</given-names></name><xref ref-type="aff" rid="advs1982-aff-0001">
+<sup>1</sup>
+</xref></contrib><contrib id="advs1982-cr-0002" contrib-type="author"><name name-style="western"><surname>Wang</surname><given-names initials="L">Liu</given-names></name><contrib-id contrib-id-type="orcid" authenticated="false">https://orcid.org/0000-0002-9562-8700</contrib-id><xref ref-type="aff" rid="advs1982-aff-0002">
+<sup>2</sup>
+</xref></contrib><contrib id="advs1982-cr-0003" contrib-type="author"><name name-style="western"><surname>Kim</surname><given-names initials="Y">Yeongae</given-names></name><xref ref-type="aff" rid="advs1982-aff-0003">
+<sup>3</sup>
+</xref></contrib><contrib id="advs1982-cr-0004" contrib-type="author"><name name-style="western"><surname>Ding</surname><given-names initials="N">Ning</given-names></name><xref ref-type="aff" rid="advs1982-aff-0001">
+<sup>1</sup>
+</xref></contrib><contrib id="advs1982-cr-0005" contrib-type="author"><name name-style="western"><surname>Kong</surname><given-names initials="J">Junhua</given-names></name><xref ref-type="aff" rid="advs1982-aff-0001">
+<sup>1</sup>
+</xref></contrib><contrib id="advs1982-cr-0006" contrib-type="author"><name name-style="western"><surname>Safanama</surname><given-names initials="D">Dorsasadat</given-names></name><xref ref-type="aff" rid="advs1982-aff-0004">
+<sup>4</sup>
+</xref></contrib><contrib id="advs1982-cr-0007" contrib-type="author"><name name-style="western"><surname>Zheng</surname><given-names initials="Y">Yun</given-names></name><xref ref-type="aff" rid="advs1982-aff-0001">
+<sup>1</sup>
+</xref></contrib><contrib id="advs1982-cr-0008" contrib-type="author"><name name-style="western"><surname>Xu</surname><given-names initials="J">Jianwei</given-names></name><xref ref-type="aff" rid="advs1982-aff-0001">
+<sup>1</sup>
+</xref></contrib><contrib id="advs1982-cr-0009" contrib-type="author"><name name-style="western"><surname>Repaka</surname><given-names initials="DVM">Durga Venkata Maheswar</given-names></name><xref ref-type="aff" rid="advs1982-aff-0001">
+<sup>1</sup>
+</xref></contrib><contrib id="advs1982-cr-0010" contrib-type="author"><name name-style="western"><surname>Hippalgaonkar</surname><given-names initials="K">Kedar</given-names></name><xref ref-type="aff" rid="advs1982-aff-0001">
+<sup>1</sup>
+</xref></contrib><contrib id="advs1982-cr-0011" contrib-type="author"><name name-style="western"><surname>Lee</surname><given-names initials="SW">Seok Woo</given-names></name><xref ref-type="aff" rid="advs1982-aff-0003">
+<sup>3</sup>
+</xref></contrib><contrib id="advs1982-cr-0012" contrib-type="author"><name name-style="western"><surname>Adams</surname><given-names initials="S">Stefan</given-names></name><xref ref-type="aff" rid="advs1982-aff-0004">
+<sup>4</sup>
+</xref></contrib><contrib id="advs1982-cr-0013" contrib-type="author" corresp="yes"><name name-style="western"><surname>Zheng</surname><given-names initials="GW">Guangyuan Wesley</given-names></name><xref ref-type="aff" rid="advs1982-aff-0001">
+<sup>1</sup>
+</xref><xref ref-type="aff" rid="advs1982-aff-0002">
+<sup>2</sup>
+</xref><address><email>wesley-zheng@imre.a-star.edu.sg</email><email>chezg@nus.edu.sg</email></address></contrib></contrib-group><aff id="advs1982-aff-0001">
+<label><sup>1</sup></label>
+<named-content content-type="organisation-division">Institute of Materials Research and Engineering</named-content>
+<institution>A*STAR (Agency for Science, Technology and Research)</institution>
+<city>Singapore</city>
+<postal-code>138634</postal-code>
+<country country="SG">Singapore</country>
+</aff><aff id="advs1982-aff-0002">
+<label><sup>2</sup></label>
+<named-content content-type="organisation-division">Department of Chemical and Biomolecular Engineering</named-content>
+<institution>National University of Singapore</institution>
+<city>Singapore</city>
+<postal-code>117585</postal-code>
+<country country="SG">Singapore</country>
+</aff><aff id="advs1982-aff-0003">
+<label><sup>3</sup></label>
+<named-content content-type="organisation-division">School of Electrical and Electronic Engineering</named-content>
+<institution>Nanyang Technological University</institution>
+<city>Singapore</city>
+<postal-code>639798</postal-code>
+<country country="SG">Singapore</country>
+</aff><aff id="advs1982-aff-0004">
+<label><sup>4</sup></label>
+<named-content content-type="organisation-division">Department of Materials Science and Engineering</named-content>
+<institution>National University of Singapore</institution>
+<city>Singapore</city>
+<postal-code>117576</postal-code>
+<country country="SG">Singapore</country>
+</aff><author-notes><corresp id="correspondenceTo"><label>*</label>E‐mail: <email>wesley-zheng@imre.a-star.edu.sg</email>; <email>chezg@nus.edu.sg</email><break/></corresp></author-notes><pub-date pub-type="epub"><day>20</day><month>8</month><year>2020</year></pub-date><pub-date pub-type="collection"><month>10</month><year>2020</year></pub-date><volume>7</volume><issue>19</issue><issue-id pub-id-type="pmc-issue-id">366484</issue-id><issue-id pub-id-type="doi">10.1002/advs.v7.19</issue-id><elocation-id>2001303</elocation-id><history><date date-type="received"><day>08</day><month>4</month><year>2020</year></date><date date-type="rev-recd"><day>19</day><month>6</month><year>2020</year></date></history><pub-history><event event-type="pmc-release"><date><day>20</day><month>08</month><year>2020</year></date></event><event event-type="pmc-live"><date><day>09</day><month>10</month><year>2020</year></date></event><event event-type="pmc-last-change"><date iso-8601-date="2024-02-10 22:25:11.330"><day>10</day><month>02</month><year>2024</year></date></event></pub-history><permissions><copyright-statement content-type="article-copyright">© 2020 The Authors. Published by Wiley‐VCH GmbH</copyright-statement><license license-type="creativeCommonsBy"><ali:license_ref xmlns:ali="http://www.niso.org/schemas/ali/1.0/" specific-use="textmining" content-type="ccbylicense">https://creativecommons.org/licenses/by/4.0/</ali:license_ref><license-p>This is an open access article under the terms of the <ext-link xmlns:xlink="http://www.w3.org/1999/xlink" ext-link-type="uri" xlink:href="http://creativecommons.org/licenses/by/4.0/">http://creativecommons.org/licenses/by/4.0/</ext-link> License, which permits use, distribution and reproduction in any medium, provided the original work is properly cited.</license-p></license></permissions><self-uri xmlns:xlink="http://www.w3.org/1999/xlink" content-type="pmc-pdf" xlink:href="ADVS-7-2001303.pdf"><?pdf-name ADVS-7-2001303.pdf?><?pdf-size 2274186?><?pdf-md5 ad8af34e315e5a496e4159c6731c6805?><?pdf-image-server-status NEVER_LOAD?><?pdf-cloudpmc-urn urn:app:2c20/7539184/ad8af34e315e/ADVS-7-2001303.pdf?></self-uri><self-uri xmlns:xlink="http://www.w3.org/1999/xlink" content-type="pdf" xlink:href="file:ADVS-7-2001303.pdf"/><abstract><title>Abstract</title><p>Polymer‐based solid‐state electrolytes are shown to be highly promising for realizing low‐cost, high‐capacity, and safe Li batteries. One major challenge for polymer solid‐state batteries is the relatively high operating temperature (60–80 °C), which means operating such batteries will require significant ramp up time due to heating. On the other hand, as polymer electrolytes are poor thermal conductors, thermal variation across the polymer electrolyte can lead to nonuniformity in ionic conductivity. This can be highly detrimental to lithium deposition and may result in dendrite formation. Here, a polyethylene oxide‐based electrolyte with improved thermal responses is developed by incorporating 2D boron nitride (BN) nanoflakes. The results show that the BN additive also enhances ionic and mechanical properties of the electrolyte. More uniform Li stripping/deposition and reversible cathode reactions are achieved, which in turn enable all‐solid‐state lithium–sulfur cells with superior performances.</p></abstract><abstract id="advs1982-abs-0001" abstract-type="graphical"><p>A boron nitride (BN) incorporated solid polymer electrolyte is developed with improved ionic conductivity, thermal responses, and mechanical properties for the application of all‐solid‐state Li–S batteries. The thermal and current uniformity derived from BN additive leads to a uniform Li deposition and preferred S conversion. Thus, an all‐solid‐state Li–S battery is successfully demonstrated with outstanding electrochemical performances.
+<boxed-text position="anchor" content-type="graphic" orientation="portrait"><graphic xmlns:xlink="http://www.w3.org/1999/xlink" position="anchor" id="nlm-graphic-1" orientation="portrait" xlink:href="ADVS-7-2001303-g005.jpg"><?image-name ADVS-7-2001303-g005.jpg?><?image-size 9182?><?image-md5 38ef9ca64f9f396e6824742d732a345c?><?image-image-server-status NEVER_LOAD?><?image-original-height 117?><?image-original-width 180?><?image-scaled-height 117?><?image-scaled-width 180?><?image-cloudpmc-urn urn:cdn:blobs/2c20/7539184/38ef9ca64f9f/ADVS-7-2001303-g005.jpg?></graphic></boxed-text>
+</p></abstract><kwd-group kwd-group-type="author-generated"><kwd id="advs1982-kwd-0001">all‐solid‐state lithium–sulfur batteries</kwd><kwd id="advs1982-kwd-0002">boron nitride</kwd><kwd id="advs1982-kwd-0003">solid polymer electrolytes</kwd><kwd id="advs1982-kwd-0004">uniform lithium deposition</kwd></kwd-group><funding-group><award-group id="funding-0001"><funding-source>Singapore Ministry of Education Academic Research Fund Tier 1</funding-source><award-id>R‐279‐000‐550‐133</award-id></award-group><award-group id="funding-0002"><funding-source><institution-wrap><institution>Agency for Science, Technology and Research </institution><institution-id institution-id-type="open-funder-registry">10.13039/501100001348</institution-id></institution-wrap></funding-source><award-id>A1898b0043</award-id></award-group><award-group id="funding-0003"><funding-source>Singapore Ministry of Education Academic Research Fund Tier 2</funding-source><award-id>MOE2018‐T2‐1‐045</award-id></award-group></funding-group><counts><fig-count count="5"/><table-count count="0"/><page-count count="7"/><word-count count="4296"/></counts><custom-meta-group><custom-meta><meta-name>pmc-status-qastatus</meta-name><meta-value>0</meta-value></custom-meta><custom-meta><meta-name>pmc-status-live</meta-name><meta-value>yes</meta-value></custom-meta><custom-meta><meta-name>pmc-status-embargo</meta-name><meta-value>no</meta-value></custom-meta><custom-meta><meta-name>pmc-status-released</meta-name><meta-value>yes</meta-value></custom-meta><custom-meta><meta-name>pmc-prop-open-access</meta-name><meta-value>yes</meta-value></custom-meta><custom-meta><meta-name>pmc-prop-olf</meta-name><meta-value>no</meta-value></custom-meta><custom-meta><meta-name>pmc-prop-manuscript</meta-name><meta-value>no</meta-value></custom-meta><custom-meta><meta-name>pmc-prop-legally-suppressed</meta-name><meta-value>no</meta-value></custom-meta><custom-meta><meta-name>pmc-prop-has-pdf</meta-name><meta-value>yes</meta-value></custom-meta><custom-meta><meta-name>pmc-prop-has-supplement</meta-name><meta-value>yes</meta-value></custom-meta><custom-meta><meta-name>pmc-prop-pdf-only</meta-name><meta-value>no</meta-value></custom-meta><custom-meta><meta-name>pmc-prop-suppress-copyright</meta-name><meta-value>no</meta-value></custom-meta><custom-meta><meta-name>pmc-prop-is-real-version</meta-name><meta-value>no</meta-value></custom-meta><custom-meta><meta-name>pmc-prop-is-scanned-article</meta-name><meta-value>no</meta-value></custom-meta><custom-meta><meta-name>pmc-prop-preprint</meta-name><meta-value>no</meta-value></custom-meta><custom-meta><meta-name>pmc-prop-in-epmc</meta-name><meta-value>yes</meta-value></custom-meta><custom-meta><meta-name>pmc-license-ref</meta-name><meta-value>CC BY</meta-value></custom-meta><custom-meta><meta-name>source-schema-version-number</meta-name><meta-value>2.0</meta-value></custom-meta><custom-meta><meta-name>cover-date</meta-name><meta-value>October 7, 2020</meta-value></custom-meta><custom-meta><meta-name>details-of-publishers-convertor</meta-name><meta-value>Converter:WILEY_ML3GV2_TO_JATSPMC version:5.9.2 mode:remove_FC converted:07.10.2020</meta-value></custom-meta></custom-meta-group></article-meta><notes><p content-type="self-citation">
+<mixed-citation publication-type="journal" id="advs1982-cit-0037">
+<string-name name-style="western">
+<given-names>X.</given-names>
+<surname>Yin</surname>
+</string-name>, <string-name name-style="western">
+<given-names>L.</given-names>
+<surname>Wang</surname>
+</string-name>, <string-name name-style="western">
+<given-names>Y.</given-names>
+<surname>Kim</surname>
+</string-name>, <string-name name-style="western">
+<given-names>N.</given-names>
+<surname>Ding</surname>
+</string-name>, <string-name name-style="western">
+<given-names>J.</given-names>
+<surname>Kong</surname>
+</string-name>, <string-name name-style="western">
+<given-names>D.</given-names>
+<surname>Safanama</surname>
+</string-name>, <string-name name-style="western">
+<given-names>Y.</given-names>
+<surname>Zheng</surname>
+</string-name>, <string-name name-style="western">
+<given-names>J.</given-names>
+<surname>Xu</surname>
+</string-name>, <string-name name-style="western">
+<given-names>D. V. M.</given-names>
+<surname>Repaka</surname>
+</string-name>, <string-name name-style="western">
+<given-names>K.</given-names>
+<surname>Hippalgaonkar</surname>
+</string-name>, <string-name name-style="western">
+<given-names>S. W.</given-names>
+<surname>Lee</surname>
+</string-name>, <string-name name-style="western">
+<given-names>S.</given-names>
+<surname>Adams</surname>
+</string-name>, <string-name name-style="western">
+<given-names>G. W.</given-names>
+<surname>Zheng</surname>
+</string-name>, <article-title>Thermal Conductive 2D Boron Nitride for High‐Performance All‐Solid‐State Lithium–Sulfur Batteries</article-title>. <source xml:lang="en">Adv. Sci.</source>
+<year>2020</year>, <volume>7</volume>, <elocation-id>2001303</elocation-id>
+<pub-id pub-id-type="doi">10.1002/advs.202001303</pub-id>
+<pub-id pub-id-type="pmcid">PMC7539184</pub-id><pub-id pub-id-type="pmid">33042749</pub-id></mixed-citation>
+</p></notes></front><body><p>All‐solid‐state batteries with high capacity electrode materials provide a promising route for the next‐generation batteries that combine high energy density and advanced safety features.<sup>[</sup>
+<xref rid="advs1982-bib-0001" ref-type="ref">
+<sup>1</sup>
+</xref>, <xref rid="advs1982-bib-0002" ref-type="ref">
+<sup>2</sup>
+</xref>, <xref rid="advs1982-bib-0003" ref-type="ref">
+<sup>3</sup>
+</xref>, <xref rid="advs1982-bib-0004" ref-type="ref">
+<sup>4</sup>
+</xref>, <xref rid="advs1982-bib-0005" ref-type="ref">
+<sup>5</sup>
+</xref>, <xref rid="advs1982-bib-0006" ref-type="ref">
+<sup>6</sup>
+</xref>
+<sup>]</sup> Solid‐state electrolytes with high ionic conductivity and electronic insulation are considered as the key component of all‐solid‐state batteries to replace flammable liquid electrolyte and separator. Polyethylene oxide (PEO)‐based electrolytes have been widely explored in solid‐state lithium batteries due to their reasonably good ionic conductivity at elevated temperature, decent interfacial characteristics with different electrode materials, and good compatibility with scaled‐up production process.<sup>[</sup>
+<xref rid="advs1982-bib-0007" ref-type="ref">
+<sup>7</sup>
+</xref>, <xref rid="advs1982-bib-0008" ref-type="ref">
+<sup>8</sup>
+</xref>, <xref rid="advs1982-bib-0009" ref-type="ref">
+<sup>9</sup>
+</xref>, <xref rid="advs1982-bib-0010" ref-type="ref">
+<sup>10</sup>
+</xref>, <xref rid="advs1982-bib-0011" ref-type="ref">
+<sup>11</sup>
+</xref>, <xref rid="advs1982-bib-0012" ref-type="ref">
+<sup>12</sup>
+</xref>
+<sup>]</sup> One common drawback of PEO‐based electrolytes is the requirement to operate at elevated temperature, due to their limited ionic conductivity at room temperature (RT).<sup>[</sup>
+<xref rid="advs1982-bib-0013" ref-type="ref">
+<sup>13</sup>
+</xref>
+<sup>]</sup> Considerable efforts have been made to address this issue through approaches such as copolymerization, polymer blending, incorporation of inorganic fillers (both Li‐ion conductors and insulators).<sup>[</sup>
+<xref rid="advs1982-bib-0007" ref-type="ref">
+<sup>7</sup>
+</xref>, <xref rid="advs1982-bib-0014" ref-type="ref">
+<sup>14</sup>
+</xref>, <xref rid="advs1982-bib-0015" ref-type="ref">
+<sup>15</sup>
+</xref>, <xref rid="advs1982-bib-0016" ref-type="ref">
+<sup>16</sup>
+</xref>, <xref rid="advs1982-bib-0017" ref-type="ref">
+<sup>17</sup>
+</xref>
+<sup>]</sup> Moreover, since the ionic conductivity of PEO‐based electrolytes is highly temperature‐dependent,<sup>[</sup>
+<xref rid="advs1982-bib-0018" ref-type="ref">
+<sup>18</sup>
+</xref>, <xref rid="advs1982-bib-0019" ref-type="ref">
+<sup>19</sup>
+</xref>
+<sup>]</sup> thermal variation across the electrolyte can lead to nonuniform reaction in the electrode. This can significantly affect lithium deposition and lead to dendrite formation.<sup>[</sup>
+<xref rid="advs1982-bib-0020" ref-type="ref">
+<sup>20</sup>
+</xref>
+<sup>]</sup> Therefore, improving the thermal uniformity of polymer electrolyte is critical for the performance of high capacity all‐solid‐state batteries. However, such thermal character of PEO‐based electrolyte is not well explored.<sup>[</sup>
+<xref rid="advs1982-bib-0021" ref-type="ref">
+<sup>21</sup>
+</xref>
+<sup>]</sup> Here we use 2D boron nitride (BN) to improve the thermal uniformity of PEO‐based polymer electrolyte and demonstrate its outstanding performance in all‐solid‐state lithium–sulfur (Li–S) batteries. The results show the importance of rapid thermal activation in improving the uniformity of lithium reaction and cycling stability.</p><p>As illustrated in <bold>Figure</bold> <xref rid="advs1982-fig-0001" ref-type="fig">
+<bold>1</bold>a</xref>, polymer electrolyte is not a good thermal conductor and the heat transport in electrolyte becomes the limiting factor which could inhibit thermal responses of such solid‐state Li batteries.<sup>[</sup>
+<xref rid="advs1982-bib-0022" ref-type="ref">
+<sup>22</sup>
+</xref>
+<sup>]</sup> Boron nitride has been recognized as a good thermal conductor and effective additive to modify the thermal and mechanical properties of polymer composites.<sup>[</sup>
+<xref rid="advs1982-bib-0023" ref-type="ref">
+<sup>23</sup>
+</xref>, <xref rid="advs1982-bib-0024" ref-type="ref">
+<sup>24</sup>
+</xref>, <xref rid="advs1982-bib-0025" ref-type="ref">
+<sup>25</sup>
+</xref>, <xref rid="advs1982-bib-0026" ref-type="ref">
+<sup>26</sup>
+</xref>, <xref rid="advs1982-bib-0027" ref-type="ref">
+<sup>27</sup>
+</xref>
+<sup>]</sup> In addition, its low electrical conductivity and good electrochemical stability also mean that the additive will not participate in the battery reactions and can remain stable over long‐term cycling.<sup>[</sup>
+<xref rid="advs1982-bib-0028" ref-type="ref">
+<sup>28</sup>
+</xref>, <xref rid="advs1982-bib-0029" ref-type="ref">
+<sup>29</sup>
+</xref>
+<sup>]</sup> BN was reported to advance Li batteries with liquid‐based electrolytes,<sup>[</sup>
+<xref rid="advs1982-bib-0030" ref-type="ref">
+<sup>30</sup>
+</xref>, <xref rid="advs1982-bib-0031" ref-type="ref">
+<sup>31</sup>
+</xref>, <xref rid="advs1982-bib-0032" ref-type="ref">
+<sup>32</sup>
+</xref>, <xref rid="advs1982-bib-0033" ref-type="ref">
+<sup>33</sup>
+</xref>
+<sup>]</sup> and serve as effective interfacial stabilizer against Li anode or filler in polymer electrolytes for Li‐ion batteries because of its electrochemical inertness and mechanical robustness.<sup>[</sup>
+<xref rid="advs1982-bib-0029" ref-type="ref">
+<sup>29</sup>
+</xref>, <xref rid="advs1982-bib-0034" ref-type="ref">
+<sup>34</sup>
+</xref>, <xref rid="advs1982-bib-0035" ref-type="ref">
+<sup>35</sup>
+</xref>
+<sup>]</sup> However, the impact of its thermal property on the solid‐state Li metal battery with high‐capacity S cathode has not been well examined. In this work, 2D BN nanoflakes are introduced into a blended PEO‐PVDF (poly(vinylidene fluoride))‐LiTFSI (lithium bis(trifluoromethanesulfonyl)imide) polymer to form a novel solid‐state composite electrolyte (see Figure <xref rid="advs1982-fig-0001" ref-type="fig">1b</xref>). This electrolyte presents unique properties combining high thermal conductivity, electrical insulation, and electrochemical stability. The BN additive is found to possess multiple functions in terms of increasing ionic conductivity, mechanical strength, and heat transport of the PEO‐based electrolyte. As a result, high‐performance all solid‐state Li–S batteries are achieved with high specific capacity, good cycling stability, and rate capability, owing to the uniform and compact Li deposition and favorable S conversion during charge–discharge cycles.</p><fig fig-type="Figure" xml:lang="en" id="advs1982-fig-0001" orientation="portrait" position="float"><label>Figure 1</label><caption><p>Rational design of solid‐state polymer electrolyte with BN additive. a) Illustration of solid‐state Li–S batteries with polymer‐based electrolytes and schematic comparison of heat transport through electrolytes with and without BN additives and b) sketch of a composite electrolyte consisting of 2D BN flakes and a blended PEO‐PVDF polymer with LiTFSI.</p></caption><graphic xmlns:xlink="http://www.w3.org/1999/xlink" id="nlm-graphic-3" position="float" orientation="portrait" xlink:href="ADVS-7-2001303-g001.jpg"><?image-name ADVS-7-2001303-g001.jpg?><?image-size 102442?><?image-md5 f1f8b7c8dc92f12ec39ef5a24576ad8c?><?image-image-server-status NEVER_LOAD?><?image-original-height 488?><?image-original-width 800?><?image-scaled-height 488?><?image-scaled-width 800?><?image-cloudpmc-urn urn:cdn:blobs/2c20/7539184/f1f8b7c8dc92/ADVS-7-2001303-g001.jpg?><?thumb-name ADVS-7-2001303-g001.gif?><?thumb-size 5886?><?thumb-md5 08b8f154b596583c88bcbf3b1a4a8b63?><?thumb-image-server-status NEVER_LOAD?><?thumb-scaled-height 80?><?thumb-scaled-width 131?><?thumb-cloudpmc-urn urn:cdn:blobs/2c20/7539184/08b8f154b596/ADVS-7-2001303-g001.gif?></graphic></fig><p>Free‐standing PEO‐PVDF and BN‐PEO‐PVDF electrolyte membranes are prepared through a tape‐casting process followed by delamination as described in the Experimental Section. Scanning electron microscopy (SEM) and optical images of the PEO‐PVDF and BN‐PEO‐PVDF electrolytes are shown in <bold>Figure</bold> <xref rid="advs1982-fig-0002" ref-type="fig">
+<bold>2</bold>a</xref>,<xref rid="advs1982-fig-0002" ref-type="fig">b</xref>. Compared with the translucent PEO‐PVDF sample, the white BN‐PEO‐PVDF sample has smaller grain textures and traces of BN nanoparticles on its surface. Additional information of the structures of BN nanoflakes and electrolytes are provided in Figure S1 in the Supporting Information. As seen from Figure <xref rid="advs1982-fig-0002" ref-type="fig">2c</xref>, the ionic conductivities of both PEO‐PVDF and BN‐PEO‐PVDF electrolytes increase when the temperature increases. At an elevated temperature (&gt;60 °C), the ionic conductivity of the BN‐PEO‐PVDF sample (≈10<sup>−4</sup> S cm<sup>−1</sup>) is higher than the PEO‐PVDF sample (≈10<sup>−5</sup> S cm<sup>−1</sup>). Meanwhile, as revealed by the differential scanning calorimetry (DSC) measurements (Figure <xref rid="advs1982-fig-0002" ref-type="fig">2d</xref>), BN‐PEO‐PVDF has lower glass transition (<italic toggle="yes">T</italic>
+<sub>g</sub>) and melting (<italic toggle="yes">T</italic>
+<sub>m</sub>) temperatures than PEO‐PVDF. It suggests the BN additive interferes with PEO‐based electrolyte, increases structural disorders, and improves its ionic conductivity.<sup>[</sup>
+<xref rid="advs1982-bib-0007" ref-type="ref">
+<sup>7</sup>
+</xref>
+<sup>]</sup> In Figure <xref rid="advs1982-fig-0002" ref-type="fig">2d</xref>, the load (<italic toggle="yes">P</italic>)–displacement (<italic toggle="yes">h</italic>) curves demonstrate a larger modulus of the BN‐PEO‐PVDF sample than the PEO‐PVDF one. The enhanced mechanical strength is believed to help suppress the formation of porous Li metal structures during battery operation.<sup>[</sup>
+<xref rid="advs1982-bib-0008" ref-type="ref">
+<sup>8</sup>
+</xref>
+<sup>]</sup> To verify this point, Li<sup>0</sup> symmetric cells with PEO‐PVDF and BN‐PEO‐PVDF electrolytes are tested at 70 °C in Figure <xref rid="advs1982-fig-0002" ref-type="fig">2f</xref>. The overpotential of the BN‐PEO‐PVDF cell when cycled at a current density of 0.1 mA cm<sup>−2</sup> retains a small value (≈40 mV) for more than 200 h, while the PEO‐PVDF cell exhibits a gradually increased overpotential to about 100 mV followed by a sign of short circuit after only 55 h. The lower overpotential and longer cycling time of the BN‐PEO‐PVDF cell imply more effective and stable Li metal stripping and deposition during cycling. Instead of porous Li metal structures formed in the PEO‐PVDF cell, dense and flattened Li metal deposition is revealed in the cell with BN‐PEO‐PVDF electrolyte after cycling (Figure <xref rid="advs1982-fig-0002" ref-type="fig">2g</xref>). Additionally, the BN‐PEO‐PVDF and PEO‐PVDF electrolytes are of the same Li‐ion transfer number as characterized in Figure S2 and Table S1 in the Supporting Information. The thermogravimetric analysis (TGA) and linear sweep voltammetry tests curves in Figure S3 in the Supporting Information suggest good thermal and anodic stabilities of PEO‐PVDF and BN‐PEO‐PVDF electrolytes as well. Overall, BN incorporation into the PEO‐PVDF blend electrolyte results in favorable properties of high ionic conductivity and mechanical strength together with good thermal and electrochemical stabilities for Li battery applications.</p><fig fig-type="Figure" xml:lang="en" id="advs1982-fig-0002" orientation="portrait" position="float"><label>Figure 2</label><caption><p>Characterizations of BN‐PEO‐PVDF and PEO‐PVDF electrolytes. SEM and optical images of a) PEO‐PVDF and b) BN‐PEO‐PVDF electrolyte membranes. c) Change of ionic conductivity with respect to temperature (log<italic toggle="yes">σ</italic> vs 1/<italic toggle="yes">T</italic>), d) DSC profiles, e) loading force (<italic toggle="yes">P</italic>) as a function of indentation displacement (<italic toggle="yes">h</italic>) during loading and unloading tests for PEO‐PVDF and BN‐PEO‐PVDF electrolytes. f) Galvanostatic cycling of Li<sup>0</sup> symmetric cells with PEO‐PVDF and BN‐PEO‐PVDF electrolytes at a current density of 0.1 mA cm<sup>−2</sup> and g) SEM images of deposited Li metal in the symmetric cells after cycling. Scale bar: 10 µm in (a) and (b) and 1 µm in (g).</p></caption><graphic xmlns:xlink="http://www.w3.org/1999/xlink" id="nlm-graphic-5" position="float" orientation="portrait" xlink:href="ADVS-7-2001303-g002.jpg"><?image-name ADVS-7-2001303-g002.jpg?><?image-size 125024?><?image-md5 f369e66cacd0ffb3baca3dcac8339b3d?><?image-image-server-status NEVER_LOAD?><?image-original-height 530?><?image-original-width 800?><?image-scaled-height 530?><?image-scaled-width 800?><?image-cloudpmc-urn urn:cdn:blobs/2c20/7539184/f369e66cacd0/ADVS-7-2001303-g002.jpg?><?thumb-name ADVS-7-2001303-g002.gif?><?thumb-size 6383?><?thumb-md5 b922e90b39285a2f9b062101d1752c7f?><?thumb-image-server-status NEVER_LOAD?><?thumb-scaled-height 80?><?thumb-scaled-width 120?><?thumb-cloudpmc-urn urn:cdn:blobs/2c20/7539184/b922e90b3928/ADVS-7-2001303-g002.gif?></graphic></fig><p>More interestingly, the BN additive is found to have significant effects on the thermal responses of PEO‐based electrolytes. Thermal diffusivity (<italic toggle="yes">α</italic>) and heat capacity (<italic toggle="yes">c</italic>) of the PEO‐PVDF and BN‐PEO‐PVDF samples are measured at the operation temperature (70 °C) in <bold>Figure</bold> <xref rid="advs1982-fig-0003" ref-type="fig">
+<bold>3</bold>a</xref>. Thermal conductivity (<italic toggle="yes">κ</italic>) is then calculated as <italic toggle="yes">κ</italic> = <italic toggle="yes">α</italic> · <italic toggle="yes">c</italic> · <italic toggle="yes">ρ</italic>, where <italic toggle="yes">ρ</italic> is density. It is found that the BN‐PEO‐PVDF electrolyte has considerably higher <italic toggle="yes">α</italic> and <italic toggle="yes">κ</italic> values than the PEO‐PVDF one, which is attributed to the high thermal conductive nature of BN.<sup>[</sup>
+<xref rid="advs1982-bib-0036" ref-type="ref">
+<sup>36</sup>
+</xref>
+<sup>]</sup> The thermal and electrical parameters of the electrolytes and BN are shown in Table S2 in the Supporting Information. We carried out thermal testing on PEO‐PVDF and BN‐PEO‐PVDF films and their temperature changes were recorded by infrared (IR) images in Figure <xref rid="advs1982-fig-0003" ref-type="fig">3b</xref>. A distinctive temperature difference between PEO‐PVDF and BN‐PEO‐PVDF samples is observed after heating for 5 s. It implies an accelerated thermal transport when BN flakes are added into the PEO‐PVDF electrolyte. Accordingly, the ionic conductivity of BN‐PEO‐PVDF electrolyte should also present a faster relaxation upon a temperature change. As demonstrated in Figure <xref rid="advs1982-fig-0003" ref-type="fig">3c</xref>, when the BN‐PEO‐PVDF and PEO‐PVDF electrolytes are subjected to a temperature switch from RT to 70 °C, the ionic conductivity of BN‐PEO‐PVDF ramps up to a stable value of about 2 × 10<sup>−4</sup> S cm<sup>−1</sup> within 300 s, but the PEO‐PVDF sample takes more than 700 s to reach a smaller stabilized value of about 0.6 × 10<sup>−4</sup> S cm<sup>−1</sup>. Because of the higher ionic conductivity of BN‐PEO‐PVDF electrolyte, the Li–S cell with the BN‐PEO‐PVDF electrolyte holds a relatively higher discharge potential than the cell with PEO‐PVDF electrolyte at all the testing temperatures in Figure S4 in the Supporting Information. Meanwhile, the faster thermal response of the BN‐PEO‐PVDF electrolyte also results in a quicker stabilization of discharge potentials in the BN‐PEO‐PVDF based Li–S cell when temperature changes (see Figure S4, Supporting Information).</p><fig fig-type="Figure" xml:lang="en" id="advs1982-fig-0003" orientation="portrait" position="float"><label>Figure 3</label><caption><p>Thermal responses of PEO‐PVDF and BN‐PEO‐PVDF electrolytes. a) Thermal diffusivity (<italic toggle="yes">α</italic>), heat capacity (<italic toggle="yes">c</italic>), and thermal conductivity (<italic toggle="yes">κ</italic>) of PEO‐PVDF and BN‐PEO‐PVDF electrolytes. b) Temperature changes of PEO‐PVDF and BN‐PEO‐PVDF films with respect to heating time characterized by infrared images. c) Changes of ionic conductivities of PEO‐PVDF and BN‐PEO‐PVDF upon a temperature change from RT to 70 °C. d) Sketch of Li–Cu cells with PEO‐PVDF and BN‐PEO‐PVDF electrolyte and SEM images of Li metal on the surfaces of Li disks and Cu foils after 2 mAh cm<sup>−2</sup> Li deposition at 1 mA cm<sup>−2</sup>. e) Simulated current density (<italic toggle="yes">J</italic>) changes due to a hot spot in PEO‐PVDF and BN‐PEO‐PVDF electrolyte: a sketch of the model, variations of <italic toggle="yes">J</italic> near the heat source (squared area in the model) at <italic toggle="yes">t</italic> = 0.5 s (see Figure S5 and Video S1, Supporting Information) and normalized <italic toggle="yes">J</italic> distribution along directions normal (<italic toggle="yes">z</italic>) and parallel (<italic toggle="yes">r</italic>) to the electrode surface (see Figure S6, Supporting Information). Scale bar: 1 cm in (b), 10 µm in (d).</p></caption><graphic xmlns:xlink="http://www.w3.org/1999/xlink" id="nlm-graphic-7" position="float" orientation="portrait" xlink:href="ADVS-7-2001303-g003.jpg"><?image-name ADVS-7-2001303-g003.jpg?><?image-size 146559?><?image-md5 5d0d348867a4f8db9a519ee90c90d087?><?image-image-server-status NEVER_LOAD?><?image-original-height 696?><?image-original-width 800?><?image-scaled-height 696?><?image-scaled-width 800?><?image-cloudpmc-urn urn:cdn:blobs/2c20/7539184/5d0d348867a4/ADVS-7-2001303-g003.jpg?><?thumb-name ADVS-7-2001303-g003.gif?><?thumb-size 5505?><?thumb-md5 cc015cb562d2551e6f88ef008535942d?><?thumb-image-server-status NEVER_LOAD?><?thumb-scaled-height 87?><?thumb-scaled-width 100?><?thumb-cloudpmc-urn urn:cdn:blobs/2c20/7539184/cc015cb562d2/ADVS-7-2001303-g003.gif?></graphic></fig><p>Electrochemical behaviors of Li anode with PEO‐PVDF and BN‐PEO‐PVDF electrolytes are characterized in Li–Cu asymmetric cells in Figure <xref rid="advs1982-fig-0003" ref-type="fig">3d</xref>. Li metal with a capacity of 2 mAh cm<sup>−2</sup> was plated on Cu foil at a current density of 1 mA cm<sup>−2</sup>. After Li deposition, significant pits are observed on the surface of Li foil in the cell with PEO‐PVDF electrolyte, and correspondingly the deposited Li on the Cu side exhibits unevenly distributed dense and porous regions (PEO‐PVDF column in Figure <xref rid="advs1982-fig-0003" ref-type="fig">3d</xref>). However, in the cell with BN‐PEO‐PVDF electrolyte, a shallower and more uniform stripping pattern is observed on the Li surface. The plated Li metal on the Cu foil is also more uniform (BN‐PEO‐PVDF column in Figure <xref rid="advs1982-fig-0003" ref-type="fig">3d</xref>). In Figure <xref rid="advs1982-fig-0003" ref-type="fig">3e</xref>, the variations of current density (<italic toggle="yes">J</italic>) resulted from a hot spot in the PEO‐PVDF and BN‐PEO‐PVDF electrolytes were simulated. The cross‐sectional current density mappings at 0.5 s show that the BN‐PEO‐PVDF electrolyte show better uniformity in current density than the PEO‐PVDF sample (Figure S5 and Video S1, Supporting Information). The plots of normalized current density along the directions normal (<italic toggle="yes">z</italic>) and parallel (<italic toggle="yes">r</italic>) to the electrode surface (Figure S6, Supporting Information) also indicate a wider distribution of current densities in the BN‐PEO‐PVDF electrolyte in addition to its higher current density value. More details about the simulation can be found in the Experimental Section and Figures S5 and S6 and Video S1 in the Supporting Information. The results suggest that BN‐PEO‐PVDF electrolyte can help reduce the temperature‐induced variation in current density more effectively, so more uniform Li stripping and deposition in the BN‐PEO‐PVDF cell in Figure <xref rid="advs1982-fig-0003" ref-type="fig">3d</xref> are observed.</p><p>Battery performances of solid‐state Li‐S cells with BN‐PEO‐PVDF and PEO‐PVDF electrolytes are evaluated at 70 °C in <bold>Figure</bold> <xref rid="advs1982-fig-0004" ref-type="fig">
+<bold>4</bold>
+</xref> and Figures S6 and S7 in the Supporting Information. In Figure S7 in the Supporting Information, cyclic voltammetry (CV) and charge–discharge curves of cathode without S do not show any capacity, which confirm the electrochemical inertness of BN within the operational potential range of a Li–S cell. The charge–discharge profiles in Figure <xref rid="advs1982-fig-0004" ref-type="fig">4a</xref>,<xref rid="advs1982-fig-0004" ref-type="fig">b</xref> show a typical curve for Li–S chemistry with two dominant discharge plateaus at around 2.4 and 2.0 V. However, the cell with PEO‐PVDF electrolyte has a relatively large overpotential and shortened voltage plateau than the BN‐PEO‐PVDF cell, which suggests that the BN additive reduces the cell impedance and improves the reaction kinetics in the solid‐state Li–S cell. Moreover, the SEM images and energy‐dispersive X‐ray (EDX) mappings of element S in the cathodes of BN‐PEO‐PVDF and PEO‐PVDF cells before and after cycling are shown in Figure <xref rid="advs1982-fig-0004" ref-type="fig">4c</xref>,<xref rid="advs1982-fig-0004" ref-type="fig">f</xref>. In contrast to notable structural defects and unevenly distributed S signals detected in the PEO‐PVDF cell after cycling (Figure <xref rid="advs1982-fig-0004" ref-type="fig">4f</xref>), the cathode of BN‐PEO‐PVDF cell remains intact with uniform S distributions in Figure <xref rid="advs1982-fig-0004" ref-type="fig">4c</xref>. The uniform temperature distribution in the electrolyte with BN incorporation helps achieve uniform current density and hence homogeneous conversion reactions in the cathode. Therefore, sulfur remains evenly distributed in the cathode with BN after cycling (Figure <xref rid="advs1982-fig-0004" ref-type="fig">4c</xref>). In contrast, the sulfur conversion is more localized in the cell without BN. The nonuniform volume changes at certain area in the cathode lead to voids or cracks after cycling (Figure <xref rid="advs1982-fig-0004" ref-type="fig">4f</xref>). Because of these beneficial effects of BN additive on both Li anode and S cathode during electrochemical reactions, the BN‐PEO‐PVDF cell possesses much improved battery performances. The all‐solid‐state Li–S battery with BN‐PEO‐PVDF electrolyte successfully delivers higher reversible specific capacities of ≈1200 mAh g<sup>−1</sup>‐S during initial cycles at 1/20 C and ≈790 mAh g<sup>−1</sup>‐S after 50 cycles at 1/10 C when compared to the cell with PEO‐PVDF electrolyte in Figure <xref rid="advs1982-fig-0004" ref-type="fig">4d</xref> and Figure S8b in the Supporting Information. A coulombic efficiency above 95% is achieved after the initial four cycles, indicating the good reversibility of the electrochemical reactions in the cell with BN‐PEO‐PVDF electrolyte (Figure S8c, Supporting Information). Moreover, a higher rate performance is observed in the BN‐PEO‐PVDF cell in Figure <xref rid="advs1982-fig-0004" ref-type="fig">4e</xref>, which presents high capacities of 750 and 400 mAh g<sup>−1</sup>‐S at 1/5 C and 1/2 C, respectively. As a comparison, the PEO‐PVDF cell only provides 300 mAh g<sup>−1</sup>‐S at 1/5 C and a negligible capacity at 1/2 C. Additionally, battery performance was evaluated at a lower temperature of 55 °C as shown in Figure S9 in the Supporting Information. The BN‐PEO‐PVDF cell gives ≈1000 mAh g<sup>−1</sup>‐S of discharge capacity at 1/20 C and ≈700 mAh g<sup>−1</sup>‐S at 1/10 C with a characteristic two‐plateau feature. While the PEO‐PVDF cell only shows ≈670 and ≈100 mAh g<sup>−1</sup>‐S at 1/20 and 1/10 C, respectively. The better behaviors of BN‐PEO‐PVDF cells than PEO‐PVDF cells at 70 and 55 °C verify that the effectively improved thermal responses of the BN incorporated polymer electrolyte help advance performances of solid‐state Li–S battery.</p><fig fig-type="Figure" xml:lang="en" id="advs1982-fig-0004" orientation="portrait" position="float"><label>Figure 4</label><caption><p>All‐solid‐state Li–S battery performances at 70 °C with PEO‐PVDF and BN‐PEO‐PVDF electrolytes. Charge–discharge curves of solid‐state Li–S cells with a) BN‐PEO‐PVDF and b) PEO‐PVDF electrolyte at various cycles, SEM images of the cathodes in the Li–S cells with c) BN‐PEO‐PVDF and f) PEO‐PVDF electrolyte and their corresponding EDX elemental mapping of S before and after cycling, d) cycling stability and e) rate performance of the Li–S cells with BN‐PEO‐PVDF and PEO‐PVDF electrolytes. Scale bar: 10 µm in (c) and (f).</p></caption><graphic xmlns:xlink="http://www.w3.org/1999/xlink" id="nlm-graphic-9" position="float" orientation="portrait" xlink:href="ADVS-7-2001303-g004.jpg"><?image-name ADVS-7-2001303-g004.jpg?><?image-size 113501?><?image-md5 73eb2a18b2255080378c215d63c41867?><?image-image-server-status NEVER_LOAD?><?image-original-height 431?><?image-original-width 800?><?image-scaled-height 431?><?image-scaled-width 800?><?image-cloudpmc-urn urn:cdn:blobs/2c20/7539184/73eb2a18b225/ADVS-7-2001303-g004.jpg?><?thumb-name ADVS-7-2001303-g004.gif?><?thumb-size 6587?><?thumb-md5 c1a2755a6b4dec1fde8ddcf89c5d9101?><?thumb-image-server-status NEVER_LOAD?><?thumb-scaled-height 80?><?thumb-scaled-width 148?><?thumb-cloudpmc-urn urn:cdn:blobs/2c20/7539184/c1a2755a6b4d/ADVS-7-2001303-g004.gif?></graphic></fig><p>A PEO‐PVDF blended polymer electrolyte with 2D BN nanoflakes (BN‐PEO‐PVDF) is developed for all‐solid‐state Li–S battery. In addition to the improved ionic and mechanical properties, the BN additive also promotes the thermal responses of PEO‐based electrolyte. It enables a faster equalization of heat variation and more homogenous ionic transport in the BN‐PEO‐PVDF electrolyte. As a result, both Li metal anode and S cathode exhibit more uniform and stable transformations during electrochemical reactions in the Li–S cell with BN‐PEO‐PVDF electrolyte. Outstanding battery performances in terms of high specific capacity, good cyclic and rate behaviors are also achieved in the cells using BN‐PEO‐PVDF electrolyte. This work provides an effective way to modify the thermal characteristics of polymer electrolytes and elaborates its significant influences on the microscopic electrochemical reactions and device performances of all‐solid‐state Li–S batteries.</p><sec id="advs1982-sec-0020"><title>Experimental Section</title><sec id="advs1982-sec-0030"><sec id="advs1982-sec-0040"><sec id="advs1982-sec-0050"><title>Solid Electrolyte Membrane Preparation</title><p>Poly(ethylene oxide) (PEO, <italic toggle="yes">M</italic>
+<sub>v</sub> 100 000, Aldrich), PVDF (SOLEF 5130), and LiTFSI (Aldrich, 99.95%) with a ratio of 3:1:1 were preweighted in an Ar‐filled glovebox (MBRAUN, Labmaster 200). The powder mixture was dissolved in 1‐methyl‐2‐pyrrolidone (NMP, Aldrich, 99.5%) with constant stirring for 12 h. Then, the slurry was casted on an Al foil and dried at 80 °C for 5 h. Free‐standing PEO‐PVDF electrolyte membrane with a thickness around 20–30 µm was peeled off from the substrate. BN‐incorporated PEO‐PVDF electrolyte (BN‐PEO‐PVDF) was produced through the same procedure, but 12 wt% BN particles (Sigma‐Aldrich, 98%) was added when mixing PEO, PVDF, and LiTFSI powders.</p></sec><sec id="advs1982-sec-0060"><title>Composite S Cathode Fabrication</title><p>Elemental S (Alfa Aesar, 99.5%) and conductive carbon (Ketjen black, EC‐600J) were ball milled for 24 h to form a S/C powder with a S:C ratio of 9:1. The cathode slurry was prepared by mixing the S/C powder, PEO‐PVDF (or BN‐PEO‐PVDF) electrolyte, and additional conductive carbon in NMP with constant stirring for 12 h. The slurry was then casted on a carbon‐coated Al foil. The composite S cathodes, consisting of 40 wt% S, 15 wt% conductive carbon, and 45 wt% PEO‐PVDF/BN‐PEO‐PVDF electrolytes, were obtained after drying for 5 h at 80 °C. The mass loading of active material (S) is controlled around 0.8–1.0 mg cm<sup>−2</sup>.</p></sec><sec id="advs1982-sec-0070"><title>Cell Assembling</title><p>The composite S cathodes and PEO‐PVDF /BN‐PEO‐PVDF electrolyte membranes were dried and transferred into an Ar‐filled glovebox. The S cathodes, electrolyte membranes, and Li metal foils (China Energy Lithium, 99.9%) were stacked in a 2032 coin‐cell case together with a stainless‐steel spacer and a coned‐disc spring. The all‐solid‐state Li–S cell was sealed by a hydraulic crimping machine (MSK 110).</p></sec><sec id="advs1982-sec-0080"><title>Materials Characterization</title><p>The morphologies of the electrolyte, Li metal, and cathode were characterized by a field‐emission scanning electron microscopy (FESEM) (JEOL, JSM 7600F). The elemental distribution was measured by an EDX analyzer attached in the FESEM system. The crystalline structures of the electrolytes were analyzed by X‐ray diffraction (Bruker 2D Micro XRD). Thermal diffusivity, DSC, and heat capacity of the electrolytes were measured by a laser flash apparatus (Netzsch LFA457) and a differential scanning calorimetry system (Mettler Toledo, DSC1), respectively. Thermogravimetric analysis was carried out using a TGA system (TA Q600/2960). Mechanical properties of the electrolytes were characterized by an indentation system (MTS Nano Indenters XP, TN, USA). IR images were captured by a thermal imaging camera (Testo 865).</p></sec><sec id="advs1982-sec-0090"><title>Electrochemical Characterization</title><p>The CV and charge–discharge curves were measured at 70 °C by battery testers (Novonix HPC and Arbin). Electrochemical impedance spectroscopy measurements were conducted using an electrochemical workstation (Biologic SP‐300). The AC voltage perturbation amplitude was 10 mV and the frequency range was from 3M Hz to 100 Hz. The testing cells were all connected in heating chambers with temperature controllers.</p></sec><sec id="advs1982-sec-0100"><title>Simulation Analysis</title><p>COMSOL simulation was conducted to compare the ionic diffusion in the different solid electrolytes of PEO‐PVDF and BN‐PEO‐PVDF using a finite element package (COMSOL Multiphysics, COMSOL Inc.). For the simulation (Figure S5, Supporting Information), a model consisting of solid electrolyte between Li and Cu foil was constructed. The initiation of Li deposition was depicted as a hot spot at the top surface of solid electrolyte. Material properties of solid electrolytes such as ionic conductivity, thermal conductivity, heat capacity, and density were obtained from experiments. To calculate the current density in the electrolytes, DC current and heat transfer modules were used in order to reflect material properties depending on the temperatures and the results were shown through time‐dependent model studies. The time range was set from 0 to 1 s, and the 1 s means when the temperature generated at the hot spot was saturated in the electrolytes. The current density distributions near the electrode/electrolyte interfaces were also discussed (Figure <xref rid="advs1982-fig-0003" ref-type="fig">3e</xref> and Figure S6, Supporting Information).</p></sec></sec></sec></sec><sec sec-type="COI-statement" id="advs1982-sec-0120"><title>Conflict of Interest</title><p>The authors declare no conflict of interest.</p></sec><sec sec-type="supplementary-material"><title>Supporting information</title><supplementary-material content-type="local-data" position="float" orientation="portrait"><caption><p>Supporting Information</p></caption><media xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="ADVS-7-2001303-s001.pdf" position="float" orientation="portrait"><?suppdata-name ADVS-7-2001303-s001.pdf?><?suppdata-size 1427511?><?suppdata-md5 b57eac6d2f41e4bc12ac342a0467f71b?><?suppdata-image-server-status NEVER_LOAD?><?suppdata-mime-type application?><?suppdata-mime-sub-type pdf?><?suppdata-cloudpmc-urn urn:app:2c20/7539184/b57eac6d2f41/ADVS-7-2001303-s001.pdf?><caption><p>Click here for additional data file.</p></caption></media></supplementary-material><supplementary-material content-type="local-data" position="float" orientation="portrait"><caption><p>Video S1</p></caption><media xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="ADVS-7-2001303-s002.mp4" position="float" orientation="portrait"><?suppdata-name ADVS-7-2001303-s002.mp4?><?suppdata-size 404035?><?suppdata-md5 f0c703abc4cdafc2d32b6544e02c7ec3?><?suppdata-image-server-status NEVER_LOAD?><?suppdata-mime-type video?><?suppdata-mime-sub-type mp4?><?suppdata-cloudpmc-urn urn:app:2c20/7539184/f0c703abc4cd/ADVS-7-2001303-s002.mp4?><caption><p>Click here for additional data file.</p></caption></media></supplementary-material></sec></body><back><ack id="advs1982-sec-0110"><title>Acknowledgements</title><p>X.Y. and L.W. contributed equally to this work. The authors acknowledge the technical support from Su Hui Lim, Tzee Luai Meng, Poh Chong Lim, Xueqi Koh, and Xiping Ni. X.Y. and G.W.Z. acknowledge support from Advanced Energy Storage Research Programme of Science and Engineering Research Council (Award numbers: 1229904044 and 1229904045), A*STAR (Agency for Science, Technology and Research), Singapore. L.W. and G.W.Z. acknowledge support by Singapore Ministry of Education Academic Research Fund Tier 1 R‐279‐000‐550‐133. D.V.M.R. and K.H. acknowledge funding from the Accelerated Materials Development for Manufacturing Program at A*STAR via the AME Programmatic Fund by the Agency for Science, Technology and Research under Grant No. A1898b0043. S.W.L. acknowledges the support by Singapore Ministry of Education Academic Research Fund Tier 2 grant MOE2018‐T2‐1‐045.</p></ack><ref-list id="advs1982-bibl-0001"><ref id="advs1982-bib-0001"><label>1</label><mixed-citation publication-type="journal" id="advs1982-cit-0001">
+<string-name name-style="western">
+<given-names>J.</given-names>
+<surname>Janek</surname>
+</string-name>, <string-name name-style="western">
+<given-names>W. G.</given-names>
+<surname>Zeier</surname>
+</string-name>, <source xml:lang="en">Nat. Energy</source>
+<year>2016</year>, <volume>1</volume>, <elocation-id>16141</elocation-id>.</mixed-citation></ref><ref id="advs1982-bib-0002"><label>2</label><mixed-citation publication-type="journal" id="advs1982-cit-0002">
+<string-name name-style="western">
+<given-names>Y.</given-names>
+<surname>Liu</surname>
+</string-name>, <string-name name-style="western">
+<given-names>P.</given-names>
+<surname>He</surname>
+</string-name>, <string-name name-style="western">
+<given-names>H.</given-names>
+<surname>Zhou</surname>
+</string-name>, <source xml:lang="en">Adv. Energy Mater.</source>
+<year>2018</year>, <volume>8</volume>, <elocation-id>1701602</elocation-id>.</mixed-citation></ref><ref id="advs1982-bib-0003"><label>3</label><mixed-citation publication-type="journal" id="advs1982-cit-0003">
+<string-name name-style="western">
+<given-names>L.</given-names>
+<surname>Fan</surname>
+</string-name>, <string-name name-style="western">
+<given-names>S.</given-names>
+<surname>Wei</surname>
+</string-name>, <string-name name-style="western">
+<given-names>S.</given-names>
+<surname>Li</surname>
+</string-name>, <string-name name-style="western">
+<given-names>Q.</given-names>
+<surname>Li</surname>
+</string-name>, <string-name name-style="western">
+<given-names>Y.</given-names>
+<surname>Lu</surname>
+</string-name>, <source xml:lang="en">Adv. Energy Mater.</source>
+<year>2018</year>, <volume>8</volume>, <elocation-id>1702657</elocation-id>.</mixed-citation></ref><ref id="advs1982-bib-0004"><label>4</label><mixed-citation publication-type="journal" id="advs1982-cit-0004">
+<string-name name-style="western">
+<given-names>P. G.</given-names>
+<surname>Bruce</surname>
+</string-name>, <string-name name-style="western">
+<given-names>S. A.</given-names>
+<surname>Freunberger</surname>
+</string-name>, <string-name name-style="western">
+<given-names>L. J.</given-names>
+<surname>Hardwick</surname>
+</string-name>, <string-name name-style="western">
+<given-names>J. M.</given-names>
+<surname>Tarascon</surname>
+</string-name>, <source xml:lang="en">Nat. Mater.</source>
+<year>2012</year>, <volume>11</volume>, <fpage>19</fpage>.<pub-id pub-id-type="doi" assigning-authority="pmc">10.1038/nmat3191</pub-id><pub-id pub-id-type="pmid">22169914</pub-id></mixed-citation></ref><ref id="advs1982-bib-0005"><label>5</label><mixed-citation publication-type="journal" id="advs1982-cit-0005">
+<string-name name-style="western">
+<given-names>J.</given-names>
+<surname>Wan</surname>
+</string-name>, <string-name name-style="western">
+<given-names>J.</given-names>
+<surname>Xie</surname>
+</string-name>, <string-name name-style="western">
+<given-names>D. G.</given-names>
+<surname>Mackanic</surname>
+</string-name>, <string-name name-style="western">
+<given-names>W.</given-names>
+<surname>Burke</surname>
+</string-name>, <string-name name-style="western">
+<given-names>Z.</given-names>
+<surname>Bao</surname>
+</string-name>, <string-name name-style="western">
+<given-names>Y.</given-names>
+<surname>Cui</surname>
+</string-name>, <source xml:lang="en">Mater. Today Nano</source>
+<year>2018</year>, <volume>4</volume>, <fpage>1</fpage>.</mixed-citation></ref><ref id="advs1982-bib-0006"><label>6</label><mixed-citation publication-type="journal" id="advs1982-cit-0006">
+<string-name name-style="western">
+<given-names>Q.</given-names>
+<surname>Zhao</surname>
+</string-name>, <string-name name-style="western">
+<given-names>X.</given-names>
+<surname>Liu</surname>
+</string-name>, <string-name name-style="western">
+<given-names>S.</given-names>
+<surname>Stalin</surname>
+</string-name>, <string-name name-style="western">
+<given-names>K.</given-names>
+<surname>Khan</surname>
+</string-name>, <string-name name-style="western">
+<given-names>L. A.</given-names>
+<surname>Archer</surname>
+</string-name>, <source xml:lang="en">Nat. Energy</source>
+<year>2019</year>, <volume>4</volume>, <fpage>365</fpage>.</mixed-citation></ref><ref id="advs1982-bib-0007"><label>7</label><mixed-citation publication-type="journal" id="advs1982-cit-0007">
+<string-name name-style="western">
+<given-names>F.</given-names>
+<surname>Croce</surname>
+</string-name>, <string-name name-style="western">
+<given-names>G.</given-names>
+<surname>Appetecchi</surname>
+</string-name>, <string-name name-style="western">
+<given-names>L.</given-names>
+<surname>Persi</surname>
+</string-name>, <string-name name-style="western">
+<given-names>B.</given-names>
+<surname>Scrosati</surname>
+</string-name>, <source xml:lang="en">Nature</source>
+<year>1998</year>, <volume>394</volume>, <fpage>456</fpage>.</mixed-citation></ref><ref id="advs1982-bib-0008"><label>8</label><mixed-citation publication-type="journal" id="advs1982-cit-0008">
+<string-name name-style="western">
+<given-names>M. D.</given-names>
+<surname>Tikekar</surname>
+</string-name>, <string-name name-style="western">
+<given-names>S.</given-names>
+<surname>Choudhury</surname>
+</string-name>, <string-name name-style="western">
+<given-names>Z.</given-names>
+<surname>Tu</surname>
+</string-name>, <string-name name-style="western">
+<given-names>L. A.</given-names>
+<surname>Archer</surname>
+</string-name>, <source xml:lang="en">Nat. Energy</source>
+<year>2016</year>, <volume>1</volume>, <elocation-id>16114</elocation-id>.</mixed-citation></ref><ref id="advs1982-bib-0009"><label>9</label><mixed-citation publication-type="miscellaneous" id="advs1982-cit-0009">
+<string-name name-style="western">
+<given-names>A.</given-names>
+<surname>Ulvestad</surname>
+</string-name>, <year>2018</year>, arXiv:1803.04317. arXiv.org e‐Print archive.</mixed-citation></ref><ref id="advs1982-bib-0010"><label>10</label><mixed-citation publication-type="journal" id="advs1982-cit-0010">
+<string-name name-style="western">
+<given-names>G. G.</given-names>
+<surname>Eshetu</surname>
+</string-name>, <string-name name-style="western">
+<given-names>X.</given-names>
+<surname>Judez</surname>
+</string-name>, <string-name name-style="western">
+<given-names>C.</given-names>
+<surname>Li</surname>
+</string-name>, <string-name name-style="western">
+<given-names>M.</given-names>
+<surname>Martinez‐Ibanez</surname>
+</string-name>, <string-name name-style="western">
+<given-names>I.</given-names>
+<surname>Gracia</surname>
+</string-name>, <string-name name-style="western">
+<given-names>O.</given-names>
+<surname>Bondarchuk</surname>
+</string-name>, <string-name name-style="western">
+<given-names>J.</given-names>
+<surname>Carrasco</surname>
+</string-name>, <string-name name-style="western">
+<given-names>L. M.</given-names>
+<surname>Rodriguez‐Martinez</surname>
+</string-name>, <string-name name-style="western">
+<given-names>H.</given-names>
+<surname>Zhang</surname>
+</string-name>, <string-name name-style="western">
+<given-names>M.</given-names>
+<surname>Armand</surname>
+</string-name>, <source xml:lang="en">J. Am. Chem. Soc.</source>
+<year>2018</year>, <volume>140</volume>, <fpage>9921</fpage>.<pub-id pub-id-type="pmid">30008214</pub-id><pub-id pub-id-type="doi" assigning-authority="pmc">10.1021/jacs.8b04612</pub-id></mixed-citation></ref><ref id="advs1982-bib-0011"><label>11</label><mixed-citation publication-type="journal" id="advs1982-cit-0011">
+<string-name name-style="western">
+<given-names>Z.</given-names>
+<surname>Xue</surname>
+</string-name>, <string-name name-style="western">
+<given-names>D.</given-names>
+<surname>He</surname>
+</string-name>, <string-name name-style="western">
+<given-names>X.</given-names>
+<surname>Xie</surname>
+</string-name>, <source xml:lang="en">J. Mater. Chem. A</source>
+<year>2015</year>, <volume>3</volume>, <elocation-id>19218</elocation-id>.</mixed-citation></ref><ref id="advs1982-bib-0012"><label>12</label><mixed-citation publication-type="journal" id="advs1982-cit-0012">
+<string-name name-style="western">
+<given-names>J.</given-names>
+<surname>Wan</surname>
+</string-name>, <string-name name-style="western">
+<given-names>J.</given-names>
+<surname>Xie</surname>
+</string-name>, <string-name name-style="western">
+<given-names>X.</given-names>
+<surname>Kong</surname>
+</string-name>, <string-name name-style="western">
+<given-names>Z.</given-names>
+<surname>Liu</surname>
+</string-name>, <string-name name-style="western">
+<given-names>K.</given-names>
+<surname>Liu</surname>
+</string-name>, <string-name name-style="western">
+<given-names>F.</given-names>
+<surname>Shi</surname>
+</string-name>, <string-name name-style="western">
+<given-names>A.</given-names>
+<surname>Pei</surname>
+</string-name>, <string-name name-style="western">
+<given-names>H.</given-names>
+<surname>Chen</surname>
+</string-name>, <string-name name-style="western">
+<given-names>W.</given-names>
+<surname>Chen</surname>
+</string-name>, <string-name name-style="western">
+<given-names>J.</given-names>
+<surname>Chen</surname>
+</string-name>, <source xml:lang="en">Nat. Nanotechnol.</source>
+<year>2019</year>, <volume>14</volume>, <fpage>705</fpage>.<pub-id pub-id-type="pmid">31133663</pub-id><pub-id pub-id-type="doi" assigning-authority="pmc">10.1038/s41565-019-0465-3</pub-id></mixed-citation></ref><ref id="advs1982-bib-0013"><label>13</label><mixed-citation publication-type="journal" id="advs1982-cit-0013">
+<string-name name-style="western">
+<given-names>X.</given-names>
+<surname>Tao</surname>
+</string-name>, <string-name name-style="western">
+<given-names>Y.</given-names>
+<surname>Liu</surname>
+</string-name>, <string-name name-style="western">
+<given-names>W.</given-names>
+<surname>Liu</surname>
+</string-name>, <string-name name-style="western">
+<given-names>G.</given-names>
+<surname>Zhou</surname>
+</string-name>, <string-name name-style="western">
+<given-names>J.</given-names>
+<surname>Zhao</surname>
+</string-name>, <string-name name-style="western">
+<given-names>D.</given-names>
+<surname>Lin</surname>
+</string-name>, <string-name name-style="western">
+<given-names>C.</given-names>
+<surname>Zu</surname>
+</string-name>, <string-name name-style="western">
+<given-names>O.</given-names>
+<surname>Sheng</surname>
+</string-name>, <string-name name-style="western">
+<given-names>W.</given-names>
+<surname>Zhang</surname>
+</string-name>, <string-name name-style="western">
+<given-names>H. W.</given-names>
+<surname>Lee</surname>
+</string-name>, <string-name name-style="western">
+<given-names>Y.</given-names>
+<surname>Cui</surname>
+</string-name>, <source xml:lang="en">Nano Lett.</source>
+<year>2017</year>, <volume>17</volume>, <fpage>2967</fpage>.<pub-id pub-id-type="pmid">28388080</pub-id><pub-id pub-id-type="doi" assigning-authority="pmc">10.1021/acs.nanolett.7b00221</pub-id></mixed-citation></ref><ref id="advs1982-bib-0014"><label>14</label><mixed-citation publication-type="journal" id="advs1982-cit-0014">
+<string-name name-style="western">
+<given-names>W.</given-names>
+<surname>Liu</surname>
+</string-name>, <string-name name-style="western">
+<given-names>S. W.</given-names>
+<surname>Lee</surname>
+</string-name>, <string-name name-style="western">
+<given-names>D.</given-names>
+<surname>Lin</surname>
+</string-name>, <string-name name-style="western">
+<given-names>F.</given-names>
+<surname>Shi</surname>
+</string-name>, <string-name name-style="western">
+<given-names>S.</given-names>
+<surname>Wang</surname>
+</string-name>, <string-name name-style="western">
+<given-names>A. D.</given-names>
+<surname>Sendek</surname>
+</string-name>, <string-name name-style="western">
+<given-names>Y.</given-names>
+<surname>Cui</surname>
+</string-name>, <source xml:lang="en">Nat. Energy</source>
+<year>2017</year>, <volume>2</volume>, <elocation-id>17035</elocation-id>.</mixed-citation></ref><ref id="advs1982-bib-0015"><label>15</label><mixed-citation publication-type="journal" id="advs1982-cit-0015">
+<string-name name-style="western">
+<given-names>A. M.</given-names>
+<surname>Christie</surname>
+</string-name>, <string-name name-style="western">
+<given-names>S. J.</given-names>
+<surname>Lilley</surname>
+</string-name>, <string-name name-style="western">
+<given-names>E.</given-names>
+<surname>Staunton</surname>
+</string-name>, <string-name name-style="western">
+<given-names>Y. G.</given-names>
+<surname>Andreev</surname>
+</string-name>, <string-name name-style="western">
+<given-names>P. G.</given-names>
+<surname>Bruce</surname>
+</string-name>, <source xml:lang="en">Nature</source>
+<year>2005</year>, <volume>433</volume>, <fpage>50</fpage>.<pub-id pub-id-type="pmid">15635406</pub-id><pub-id pub-id-type="doi" assigning-authority="pmc">10.1038/nature03186</pub-id></mixed-citation></ref><ref id="advs1982-bib-0016"><label>16</label><mixed-citation publication-type="journal" id="advs1982-cit-0016">
+<string-name name-style="western">
+<given-names>L.</given-names>
+<surname>Chen</surname>
+</string-name>, <string-name name-style="western">
+<given-names>Y.</given-names>
+<surname>Li</surname>
+</string-name>, <string-name name-style="western">
+<given-names>S.‐P.</given-names>
+<surname>Li</surname>
+</string-name>, <string-name name-style="western">
+<given-names>L.‐Z.</given-names>
+<surname>Fan</surname>
+</string-name>, <string-name name-style="western">
+<given-names>C.‐W.</given-names>
+<surname>Nan</surname>
+</string-name>, <string-name name-style="western">
+<given-names>J. B.</given-names>
+<surname>Goodenough</surname>
+</string-name>, <source xml:lang="en">Nano Energy</source>
+<year>2018</year>, <volume>46</volume>, <fpage>176</fpage>.</mixed-citation></ref><ref id="advs1982-bib-0017"><label>17</label><mixed-citation publication-type="journal" id="advs1982-cit-0017">
+<string-name name-style="western">
+<given-names>X.</given-names>
+<surname>Judez</surname>
+</string-name>, <string-name name-style="western">
+<given-names>H.</given-names>
+<surname>Zhang</surname>
+</string-name>, <string-name name-style="western">
+<given-names>C.</given-names>
+<surname>Li</surname>
+</string-name>, <string-name name-style="western">
+<given-names>G. G.</given-names>
+<surname>Eshetu</surname>
+</string-name>, <string-name name-style="western">
+<given-names>J. A.</given-names>
+<surname>González‐Marcos</surname>
+</string-name>, <string-name name-style="western">
+<given-names>M.</given-names>
+<surname>Armand</surname>
+</string-name>, <string-name name-style="western">
+<given-names>L. M.</given-names>
+<surname>Rodriguez‐Martinez</surname>
+</string-name>, <source xml:lang="en">J. Electrochem. Soc.</source>
+<year>2018</year>, <volume>165</volume>, <elocation-id>A6008</elocation-id>.</mixed-citation></ref><ref id="advs1982-bib-0018"><label>18</label><mixed-citation publication-type="journal" id="advs1982-cit-0018">
+<string-name name-style="western">
+<given-names>J.</given-names>
+<surname>Hassoun</surname>
+</string-name>, <string-name name-style="western">
+<given-names>B.</given-names>
+<surname>Scrosati</surname>
+</string-name>, <source xml:lang="en">Adv. Mater.</source>
+<year>2010</year>, <volume>22</volume>, <fpage>5198</fpage>.<pub-id pub-id-type="pmid">20842661</pub-id><pub-id pub-id-type="doi" assigning-authority="pmc">10.1002/adma.201002584</pub-id></mixed-citation></ref><ref id="advs1982-bib-0019"><label>19</label><mixed-citation publication-type="journal" id="advs1982-cit-0019">
+<string-name name-style="western">
+<given-names>Y.</given-names>
+<surname>Lin</surname>
+</string-name>, <string-name name-style="western">
+<given-names>X.</given-names>
+<surname>Wang</surname>
+</string-name>, <string-name name-style="western">
+<given-names>J.</given-names>
+<surname>Liu</surname>
+</string-name>, <string-name name-style="western">
+<given-names>J. D.</given-names>
+<surname>Miller</surname>
+</string-name>, <source xml:lang="en">Nano Energy</source>
+<year>2017</year>, <volume>31</volume>, <fpage>478</fpage>.</mixed-citation></ref><ref id="advs1982-bib-0020"><label>20</label><mixed-citation publication-type="journal" id="advs1982-cit-0020">
+<string-name name-style="western">
+<given-names>J.</given-names>
+<surname>Kasemchainan</surname>
+</string-name>, <string-name name-style="western">
+<given-names>S.</given-names>
+<surname>Zekoll</surname>
+</string-name>, <string-name name-style="western">
+<given-names>D.</given-names>
+<surname>Spencer Jolly</surname>
+</string-name>, <string-name name-style="western">
+<given-names>Z.</given-names>
+<surname>Ning</surname>
+</string-name>, <string-name name-style="western">
+<given-names>G. O.</given-names>
+<surname>Hartley</surname>
+</string-name>, <string-name name-style="western">
+<given-names>J.</given-names>
+<surname>Marrow</surname>
+</string-name>, <string-name name-style="western">
+<given-names>P. G.</given-names>
+<surname>Bruce</surname>
+</string-name>, <source xml:lang="en">Nat. Mater.</source>
+<year>2019</year>, <volume>18</volume>, <fpage>1105</fpage>.<pub-id pub-id-type="pmid">31358941</pub-id><pub-id pub-id-type="doi" assigning-authority="pmc">10.1038/s41563-019-0438-9</pub-id></mixed-citation></ref><ref id="advs1982-bib-0021"><label>21</label><mixed-citation publication-type="journal" id="advs1982-cit-0021">
+<string-name name-style="western">
+<given-names>H.</given-names>
+<surname>Meng</surname>
+</string-name>, <string-name name-style="western">
+<given-names>X.</given-names>
+<surname>Yu</surname>
+</string-name>, <string-name name-style="western">
+<given-names>H.</given-names>
+<surname>Feng</surname>
+</string-name>, <string-name name-style="western">
+<given-names>Z.</given-names>
+<surname>Xue</surname>
+</string-name>, <string-name name-style="western">
+<given-names>N.</given-names>
+<surname>Yang</surname>
+</string-name>, <source xml:lang="en">Int. J. Heat Mass Transfer</source>
+<year>2019</year>, <volume>137</volume>, <fpage>1241</fpage>.</mixed-citation></ref><ref id="advs1982-bib-0022"><label>22</label><mixed-citation publication-type="journal" id="advs1982-cit-0022">
+<string-name name-style="western">
+<given-names>L.</given-names>
+<surname>Song</surname>
+</string-name>, <string-name name-style="western">
+<given-names>Y.</given-names>
+<surname>Chen</surname>
+</string-name>, <string-name name-style="western">
+<given-names>J. W.</given-names>
+<surname>Evans</surname>
+</string-name>, <source xml:lang="en">J. Electrochem. Soc.</source>
+<year>1997</year>, <volume>144</volume>, <fpage>3797</fpage>.</mixed-citation></ref><ref id="advs1982-bib-0023"><label>23</label><mixed-citation publication-type="journal" id="advs1982-cit-0023">
+<string-name name-style="western">
+<given-names>A.</given-names>
+<surname>Pakdel</surname>
+</string-name>, <string-name name-style="western">
+<given-names>Y.</given-names>
+<surname>Bando</surname>
+</string-name>, <string-name name-style="western">
+<given-names>D.</given-names>
+<surname>Golberg</surname>
+</string-name>, <source xml:lang="en">Chem. Soc. Rev.</source>
+<year>2014</year>, <volume>43</volume>, <fpage>934</fpage>.<pub-id pub-id-type="pmid">24280706</pub-id><pub-id pub-id-type="doi" assigning-authority="pmc">10.1039/c3cs60260e</pub-id></mixed-citation></ref><ref id="advs1982-bib-0024"><label>24</label><mixed-citation publication-type="journal" id="advs1982-cit-0024">
+<string-name name-style="western">
+<given-names>T.</given-names>
+<surname>Wang</surname>
+</string-name>, <string-name name-style="western">
+<given-names>M.</given-names>
+<surname>Wang</surname>
+</string-name>, <string-name name-style="western">
+<given-names>L.</given-names>
+<surname>Fu</surname>
+</string-name>, <string-name name-style="western">
+<given-names>Z.</given-names>
+<surname>Duan</surname>
+</string-name>, <string-name name-style="western">
+<given-names>Y.</given-names>
+<surname>Chen</surname>
+</string-name>, <string-name name-style="western">
+<given-names>X.</given-names>
+<surname>Hou</surname>
+</string-name>, <string-name name-style="western">
+<given-names>Y.</given-names>
+<surname>Wu</surname>
+</string-name>, <string-name name-style="western">
+<given-names>S.</given-names>
+<surname>Li</surname>
+</string-name>, <string-name name-style="western">
+<given-names>L.</given-names>
+<surname>Guo</surname>
+</string-name>, <string-name name-style="western">
+<given-names>R.</given-names>
+<surname>Kang</surname>
+</string-name>, <source xml:lang="en">Sci. Rep.</source>
+<year>2018</year>, <volume>8</volume>, <fpage>1557</fpage>.<pub-id pub-id-type="pmid">29367718</pub-id><pub-id pub-id-type="doi" assigning-authority="pmc">10.1038/s41598-018-19945-3</pub-id><pub-id pub-id-type="pmcid">PMC5784086</pub-id></mixed-citation></ref><ref id="advs1982-bib-0025"><label>25</label><mixed-citation publication-type="journal" id="advs1982-cit-0025">
+<string-name name-style="western">
+<given-names>W.</given-names>
+<surname>Luo</surname>
+</string-name>, <string-name name-style="western">
+<given-names>L.</given-names>
+<surname>Zhou</surname>
+</string-name>, <string-name name-style="western">
+<given-names>K.</given-names>
+<surname>Fu</surname>
+</string-name>, <string-name name-style="western">
+<given-names>Z.</given-names>
+<surname>Yang</surname>
+</string-name>, <string-name name-style="western">
+<given-names>J.</given-names>
+<surname>Wan</surname>
+</string-name>, <string-name name-style="western">
+<given-names>M.</given-names>
+<surname>Manno</surname>
+</string-name>, <string-name name-style="western">
+<given-names>Y.</given-names>
+<surname>Yao</surname>
+</string-name>, <string-name name-style="western">
+<given-names>H.</given-names>
+<surname>Zhu</surname>
+</string-name>, <string-name name-style="western">
+<given-names>B.</given-names>
+<surname>Yang</surname>
+</string-name>, <string-name name-style="western">
+<given-names>L.</given-names>
+<surname>Hu</surname>
+</string-name>, <source xml:lang="en">Nano Lett.</source>
+<year>2015</year>, <volume>15</volume>, <fpage>6149</fpage>.<pub-id pub-id-type="pmid">26237519</pub-id><pub-id pub-id-type="doi" assigning-authority="pmc">10.1021/acs.nanolett.5b02432</pub-id></mixed-citation></ref><ref id="advs1982-bib-0026"><label>26</label><mixed-citation publication-type="journal" id="advs1982-cit-0026">
+<string-name name-style="western">
+<given-names>T.‐L.</given-names>
+<surname>Li</surname>
+</string-name>, <string-name name-style="western">
+<given-names>S. L.‐C.</given-names>
+<surname>Hsu</surname>
+</string-name>, <source xml:lang="en">J. Phys. Chem. B</source>
+<year>2010</year>, <volume>114</volume>, <fpage>6825</fpage>.<pub-id pub-id-type="pmid">20433158</pub-id><pub-id pub-id-type="doi" assigning-authority="pmc">10.1021/jp101857w</pub-id></mixed-citation></ref><ref id="advs1982-bib-0027"><label>27</label><mixed-citation publication-type="journal" id="advs1982-cit-0027">
+<string-name name-style="western">
+<given-names>H.</given-names>
+<surname>Zhu</surname>
+</string-name>, <string-name name-style="western">
+<given-names>Y.</given-names>
+<surname>Li</surname>
+</string-name>, <string-name name-style="western">
+<given-names>Z.</given-names>
+<surname>Fang</surname>
+</string-name>, <string-name name-style="western">
+<given-names>J.</given-names>
+<surname>Xu</surname>
+</string-name>, <string-name name-style="western">
+<given-names>F.</given-names>
+<surname>Cao</surname>
+</string-name>, <string-name name-style="western">
+<given-names>J.</given-names>
+<surname>Wan</surname>
+</string-name>, <string-name name-style="western">
+<given-names>C.</given-names>
+<surname>Preston</surname>
+</string-name>, <string-name name-style="western">
+<given-names>B.</given-names>
+<surname>Yang</surname>
+</string-name>, <string-name name-style="western">
+<given-names>L.</given-names>
+<surname>Hu</surname>
+</string-name>, <source xml:lang="en">ACS Nano</source>
+<year>2014</year>, <volume>8</volume>, <fpage>3606</fpage>.<pub-id pub-id-type="pmid">24601534</pub-id><pub-id pub-id-type="doi" assigning-authority="pmc">10.1021/nn500134m</pub-id></mixed-citation></ref><ref id="advs1982-bib-0028"><label>28</label><mixed-citation publication-type="journal" id="advs1982-cit-0028">
+<string-name name-style="western">
+<given-names>Q.</given-names>
+<surname>Weng</surname>
+</string-name>, <string-name name-style="western">
+<given-names>X.</given-names>
+<surname>Wang</surname>
+</string-name>, <string-name name-style="western">
+<given-names>X.</given-names>
+<surname>Wang</surname>
+</string-name>, <string-name name-style="western">
+<given-names>Y.</given-names>
+<surname>Bando</surname>
+</string-name>, <string-name name-style="western">
+<given-names>D.</given-names>
+<surname>Golberg</surname>
+</string-name>, <source xml:lang="en">Chem. Soc. Rev.</source>
+<year>2016</year>, <volume>45</volume>, <fpage>3989</fpage>.<pub-id pub-id-type="pmid">27173728</pub-id><pub-id pub-id-type="doi" assigning-authority="pmc">10.1039/c5cs00869g</pub-id></mixed-citation></ref><ref id="advs1982-bib-0029"><label>29</label><mixed-citation publication-type="journal" id="advs1982-cit-0029">
+<string-name name-style="western">
+<given-names>Q.</given-names>
+<surname>Cheng</surname>
+</string-name>, <string-name name-style="western">
+<given-names>A.</given-names>
+<surname>Li</surname>
+</string-name>, <string-name name-style="western">
+<given-names>N.</given-names>
+<surname>Li</surname>
+</string-name>, <string-name name-style="western">
+<given-names>S.</given-names>
+<surname>Li</surname>
+</string-name>, <string-name name-style="western">
+<given-names>A.</given-names>
+<surname>Zangiabadi</surname>
+</string-name>, <string-name name-style="western">
+<given-names>W.</given-names>
+<surname>Huang</surname>
+</string-name>, <string-name name-style="western">
+<given-names>A. C.</given-names>
+<surname>Li</surname>
+</string-name>, <string-name name-style="western">
+<given-names>T.</given-names>
+<surname>Jin</surname>
+</string-name>, <string-name name-style="western">
+<given-names>Q.</given-names>
+<surname>Song</surname>
+</string-name>, <string-name name-style="western">
+<given-names>W.</given-names>
+<surname>Xu</surname>
+</string-name>, <string-name name-style="western">
+<given-names>N.</given-names>
+<surname>Ni</surname>
+</string-name>, <string-name name-style="western">
+<given-names>H.</given-names>
+<surname>Zhai</surname>
+</string-name>, <string-name name-style="western">
+<given-names>M.</given-names>
+<surname>Dontigny</surname>
+</string-name>, <string-name name-style="western">
+<given-names>K.</given-names>
+<surname>Zaghib</surname>
+</string-name>, <string-name name-style="western">
+<given-names>X.</given-names>
+<surname>Chuan</surname>
+</string-name>, <string-name name-style="western">
+<given-names>D.</given-names>
+<surname>Su</surname>
+</string-name>, <string-name name-style="western">
+<given-names>K.</given-names>
+<surname>Yan</surname>
+</string-name>, <string-name name-style="western">
+<given-names>Y.</given-names>
+<surname>Yang</surname>
+</string-name>, <source xml:lang="en">Joule</source>
+<year>2019</year>, <volume>3</volume>, <fpage>1510</fpage>.</mixed-citation></ref><ref id="advs1982-bib-0030"><label>30</label><mixed-citation publication-type="journal" id="advs1982-cit-0030">
+<string-name name-style="western">
+<given-names>J.</given-names>
+<surname>Shim</surname>
+</string-name>, <string-name name-style="western">
+<given-names>H. J.</given-names>
+<surname>Kim</surname>
+</string-name>, <string-name name-style="western">
+<given-names>B. G.</given-names>
+<surname>Kim</surname>
+</string-name>, <string-name name-style="western">
+<given-names>Y. S.</given-names>
+<surname>Kim</surname>
+</string-name>, <string-name name-style="western">
+<given-names>D.‐G.</given-names>
+<surname>Kim</surname>
+</string-name>, <string-name name-style="western">
+<given-names>J.‐C.</given-names>
+<surname>Lee</surname>
+</string-name>, <source xml:lang="en">Energy Environ. Sci.</source>
+<year>2017</year>, <volume>10</volume>, <fpage>1911</fpage>.</mixed-citation></ref><ref id="advs1982-bib-0031"><label>31</label><mixed-citation publication-type="journal" id="advs1982-cit-0031">
+<string-name name-style="western">
+<given-names>V.</given-names>
+<surname>Vishwakarma</surname>
+</string-name>, <string-name name-style="western">
+<given-names>A.</given-names>
+<surname>Jain</surname>
+</string-name>, <source xml:lang="en">J. Power Sources</source>
+<year>2017</year>, <volume>362</volume>, <fpage>219</fpage>.</mixed-citation></ref><ref id="advs1982-bib-0032"><label>32</label><mixed-citation publication-type="journal" id="advs1982-cit-0032">
+<string-name name-style="western">
+<given-names>M. T. F.</given-names>
+<surname>Rodrigues</surname>
+</string-name>, <string-name name-style="western">
+<given-names>K.</given-names>
+<surname>Kalaga</surname>
+</string-name>, <string-name name-style="western">
+<given-names>H.</given-names>
+<surname>Gullapalli</surname>
+</string-name>, <string-name name-style="western">
+<given-names>G.</given-names>
+<surname>Babu</surname>
+</string-name>, <string-name name-style="western">
+<given-names>A. L. M.</given-names>
+<surname>Reddy</surname>
+</string-name>, <string-name name-style="western">
+<given-names>P. M.</given-names>
+<surname>Ajayan</surname>
+</string-name>, <source xml:lang="en">Adv. Energy Mater.</source>
+<year>2016</year>, <volume>6</volume>, <elocation-id>1600218</elocation-id>.</mixed-citation></ref><ref id="advs1982-bib-0033"><label>33</label><mixed-citation publication-type="journal" id="advs1982-cit-0033">
+<string-name name-style="western">
+<given-names>H.</given-names>
+<surname>Aydın</surname>
+</string-name>, <string-name name-style="western">
+<given-names>S. Ü.</given-names>
+<surname>Çelik</surname>
+</string-name>, <string-name name-style="western">
+<given-names>A.</given-names>
+<surname>Bozkurt</surname>
+</string-name>, <source xml:lang="en">Solid State Ionics</source>
+<year>2017</year>, <volume>309</volume>, <fpage>71</fpage>.</mixed-citation></ref><ref id="advs1982-bib-0034"><label>34</label><mixed-citation publication-type="journal" id="advs1982-cit-0034">
+<string-name name-style="western">
+<given-names>B.</given-names>
+<surname>Shen</surname>
+</string-name>, <string-name name-style="western">
+<given-names>T.‐W.</given-names>
+<surname>Zhang</surname>
+</string-name>, <string-name name-style="western">
+<given-names>Y.‐C.</given-names>
+<surname>Yin</surname>
+</string-name>, <string-name name-style="western">
+<given-names>Z.‐X.</given-names>
+<surname>Zhu</surname>
+</string-name>, <string-name name-style="western">
+<given-names>L.‐L.</given-names>
+<surname>Lu</surname>
+</string-name>, <string-name name-style="western">
+<given-names>C.</given-names>
+<surname>Ma</surname>
+</string-name>, <string-name name-style="western">
+<given-names>F.</given-names>
+<surname>Zhou</surname>
+</string-name>, <string-name name-style="western">
+<given-names>H.‐B.</given-names>
+<surname>Yao</surname>
+</string-name>, <source xml:lang="en">Chem. Commun.</source>
+<year>2019</year>, <volume>55</volume>, <fpage>7703</fpage>.<pub-id pub-id-type="doi" assigning-authority="pmc">10.1039/c9cc02124h</pub-id><pub-id pub-id-type="pmid">31204744</pub-id></mixed-citation></ref><ref id="advs1982-bib-0035"><label>35</label><mixed-citation publication-type="journal" id="advs1982-cit-0035">
+<string-name name-style="western">
+<given-names>Z.</given-names>
+<surname>Zhang</surname>
+</string-name>, <string-name name-style="western">
+<given-names>R. G.</given-names>
+<surname>Antonio</surname>
+</string-name>, <string-name name-style="western">
+<given-names>K. L.</given-names>
+<surname>Choy</surname>
+</string-name>, <source xml:lang="en">J. Power Sources</source>
+<year>2019</year>, <volume>435</volume>, <elocation-id>226736</elocation-id>.</mixed-citation></ref><ref id="advs1982-bib-0036"><label>36</label><mixed-citation publication-type="journal" id="advs1982-cit-0036">
+<string-name name-style="western">
+<given-names>Z.</given-names>
+<surname>Li</surname>
+</string-name>, <string-name name-style="western">
+<given-names>J.</given-names>
+<surname>Kong</surname>
+</string-name>, <string-name name-style="western">
+<given-names>D.</given-names>
+<surname>Ju</surname>
+</string-name>, <string-name name-style="western">
+<given-names>Z.</given-names>
+<surname>Cao</surname>
+</string-name>, <string-name name-style="western">
+<given-names>L.</given-names>
+<surname>Han</surname>
+</string-name>, <string-name name-style="western">
+<given-names>L.</given-names>
+<surname>Dong</surname>
+</string-name>, <source xml:lang="en">Compos. Sci. Technol.</source>
+<year>2017</year>, <volume>149</volume>, <fpage>185</fpage>.</mixed-citation></ref></ref-list></back></article>

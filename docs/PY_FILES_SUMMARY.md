@@ -312,3 +312,21 @@ Predictions/config → guarded canonical parity-plot path after publication. Con
 ### `render_streamlit_app()`
 
 No arguments → Streamlit artifact view (`None` return). Displays current committed outputs only after independent provenance, digest, role/path and shape checks. Missing/changed/legacy/uncommitted-known bundles suppress report tables; malformed JSON/CSV produces text warnings. Absent optional outputs stay absent. Rendering tests and optional startup commands are in [TESTING.md](../TESTING.md) and [SERVICES.md](../SERVICES.md).
+
+## src/materials/separator_data.py
+
+### `load_separator_dataset(path=DATASET_PATH)`
+
+Load the pinned separator package, validate original-source checksums and evidence, and return records. Full public API: [materials summary](../src/materials/PY_FILES_SUMMARY.md).
+
+## src/materials/separator_model.py
+
+### `run_separator_model(assessment, executable, runtime_dir, timeout_seconds=120)`
+
+Run the fixed Astra model with bounded structured inputs and verify output/citations. Evaluation and applicability do not imply experimentally reliable predictions.
+
+## src/ui/separator_app.py
+
+### `create_separator_app(data_path=DATASET_PATH, runtime_dir=None, model_executable=None)`
+
+Serve the public separator evidence package and invitation-protected model requests. Service lifetime and health checks: [SERVICES.md](../SERVICES.md).

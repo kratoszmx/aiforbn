@@ -2,6 +2,8 @@
 
 `aiforbn` is a research PoC for boron-nitride (BN) themed materials screening. It loads 2D-material data, predicts band gaps, evaluates formula/family holdouts, ranks formula-only candidates, and builds deterministic unrelaxed structure prototypes for follow-up. Ranking and prototype generation do not establish discovery, stability, synthesizability, or a direct band gap.
 
+The separator partner prototype is a separate research flow: [delivery reports](docs/research/separator_prototype/phase_2_report.md), [public data](data/separators/dataset.json), and [service lifecycle](SERVICES.md). It retrieves source-backed formulations and runs bounded GPT-6 Astra hypotheses. Its twenty formulation records span incompatible cohorts; the current PP numerical comparison uses only one study and does not establish experimental savings. Do not feed historical band-gap labels into this task.
+
 ## First useful run
 
 Run from the repository root with Conda `quant` and the local `myutils` checkout available:
@@ -48,4 +50,4 @@ The two `docs/` index paths remain because runtime validation and public-surface
 
 ## Source map
 
-`src/materials/` owns data, features, models, evaluation, screening and report/structure artifacts; `src/runtime/` owns config, guarded IO, schemas and agent inspection; `src/torch_models/` owns sklearn-style neural regressors; `src/ui/` is an optional artifact viewer. `src/tests/` covers entrypoints and cross-module contracts; `src/template/` is a starting point for new modules. Local tests sit under each production module's `tests/` directory.
+`src/materials/` owns data, features, models, evaluation, screening, report/structure artifacts and separator evidence/inference; `src/runtime/` owns config, guarded IO, schemas and agent inspection; `src/torch_models/` owns sklearn-style neural regressors; `src/ui/` owns the optional artifact viewer and the partner separator web app. `src/tests/` covers entrypoints and cross-module contracts; `src/template/` is a starting point for new modules. Local tests sit under each production module's `tests/` directory.

@@ -1,0 +1,144 @@
+[
+  {
+    "case": "known",
+    "inputs": {
+      "substrate": "PP",
+      "bn_form": "raw_BNNT",
+      "loading_mg_cm2": 0.3,
+      "bn_binder_ratio": 4.0,
+      "binder": "PVDF",
+      "solvent": "NMP",
+      "dry_temperature_c": 50.0,
+      "dry_hours": 24.0,
+      "electrolyte": "LiTFSI_DOL_DME_LiNO3",
+      "test_temperature_c": null
+    },
+    "numeric_allowed": true,
+    "reasons": [],
+    "training_record_ids": [
+      "kim_2022:BNNT-PP-0.3",
+      "kim_2022:PP"
+    ],
+    "source_record_id": "kim_2022:BNNT-PP-0.3",
+    "measured_mS_cm": 0.71,
+    "evidence_id": "kim_2022:conductivity",
+    "check": "source-backed lookup"
+  },
+  {
+    "case": "withheld_formulation",
+    "inputs": {
+      "substrate": "PP",
+      "bn_form": "purified_BNNT",
+      "loading_mg_cm2": 0.5,
+      "bn_binder_ratio": 4.0,
+      "binder": "PVDF",
+      "solvent": "NMP",
+      "dry_temperature_c": 50.0,
+      "dry_hours": 24.0,
+      "electrolyte": "LiTFSI_DOL_DME_LiNO3",
+      "test_temperature_c": null
+    },
+    "numeric_allowed": true,
+    "reasons": [],
+    "training_record_ids": [
+      "kim_2022:BNNT-PP-0.3",
+      "kim_2022:PP"
+    ],
+    "source_record_id": "kim_2022:p-BNNT-PP-0.5",
+    "measured_mS_cm": 0.84,
+    "model_response": {
+      "model": "gpt-6-astra",
+      "requested_model": "gpt-6-astra",
+      "transport": "codex_exec",
+      "result": {
+        "conductivity_mS_cm": 0.9,
+        "preparation_hypothesis": "以未塗覆 PP 的 0.43 與原始 BNNT、負載量 0.3 mg/cm² 的 0.71 為觀測錨點，假設增益隨負載量線性增加，外推至 0.5 mg/cm²，約為 0.90 mS/cm。製備假說為純化 BNNT 在超音波處理 1 小時、攪拌過夜及 50°C 真空乾燥 24 小時後，維持相近的單位負載增益；此為假設，並非觀測。",
+        "supporting_record_ids": [
+          "kim_2022:BNNT-PP-0.3",
+          "kim_2022:PP"
+        ],
+        "limitations": [
+          "僅有同一研究的兩個訓練標籤，屬探索性預測，準確度未獲驗證。",
+          "目標負載量超出訓練範圍；資料無法辨識純化效果、黏結劑影響或負載量的非線性效應。",
+          "假設目標電解液配比與訓練資料相同，且量測溫度一致；實際溫度未提供。不推定精確不確定區間。"
+        ]
+      },
+      "elapsed_seconds": 18.736,
+      "usage": {
+        "input_tokens": 7651,
+        "cached_input_tokens": 0,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 364,
+        "reasoning_output_tokens": 43
+      },
+      "prompt_sha256": "79b4f8c3d94bd54b57764d1e77dc7ba68cded102ed9a4495e5d196ff1c869ad0",
+      "evidence_status": "exploratory_unvalidated",
+      "warning": "只有一篇研究、兩個訓練數值；未證明未知配方準確度，不能代替實驗。固定製程另含超聲 1 h、攪拌過夜和真空乾燥。"
+    },
+    "comparisons": [
+      {
+        "method": "training_mean",
+        "record_id": "kim_2022:p-BNNT-PP-0.5",
+        "source_id": "kim_2022",
+        "prediction_mS_cm": 0.57,
+        "measured_mS_cm": 0.84,
+        "absolute_error_mS_cm": 0.27,
+        "status": "predicted"
+      },
+      {
+        "method": "similar_formulation",
+        "record_id": "kim_2022:p-BNNT-PP-0.5",
+        "source_id": "kim_2022",
+        "prediction_mS_cm": 0.71,
+        "measured_mS_cm": 0.84,
+        "absolute_error_mS_cm": 0.13,
+        "status": "predicted"
+      },
+      {
+        "method": "loading_linear_regression",
+        "record_id": "kim_2022:p-BNNT-PP-0.5",
+        "source_id": "kim_2022",
+        "prediction_mS_cm": 0.8966666666666665,
+        "measured_mS_cm": 0.84,
+        "absolute_error_mS_cm": 0.05666666666666653,
+        "status": "predicted"
+      },
+      {
+        "method": "gpt-6-astra",
+        "record_id": "kim_2022:p-BNNT-PP-0.5",
+        "source_id": "kim_2022",
+        "prediction_mS_cm": 0.9,
+        "measured_mS_cm": 0.84,
+        "absolute_error_mS_cm": 0.06000000000000005,
+        "status": "predicted"
+      }
+    ]
+  },
+  {
+    "case": "unsupported",
+    "inputs": {
+      "substrate": "calcium_alginate",
+      "bn_form": "BN_nanopowder",
+      "loading_mg_cm2": 0.3,
+      "bn_binder_ratio": 3.0,
+      "binder": "PVDF",
+      "solvent": "DMF",
+      "dry_temperature_c": 50.0,
+      "dry_hours": 24.0,
+      "electrolyte": "LiTFSI_DOL_DME_LiNO3",
+      "test_temperature_c": null
+    },
+    "numeric_allowed": false,
+    "reasons": [
+      "目前數值任務只涵蓋 PP 基材；其他基材只能查文獻。",
+      "BN 形態超出目前 PP/BNNT 任務。",
+      "比例或製程超出文獻條件：BN:PVDF 4:1、NMP、50°C 真空乾燥 24 h。"
+    ],
+    "training_record_ids": [
+      "kim_2022:BNNT-PP-0.3",
+      "kim_2022:PP"
+    ],
+    "model_called": false,
+    "expected_result": "explicit limitations; no numeric prediction"
+  }
+]

@@ -461,6 +461,11 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
     assert dependencies['pydantic']['import_probe_symbols'] == {
         'pydantic': list(PYDANTIC_ROOT_SYMBOLS),
     }
+    assert dependencies['fastapi']['import_probe_targets'] == ['fastapi.responses']
+    assert dependencies['fastapi']['import_probe_symbols'] == {
+        'fastapi': ['FastAPI', 'HTTPException', 'Request'],
+        'fastapi.responses': ['FileResponse', 'JSONResponse'],
+    }
     for owner, target_symbols in STRICT_DESCENDANT_TARGET_SYMBOLS.items():
         dependency = next(
             dependency
@@ -483,6 +488,7 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
         for package, dependency in dependencies.items()
         if package
         not in {
+            'fastapi',
             'jarvis-tools',
             'matminer',
             'matplotlib',
@@ -496,6 +502,7 @@ def test_dependency_contract_covers_requirements_source_imports_and_profiles():
         for package, dependency in dependencies.items()
         if package
         not in {
+            'fastapi',
             'jarvis-tools',
             'matminer',
             'pymatgen',

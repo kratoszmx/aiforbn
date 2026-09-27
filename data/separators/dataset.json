@@ -1,0 +1,1157 @@
+{
+  "schema_version": 1,
+  "dataset_version": "separator-pilot-v1",
+  "sources": [
+    {
+      "source_id": "kim_2022",
+      "doi": "10.3390/nano12010011",
+      "title": "Boron Nitride Nanotube-Based Separator for High-Performance Lithium-Sulfur Batteries",
+      "url": "https://doi.org/10.3390/nano12010011",
+      "full_text_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC8746311/",
+      "retrieved_from": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC8746311/fullTextXML",
+      "accessed_utc": "2026-09-27",
+      "access": "full_text_xml",
+      "license": "CC BY 4.0",
+      "use": "facts_and_attributed_text_redistributable",
+      "source_file": "official_docs/separators/kim_2022.xml",
+      "sha256": "3c71fa579602aac17d34f87259d2db06d86f1599419c57c9292208df75c8757e",
+      "scope": "primary_study_extracted",
+      "limitation": "Figures not read; missing text values stay null."
+    },
+    {
+      "source_id": "tian_2024",
+      "doi": "10.3390/molecules29225311",
+      "title": "Calcium Alginate Fibers/Boron Nitride Composite Lithium-Ion Battery Separators with Excellent Thermal Stability and Cycling Performance",
+      "url": "https://doi.org/10.3390/molecules29225311",
+      "full_text_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11596189/",
+      "retrieved_from": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC11596189/fullTextXML",
+      "accessed_utc": "2026-09-27",
+      "access": "full_text_xml",
+      "license": "CC BY 4.0",
+      "use": "facts_and_attributed_text_redistributable",
+      "source_file": "official_docs/separators/tian_2024.xml",
+      "sha256": "f330d1d0f1822c9e9530a9f159ac05d3a85b5a8906a3c6ebb137176afb4e4dc1",
+      "scope": "primary_study_extracted",
+      "limitation": "Figures not read; missing text values stay null."
+    },
+    {
+      "source_id": "yin_2020",
+      "doi": "10.1002/advs.202001303",
+      "title": "Thermal Conductive 2D Boron Nitride for High‐Performance All‐Solid‐State Lithium–Sulfur Batteries",
+      "url": "https://doi.org/10.1002/advs.202001303",
+      "full_text_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7539184/",
+      "retrieved_from": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC7539184/fullTextXML",
+      "accessed_utc": "2026-09-27",
+      "access": "full_text_xml",
+      "license": "CC BY 4.0",
+      "use": "facts_and_attributed_text_redistributable",
+      "source_file": "official_docs/separators/yin_2020.xml",
+      "sha256": "4c8348edd68ab833e45e41202dd912798ce0119763a2c5cd72ce39bfb286149d",
+      "scope": "primary_study_extracted",
+      "limitation": "Figures not read; missing text values stay null."
+    },
+    {
+      "source_id": "hong_2026",
+      "doi": "10.3390/en19071600",
+      "title": "HwBKP CNF Separators Reinforced with Pretreatment-Free BNNTs for Energy Storage Applications",
+      "url": "https://doi.org/10.3390/en19071600",
+      "full_text_url": "https://doi.org/10.3390/en19071600",
+      "retrieved_from": "https://mdpi-res.com/d_attachment/energies/energies-19-01600/article_deploy/energies-19-01600.xml",
+      "accessed_utc": "2026-09-27",
+      "access": "full_text_xml",
+      "license": "CC BY 4.0",
+      "use": "facts_and_attributed_text_redistributable",
+      "source_file": "official_docs/separators/hong_2026.xml",
+      "sha256": "d4cbd905d8f93ee4f4ec2b8fe260d3881b675967c41b754d542e9602fe8eb72e",
+      "scope": "primary_study_extracted",
+      "limitation": "Figures not read; missing text values stay null."
+    },
+    {
+      "source_id": "rodriguez_2020",
+      "doi": "10.1016/j.jcis.2020.09.009",
+      "title": "Engineered heat dissipation and current distribution boron nitride-graphene layer coated on polypropylene separator for high performance lithium metal battery",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/33010580/",
+      "full_text_url": null,
+      "accessed_utc": "2026-09-27",
+      "access": "abstract_only",
+      "license": "not_verified",
+      "use": "metadata_links_only",
+      "scope": "screened_lead",
+      "limitation": "PP coating; full methods needed; DOI verified through Europe PMC PMID metadata"
+    },
+    {
+      "source_id": "rahman_2019",
+      "doi": "10.1016/j.ensm.2019.03.027",
+      "title": "High temperature and high rate lithium-ion batteries with boron nitride nanotubes coated polypropylene separators",
+      "url": "https://doi.org/10.1016/j.ensm.2019.03.027",
+      "full_text_url": null,
+      "accessed_utc": "2026-09-27",
+      "access": "abstract_only",
+      "license": "not_verified",
+      "use": "metadata_links_only",
+      "scope": "screened_lead",
+      "limitation": "PP coating; seek permitted manuscript/supplement"
+    },
+    {
+      "source_id": "sheng_2021",
+      "doi": "10.1021/acs.nanolett.1c03106",
+      "title": "Stabilized Solid Electrolyte Interphase Induced by Ultrathin Boron Nitride Membranes for Safe Lithium Metal Batteries",
+      "url": "https://doi.org/10.1021/acs.nanolett.1c03106",
+      "full_text_url": null,
+      "accessed_utc": "2026-09-27",
+      "access": "abstract_only",
+      "license": "not_verified",
+      "use": "metadata_links_only",
+      "scope": "screened_lead",
+      "limitation": "PP/PI coating; methods not extracted"
+    },
+    {
+      "source_id": "fan_2019",
+      "doi": "10.1021/acsaem.8b02205",
+      "title": "Repelling Polysulfide Ions by Boron Nitride Nanosheet Coated Separators in Lithium-Sulfur Batteries",
+      "url": "https://pubs.acs.org/doi/10.1021/acsaem.8b02205",
+      "full_text_url": null,
+      "accessed_utc": "2026-09-27",
+      "access": "abstract_only",
+      "license": "not_verified",
+      "use": "metadata_links_only",
+      "scope": "screened_lead",
+      "limitation": "Purchased full text; seek author manuscript"
+    },
+    {
+      "source_id": "tin_bn_2025",
+      "doi": null,
+      "title": "Dual-functional TiN/BN@separator for enhanced electrochemical performance and safety of lithium-ion batteries",
+      "url": "https://www.sciencedirect.com/science/article/pii/S2352152X25023217",
+      "full_text_url": null,
+      "accessed_utc": "2026-09-27",
+      "access": "abstract_only",
+      "license": "not_verified",
+      "use": "metadata_links_only",
+      "scope": "screened_lead",
+      "limitation": "0.466 mS/cm lacks full recipe/conditions here; not extracted"
+    },
+    {
+      "source_id": "chen_2017",
+      "doi": "10.1371/journal.pone.0170523",
+      "title": "Polydopamine-functionalized boron nitride in polypropylene composites",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5249180/",
+      "full_text_url": null,
+      "accessed_utc": "2026-09-27",
+      "access": "prior_context_lead",
+      "license": "not_verified",
+      "use": "metadata_links_only",
+      "scope": "screened_lead",
+      "limitation": "Bulk polymer thermal conductivity; not separator labels"
+    },
+    {
+      "source_id": "bouville_2014",
+      "doi": "10.1111/jace.12653",
+      "title": "Boron nitride aqueous dispersion with cellulose",
+      "url": "https://arxiv.org/abs/1710.04239",
+      "full_text_url": null,
+      "accessed_utc": "2026-09-27",
+      "access": "prior_context_lead",
+      "license": "not_verified",
+      "use": "metadata_links_only",
+      "scope": "screened_lead",
+      "limitation": "Dispersion context; not separator labels"
+    },
+    {
+      "source_id": "sleiti_2021",
+      "doi": "10.1016/j.dib.2021.106881",
+      "title": "PAO/hBN measured-viscosity dataset",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7907776/",
+      "full_text_url": null,
+      "accessed_utc": "2026-09-27",
+      "access": "prior_context_lead",
+      "license": "not_verified",
+      "use": "metadata_links_only",
+      "scope": "screened_lead",
+      "limitation": "Oil rheology; incompatible endpoint/system"
+    }
+  ],
+  "evidence": {
+    "kim_2022:recipe": {
+      "source_id": "kim_2022",
+      "locator": "XML paragraph 8",
+      "paragraph": 8,
+      "anchor": "BNNT (40 mg) and PVDF (10 mg)",
+      "text": "Separators were fabricated using raw BNNT (BNNT) and purified BNNT (p−BNNT), respectively. BNNT (40 mg) and PVDF (10 mg) were dispersed in NMP (2 mL). The mixture was sonicated for 1 h and stirred overnight to obtain a homogeneous slurry. The slurry was cast on a PP separator and dried in a vacuum oven at 50 °C for 24 h. The loading mass of BNNT on the PP separator (x in the BNNT−PP−x) was controlled according to the amount of slurry for drop-casting. p−BNNT loaded separators were also fabricated in an identical manner."
+    },
+    "kim_2022:electrolyte": {
+      "source_id": "kim_2022",
+      "locator": "XML paragraph 9",
+      "paragraph": 9,
+      "anchor": "1 M lithium bis",
+      "text": "The electrolyte was prepared by dissolving 1 M lithium bis(trifluoromethane-sulfonyl)imide (LiTFSI, Sigma-Aldrich Co., Darmstadt, Germany) and 1 wt% lithium nitrate (LiNO3, 99.99%, Sigma-Aldrich Co., Darmstadt, Germany) in 1,3-dioxolane (DOL, 99.8% of Sigma-Aldrich Co. Darmstadt, Germany) and 1,2-dimethoxyethane (DME, 99.5%, Sigma-Aldrich Co., Darmstadt, Germany) (1:1 volume ratio). Catholyte, which means cathode material (Li2S6) with electrolyte, is prepared by mixing sulfur (more than 99.5% in Sigma-Aldrich, Darmstadt, Germany) and Li2S (99.9%, Alfa-Aesar, Haverhill, MA, USA) in an electrolyte and heating catholyte at 50 °C. In the diffusion test, catholyte is prepared without LiNO3. All batteries were assembled in a glove box filled with high purity argon gas, controlling O2 and H2O concentration to zero. A 2032-coin cell model was used, and catholyte was prepared by casting 2 mg sulfur per area on carbon cloth (CH900-20, Kuraray Co., Tokyo, Japan) used as a current collector. Anode was lithium metal (0.75 mm thickness, Sigma Aldrich Co., Darmstadt, Germany). For cells containing separators with BNNT, the BNNT faced the cathode."
+    },
+    "kim_2022:conductivity": {
+      "source_id": "kim_2022",
+      "locator": "XML paragraph 14",
+      "paragraph": 14,
+      "anchor": "0.71 mS/cm",
+      "text": "Additional materials such as h−BN and boric acid were also coated on the separator, which may interfere with the lithium-ion transport. To evaluate this, lithium-ion conductivity was evaluated using electrochemical impedance spectroscopy (EIS), which measures the resistance to the flow of current. The resistance of each part of the cell was calculated through Nyquist modeling. The bulk resistance measured at the highest frequency measures the resistance of the electrodes, electrolyte, and separator (Figure 2d). To minimize the effects of electrodes and electrolytes, the cathode and anode are composed with Al foil except for sulfur. Impedance was measured according to the mass of BNNT cast on the separator, and the ionic conductivity (σ) was obtained through the following equation:(1)σ=dRbA where d denotes the thickness, Rb is the bulk resistance, and A is the area of the separator. The PP separator showed the lowest value 0.43 mS/cm. In BNNT separators, BNNT−PP−0.3 showed the highest ionic conductivity value 0.71 mS/cm, and it gradually decreased as more mass cast. In p−BNNT separators, BNNT−PP−0.5 showed the highest value 0.84 mS/cm and is still higher than that of PP at p−BNNT−PP−1.0 (Figure 2e). It is confirmed that both BNNTs and p−BNNTs increase ionic conductivity despite pore exclusion through the coating on PP. However, the ionic conductivity of p−BNNT−PPs is lowered when the separator becomes thicker, which indicates that the effect of pore exclusion."
+    },
+    "kim_2022:diffusion": {
+      "source_id": "kim_2022",
+      "locator": "XML paragraph 18",
+      "paragraph": 18,
+      "anchor": "0.3, 2, and 3 mg/cm2",
+      "text": "Adsorption tests were conducted to analyze the polysulfide adsorption capacity of BNNTs. First, to check the adsorption capacity of the powder itself, each of BNNT or p−BNNT (20 mg) was added to 4 mL of catholyte diluted with 5 mM and stirred overnight. However, no visible color change was observed even after stirring (Figure S5a,b). That is, BNNT and p−BNNT do not interact strongly with polysulfide. Ex-situ XPS analysis was performed to confirm that the interaction. Porous carbon cloth (CC), which is the current collector, has no affinity with polysulfide. BNNTs on CC and p−BNNTs on CC were analyzed. At the S 2p peak of XPS spectra from porous carbon cloth, the only peak of polysulfide is observed. On the other hand, at the S 2p peak of XPS spectra from BNNT and p−BNNT, a secondary peak appeared, which means interaction with polysulfide and BNNT or p−BNNT. (Figure S5c). To visualize the blocking ability of p−BNNT separator, a diffusion test of lithium polysulfide was conducted. A separator is placed in an open cap vial, and catholyte is added there. A blank electrolyte was added to the outer vial to form a concentration gradient. At this time, PP separator and p−BNNT separator are prepared at 0.3, 2, and 3 mg/cm2, and the degree of diffusion is observed after 6 h. It is observed that as the amount of p−BNNT increased, the amount of polysulfide diffusion decreased (Figure 4a–d). To measure diffusion quantitatively, absorbance is measured using UV-visible spectroscopy (UV-vis). At 400 nm peak, it is confirmed that the amount of p−BNNT was reduced by 85% compared to the PP separator when the amount was 3 mg/cm2 (Figure 4d,e). It is confirmed that the p−BNNT separators could alleviate the shuttle effect."
+    },
+    "kim_2022:one_mg_samples": {
+      "source_id": "kim_2022",
+      "locator": "XML paragraph 15",
+      "paragraph": 15,
+      "anchor": "BNNT−PP−1.0 and p−BNNT−PP−1.0",
+      "text": "The lithium-ion diffusion coefficient is also measured. It is obtained by assembling lithium-sulfur batteries (LSBs) with BNNT−PP−1.0 and p−BNNT−PP−1.0 that maintain higher ionic conductivity than PP. To obtain the Li-ion diffusion coefficient (DLi+), the results of the EIS spectroscopy analysis were substituted into the following equation:(2)Z′=κ+σω−0.5 (3)DLi+=R2T22A2N4F4C2σ2"
+    },
+    "kim_2022:capacity": {
+      "source_id": "kim_2022",
+      "locator": "XML paragraph 19",
+      "paragraph": 19,
+      "anchor": "1197 mAh/g",
+      "text": "After confirming the effect of the BNNT and p−BNNT separators on each component of the cell, the electrochemical performances of the LSBs were measured. First, galvanostatic cycling was performed. Most separators showed no significant difference from the PP separator, but the p−BNNT−PP−1.0 showed a considerably higher capacity. The PP separator showed a discharge capacity of 1197 mAh/g, and the p−BNNT−PP−1.0 showed a discharge capacity of 1429 mAh/g after activation. Considering that the theoretical capacity of sulfur was 1675 mAh/g, the sulfur utilization in the PP separator was 72.6%, and the sulfur utilization in the p−BNNT−PP−1.0 was 85.3%. For the PP separator, the cell no longer worked after 155 cycles, but the p−BNNT−PP−1.0 worked for more than 200 cycles (Figure 5a,b). This capacity and stability improvement was due to the higher lithium ionic conductivity, diffusivity, and stabilization of lithium metal when using the p−BNNT separator. In the discharge profile of the p−BNNT separator, the capacity from 2nd plateau, which means the conversion of the low polysulfide (Li2Sn; 1 ≤ n ≤ 4) became more dominant because the blocked polysulfide contributed to the capacity (Figure 5c,d). A comparison of the energy density at 100th cycle with those of other separators utilized in LSBs is presented in Figure 5e. Such a high energy density is due to the high retention of specific capacity at 100th cycle when using p−BNNT−PP−1.0 as a separator [32,33,34,35,36,37,38]."
+    },
+    "kim_2022:conclusion": {
+      "source_id": "kim_2022",
+      "locator": "XML paragraph 20",
+      "paragraph": 20,
+      "anchor": "0.50 mS/cm",
+      "text": "In conclusion, it is confirmed that the effect of boron nitride nanotube-based separator in lithium-sulfur batteries at the first time. p−BNNT, 1−dimensional structure materials, are stacked randomly to form a 3−dimensional spidernet-like structure on PP separator. Despite of pore-excluding morphology, the ionic conductivity of p−BNNT separator is 0.50 mS/cm, which is higher than that of PP. The diffusion coefficient of p−BNNT separator shows the highest value 25.7 × 10−19 cm2/s. In addition, lithium metal anode is stabilized by using p−BNNT separator. Via adsorption test and diffusion test, it is confirmed that BNNT separators alleviate shuttle effect by pore exclusion and interaction with polysulfide. Through these advantages, boron nitride nanotube-based separator, especially p−BNNT−PP−1.0, shows higher energy density (1429 mAh/g) and cycle stability (over 200 cycles) than conventional PP separator. The LSB cells with p−BNNT−PP−1.0 show superior performance in terms of gravimetric energy density and power density as compared to those of other LSBs with separators based on carbons, polymers, and metal oxides."
+    },
+    "tian_2024:recipe": {
+      "source_id": "tian_2024",
+      "locator": "XML paragraph 30",
+      "paragraph": 30,
+      "anchor": "BN:PVDF = 3:1",
+      "text": "Boron nitride nanopowder was mixed with polyvinylidene fluoride powder in the ratio of 4:1. When BN:PVDF = 3:1, as shown in Figure S11, excess PVDF would clog the pores and cause the separator to fail. Therefore, we adopted the work of Rodriguez et al. [46] to coat the separator with BN:PVDF = 4:1. and then N,N-dimethylformamide was added to make a homogeneous dispersion. The paste was uniformly applied to one or both sides of the rectangular paper using a coating applicator with thicknesses of 50 μm, 100 μm, and 200 μm, respectively. The laminated paper was dried in an oven at 60 °C. The dried material was cut into different segments using a cutter and labeled CA@BN-50, CA@BN-100, and CA@BN-200 for spare use."
+    },
+    "tian_2024:base": {
+      "source_id": "tian_2024",
+      "locator": "XML paragraph 29",
+      "paragraph": 29,
+      "anchor": "2.25 g",
+      "text": "Three to five-millimeter pieces of calcium alginate fiber were cut. Weigh out 2.25 g of these fiber pieces, and then soak them for 12 h in a beaker filled with adequate deionized water. Next, move the fiber that has been soaked to a regular fiber disintegrator and let it dissolve for ten minutes. After that, the crumbled pulp is put into a paper mold to be formed. Ultimately, a combination of vacuum hot pressing and drying yields calcium alginate paper."
+    },
+    "tian_2024:thickness": {
+      "source_id": "tian_2024",
+      "locator": "XML paragraph 5",
+      "paragraph": 5,
+      "anchor": "88 μm, 110 μm, and 129 μm",
+      "text": "The morphology and coating thickness of the separator were evaluated using SEM and EDS. Figure 1a shows that CA@BN-100 demonstrated the formation of a compact flake of boron nitride powder on the CA separator, efficiently occupying its wide pores. Elemental mapping images of CA@BN-100, shown in Figure 1b–f, show the presence of elements F, O, B, N, and Ca. Table S1 shows that the separator created with a 100 μm applicator had significantly higher levels of boron (B) and nitrogen (N), with percentages of 32.2% and 46.08% correspondingly. The results indicated that BN did not completely block the pores of the fibers during the fabrication of the CA@BN separator due to the complex and intricate structure of the CA separator, which consists of multiple layers of fibers that are randomly intertwined and have pores of different sizes. Instead, it effectively reduced the size of the pores. In addition, we obtained samples with three different coating thicknesses, labeled CA@BN-50, CA@BN-100, and CA@BN-200, on a 73 μm CA separator by varying the coating thickness. As shown in Figure S1, the total thickness of the separator rose to 88 μm, 110 μm, and 129 μm with the coating thickness increase, respectively."
+    },
+    "tian_2024:conductivity": {
+      "source_id": "tian_2024",
+      "locator": "XML paragraph 15",
+      "paragraph": 15,
+      "anchor": "2.80 mS",
+      "text": "We determined the ionic conductivities of the separators at different temperatures by fitting the AC impedance data and using Equation (1); the linear temperature-conductivity connection is shown in Figure 3e–f. When ionic conductivity was compared between the CA@BN-100 separator and the Celgard 2400, the SS|CA@BN-100|SS cell performed better, peaking at 2.80 mS cm−1 at 65 °C, while the SS|Celgard 2400|SS cell only managed 1.28 mS cm−1. The polar groups on CA fibers improve electrolyte wettability, and the BN addition refines the separator’s surface structure, optimizing the ionic transport channel. These are the main causes of the increased conductivity for the CA@BN-100."
+    },
+    "tian_2024:electrolyte": {
+      "source_id": "tian_2024",
+      "locator": "XML paragraph 27",
+      "paragraph": 27,
+      "anchor": "EC: DMC: DEC",
+      "text": "The CA fibers were acquired from Qingdao Yuanhai New Material Technology Co., LTD (Qingdao, China). The source of boron nitride (BN) was Shanghai Aladdin Chemical Reagents Co., LTD (Shanghai, China). The N, N-Dimethylformamide was acquired from Sinopharm Chemical Reagent Company (Shanghai, China). Carbonate electrolyte (1 M LiPF6 in EC: DMC: DEC = 1:1:1, v/v/v) and polypropylene separators (Celgard 2400) were acquired from Duo Duo Chemical Technology Co., LTD (Suzhou, China), while LiFePO4 (LFP), Keqin Black, PVDF, and N-methyl-2-pyrrolidone (NMP) were obtained from Hefei Kejing Material Technology Co., LTD (Hefei, China). The reagents were used in their original form without any additional purification."
+    },
+    "tian_2024:transference_conflict": {
+      "source_id": "tian_2024",
+      "locator": "XML paragraph 16",
+      "paragraph": 16,
+      "anchor": "maximum ionic migration number",
+      "text": "One crucial metric for assessing the concentration polarization phenomena is the lithium-ion migration number. Higher tLi+ represents a better inhibition of lithium dendrite growth [36,37,38]. To evaluate the EIS curve in conjunction with chronoamperometry, we constructed Li||Li symmetrical batteries and determined the values using Equation (4). The modified separators performed better than the commercial separator, with a maximum ionic migration number (tLi+) of 0.25, as shown in Figure 4. In particular, the CA@BN-100 performed better than the Celgard 2400. After that, the CA@BN-200 had a tLi+ of 0.50. The greater electrolyte retention of the redesigned separators was responsible for the superior migration numbers, which improved cycle stability and battery longevity [39,40]. Because of the inherent mechanical limitations of pure CA fibers, the thinner BN coating, the CA@BN-50, with a tLi+ of 0.33, shows a lower migration number [41]."
+    },
+    "tian_2024:conclusion": {
+      "source_id": "tian_2024",
+      "locator": "XML paragraph 26",
+      "paragraph": 26,
+      "anchor": "migration number of 0.55",
+      "text": "To summarize, our study focused on a coated separator that incorporates calcium alginate fiber and BN, resulting in enhanced safety and cycle performance of lithium-ion batteries. The preparation process of the coated separator is straightforward and ecologically friendly, in contrast to other separator modification procedures. It does not require time-consuming experimental treatment phases. Additionally, calcium alginate fiber is derived from the ocean and possesses exceptional flame-retardant characteristics. Furthermore, BN powder possesses adequate mechanical strength to inhibit the proliferation of lithium dendrites, hence improving the stability of the lithium anode interface in Li||Li cells [40,45]. This leads to the successful plating and stripping of lithium, allowing for 1000 stable cycles at a current density of 0.5 mA cm−2. The interwoven topology of the BN-CA fiber network provides numerous paths for ion movement, hence enhancing the retention of electrolytes, compatibility at the electrode interface, and electrochemical stability. The improved separator enhances the ionic conductivity to 2.80 mS cm−1 at 65 °C and achieves a lithium-ion migration number of 0.55. Additionally, the LFP||Li battery, when combined with the modified separator, successfully completed 800 stable charge and discharge cycles. Ultimately, as a result of BNs exceptional thermal conductivity, the improved separator demonstrates outstanding thermal stability. The LFP||Li battery, when used with the CA@BN-100 separator, can last more than 1000 cycles at a temperature of 60 °C and a charge/discharge rate of 1 C while retaining a Coulombic efficiency of 97% (Figure S10). In summary, this study presents novel approaches for modifying lithium-ion battery separators."
+    },
+    "yin_2020:recipe": {
+      "source_id": "yin_2020",
+      "locator": "XML paragraph 15",
+      "paragraph": 15,
+      "anchor": "12 wt% BN",
+      "text": "Poly(ethylene oxide) (PEO, M v 100 000, Aldrich), PVDF (SOLEF 5130), and LiTFSI (Aldrich, 99.95%) with a ratio of 3:1:1 were preweighted in an Ar‐filled glovebox (MBRAUN, Labmaster 200). The powder mixture was dissolved in 1‐methyl‐2‐pyrrolidone (NMP, Aldrich, 99.5%) with constant stirring for 12 h. Then, the slurry was casted on an Al foil and dried at 80 °C for 5 h. Free‐standing PEO‐PVDF electrolyte membrane with a thickness around 20–30 µm was peeled off from the substrate. BN‐incorporated PEO‐PVDF electrolyte (BN‐PEO‐PVDF) was produced through the same procedure, but 12 wt% BN particles (Sigma‐Aldrich, 98%) was added when mixing PEO, PVDF, and LiTFSI powders."
+    },
+    "yin_2020:conductivity": {
+      "source_id": "yin_2020",
+      "locator": "XML paragraph 9",
+      "paragraph": 9,
+      "anchor": "within 300 s",
+      "text": "More interestingly, the BN additive is found to have significant effects on the thermal responses of PEO‐based electrolytes. Thermal diffusivity (α) and heat capacity (c) of the PEO‐PVDF and BN‐PEO‐PVDF samples are measured at the operation temperature (70 °C) in Figure 3a. Thermal conductivity (κ) is then calculated as κ = α · c · ρ, where ρ is density. It is found that the BN‐PEO‐PVDF electrolyte has considerably higher α and κ values than the PEO‐PVDF one, which is attributed to the high thermal conductive nature of BN.[ 36 ] The thermal and electrical parameters of the electrolytes and BN are shown in Table S2 in the Supporting Information. We carried out thermal testing on PEO‐PVDF and BN‐PEO‐PVDF films and their temperature changes were recorded by infrared (IR) images in Figure 3b. A distinctive temperature difference between PEO‐PVDF and BN‐PEO‐PVDF samples is observed after heating for 5 s. It implies an accelerated thermal transport when BN flakes are added into the PEO‐PVDF electrolyte. Accordingly, the ionic conductivity of BN‐PEO‐PVDF electrolyte should also present a faster relaxation upon a temperature change. As demonstrated in Figure 3c, when the BN‐PEO‐PVDF and PEO‐PVDF electrolytes are subjected to a temperature switch from RT to 70 °C, the ionic conductivity of BN‐PEO‐PVDF ramps up to a stable value of about 2 × 10−4 S cm−1 within 300 s, but the PEO‐PVDF sample takes more than 700 s to reach a smaller stabilized value of about 0.6 × 10−4 S cm−1. Because of the higher ionic conductivity of BN‐PEO‐PVDF electrolyte, the Li–S cell with the BN‐PEO‐PVDF electrolyte holds a relatively higher discharge potential than the cell with PEO‐PVDF electrolyte at all the testing temperatures in Figure S4 in the Supporting Information. Meanwhile, the faster thermal response of the BN‐PEO‐PVDF electrolyte also results in a quicker stabilization of discharge potentials in the BN‐PEO‐PVDF based Li–S cell when temperature changes (see Figure S4, Supporting Information)."
+    },
+    "hong_2026:recipe": {
+      "source_id": "hong_2026",
+      "locator": "XML paragraph 7",
+      "paragraph": 7,
+      "anchor": "Membranes prepared with BNNT contents of 0.5 wt%",
+      "text": "A self-supporting CNF membrane was fabricated from the HwBKP-derived CNF suspension by a vacuum-assisted filtration process. Isopropyl alcohol (IPA, Duksan, Cheonan, Republic of Korea) was added to the CNF suspension, and the mixture was adjusted to an IPA to water volume ratio of 95/5 (v/v). The suspension was mechanically stirred for 2 h to ensure homogenization. The resulting mixture was poured onto a filter paper placed in a glass funnel and vacuum filtered to form a wet CNF film. The collected film on the filter paper was dried at 80 °C for 48 h to obtain a uniform membrane, hereafter denoted as HCNF. For BNNT incorporated composite membranes, boron nitride nanotubes (BNNT, Sigma Aldrich, St. Louis, MO, USA, product no. 912085, >90%) were introduced into the CNF suspension during IPA addition. The BNNTs have an outer diameter of 30–50 nm and an average length of approximately 10 μm. The BNNT-containing mixture (IPA/water = 95/5, v/v) was then sonicated to promote dispersion and minimize agglomeration, followed by mechanical stirring for 2 h. The slurry was subsequently processed using the same vacuum filtration and drying steps described above (80 °C, 48 h) to obtain BNNT-containing CNF membranes. Membranes prepared with BNNT contents of 0.5 wt% and 1.0 wt% are referred to as HBNT-05 and HBNT-10."
+    },
+    "hong_2026:cell": {
+      "source_id": "hong_2026",
+      "locator": "XML paragraph 10",
+      "paragraph": 10,
+      "anchor": "1 M LiPF6 with 5 vol%",
+      "text": "To compare the electrochemical behavior of NCM811||Li half cells employing PE (Celgard, Charlotte, NC, USA), HCNF, HBNT-05, and HBNT-10 separators, lithium metal foil and an NCM811 cathode were used as the anode and cathode, respectively. The electrolyte consisted of 1 M LiPF6 with 5 vol% fluoroethylene carbonate (FEC) in EC/EMC (3/7, v/v). All electrochemical measurements were performed at ambient temperature. Prior to testing, the cells were rested for 10 h to ensure sufficient electrolyte soaking. Galvanostatic charge–discharge (GCD) measurements were carried out within a voltage window of 3.0–4.3 V vs. Li/Li+. Formation and stabilization cycles were applied as initial conditioning steps prior to comparative testing to establish a stable and reproducible baseline response [29,30]. Specifically, formation was conducted at 0.1 °C for 1 cycle, followed by stabilization at 0.2 °C for 2 cycles. Cycling performance was evaluated at 0.2 °C, and rate capability was assessed under stepwise C rates of 0.5 °C, 1 °C, 2 °C, 3 °C, 4 °C, and 5 °C, followed by a recovery step at 0.5 °C. GCD and CV measurements were performed using a battery cycler and an electrochemical workstation, respectively. Cyclic voltammetry (CV) was conducted between 2.5 and 4.5 V vs. Li/Li+ at scan rates of 0.1, 0.3, and 0.5 mV s−1 to compare voltage-dependent current responses and scan rate-dependent voltammetric behavior among the separators."
+    },
+    "hong_2026:capacity": {
+      "source_id": "hong_2026",
+      "locator": "XML paragraph 15",
+      "paragraph": 15,
+      "anchor": "194.8 mAh",
+      "text": "The electrochemical feasibility and separator-dependent performance were evaluated in NCM811||Li half-cells, and the results are presented in Figure 5. At 0.1 °C, all separators exhibit comparable voltage behavior within 3.0–4.3 V, while HBNT-10 achieves the highest discharge capacity of 194.8 mAh g−1, exceeding PE at 183.1 mAh g−1. Cycling at 0.2C shows minimal fading for all cells, and HBNT-10 maintains 167.2 mAh g−1 at the 15th cycle compared with 166.1 mAh g−1 for PE, indicating a sustained capacity difference under repeated operation. Rate capability was evaluated under stepwise C-rates from 0.5 °C to 5 °C, followed by a return to 0.5 °C. Up to 3C, HBNT-10 retains the highest discharge capacity, delivering 150.1 mAh g−1 at 3C relative to 145.0 mAh g−1 for PE. At 5C, all cells exhibit a pronounced capacity drop, and PE shows the highest remaining capacity of 97.57 mAh g−1, whereas HBNT-10 retains 58.75 mAh g−1. Importantly, upon returning to 0.5 °C, HBNT-10 recovers to 176.0 mAh g−1, close to its initial low-rate value, indicating stable rate recovery under the applied protocol. Considering the BNNT-induced changes in membrane thickness and nanoscale surface descriptors together with the confirmed BNNT incorporation in the CNF matrix, the favorable response of HBNT-10 up to 3C may be associated with BNNT-related structural modification under the present fabrication and test conditions."
+    },
+    "hong_2026:table2": {
+      "source_id": "hong_2026",
+      "locator": "Table 2",
+      "xml_id": "energies-19-01600-t002",
+      "anchor": "28.45",
+      "text": "energies-19-01600-t002_Table 2 Table 2 Comparison of thickness and surface properties of the separators. Sample Thickness (µm) RMS (nm) Contact Angle (°) SFE (mJ m−2) HCNF 25 31.91 28.45 ± 3.34 72.25 ± 1.87 HBNT-05 35 49.314 50.23 ± 3.14 61.75 ± 1.88 HBNT-10 35 57.368 68.54 ± 1.55 52.48 ± 1.14"
+    }
+  },
+  "records": [
+    {
+      "record_id": "kim_2022:PP",
+      "source_id": "kim_2022",
+      "sample": "PP",
+      "cohort": "PP_BNNT_LiTFSI_DOL_DME",
+      "split": "train",
+      "formulation_group": "kim_2022:PP",
+      "inputs": {
+        "substrate": "PP",
+        "bn_form": "none",
+        "loading_mg_cm2": 0,
+        "binder": "none",
+        "bn_binder_ratio": null,
+        "solvent": "none",
+        "dry_temperature_c": null,
+        "dry_hours": null,
+        "sonication_hours": null,
+        "stirring": null,
+        "electrolyte": "1 M LiTFSI + 1 wt% LiNO3; DOL:DME 1:1 v/v",
+        "test_temperature_c": null
+      },
+      "observations": {
+        "ionic_conductivity": {
+          "value": 0.43,
+          "unit": "mS/cm",
+          "evidence_id": "kim_2022:conductivity",
+          "conditions": {
+            "electrolyte": "1 M LiTFSI + 1 wt% LiNO3; DOL:DME 1:1 v/v",
+            "temperature_c": null,
+            "temperature_note": "Not specified for this EIS measurement in the extracted text.",
+            "cell": "Al symmetric EIS"
+          },
+          "qualifier": "reported"
+        }
+      },
+      "evidence_ids": [
+        "kim_2022:recipe",
+        "kim_2022:electrolyte",
+        "kim_2022:conductivity",
+        "kim_2022:diffusion",
+        "kim_2022:one_mg_samples"
+      ],
+      "extraction": "manual_text_verified",
+      "notes": "Loading unit corroborated in the diffusion paragraph; unlisted curve values are not extracted. The conclusion reports 0.50 mS/cm without explicit sample identity; that value is quarantined."
+    },
+    {
+      "record_id": "kim_2022:BNNT-PP-0.3",
+      "source_id": "kim_2022",
+      "sample": "BNNT-PP-0.3",
+      "cohort": "PP_BNNT_LiTFSI_DOL_DME",
+      "split": "train",
+      "formulation_group": "kim_2022:BNNT-PP-0.3",
+      "inputs": {
+        "substrate": "PP",
+        "bn_form": "raw_BNNT",
+        "loading_mg_cm2": 0.3,
+        "binder": "PVDF",
+        "bn_binder_ratio": 4.0,
+        "solvent": "NMP",
+        "dry_temperature_c": 50.0,
+        "dry_hours": 24.0,
+        "sonication_hours": 1.0,
+        "stirring": "overnight",
+        "electrolyte": "1 M LiTFSI + 1 wt% LiNO3; DOL:DME 1:1 v/v",
+        "test_temperature_c": null
+      },
+      "observations": {
+        "ionic_conductivity": {
+          "value": 0.71,
+          "unit": "mS/cm",
+          "evidence_id": "kim_2022:conductivity",
+          "conditions": {
+            "electrolyte": "1 M LiTFSI + 1 wt% LiNO3; DOL:DME 1:1 v/v",
+            "temperature_c": null,
+            "temperature_note": "Not specified for this EIS measurement in the extracted text.",
+            "cell": "Al symmetric EIS"
+          },
+          "qualifier": "reported"
+        }
+      },
+      "evidence_ids": [
+        "kim_2022:recipe",
+        "kim_2022:electrolyte",
+        "kim_2022:conductivity",
+        "kim_2022:diffusion",
+        "kim_2022:one_mg_samples"
+      ],
+      "extraction": "manual_text_verified",
+      "notes": "Loading unit corroborated in the diffusion paragraph; unlisted curve values are not extracted. The conclusion reports 0.50 mS/cm without explicit sample identity; that value is quarantined."
+    },
+    {
+      "record_id": "kim_2022:BNNT-PP-1.0",
+      "source_id": "kim_2022",
+      "sample": "BNNT-PP-1.0",
+      "cohort": "PP_BNNT_LiTFSI_DOL_DME",
+      "split": "context",
+      "formulation_group": "kim_2022:BNNT-PP-1.0",
+      "inputs": {
+        "substrate": "PP",
+        "bn_form": "raw_BNNT",
+        "loading_mg_cm2": 1.0,
+        "binder": "PVDF",
+        "bn_binder_ratio": 4.0,
+        "solvent": "NMP",
+        "dry_temperature_c": 50.0,
+        "dry_hours": 24.0,
+        "sonication_hours": 1.0,
+        "stirring": "overnight",
+        "electrolyte": "1 M LiTFSI + 1 wt% LiNO3; DOL:DME 1:1 v/v",
+        "test_temperature_c": null
+      },
+      "observations": {},
+      "evidence_ids": [
+        "kim_2022:recipe",
+        "kim_2022:electrolyte",
+        "kim_2022:conductivity",
+        "kim_2022:diffusion",
+        "kim_2022:one_mg_samples"
+      ],
+      "extraction": "manual_text_verified",
+      "notes": "Loading unit corroborated in the diffusion paragraph; unlisted curve values are not extracted. The conclusion reports 0.50 mS/cm without explicit sample identity; that value is quarantined."
+    },
+    {
+      "record_id": "kim_2022:p-BNNT-PP-0.3",
+      "source_id": "kim_2022",
+      "sample": "p-BNNT-PP-0.3",
+      "cohort": "PP_BNNT_LiTFSI_DOL_DME",
+      "split": "context",
+      "formulation_group": "kim_2022:p-BNNT-PP-0.3",
+      "inputs": {
+        "substrate": "PP",
+        "bn_form": "purified_BNNT",
+        "loading_mg_cm2": 0.3,
+        "binder": "PVDF",
+        "bn_binder_ratio": 4.0,
+        "solvent": "NMP",
+        "dry_temperature_c": 50.0,
+        "dry_hours": 24.0,
+        "sonication_hours": 1.0,
+        "stirring": "overnight",
+        "electrolyte": "1 M LiTFSI + 1 wt% LiNO3; DOL:DME 1:1 v/v",
+        "test_temperature_c": null
+      },
+      "observations": {},
+      "evidence_ids": [
+        "kim_2022:recipe",
+        "kim_2022:electrolyte",
+        "kim_2022:conductivity",
+        "kim_2022:diffusion",
+        "kim_2022:one_mg_samples"
+      ],
+      "extraction": "manual_text_verified",
+      "notes": "Loading unit corroborated in the diffusion paragraph; unlisted curve values are not extracted. The conclusion reports 0.50 mS/cm without explicit sample identity; that value is quarantined."
+    },
+    {
+      "record_id": "kim_2022:p-BNNT-PP-0.5",
+      "source_id": "kim_2022",
+      "sample": "p-BNNT-PP-0.5",
+      "cohort": "PP_BNNT_LiTFSI_DOL_DME",
+      "split": "test",
+      "formulation_group": "kim_2022:p-BNNT-PP-0.5",
+      "inputs": {
+        "substrate": "PP",
+        "bn_form": "purified_BNNT",
+        "loading_mg_cm2": 0.5,
+        "binder": "PVDF",
+        "bn_binder_ratio": 4.0,
+        "solvent": "NMP",
+        "dry_temperature_c": 50.0,
+        "dry_hours": 24.0,
+        "sonication_hours": 1.0,
+        "stirring": "overnight",
+        "electrolyte": "1 M LiTFSI + 1 wt% LiNO3; DOL:DME 1:1 v/v",
+        "test_temperature_c": null
+      },
+      "observations": {
+        "ionic_conductivity": {
+          "value": 0.84,
+          "unit": "mS/cm",
+          "evidence_id": "kim_2022:conductivity",
+          "conditions": {
+            "electrolyte": "1 M LiTFSI + 1 wt% LiNO3; DOL:DME 1:1 v/v",
+            "temperature_c": null,
+            "temperature_note": "Not specified for this EIS measurement in the extracted text.",
+            "cell": "Al symmetric EIS"
+          },
+          "qualifier": "reported"
+        }
+      },
+      "evidence_ids": [
+        "kim_2022:recipe",
+        "kim_2022:electrolyte",
+        "kim_2022:conductivity",
+        "kim_2022:diffusion",
+        "kim_2022:one_mg_samples"
+      ],
+      "extraction": "manual_text_verified",
+      "notes": "Loading unit corroborated in the diffusion paragraph; unlisted curve values are not extracted. The conclusion reports 0.50 mS/cm without explicit sample identity; that value is quarantined."
+    },
+    {
+      "record_id": "kim_2022:p-BNNT-PP-1.0",
+      "source_id": "kim_2022",
+      "sample": "p-BNNT-PP-1.0",
+      "cohort": "PP_BNNT_LiTFSI_DOL_DME",
+      "split": "context",
+      "formulation_group": "kim_2022:p-BNNT-PP-1.0",
+      "inputs": {
+        "substrate": "PP",
+        "bn_form": "purified_BNNT",
+        "loading_mg_cm2": 1.0,
+        "binder": "PVDF",
+        "bn_binder_ratio": 4.0,
+        "solvent": "NMP",
+        "dry_temperature_c": 50.0,
+        "dry_hours": 24.0,
+        "sonication_hours": 1.0,
+        "stirring": "overnight",
+        "electrolyte": "1 M LiTFSI + 1 wt% LiNO3; DOL:DME 1:1 v/v",
+        "test_temperature_c": null
+      },
+      "observations": {},
+      "evidence_ids": [
+        "kim_2022:recipe",
+        "kim_2022:electrolyte",
+        "kim_2022:conductivity",
+        "kim_2022:diffusion",
+        "kim_2022:one_mg_samples"
+      ],
+      "extraction": "manual_text_verified",
+      "notes": "Loading unit corroborated in the diffusion paragraph; unlisted curve values are not extracted. The conclusion reports 0.50 mS/cm without explicit sample identity; that value is quarantined."
+    },
+    {
+      "record_id": "kim_2022:p-BNNT-PP-2.0",
+      "source_id": "kim_2022",
+      "sample": "p-BNNT-PP-2.0",
+      "cohort": "PP_BNNT_LiTFSI_DOL_DME",
+      "split": "context",
+      "formulation_group": "kim_2022:p-BNNT-PP-2.0",
+      "inputs": {
+        "substrate": "PP",
+        "bn_form": "purified_BNNT",
+        "loading_mg_cm2": 2.0,
+        "binder": "PVDF",
+        "bn_binder_ratio": 4.0,
+        "solvent": "NMP",
+        "dry_temperature_c": 50.0,
+        "dry_hours": 24.0,
+        "sonication_hours": 1.0,
+        "stirring": "overnight",
+        "electrolyte": "1 M LiTFSI + 1 wt% LiNO3; DOL:DME 1:1 v/v",
+        "test_temperature_c": null
+      },
+      "observations": {},
+      "evidence_ids": [
+        "kim_2022:recipe",
+        "kim_2022:electrolyte",
+        "kim_2022:conductivity",
+        "kim_2022:diffusion",
+        "kim_2022:one_mg_samples"
+      ],
+      "extraction": "manual_text_verified",
+      "notes": "Loading unit corroborated in the diffusion paragraph; unlisted curve values are not extracted. The conclusion reports 0.50 mS/cm without explicit sample identity; that value is quarantined."
+    },
+    {
+      "record_id": "kim_2022:p-BNNT-PP-3.0",
+      "source_id": "kim_2022",
+      "sample": "p-BNNT-PP-3.0",
+      "cohort": "PP_BNNT_LiTFSI_DOL_DME",
+      "split": "context",
+      "formulation_group": "kim_2022:p-BNNT-PP-3.0",
+      "inputs": {
+        "substrate": "PP",
+        "bn_form": "purified_BNNT",
+        "loading_mg_cm2": 3.0,
+        "binder": "PVDF",
+        "bn_binder_ratio": 4.0,
+        "solvent": "NMP",
+        "dry_temperature_c": 50.0,
+        "dry_hours": 24.0,
+        "sonication_hours": 1.0,
+        "stirring": "overnight",
+        "electrolyte": "1 M LiTFSI + 1 wt% LiNO3; DOL:DME 1:1 v/v",
+        "test_temperature_c": null
+      },
+      "observations": {},
+      "evidence_ids": [
+        "kim_2022:recipe",
+        "kim_2022:electrolyte",
+        "kim_2022:conductivity",
+        "kim_2022:diffusion",
+        "kim_2022:one_mg_samples"
+      ],
+      "extraction": "manual_text_verified",
+      "notes": "Loading unit corroborated in the diffusion paragraph; unlisted curve values are not extracted. The conclusion reports 0.50 mS/cm without explicit sample identity; that value is quarantined."
+    },
+    {
+      "record_id": "tian_2024:CA",
+      "source_id": "tian_2024",
+      "sample": "CA",
+      "cohort": "CA_BN_LiPF6_carbonates",
+      "split": "context",
+      "formulation_group": "tian_2024:CA",
+      "inputs": {
+        "substrate": "calcium_alginate",
+        "bn_form": "none",
+        "binder": "none",
+        "bn_binder_ratio": null,
+        "ratio_basis": "Reported powder ratio; mass basis not explicitly stated.",
+        "solvent": "water",
+        "applicator_gap_um": 0,
+        "dry_temperature_c": null,
+        "dry_hours": null,
+        "coating_sides": null,
+        "electrolyte": "1 M LiPF6; EC:DMC:DEC 1:1:1 v/v/v",
+        "test_temperature_c": 65.0
+      },
+      "observations": {
+        "final_thickness": {
+          "value": 73,
+          "unit": "um",
+          "evidence_id": "tian_2024:thickness",
+          "conditions": {
+            "state": "after_fabrication"
+          },
+          "qualifier": "reported"
+        }
+      },
+      "evidence_ids": [
+        "tian_2024:recipe",
+        "tian_2024:base",
+        "tian_2024:thickness",
+        "tian_2024:electrolyte",
+        "tian_2024:conductivity"
+      ],
+      "extraction": "manual_text_verified",
+      "notes": "Applicator setting differs from measured final thickness. Coating side and drying duration are unspecified; failure recipe retained with unspecified geometry. Transference number conflict is quarantined."
+    },
+    {
+      "record_id": "tian_2024:CA@BN-50",
+      "source_id": "tian_2024",
+      "sample": "CA@BN-50",
+      "cohort": "CA_BN_LiPF6_carbonates",
+      "split": "context",
+      "formulation_group": "tian_2024:CA@BN-50",
+      "inputs": {
+        "substrate": "calcium_alginate",
+        "bn_form": "BN_nanopowder",
+        "binder": "PVDF",
+        "bn_binder_ratio": 4.0,
+        "ratio_basis": "Reported powder ratio; mass basis not explicitly stated.",
+        "solvent": "DMF",
+        "applicator_gap_um": 50,
+        "dry_temperature_c": 60.0,
+        "dry_hours": null,
+        "coating_sides": null,
+        "electrolyte": "1 M LiPF6; EC:DMC:DEC 1:1:1 v/v/v",
+        "test_temperature_c": 65.0
+      },
+      "observations": {
+        "final_thickness": {
+          "value": 88,
+          "unit": "um",
+          "evidence_id": "tian_2024:thickness",
+          "conditions": {
+            "state": "after_fabrication"
+          },
+          "qualifier": "reported"
+        }
+      },
+      "evidence_ids": [
+        "tian_2024:recipe",
+        "tian_2024:base",
+        "tian_2024:thickness",
+        "tian_2024:electrolyte",
+        "tian_2024:conductivity"
+      ],
+      "extraction": "manual_text_verified",
+      "notes": "Applicator setting differs from measured final thickness. Coating side and drying duration are unspecified; failure recipe retained with unspecified geometry. Transference number conflict is quarantined."
+    },
+    {
+      "record_id": "tian_2024:CA@BN-100",
+      "source_id": "tian_2024",
+      "sample": "CA@BN-100",
+      "cohort": "CA_BN_LiPF6_carbonates",
+      "split": "context",
+      "formulation_group": "tian_2024:CA@BN-100",
+      "inputs": {
+        "substrate": "calcium_alginate",
+        "bn_form": "BN_nanopowder",
+        "binder": "PVDF",
+        "bn_binder_ratio": 4.0,
+        "ratio_basis": "Reported powder ratio; mass basis not explicitly stated.",
+        "solvent": "DMF",
+        "applicator_gap_um": 100,
+        "dry_temperature_c": 60.0,
+        "dry_hours": null,
+        "coating_sides": null,
+        "electrolyte": "1 M LiPF6; EC:DMC:DEC 1:1:1 v/v/v",
+        "test_temperature_c": 65.0
+      },
+      "observations": {
+        "final_thickness": {
+          "value": 110,
+          "unit": "um",
+          "evidence_id": "tian_2024:thickness",
+          "conditions": {
+            "state": "after_fabrication"
+          },
+          "qualifier": "reported"
+        },
+        "ionic_conductivity": {
+          "value": 2.8,
+          "unit": "mS/cm",
+          "evidence_id": "tian_2024:conductivity",
+          "conditions": {
+            "temperature_c": 65.0,
+            "electrolyte": "1 M LiPF6; EC:DMC:DEC 1:1:1 v/v/v",
+            "cell": "SS symmetric EIS"
+          },
+          "qualifier": "reported"
+        }
+      },
+      "evidence_ids": [
+        "tian_2024:recipe",
+        "tian_2024:base",
+        "tian_2024:thickness",
+        "tian_2024:electrolyte",
+        "tian_2024:conductivity"
+      ],
+      "extraction": "manual_text_verified",
+      "notes": "Applicator setting differs from measured final thickness. Coating side and drying duration are unspecified; failure recipe retained with unspecified geometry. Transference number conflict is quarantined."
+    },
+    {
+      "record_id": "tian_2024:CA@BN-200",
+      "source_id": "tian_2024",
+      "sample": "CA@BN-200",
+      "cohort": "CA_BN_LiPF6_carbonates",
+      "split": "context",
+      "formulation_group": "tian_2024:CA@BN-200",
+      "inputs": {
+        "substrate": "calcium_alginate",
+        "bn_form": "BN_nanopowder",
+        "binder": "PVDF",
+        "bn_binder_ratio": 4.0,
+        "ratio_basis": "Reported powder ratio; mass basis not explicitly stated.",
+        "solvent": "DMF",
+        "applicator_gap_um": 200,
+        "dry_temperature_c": 60.0,
+        "dry_hours": null,
+        "coating_sides": null,
+        "electrolyte": "1 M LiPF6; EC:DMC:DEC 1:1:1 v/v/v",
+        "test_temperature_c": 65.0
+      },
+      "observations": {
+        "final_thickness": {
+          "value": 129,
+          "unit": "um",
+          "evidence_id": "tian_2024:thickness",
+          "conditions": {
+            "state": "after_fabrication"
+          },
+          "qualifier": "reported"
+        }
+      },
+      "evidence_ids": [
+        "tian_2024:recipe",
+        "tian_2024:base",
+        "tian_2024:thickness",
+        "tian_2024:electrolyte",
+        "tian_2024:conductivity"
+      ],
+      "extraction": "manual_text_verified",
+      "notes": "Applicator setting differs from measured final thickness. Coating side and drying duration are unspecified; failure recipe retained with unspecified geometry. Transference number conflict is quarantined."
+    },
+    {
+      "record_id": "tian_2024:PP-control",
+      "source_id": "tian_2024",
+      "sample": "PP-control",
+      "cohort": "CA_BN_LiPF6_carbonates",
+      "split": "context",
+      "formulation_group": "tian_2024:PP-control",
+      "inputs": {
+        "substrate": "PP",
+        "bn_form": "none",
+        "binder": "none",
+        "bn_binder_ratio": null,
+        "ratio_basis": "Reported powder ratio; mass basis not explicitly stated.",
+        "solvent": "none",
+        "applicator_gap_um": null,
+        "dry_temperature_c": null,
+        "dry_hours": null,
+        "coating_sides": null,
+        "electrolyte": "1 M LiPF6; EC:DMC:DEC 1:1:1 v/v/v",
+        "test_temperature_c": 65.0
+      },
+      "observations": {
+        "ionic_conductivity": {
+          "value": 1.28,
+          "unit": "mS/cm",
+          "evidence_id": "tian_2024:conductivity",
+          "conditions": {
+            "temperature_c": 65.0,
+            "electrolyte": "1 M LiPF6; EC:DMC:DEC 1:1:1 v/v/v",
+            "cell": "SS symmetric EIS"
+          },
+          "qualifier": "reported"
+        }
+      },
+      "evidence_ids": [
+        "tian_2024:recipe",
+        "tian_2024:base",
+        "tian_2024:thickness",
+        "tian_2024:electrolyte",
+        "tian_2024:conductivity"
+      ],
+      "extraction": "manual_text_verified",
+      "notes": "Applicator setting differs from measured final thickness. Coating side and drying duration are unspecified; failure recipe retained with unspecified geometry. Transference number conflict is quarantined."
+    },
+    {
+      "record_id": "tian_2024:CA@BN-3:1-failure",
+      "source_id": "tian_2024",
+      "sample": "CA@BN-3:1-failure",
+      "cohort": "CA_BN_LiPF6_carbonates",
+      "split": "context",
+      "formulation_group": "tian_2024:CA@BN-3:1-failure",
+      "inputs": {
+        "substrate": "calcium_alginate",
+        "bn_form": "BN_nanopowder",
+        "binder": "PVDF",
+        "bn_binder_ratio": 3.0,
+        "ratio_basis": "Reported powder ratio; mass basis not explicitly stated.",
+        "solvent": "DMF",
+        "applicator_gap_um": null,
+        "dry_temperature_c": 60.0,
+        "dry_hours": null,
+        "coating_sides": null,
+        "electrolyte": "1 M LiPF6; EC:DMC:DEC 1:1:1 v/v/v",
+        "test_temperature_c": 65.0
+      },
+      "observations": {
+        "preparation_outcome": {
+          "value": "failed_pore_clogging",
+          "unit": "category",
+          "evidence_id": "tian_2024:recipe",
+          "conditions": {
+            "applicator_gap_um": null,
+            "coating_sides": null
+          },
+          "qualifier": "reported"
+        }
+      },
+      "evidence_ids": [
+        "tian_2024:recipe",
+        "tian_2024:base",
+        "tian_2024:thickness",
+        "tian_2024:electrolyte",
+        "tian_2024:conductivity"
+      ],
+      "extraction": "manual_text_verified",
+      "notes": "Applicator setting differs from measured final thickness. Coating side and drying duration are unspecified; failure recipe retained with unspecified geometry. Transference number conflict is quarantined."
+    },
+    {
+      "record_id": "yin_2020:PEO-PVDF",
+      "source_id": "yin_2020",
+      "sample": "PEO-PVDF",
+      "cohort": "solid_PEO_PVDF_LiTFSI",
+      "split": "context",
+      "formulation_group": "yin_2020:PEO-PVDF",
+      "inputs": {
+        "substrate": "solid_PEO_PVDF",
+        "bn_form": "none",
+        "bn_weight_pct": 0,
+        "loading_basis": "no BN added",
+        "polymer_salt_ratio": "PEO:PVDF:LiTFSI 3:1:1",
+        "solvent": "NMP",
+        "stirring_hours": 12.0,
+        "dry_temperature_c": 80.0,
+        "dry_hours": 5.0,
+        "electrolyte": "solid PEO-PVDF-LiTFSI",
+        "test_temperature_c": 70.0
+      },
+      "observations": {
+        "ionic_conductivity": {
+          "value": 0.06,
+          "unit": "mS/cm",
+          "evidence_id": "yin_2020:conductivity",
+          "conditions": {
+            "temperature_c": 70.0,
+            "state": "after_temperature_step_stabilization"
+          },
+          "qualifier": "approximate; converted from S/cm"
+        }
+      },
+      "evidence_ids": [
+        "yin_2020:recipe",
+        "yin_2020:conductivity"
+      ],
+      "extraction": "manual_text_verified",
+      "notes": "Solid electrolyte: excluded from liquid-wetted separator prediction."
+    },
+    {
+      "record_id": "yin_2020:BN-PEO-PVDF",
+      "source_id": "yin_2020",
+      "sample": "BN-PEO-PVDF",
+      "cohort": "solid_PEO_PVDF_LiTFSI",
+      "split": "context",
+      "formulation_group": "yin_2020:BN-PEO-PVDF",
+      "inputs": {
+        "substrate": "solid_PEO_PVDF",
+        "bn_form": "BN_flakes",
+        "bn_weight_pct": 12,
+        "loading_basis": "Reported wt%; denominator not specified",
+        "polymer_salt_ratio": "PEO:PVDF:LiTFSI 3:1:1",
+        "solvent": "NMP",
+        "stirring_hours": 12.0,
+        "dry_temperature_c": 80.0,
+        "dry_hours": 5.0,
+        "electrolyte": "solid PEO-PVDF-LiTFSI",
+        "test_temperature_c": 70.0
+      },
+      "observations": {
+        "ionic_conductivity": {
+          "value": 0.2,
+          "unit": "mS/cm",
+          "evidence_id": "yin_2020:conductivity",
+          "conditions": {
+            "temperature_c": 70.0,
+            "state": "after_temperature_step_stabilization"
+          },
+          "qualifier": "approximate; converted from S/cm"
+        }
+      },
+      "evidence_ids": [
+        "yin_2020:recipe",
+        "yin_2020:conductivity"
+      ],
+      "extraction": "manual_text_verified",
+      "notes": "Solid electrolyte: excluded from liquid-wetted separator prediction."
+    },
+    {
+      "record_id": "hong_2026:HCNF",
+      "source_id": "hong_2026",
+      "sample": "HCNF",
+      "cohort": "CNF_BNNT_LiPF6_carbonates",
+      "split": "context",
+      "formulation_group": "hong_2026:HCNF",
+      "inputs": {
+        "substrate": "cellulose",
+        "bn_form": "none",
+        "bn_weight_pct": 0,
+        "loading_basis": null,
+        "solvent": "IPA:water 95:5 v/v",
+        "stirring_hours": 2.0,
+        "dry_temperature_c": 80.0,
+        "dry_hours": 48.0,
+        "electrolyte": "1 M LiPF6 + 5 vol% FEC; EC:EMC 3:7 v/v",
+        "test_temperature_c": null
+      },
+      "observations": {
+        "final_thickness": {
+          "value": 25,
+          "unit": "um",
+          "evidence_id": "hong_2026:table2",
+          "conditions": {
+            "state": "after_fabrication"
+          },
+          "qualifier": "reported"
+        },
+        "water_contact_angle": {
+          "value": 28.45,
+          "unit": "degree",
+          "evidence_id": "hong_2026:table2",
+          "conditions": {
+            "liquid": "water",
+            "reported_plus_minus": 3.34
+          },
+          "qualifier": "reported"
+        }
+      },
+      "evidence_ids": [
+        "hong_2026:recipe",
+        "hong_2026:cell",
+        "hong_2026:table2",
+        "hong_2026:capacity"
+      ],
+      "extraction": "manual_text_verified",
+      "notes": "Water contact angle is not electrolyte contact angle. Published C-rate degree symbols are typographical; no temperature is inferred."
+    },
+    {
+      "record_id": "hong_2026:HBNT-05",
+      "source_id": "hong_2026",
+      "sample": "HBNT-05",
+      "cohort": "CNF_BNNT_LiPF6_carbonates",
+      "split": "context",
+      "formulation_group": "hong_2026:HBNT-05",
+      "inputs": {
+        "substrate": "cellulose",
+        "bn_form": "BNNT",
+        "bn_weight_pct": 0.5,
+        "loading_basis": "Reported wt%; denominator not specified",
+        "solvent": "IPA:water 95:5 v/v",
+        "stirring_hours": 2.0,
+        "dry_temperature_c": 80.0,
+        "dry_hours": 48.0,
+        "electrolyte": "1 M LiPF6 + 5 vol% FEC; EC:EMC 3:7 v/v",
+        "test_temperature_c": null
+      },
+      "observations": {
+        "final_thickness": {
+          "value": 35,
+          "unit": "um",
+          "evidence_id": "hong_2026:table2",
+          "conditions": {
+            "state": "after_fabrication"
+          },
+          "qualifier": "reported"
+        },
+        "water_contact_angle": {
+          "value": 50.23,
+          "unit": "degree",
+          "evidence_id": "hong_2026:table2",
+          "conditions": {
+            "liquid": "water",
+            "reported_plus_minus": 3.14
+          },
+          "qualifier": "reported"
+        }
+      },
+      "evidence_ids": [
+        "hong_2026:recipe",
+        "hong_2026:cell",
+        "hong_2026:table2",
+        "hong_2026:capacity"
+      ],
+      "extraction": "manual_text_verified",
+      "notes": "Water contact angle is not electrolyte contact angle. Published C-rate degree symbols are typographical; no temperature is inferred."
+    },
+    {
+      "record_id": "hong_2026:HBNT-10",
+      "source_id": "hong_2026",
+      "sample": "HBNT-10",
+      "cohort": "CNF_BNNT_LiPF6_carbonates",
+      "split": "context",
+      "formulation_group": "hong_2026:HBNT-10",
+      "inputs": {
+        "substrate": "cellulose",
+        "bn_form": "BNNT",
+        "bn_weight_pct": 1.0,
+        "loading_basis": "Reported wt%; denominator not specified",
+        "solvent": "IPA:water 95:5 v/v",
+        "stirring_hours": 2.0,
+        "dry_temperature_c": 80.0,
+        "dry_hours": 48.0,
+        "electrolyte": "1 M LiPF6 + 5 vol% FEC; EC:EMC 3:7 v/v",
+        "test_temperature_c": null
+      },
+      "observations": {
+        "final_thickness": {
+          "value": 35,
+          "unit": "um",
+          "evidence_id": "hong_2026:table2",
+          "conditions": {
+            "state": "after_fabrication"
+          },
+          "qualifier": "reported"
+        },
+        "water_contact_angle": {
+          "value": 68.54,
+          "unit": "degree",
+          "evidence_id": "hong_2026:table2",
+          "conditions": {
+            "liquid": "water",
+            "reported_plus_minus": 1.55
+          },
+          "qualifier": "reported"
+        }
+      },
+      "evidence_ids": [
+        "hong_2026:recipe",
+        "hong_2026:cell",
+        "hong_2026:table2",
+        "hong_2026:capacity"
+      ],
+      "extraction": "manual_text_verified",
+      "notes": "Water contact angle is not electrolyte contact angle. Published C-rate degree symbols are typographical; no temperature is inferred."
+    },
+    {
+      "record_id": "hong_2026:PE-control",
+      "source_id": "hong_2026",
+      "sample": "PE-control",
+      "cohort": "CNF_BNNT_LiPF6_carbonates",
+      "split": "context",
+      "formulation_group": "hong_2026:PE-control",
+      "inputs": {
+        "substrate": "PE",
+        "bn_form": "none",
+        "bn_weight_pct": null,
+        "loading_basis": null,
+        "solvent": "none",
+        "stirring_hours": null,
+        "dry_temperature_c": null,
+        "dry_hours": null,
+        "electrolyte": "1 M LiPF6 + 5 vol% FEC; EC:EMC 3:7 v/v",
+        "test_temperature_c": null
+      },
+      "observations": {},
+      "evidence_ids": [
+        "hong_2026:recipe",
+        "hong_2026:cell",
+        "hong_2026:table2",
+        "hong_2026:capacity"
+      ],
+      "extraction": "manual_text_verified",
+      "notes": "Water contact angle is not electrolyte contact angle. Published C-rate degree symbols are typographical; no temperature is inferred."
+    }
+  ],
+  "quarantined": [
+    {
+      "source_id": "kim_2022",
+      "evidence_ids": [
+        "kim_2022:capacity"
+      ],
+      "reason": "1197/1675*100 = 71.4627%, not the reported 72.6%; retain both, exclude derived claim."
+    },
+    {
+      "source_id": "kim_2022",
+      "evidence_ids": [
+        "kim_2022:conclusion"
+      ],
+      "reason": "0.50 mS/cm has ambiguous sample identity; excluded from numeric labels."
+    },
+    {
+      "source_id": "tian_2024",
+      "evidence_ids": [
+        "tian_2024:transference_conflict",
+        "tian_2024:conclusion"
+      ],
+      "reason": "Maximum 0.25 statement conflicts with 0.50/0.55; transference numbers excluded."
+    }
+  ]
+}

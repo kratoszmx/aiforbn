@@ -5,6 +5,25 @@
 This file lists the documented public functions that other modules or top-level entrypoints may call from `materials`.
 Anything underscore-prefixed or omitted here should be treated as internal implementation detail.
 
+## separator_data.py
+
+- `DATASET_PATH`: pinned public separator dataset location.
+- `PRIMARY_COHORT`: PP/BNNT, LiTFSI/DOL/DME protocol identity.
+- `SeparatorRecipe`: strict, finite, structured recipe request; rejects arbitrary prompts and extra fields.
+- `load_separator_dataset(path=DATASET_PATH)`: validate source hashes, original text, IDs, group splits and observations; return the public dataset.
+- `build_separator_database(dataset, path)`: transactionally write the three public SQLite tables; return the database path.
+- `search_separator_records(dataset, substrate=None, query='', limit=20)`: bounded literal search of public records.
+- `assess_separator_recipe(dataset, recipe)`: gate protocol applicability, select training-only records, and compute simple comparison baselines. Numeric permission is exploratory, not a reliability claim.
+- `separator_known_checks(dataset)`: reconstruct two published comparisons and an arithmetic discrepancy.
+
+## separator_model.py
+
+- `MODEL`: fixed requested model `gpt-6-astra`; no fallback.
+- `SeparatorModelResult`: bounded numeric hypothesis, allowed record citations and limitations.
+- `make_separator_prompt(assessment)`: construct the exact answer-blind prompt from approved training examples.
+- `run_separator_model(assessment, executable, runtime_dir, timeout_seconds=120)`: one ephemeral read-only Codex CLI call with project/user configuration excluded, strict output validation, finite process timeout and sanitized outward errors. Public callers cannot supply commands or free-form prompts. Returned statistics are actual provider-call evidence, not materials validation.
+- `evaluate_separator_model(dataset, output_dir, executable=None)`: write frozen inputs before inference, compare one unused formulation against training mean and nearest formulation, and disclose the absence of independent-study/laboratory evaluation. Without an executable, mark the model not run.
+
 ## data.py
 
 - `STRUCTURE_SUMMARY_COLUMNS`
@@ -195,3 +214,7 @@ These files currently expose no supported external call surface:
 - `test_diagnostic_edge_cases.py` locks disabled and insufficient-data status semantics for BN diagnostics and alternative screening selection.
 - `test_reporting.py` locks artifact publication, provenance, finite candidate/variant structure-execution status vocabularies, exact builder-selected seed/raw-formula/source-atom and record-level normalized evidence identity, raw-source/edit-plan/final-structure identity, atom/metadata/CIF identity, evidence-compatible variant states, role-schema preflight, repeat-run cleanup, and failure-order behavior.
 - `test_structure_execution_contracts.py` locks relabel, vacancy, unsupported edit, and structure-aware proxy execution behavior.
+
+## separator_ingest.py
+
+- `main()`: rebuild the explicitly authorized separator JSON and CSV from manually reviewed, literal source anchors in the four licensed XML documents. Fails on missing anchors. This command writes only `data/separators/`; it never downloads, interprets images, runs inference or changes the old band-gap dataset.

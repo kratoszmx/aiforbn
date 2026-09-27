@@ -67,3 +67,9 @@ Test preparation stays beside its consumers: model integration cases share a pri
 - Focused success does not prove the full suite. Full-suite success does not refresh historical research outputs or prove physical validity.
 - `python main.py` is a research run, not a routine test: it can download data, train the configured model grid, and replace data/artifact outputs. Use it only for the task's required recomputation.
 - For worktrees with unrelated edits, validate a candidate containing exactly the intended committed bytes, then preserve unrelated changes during staging.
+
+## Separator prototype validation
+
+`src/materials/tests/test_separator_prototype.py` checks original source identity, exclusions, split isolation, unit/known-case arithmetic, recipe bounds, baseline calculations and model citation rejection. `src/ui/tests/test_separator_app.py` checks HTTP flows, access control, expiry, quotas, caches, private-path rejection and provider failure. `src/ui/tests/test_separator_browser.py` starts its own temporary loopback server and a fresh headless Chrome profile, verifies mobile-width DOM interaction and closes both; no screenshots are used. It requires installed Chrome plus the existing quant Playwright package. All are included in `python -m pytest -q -ra src`.
+
+Run the three files together for focused iteration. Full module changes retain the emitted `module_logic_edit` profile. Offline tests never spend model tokens. The live frozen inference result is separately recorded in `docs/research/separator_prototype/evaluation.json`; its pass is not materials validation. Rebuild data with `python src/materials/separator_ingest.py`, and inspect source changes before accepting refreshed observations. FastAPI TestClient currently emits an upstream HTTPX deprecation warning; tests run without installing replacement packages.

@@ -2,6 +2,7 @@ __pycache__/
 .pytest_cache/
 .DS_Store
 .env
+/.runtime/
 claw_memory/
 
 # Private meeting source material stays local; source metadata remains tracked.

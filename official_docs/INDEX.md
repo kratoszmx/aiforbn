@@ -39,3 +39,7 @@ Access note: initial PMC text reads returned a challenge/403; the existing text-
 - [Chinese plan for the user](../human_docs/next_steps_zh.md).
 - [English plan for agents](../docs/research/next_steps_en.md).
 - [Document reorganization and recovery record](../docs/research/document_reorganization_2026-09-27.json).
+
+## Public separator corpus — 2026-09-28
+
+Four CC BY 4.0 primary-study XML documents are retained under `separators/`: Kim et al. (2022), Tian et al. (2024), Yin et al. (2020), and Hong et al. (2026). Article metadata/license notices remain in the originals. Retrieval URLs, exact hashes and extracted paragraph/table locators are in `data/separators/dataset.json`. XML text was obtained through Europe PMC and the MDPI publisher attachment when HTML routes challenged or denied access. No image interpretation was used. The inventory, normalized records and stage reports are linked from `docs/research/separator_prototype/phase_1_report.md`.

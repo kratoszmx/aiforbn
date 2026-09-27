@@ -5,6 +5,11 @@
 This file lists the stable public functions that external code may call from `ui`.
 Anything underscore-prefixed or omitted here should be treated as internal.
 
+## separator_app.py
+
+- `create_separator_app(data_path=DATASET_PATH, runtime_dir=None, model_executable=None)`
+  - Construct the partner web app: source-verified data, public SQLite/CSV exports, source paragraphs, source checks and recorded evaluation. Strict recipe inputs reach documented materials APIs. Live model use requires an invitation and obeys expiry, one-call concurrency, caching and a persisted rolling daily limit; failures return no fabricated prediction.
+
 ## streamlit_app.py
 
 - `render_streamlit_app()`

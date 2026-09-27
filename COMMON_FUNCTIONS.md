@@ -47,3 +47,9 @@ The project wrappers reuse `myutils/file_utils/filesystem.py` and `json_io.py`. 
 | Artifact display | `ui.streamlit_app.render_streamlit_app()` in Streamlit → text-verifiable view of a current committed bundle | [UI summary](src/ui/PY_FILES_SUMMARY.md) |
 
 `utils.py` files currently expose no public API. Runtime's private path helpers enforce project-specific boundaries; the other module utility files are empty template slots. `src/tests/` and `src/template/` expose no production callables. Dependencies and exact symbol/signature checks are covered by the manifest and public-surface tests.
+
+## Separator prototype
+
+`materials.separator_data` owns source verification, transactional SQLite export, public-record search, recipe applicability and known-case checks. `materials.separator_model` owns answer-blind prompt construction, the fixed Astra invocation and the frozen comparison. `ui.separator_app.create_separator_app` consumes those documented APIs. Exact signatures are in `src/materials/PY_FILES_SUMMARY.md` and `src/ui/PY_FILES_SUMMARY.md`.
+
+The shared `myutils` Codex chat client was inspected: it inherits user/project configuration and exposes a generic conversation interface. The public demonstration needs a fixed model, restricted recipe schema, explicit execution policy, citation verification and evaluation provenance. These project policies remain local; no generic client shim or cross-repository extraction is added. Existing filesystem/JSON helpers elsewhere are unchanged.

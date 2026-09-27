@@ -1,0 +1,1820 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.3 20210610//EN" "JATS-journalpublishing1-3.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" article-type="research-article" dtd-version="1.3" xml:lang="en">
+  <front>
+    <journal-meta>
+      <journal-id journal-id-type="publisher-id">energies</journal-id>
+      <journal-title-group>
+        <journal-title>Energies</journal-title>
+        <abbrev-journal-title abbrev-type="publisher">Energies</abbrev-journal-title>
+        <abbrev-journal-title abbrev-type="pubmed">Energies</abbrev-journal-title>
+      </journal-title-group>
+      <issn pub-type="epub">1996-1073</issn>
+      <publisher>
+        <publisher-name>MDPI</publisher-name>
+      </publisher>
+    </journal-meta>
+    <article-meta>
+      <article-id pub-id-type="doi">10.3390/en19071600</article-id>
+      <article-id pub-id-type="publisher-id">energies-19-01600</article-id>
+      <article-categories>
+        <subj-group>
+          <subject>Article</subject>
+        </subj-group>
+      </article-categories>
+      <title-group>
+        <article-title>HwBKP CNF Separators Reinforced with Pretreatment-Free BNNTs for Energy Storage Applications</article-title>
+      </title-group>
+      <contrib-group>
+        <contrib contrib-type="author">
+          <name>
+            <surname>Hong</surname>
+            <given-names>Hyun Woo</given-names>
+          </name>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Conceptualization" vocab-term-identifier="https://credit.niso.org/contributor-roles/conceptualization/">Conceptualization</role>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Methodology" vocab-term-identifier="https://credit.niso.org/contributor-roles/methodology/">Methodology</role>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Validation" vocab-term-identifier="https://credit.niso.org/contributor-roles/validation/">Validation</role>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Formal analysis" vocab-term-identifier="https://credit.niso.org/contributor-roles/formal-analysis/">Formal analysis</role>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Investigation" vocab-term-identifier="https://credit.niso.org/contributor-roles/investigation/">Investigation</role>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Data curation" vocab-term-identifier="https://credit.niso.org/contributor-roles/data-curation/">Data curation</role>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Writing &#x2013; original draft" vocab-term-identifier="https://credit.niso.org/contributor-roles/writing-original-draft/">Writing &#x2013; original draft</role>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Visualization" vocab-term-identifier="https://credit.niso.org/contributor-roles/visualization/">Visualization</role>
+          <xref rid="af1-energies-19-01600" ref-type="aff">1</xref>
+        </contrib>
+        <contrib contrib-type="author">
+          <contrib-id contrib-id-type="orcid" authenticated="true">https://orcid.org/0000-0001-5815-238X</contrib-id>
+          <name>
+            <surname>Mugobera</surname>
+            <given-names>Sharon</given-names>
+          </name>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Validation" vocab-term-identifier="https://credit.niso.org/contributor-roles/validation/">Validation</role>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Investigation" vocab-term-identifier="https://credit.niso.org/contributor-roles/investigation/">Investigation</role>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Data curation" vocab-term-identifier="https://credit.niso.org/contributor-roles/data-curation/">Data curation</role>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Writing &#x2013; review &amp; editing" vocab-term-identifier="https://credit.niso.org/contributor-roles/writing-review-editing/">Writing &#x2013; review &amp; editing</role>
+          <xref rid="af2-energies-19-01600" ref-type="aff">2</xref>
+        </contrib>
+        <contrib contrib-type="author">
+          <name>
+            <surname>Lee</surname>
+            <given-names>Kwang Se</given-names>
+          </name>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Validation" vocab-term-identifier="https://credit.niso.org/contributor-roles/validation/">Validation</role>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Resources" vocab-term-identifier="https://credit.niso.org/contributor-roles/resources/">Resources</role>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Writing &#x2013; review &amp; editing" vocab-term-identifier="https://credit.niso.org/contributor-roles/writing-review-editing/">Writing &#x2013; review &amp; editing</role>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Supervision" vocab-term-identifier="https://credit.niso.org/contributor-roles/supervision/">Supervision</role>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Project administration" vocab-term-identifier="https://credit.niso.org/contributor-roles/project-administration/">Project administration</role>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Funding acquisition" vocab-term-identifier="https://credit.niso.org/contributor-roles/funding-acquisition/">Funding acquisition</role>
+          <xref rid="af1-energies-19-01600" ref-type="aff">1</xref>
+          <xref rid="c1-energies-19-01600" ref-type="corresp">*</xref>
+        </contrib>
+      </contrib-group>
+      <contrib-group>
+        <contrib contrib-type="editor">
+          <name>
+            <surname>Ganesan</surname>
+            <given-names>Sriram</given-names>
+          </name>
+          <role>Academic Editor</role>
+        </contrib>
+      </contrib-group>
+      <aff id="af1-energies-19-01600"><label>1</label>Department of Materials Science and Engineering, Gyeongkuk National University, 1375 Gyeongdong-ro, Andong 36729, Republic of Korea; <email>ghwl0914@gmail.com</email></aff>
+      <aff id="af2-energies-19-01600"><label>2</label>Graduate School of Energy Science and Technology, Chungnam National University, 99 Daehak-ro, Yuseong-gu, Daejeon 34134, Republic of Korea; <email>sharonmugman@gmail.com</email></aff>
+      <author-notes>
+        <corresp id="c1-energies-19-01600"><label>*</label>Correspondence: <email>leeks82@gknu.ac.kr</email>; Tel.: +82-054-820-5122</corresp>
+      </author-notes>
+      <pub-date pub-type="epub">
+        <day>24</day>
+        <month>03</month>
+        <year>2026</year>
+      </pub-date>
+      <pub-date pub-type="collection">
+        <month>04</month>
+        <year>2026</year>
+      </pub-date>
+      <volume>19</volume>
+      <issue>7</issue>
+      <elocation-id>1600</elocation-id>
+      <history>
+        <date date-type="received">
+          <day>27</day>
+          <month>02</month>
+          <year>2026</year>
+        </date>
+        <date date-type="rev-recd">
+          <day>18</day>
+          <month>03</month>
+          <year>2026</year>
+        </date>
+        <date date-type="accepted">
+          <day>23</day>
+          <month>03</month>
+          <year>2026</year>
+        </date>
+      </history>
+      <permissions>
+        <copyright-statement>&#xA9; 2026 by the authors.</copyright-statement>
+        <copyright-year>2026</copyright-year>
+        <license license-type="open-access">
+          <license-p>Licensee MDPI, Basel, Switzerland. This article is an open access article distributed under the terms and conditions of the <ext-link ext-link-type="uri" xlink:href="https://creativecommons.org/licenses/by/4.0/">Creative Commons Attribution (CC BY) license</ext-link>.</license-p>
+        </license>
+      </permissions>
+      <abstract>
+        <p>Cellulose nanofiber (CNF)&#x2013;boron nitride nanotube (BNNT) composite separators have been widely investigated; however, many demonstrations rely on BNNT pretreatment or multistep processing to secure dispersion and integration. HwBKP-derived CNF separators (HCNF), based on an enzymatically pretreated and turbulence-flow nanomill processed CNF suspension, were combined with BNNTs without pretreatment to fabricate BNNT-incorporated composite membranes (HBNT-05 and HBNT-10) via a simple stirring&#x2013;filtration&#x2013;drying route. The CNF suspension and membranes were characterized by fibril image analysis, SEM, AFM, FTIR, and XRD, together with wettability and surface free-energy measurements, to examine BNNT-loading-dependent changes in separator structure and surface microtexture. When evaluated in NCM811||Li half-cells, the BNNT-incorporated membranes exhibited composition-dependent electrochemical performance trends relative to the BNNT-free CNF membrane, while the commercial polyolefin reference remained favorable at the highest tested C-rate. These results suggest that the present fabrication route enables effective BNNT incorporation without BNNT pretreatment under the studied conditions, providing a practical strategy to tune biomass-derived CNF membranes for energy-storage applications.</p>
+      </abstract>
+      <kwd-group>
+        <kwd>lithium-ion battery</kwd>
+        <kwd>composite separator</kwd>
+        <kwd>cellulose nanofiber</kwd>
+        <kwd>boron nitride nanotube</kwd>
+      </kwd-group>
+      <funding-group>
+        <award-group>
+          <funding-source>Ministry of Education (MOE) and the Gyeongsangbuk-do, Republic of Korea</funding-source>
+          <award-id>2025-RISE-15-104</award-id>
+        </award-group>
+        <funding-statement>This research was supported by the Regional Innovation System and Education (RISE) program through the Gyeongbuk RISE CENTER, funded by the Ministry of Education (MOE) and the Gyeongsangbuk-do, Republic of Korea (2025-RISE-15-104).</funding-statement>
+      </funding-group>
+    </article-meta>
+  </front>
+  <body>
+    <sec id="sec1-energies-19-01600" sec-type="intro">
+      <title>1. Introduction</title>
+      <p>Energy storage devices underpin modern portable electronics, electrified transportation, and grid-scale buffering, and further improvements in energy density and safety increasingly depend on engineering each cell component beyond active materials alone. In rechargeable battery systems, the separator plays a pivotal role by providing a continuous ion-transport pathway while electrically isolating the electrodes, thereby governing both electrochemical performance and operational safety. Polyolefin separators remain dominant because of their chemical stability and processability. However, their low surface polarity and limited thermal dimensional stability can reduce electrolyte affinity and increase shrinkage risks under abuse conditions, particularly as device designs move toward higher areal loadings and higher-voltage operation. Accordingly, substantial efforts have focused on developing alternative separators that combine high electrolyte wettability, robust mechanical integrity, and enhanced thermal tolerance without sacrificing ionic transport [<xref ref-type="bibr" rid="B1-energies-19-01600">1</xref>,<xref ref-type="bibr" rid="B2-energies-19-01600">2</xref>,<xref ref-type="bibr" rid="B3-energies-19-01600">3</xref>,<xref ref-type="bibr" rid="B4-energies-19-01600">4</xref>]. Among the proposed alternatives, cellulose-based separators have attracted sustained interest due to their intrinsic polarity, abundant hydroxyl functionality, and renewable origin [<xref ref-type="bibr" rid="B5-energies-19-01600">5</xref>,<xref ref-type="bibr" rid="B6-energies-19-01600">6</xref>,<xref ref-type="bibr" rid="B7-energies-19-01600">7</xref>]. Cellulose nanofibers (CNFs) can form a mechanically percolated network with tunable porosity, offering favorable electrolyte uptake and potentially improved interfacial contact compared with nonpolar polyolefins. Recent studies have indicated that cellulose-derived separators can provide improved thermal stability and wettability while aligning with sustainability targets, motivating continued exploration for practical electrochemical energy-storage devices [<xref ref-type="bibr" rid="B8-energies-19-01600">8</xref>,<xref ref-type="bibr" rid="B9-energies-19-01600">9</xref>,<xref ref-type="bibr" rid="B10-energies-19-01600">10</xref>,<xref ref-type="bibr" rid="B11-energies-19-01600">11</xref>].</p>
+      <p>Nevertheless, CNF separators face persistent barriers to direct, standalone deployment. Achieving high mechanical robustness at reduced thickness, maintaining a stable pore architecture under compression and thermal exposure, and minimizing interfacial resistance during repeated operation remain challenging. These issues become more pronounced in high-energy configurations, where separator deformation, transport limitations, or insufficient interfacial wetting can accelerate polarization and degrade rate capability [<xref ref-type="bibr" rid="B12-energies-19-01600">12</xref>,<xref ref-type="bibr" rid="B13-energies-19-01600">13</xref>]. A widely adopted route to address these limitations is the incorporation of inorganic or ceramic fillers that reinforce the fibrous matrix, stabilize the porous framework, and modulate separator&#x2013;electrolyte interfacial behavior. In this context, boron nitride (BN) materials are attractive because of their high thermal stability, mechanical stiffness, and electrical insulation, which can improve separator heat resistance while avoiding electronic short pathways [<xref ref-type="bibr" rid="B14-energies-19-01600">14</xref>]. Beyond hexagonal BN platelets, boron nitride nanotubes (BNNTs) provide a high-aspect-ratio reinforcement motif and have been reported as effective thermal/mechanical modifiers when introduced into polymer separators [<xref ref-type="bibr" rid="B15-energies-19-01600">15</xref>]. Rahman et al. reported that BNNT-coated polypropylene separators enable stable electrochemical cell operation at elevated temperature and under high-rate conditions, highlighting the potential of BNNTs for separator stabilization [<xref ref-type="bibr" rid="B16-energies-19-01600">16</xref>]. Related studies further suggest that BN-modified separators can modulate interfacial behavior and mitigate degradation mechanisms such as dendrite-induced shorting in lithium-metal configurations, underscoring the broader utility of BNNTs in separator engineering for energy-storage systems [<xref ref-type="bibr" rid="B17-energies-19-01600">17</xref>,<xref ref-type="bibr" rid="B18-energies-19-01600">18</xref>,<xref ref-type="bibr" rid="B19-energies-19-01600">19</xref>,<xref ref-type="bibr" rid="B20-energies-19-01600">20</xref>,<xref ref-type="bibr" rid="B21-energies-19-01600">21</xref>,<xref ref-type="bibr" rid="B22-energies-19-01600">22</xref>].</p>
+      <p>Despite these advances, many BNNT-enabled separator demonstrations rely on surface functionalization, pretreatment, or complex multistep fabrication to achieve stable dispersion and robust integration in the host matrix [<xref ref-type="bibr" rid="B23-energies-19-01600">23</xref>,<xref ref-type="bibr" rid="B24-energies-19-01600">24</xref>]. Such approaches can increase cost and process complexity, which are undesirable for scalable membrane manufacturing. From a manufacturing standpoint, a simplified strategy that leverages BNNTs as a reinforcing filler without intensive pretreatment would be beneficial, provided that uniform membranes and meaningful improvements in separator properties and electrochemical behavior can still be achieved. In addition, the characteristics of the CNF matrix shaped by the CNF production route can influence filler incorporation and the resulting membrane structure, yet this aspect remains underemphasized in separator-oriented BNNT/CNF studies.</p>
+      <p>In this work, we investigate a manufacturing-oriented CNF and BNNT composite strategy that differs from many previously reported CNF and BNNT membrane studies in terms of CNF feedstock preparation and process complexity. Typical CNF production for membrane fabrication commonly relies on mechanical fibrillation routes such as high-pressure homogenization, microfluidization, or grinding, often combined with chemical pretreatments to facilitate nanofibrillation and tailor fibril surface chemistry [<xref ref-type="bibr" rid="B25-energies-19-01600">25</xref>,<xref ref-type="bibr" rid="B26-energies-19-01600">26</xref>]. In contrast, the CNF matrix used here was produced via enzymatic pretreatment followed by turbulence flow nanomilling, providing a supplier-standardized HwBKP-derived feedstock for membrane formation. BNNTs were then incorporated without pretreatment or functionalization, and composite membranes were fabricated using a simple process consisting of stirring, filtration, and drying. Two BNNT loadings were examined to assess relationships between membrane structure, properties, and electrochemical performance. The resulting membranes were characterized by complementary physicochemical analyses, including spectroscopy and diffraction to confirm structural signatures, microscopy and topography analyses to quantify morphology and surface roughness, and wettability and surface energetics measurements. Electrochemical performance was evaluated in NCM811||Li half cells by comparing galvanostatic charge-discharge behavior, rate capability, cycling stability, and cyclic voltammetry among membranes under identical conditions. Collectively, this study demonstrates that, within the present fabrication and test conditions, a simplified BNNT filler strategy enables measurable, loading-dependent changes in membrane properties and improved electrochemical performance trends relative to the BNNT-free CNF membrane, particularly at low to moderate rates.</p>
+    </sec>
+    <sec id="sec2-energies-19-01600">
+      <title>2. Materials and Methods</title>
+      <sec id="sec2dot1-energies-19-01600">
+        <title>2.1. Preparation of HwBKP-Derived Cellulose Nanofibers</title>
+        <p>Hardwood bleached kraft pulp (HwBKP) was used as the feedstock for cellulose nanofiber (CNF) production. The HwBKP pulp was enzymatically pretreated to facilitate fiber deconstruction and improve the efficiency of subsequent nanofibrillation [<xref ref-type="bibr" rid="B27-energies-19-01600">27</xref>]. After pretreatment, the pulp was thoroughly rinsed with deionized water to remove residual enzyme solution and then dispersed in deionized water to obtain an approximately 1 wt% suspension. Nanofibrillation was performed using a turbulence flow nanomilling process (TF nanomill) to produce a homogeneous CNF dispersion suitable for membrane fabrication [<xref ref-type="bibr" rid="B28-energies-19-01600">28</xref>]. The enzymatic pretreatment and TF nanomilling were performed by the material supplier (ESYNDMT, Busan, Republic of Korea) under a standardized protocol, and the CNF dispersion was collected after nanomilling for membrane preparation. The disclosed operating descriptors were linear velocity, 23.55 m s<sup>&#x2212;1</sup>; rotational speed, 7500 rpm; and flow rate, 180 mL min<sup>&#x2212;1</sup>. Detailed proprietary settings beyond the parameters listed above are not disclosed by the supplier. Membranes fabricated solely from CNFs derived from HwBKP are hereafter denoted as HCNF.</p>
+      </sec>
+      <sec id="sec2dot2-energies-19-01600">
+        <title>2.2. Fabrication of HCNF and BNNT-Incorporated Composite Membranes</title>
+        <p>A self-supporting CNF membrane was fabricated from the HwBKP-derived CNF suspension by a vacuum-assisted filtration process. Isopropyl alcohol (IPA, Duksan, Cheonan, Republic of Korea) was added to the CNF suspension, and the mixture was adjusted to an IPA to water volume ratio of 95/5 (<italic>v</italic>/<italic>v</italic>). The suspension was mechanically stirred for 2 h to ensure homogenization. The resulting mixture was poured onto a filter paper placed in a glass funnel and vacuum filtered to form a wet CNF film. The collected film on the filter paper was dried at 80 &#xB0;C for 48 h to obtain a uniform membrane, hereafter denoted as HCNF. For BNNT incorporated composite membranes, boron nitride nanotubes (BNNT, Sigma Aldrich, St. Louis, MO, USA, product no. 912085, &gt;90%) were introduced into the CNF suspension during IPA addition. The BNNTs have an outer diameter of 30&#x2013;50 nm and an average length of approximately 10 &#x3BC;m. The BNNT-containing mixture (IPA/water = 95/5, <italic>v</italic>/<italic>v</italic>) was then sonicated to promote dispersion and minimize agglomeration, followed by mechanical stirring for 2 h. The slurry was subsequently processed using the same vacuum filtration and drying steps described above (80 &#xB0;C, 48 h) to obtain BNNT-containing CNF membranes. Membranes prepared with BNNT contents of 0.5 wt% and 1.0 wt% are referred to as HBNT-05 and HBNT-10.</p>
+      </sec>
+      <sec id="sec2dot3-energies-19-01600">
+        <title>2.3. Characteristics of CNF Separators</title>
+        <p>Fiber morphology of the HwBKP-derived CNF suspension was analyzed via fibril image analysis (Morphi-Neo, Techpap, Yongin, Korea) to obtain fiber diameter and length distributions. The thickness of the fabricated membranes was measured at multiple positions using a digital micrometer, and the average value was reported. The microstructural features of the membranes (HCNF, HBNT-05, and HBNT-10), including surface morphology and cross-sectional architecture, were examined by field-emission scanning electron microscopy (High Resolution FE SEM SU8600, Hitachi High-Tech, Seongnam-si, Korea). Prior to SEM observation, the membrane samples were coated with a thin osmium layer to minimize charging effects.</p>
+        <p>Chemical functionalities were analyzed by Fourier-transform infrared spectroscopy (FT-IR, Cary 630, Agilent Technologies, Santa Clara, CA, USA). Crystalline structures were investigated by X-ray diffractometer (SmartLab, Rigaku, Tokyo, Japan). The crystallite size (<italic>D<sub>p</sub>)</italic> was estimated from the full width at half maximum (FWHM, &#x3B2;) of the selected diffraction peak using the Scherrer equation:<disp-formula id="FD1-energies-19-01600"><label>(1)</label><mml:math id="mm1" display="block"><mml:semantics><mml:mrow><mml:msub><mml:mrow><mml:mi>D</mml:mi></mml:mrow><mml:mrow><mml:mi>p</mml:mi></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:mn>0.94</mml:mn><mml:mo>&#xA0;</mml:mo><mml:mi>&#x3BB;</mml:mi><mml:mo>/</mml:mo><mml:mi>&#x3B2;</mml:mi><mml:mo>&#xA0;</mml:mo><mml:mi>c</mml:mi><mml:mi>o</mml:mi><mml:mi>s</mml:mi><mml:mi>&#x3B8;</mml:mi></mml:mrow></mml:semantics></mml:math></disp-formula>
+        where <italic>&#x3BB;</italic> is the X-ray wavelength, <italic>&#x3B2;</italic> is the FWHM (expressed in radians), and <italic>&#x3B8;</italic> is the Bragg angle. Surface topography was quantified by atomic force microscopy (AFM, NX10, Park Systems, Suwon, Korea), and the root-mean-square roughness (Rq) was obtained from height maps. Wettability was evaluated by static contact-angle measurements (DSA25, KR&#xDC;SS, Hamburg, Germany) using deionized water and diiodomethane as probe liquids. The surface free energy was calculated using the Owens&#x2013;Wendt&#x2013;Rabel&#x2013;Kaelble (OWRK) method based on the following relationship:<disp-formula id="FD2-energies-19-01600"><label>(2)</label><mml:math id="mm2" display="block"><mml:semantics><mml:mrow><mml:msub><mml:mrow><mml:mi>&#x3B3;</mml:mi></mml:mrow><mml:mrow><mml:mi>L</mml:mi></mml:mrow></mml:msub><mml:mfenced separators="|"><mml:mrow><mml:mn>1</mml:mn><mml:mo>+</mml:mo><mml:mi>c</mml:mi><mml:mi>o</mml:mi><mml:mi>s</mml:mi><mml:mi>&#x3B8;</mml:mi></mml:mrow></mml:mfenced><mml:mo>=</mml:mo><mml:mn>2</mml:mn><mml:mo stretchy="false">(</mml:mo><mml:msqrt><mml:msubsup><mml:mrow><mml:mi>&#x3B3;</mml:mi></mml:mrow><mml:mrow><mml:mi>s</mml:mi></mml:mrow><mml:mrow><mml:mi>d</mml:mi></mml:mrow></mml:msubsup><mml:msubsup><mml:mrow><mml:mi>&#x3B3;</mml:mi></mml:mrow><mml:mrow><mml:mi>L</mml:mi></mml:mrow><mml:mrow><mml:mi>d</mml:mi></mml:mrow></mml:msubsup></mml:msqrt><mml:mo>+</mml:mo><mml:msqrt><mml:msubsup><mml:mrow><mml:mi>&#x3B3;</mml:mi></mml:mrow><mml:mrow><mml:mi>S</mml:mi></mml:mrow><mml:mrow><mml:mi>p</mml:mi></mml:mrow></mml:msubsup><mml:msubsup><mml:mrow><mml:mi>&#x3B3;</mml:mi></mml:mrow><mml:mrow><mml:mi>L</mml:mi></mml:mrow><mml:mrow><mml:mi>p</mml:mi></mml:mrow></mml:msubsup></mml:msqrt><mml:mo stretchy="false">)</mml:mo></mml:mrow></mml:semantics></mml:math></disp-formula>
+        where <inline-formula><mml:math id="mm3"><mml:semantics><mml:mrow><mml:mi>&#x3B3;</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula> denotes the surface energy, subscripts <inline-formula><mml:math id="mm4"><mml:semantics><mml:mrow><mml:mi>S</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula> and <inline-formula><mml:math id="mm5"><mml:semantics><mml:mrow><mml:mi>L</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula> represent the solid and liquid, respectively, and superscripts <inline-formula><mml:math id="mm6"><mml:semantics><mml:mrow><mml:mi>d</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula> and <inline-formula><mml:math id="mm7"><mml:semantics><mml:mrow><mml:mi>p</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula> correspond to the dispersive and polar components.</p>
+      </sec>
+      <sec id="sec2dot4-energies-19-01600">
+        <title>2.4. Electrochemical Performance of CNF Separators</title>
+        <p>To compare the electrochemical behavior of NCM811||Li half cells employing PE (Celgard, Charlotte, NC, USA), HCNF, HBNT-05, and HBNT-10 separators, lithium metal foil and an NCM811 cathode were used as the anode and cathode, respectively. The electrolyte consisted of 1 M LiPF6 with 5 vol% fluoroethylene carbonate (FEC) in EC/EMC (3/7, <italic>v</italic>/<italic>v</italic>). All electrochemical measurements were performed at ambient temperature. Prior to testing, the cells were rested for 10 h to ensure sufficient electrolyte soaking. Galvanostatic charge&#x2013;discharge (GCD) measurements were carried out within a voltage window of 3.0&#x2013;4.3 V vs. Li/Li<sup>+</sup>. Formation and stabilization cycles were applied as initial conditioning steps prior to comparative testing to establish a stable and reproducible baseline response [<xref ref-type="bibr" rid="B29-energies-19-01600">29</xref>,<xref ref-type="bibr" rid="B30-energies-19-01600">30</xref>]. Specifically, formation was conducted at 0.1 &#xB0;C for 1 cycle, followed by stabilization at 0.2 &#xB0;C for 2 cycles. Cycling performance was evaluated at 0.2 &#xB0;C, and rate capability was assessed under stepwise C rates of 0.5 &#xB0;C, 1 &#xB0;C, 2 &#xB0;C, 3 &#xB0;C, 4 &#xB0;C, and 5 &#xB0;C, followed by a recovery step at 0.5 &#xB0;C. GCD and CV measurements were performed using a battery cycler and an electrochemical workstation, respectively. Cyclic voltammetry (CV) was conducted between 2.5 and 4.5 V vs. Li/Li<sup>+</sup> at scan rates of 0.1, 0.3, and 0.5 mV s<sup>&#x2212;1</sup> to compare voltage-dependent current responses and scan rate-dependent voltammetric behavior among the separators.</p>
+      </sec>
+    </sec>
+    <sec id="sec3-energies-19-01600" sec-type="results">
+      <title>3. Results</title>
+      <p>The fibrillation state of the HwBKP-derived CNF suspension was first evaluated because fibril size distribution and fine-fibril content critically govern packing, entanglement, and ultimately the uniformity of CNF-based separator networks. The fibril length distribution (<xref ref-type="fig" rid="energies-19-01600-f001">Figure 1</xref>a) is strongly concentrated in the shortest class, where 0.20&#x2013;0.29 mm accounts for 53.9% of the population, followed by 0.29&#x2013;0.41 mm (29.5%) and 0.41&#x2013;0.58 mm (11.9%). A consistent tendency is observed in the fibril diameter distribution (<xref ref-type="fig" rid="energies-19-01600-f001">Figure 1</xref>b), with 5.0&#x2013;12.0 &#x3BC;m and 12.0&#x2013;19.0 &#x3BC;m comprising 48.2% and 33.8%, respectively, indicating that the suspension largely consists of fine fibrils with a limited fraction of coarse components. The quantitative morphology parameters summarized in <xref ref-type="table" rid="energies-19-01600-t001">Table 1</xref> show an average fibril length of 314 &#xB1; 2 &#x3BC;m and an average fibril diameter of 14.0 &#xB1; 0.32 &#x3BC;m. Importantly, the fine fraction reaches 92.01 &#xB1; 1.15%, where the fine fraction is defined as the content of fibrils with length &#x2264; 200 &#x3BC;m and width &#x2264; 5 &#x3BC;m (<xref ref-type="table" rid="energies-19-01600-t001">Table 1</xref>). Such a high fine fraction indicates that the suspension contains abundant small fibrillar elements capable of filling inter-fibril voids and increasing contact density during consolidation, thereby supporting the formation of a more homogeneous separator network.</p>
+      <p>All CNF-based separators maintained free-standing integrity after film formation, confirming that the CNF framework can accommodate BNNT incorporation without loss of macroscopic continuity (<xref ref-type="fig" rid="energies-19-01600-f002">Figure 2</xref>a&#x2013;c). A notable change induced by BNNT addition appears in thickness (<xref ref-type="table" rid="energies-19-01600-t002">Table 2</xref>): the HCNF separator exhibits 25 &#x3BC;m, whereas both BNNT-incorporated membranes (HBNT-05 and HBNT-10) increase to 35 &#x3BC;m. This thickness increase suggests that BNNT modifies the consolidation behavior of the CNF network during drying; rigid BNNT entities can impede excessive densification of the fibrillar scaffold and preserve a more volume-expanded architecture under identical processing conditions. The BNNT-loading-dependent evolution in surface topography is directly observed by AFM (<xref ref-type="fig" rid="energies-19-01600-f002">Figure 2</xref>d&#x2013;f). The Root-mean-square (RMS) roughness increases from 31.91 nm for HCNF (<xref ref-type="fig" rid="energies-19-01600-f002">Figure 2</xref>d) to 49.314 nm for HBNT-05 (<xref ref-type="fig" rid="energies-19-01600-f002">Figure 2</xref>e) and further to 57.368 nm for HBNT-10 (<xref ref-type="fig" rid="energies-19-01600-f002">Figure 2</xref>f) (<xref ref-type="table" rid="energies-19-01600-t002">Table 2</xref>), demonstrating a progressive development of nanoscale surface asperities. This monotonic roughness increase indicates that BNNT incorporation reshapes the surface microtexture of the separator rather than acting as an inert filler, providing an enlarged effective interfacial area that is relevant to liquid retention and separator&#x2013;electrolyte interaction.</p>
+      <p>Microstructural observations and wetting descriptors further clarify the interfacial consequences of BNNT incorporation. SEM images (<xref ref-type="fig" rid="energies-19-01600-f003">Figure 3</xref>a&#x2013;c) confirm that all CNF-based separators retain an interconnected fibrillar scaffold, while BNNT-incorporated membranes show locally reinforced regions and more frequent junction-like features within the network, consistent with BNNT being embedded into the CNF matrix. Static water contact angle measurements exhibit a clear BNNT-loading dependence (<xref ref-type="fig" rid="energies-19-01600-f003">Figure 3</xref>d&#x2013;f), increasing from 28.45 &#xB1; 3.34&#xB0; (HCNF) to 50.23 &#xB1; 3.14&#xB0; (HBNT-05) and 68.54 &#xB1; 1.55&#xB0; (HBNT-10). In parallel, surface free energy decreases monotonically from 72.25 &#xB1; 1.87 mJ m<sup>&#x2212;2</sup> (HCNF) to 61.75 &#xB1; 1.88 mJ m<sup>&#x2212;2</sup> (HBNT-05) and 52.48 &#xB1; 1.14 mJ m<sup>&#x2212;2</sup> (HBNT-10) (<xref ref-type="table" rid="energies-19-01600-t002">Table 2</xref>). These coupled trends show that BNNT loading systematically shifts the surface energetics away from a highly polar, cellulose-dominant state while increasing roughness-driven surface development. Taken together, BNNT-induced changes in microtexture and surface energetics provide a consistent basis for separator-level interfacial differences, which may contribute to the separator-dependent electrochemical behavior observed in subsequent cell testing.</p>
+      <p>Chemical and crystalline signatures of BNNT incorporation were examined by FTIR and XRD. <xref ref-type="fig" rid="energies-19-01600-f004">Figure 4</xref>a shows FTIR spectra with key wavenumbers marked. The CNF framework is evidenced by the broad O&#x2013;H stretching band around ~3340 cm<sup>&#x2212;1</sup>, the C&#x2013;H stretching vibration near ~2900&#x2013;2916 cm<sup>&#x2212;1</sup>, and the C&#x2013;O&#x2013;C vibration near ~1053 cm<sup>&#x2212;1</sup>, indicating that the characteristic cellulose backbone is retained after membrane fabrication. Upon BNNT incorporation, no additional bands indicative of new chemical functionalities are observed within the detection limits of FTIR, suggesting that BNNT incorporation occurs primarily through physical mixing and network formation rather than chemical modification of cellulose. BNNT-related features appear only for BNNT incorporated membranes, where B&#x2013;N vibrational bands are observed around ~1370&#x2013;1376 cm<sup>&#x2212;1</sup> and ~797&#x2013;800 cm<sup>&#x2212;1</sup>. The coexistence of these B&#x2013;N signatures with the retained cellulose bands supports successful BNNT incorporation into the CNF-based membranes. <xref ref-type="fig" rid="energies-19-01600-f004">Figure 4</xref>b presents the XRD patterns. All CNF-based membranes exhibit diffraction features characteristic of cellulose, including CNF(110) and CNF(002), consistent with retention of the CNF crystalline structure after filtration and drying. In addition, BNNT-related reflections are observed for BNNT-incorporated membranes, with the BNNT(002) reflection being clearly detectable for HBNT-10. These results indicate that BNNTs are incorporated as a distinct crystalline phase within the CNF matrix while maintaining the characteristic cellulose diffraction features. Overall, FTIR and XRD collectively provide complementary evidence for BNNT incorporation alongside preserved cellulose spectral and diffraction signatures of the CNF framework.</p>
+      <p>The electrochemical feasibility and separator-dependent performance were evaluated in NCM811||Li half-cells, and the results are presented in <xref ref-type="fig" rid="energies-19-01600-f005">Figure 5</xref>. At 0.1 &#xB0;C, all separators exhibit comparable voltage behavior within 3.0&#x2013;4.3 V, while HBNT-10 achieves the highest discharge capacity of 194.8 mAh g<sup>&#x2212;1</sup>, exceeding PE at 183.1 mAh g<sup>&#x2212;1</sup>. Cycling at 0.2C shows minimal fading for all cells, and HBNT-10 maintains 167.2 mAh g<sup>&#x2212;1</sup> at the 15th cycle compared with 166.1 mAh g<sup>&#x2212;1</sup> for PE, indicating a sustained capacity difference under repeated operation. Rate capability was evaluated under stepwise C-rates from 0.5 &#xB0;C to 5 &#xB0;C, followed by a return to 0.5 &#xB0;C. Up to 3C, HBNT-10 retains the highest discharge capacity, delivering 150.1 mAh g<sup>&#x2212;1</sup> at 3C relative to 145.0 mAh g<sup>&#x2212;1</sup> for PE. At 5C, all cells exhibit a pronounced capacity drop, and PE shows the highest remaining capacity of 97.57 mAh g<sup>&#x2212;1</sup>, whereas HBNT-10 retains 58.75 mAh g<sup>&#x2212;1</sup>. Importantly, upon returning to 0.5 &#xB0;C, HBNT-10 recovers to 176.0 mAh g<sup>&#x2212;1</sup>, close to its initial low-rate value, indicating stable rate recovery under the applied protocol. Considering the BNNT-induced changes in membrane thickness and nanoscale surface descriptors together with the confirmed BNNT incorporation in the CNF matrix, the favorable response of HBNT-10 up to 3C may be associated with BNNT-related structural modification under the present fabrication and test conditions.</p>
+      <p>Cyclic voltammetry (CV) measurements were performed to compare separator-dependent voltammetric responses (<xref ref-type="fig" rid="energies-19-01600-f006">Figure 6</xref>). <xref ref-type="fig" rid="energies-19-01600-f006">Figure 6</xref>a illustrates the NCM811||Li half-cell configuration used for CV evaluation. In the direct comparison at 0.1 mV s<sup>&#x2212;1</sup> (<xref ref-type="fig" rid="energies-19-01600-f006">Figure 6</xref>b), all cells exhibit characteristic redox features of NCM811 within the examined potential window. Among the CNF-based membranes, HBNT-10 shows a comparatively larger current response than HCNF and HBNT-05, while PE also displays a strong voltammetric signal.</p>
+      <p>The scan-rate-dependent CV curves for each separator (<xref ref-type="fig" rid="energies-19-01600-f006">Figure 6</xref>c&#x2013;f) show systematic increases in current with increasing scan rate (0.1&#x2013;0.5 mV s<sup>&#x2212;1</sup>), reflecting typical kinetic behavior under accelerated potential sweeping. Within the CNF-based membranes, HBNT-10 maintains relatively higher current responses across scan rates, whereas differences between PE and CNF-based membranes vary depending on the scan condition. Overall, the CV results indicate composition-dependent voltammetric behavior among the separators under the present test conditions. When considered together with the galvanostatic results, the data suggest that BNNT incorporation modifies separator-level electrochemical responses without fundamentally altering the redox characteristics of the NCM811 electrode.</p>
+    </sec>
+    <sec id="sec4-energies-19-01600" sec-type="discussion">
+      <title>4. Discussion</title>
+      <p>To place the present results within the broader context of recent BNNT-enabled membrane studies, <xref ref-type="table" rid="energies-19-01600-t003">Table 3</xref> summarizes representative approaches in terms of membrane type, BNNT pretreatment or surface treatment, and fabrication route. As summarized in <xref ref-type="table" rid="energies-19-01600-t003">Table 3</xref>, many prior demonstrations predominantly rely on coating-based integration of BNNTs on commercial polyolefin separator membranes, including validation in practical formats such as pouch cells [<xref ref-type="bibr" rid="B15-energies-19-01600">15</xref>,<xref ref-type="bibr" rid="B16-energies-19-01600">16</xref>]. In contrast, the present study focuses on pretreatment-free BNNT incorporation into a filtration-derived CNF matrix and employs a simplified stirring, filtration, and drying route to form composite membranes. While CNF and BNNT nanocomposite films have been reported as material-level composites [<xref ref-type="bibr" rid="B18-energies-19-01600">18</xref>], separator-relevant demonstrations that simultaneously emphasize feedstock-specific CNF preparation and process simplicity without BNNT pretreatment remain limited. <xref ref-type="table" rid="energies-19-01600-t003">Table 3</xref>, therefore, clarifies that the primary contribution of this work lies in a manufacturing-oriented route and a composition-dependent evaluation framework rather than in the CNF and BNNT combination itself.</p>
+      <p>The primary finding of this work is that BNNT loading systematically modifies the physical characteristics of CNF separators and is accompanied by improved electrochemical performance trends, with HBNT-10 showing the most pronounced benefit among the tested compositions. The increase in membrane thickness and nanoscale roughness (<xref ref-type="fig" rid="energies-19-01600-f002">Figure 2</xref> and <xref ref-type="table" rid="energies-19-01600-t002">Table 2</xref>), together with the preserved cellulose framework and the appearance of BNNT-related features in FTIR/XRD (<xref ref-type="fig" rid="energies-19-01600-f004">Figure 4</xref>), indicates that BNNTs are incorporated as a distinct reinforcing component rather than altering the cellulose backbone. This interpretation is consistent with earlier cellulose/CNF separator studies demonstrating the feasibility of filtration-derived cellulose separators for electrochemical energy storage systems, while also noting that additional structural reinforcement is often required to secure stable operation under demanding conditions [<xref ref-type="bibr" rid="B12-energies-19-01600">12</xref>,<xref ref-type="bibr" rid="B31-energies-19-01600">31</xref>,<xref ref-type="bibr" rid="B32-energies-19-01600">32</xref>].</p>
+      <p>A notable aspect of the present approach is its process simplicity. The HBNT separators were fabricated via a pretreatment-free route, direct BNNT addition/dispersion in the slurry, followed by vacuum filtration and drying without multilayer coating steps or extensive chemical functionalization. Because BNNT dispersion and processing are frequently highlighted as practical barriers, demonstrating measurable separator-level effects using a simplified workflow is meaningful from a manufacturability perspective [<xref ref-type="bibr" rid="B24-energies-19-01600">24</xref>]. In this context, the observed thickness increase from HCNF to HBNT membranes (<xref ref-type="table" rid="energies-19-01600-t002">Table 2</xref>) suggests that BNNTs hinder excessive CNF densification during consolidation, thereby helping maintain a more mechanically supported framework. Notably, BNNT incorporation is accompanied by an increase in membrane thickness (<xref ref-type="table" rid="energies-19-01600-t002">Table 2</xref>). Although thickness can influence transport and polarization, membrane thickness is a trade-off design parameter; thus, the observed thickness increase is interpreted as a consolidation-related feature rather than an inherently detrimental change under the present test window [<xref ref-type="bibr" rid="B3-energies-19-01600">3</xref>,<xref ref-type="bibr" rid="B8-energies-19-01600">8</xref>,<xref ref-type="bibr" rid="B9-energies-19-01600">9</xref>].</p>
+      <p>The surface analyses further show that BNNT incorporation changes separator surface descriptors in a loading-dependent manner. AFM reveals a monotonic increase in roughness (<xref ref-type="fig" rid="energies-19-01600-f002">Figure 2</xref> and <xref ref-type="table" rid="energies-19-01600-t002">Table 2</xref>), while the water contact angle increases and surface free energy decreases with BNNT loading (<xref ref-type="table" rid="energies-19-01600-t002">Table 2</xref>). These trends should not be interpreted as direct evidence of enhanced wettability. Rather, the results support a conservative conclusion: BNNT loading reconfigures surface microtexture and surface-energy-related parameters, and these changes occur concurrently with structural modifications. In this context, the low-rate capacity increase is discussed as a composition-dependent electrochemical trend that is consistent with BNNT-associated structural reinforcement and consolidation-related differences in the CNF network, without assigning a single governing mechanism.</p>
+      <p>The FTIR and XRD results validate that BNNTs are present in the composite without disrupting cellulose identity (<xref ref-type="fig" rid="energies-19-01600-f004">Figure 4</xref>). Such incorporation of boron nitride materials is widely pursued in separator engineering because BN-based fillers combine electrical insulation with high thermal stability and can contribute to improved dimensional stability at elevated temperature [<xref ref-type="bibr" rid="B14-energies-19-01600">14</xref>,<xref ref-type="bibr" rid="B15-energies-19-01600">15</xref>,<xref ref-type="bibr" rid="B16-energies-19-01600">16</xref>,<xref ref-type="bibr" rid="B33-energies-19-01600">33</xref>]. In addition, prior nanocomposite studies support the feasibility of forming a two-phase BNNT&#x2013;CNF architecture in which BNNTs act as a reinforcing phase within a cellulose-derived network [<xref ref-type="bibr" rid="B18-energies-19-01600">18</xref>].</p>
+      <p>Electrochemical testing indicates composition-dependent trends in galvanostatic and voltammetric responses among the membranes (<xref ref-type="fig" rid="energies-19-01600-f005">Figure 5</xref> and <xref ref-type="fig" rid="energies-19-01600-f006">Figure 6</xref>). In particular, HBNT-10 shows favorable behavior in the low to moderate C-rate range and exhibits a relatively larger CV current response across scan rates (<xref ref-type="fig" rid="energies-19-01600-f006">Figure 6</xref>). These observations are consistent with prior separator studies that use BN-based fillers to enhance structural robustness and stability of polymer or fibrous membranes under electrochemical operation [<xref ref-type="bibr" rid="B22-energies-19-01600">22</xref>,<xref ref-type="bibr" rid="B34-energies-19-01600">34</xref>].</p>
+      <p>Overall, these results support the working hypothesis that incorporating BNNTs into a filtration-derived CNF separator provides a practical route to enhancing separator integrity and achieving measurable performance differences in electrochemical energy-storage devices. Importantly, the present contribution is not the BNNT&#x2013;CNF combination itself, but rather a separator-oriented demonstration that a process-simple, pretreatment-free fabrication route can yield composition-dependent performance trends. The findings highlight the importance of optimizing BNNT loading and dispersion/consolidation conditions to maximize reinforcing benefits while minimizing trade-offs such as excessive thickness or unintended pore structure changes. From a broader perspective, this work illustrates a manufacturing-relevant design strategy for cellulose-based separators leveraging BNNT-enabled reinforcement within a scalable filtration process to advance safer and more sustainable energy-storage systems.</p>
+    </sec>
+    <sec id="sec5-energies-19-01600" sec-type="conclusions">
+      <title>5. Conclusions</title>
+      <p>In this study, HwBKP-derived cellulose nanofiber (HCNF) membranes and BNNT-incorporated CNF composite membranes (HBNT-05 and HBNT-10) were fabricated and evaluated against a commercial polyolefin separator (PE) in NCM811||Li half cells. BNNT incorporation was achieved without BNNT pretreatment using a simple stirring, filtration, and drying route, supporting a manufacturing-oriented approach for CNF-based composite membranes. Structural analyses confirmed BNNT incorporation into the CNF framework while preserving the cellulose backbone, as evidenced by BN-related features in FTIR and BNNT reflections in XRD for the BNNT-incorporated membranes. Increasing BNNT loading produced systematic changes in membrane characteristics, including an increase in thickness from 25 &#x3BC;m (HCNF) to 35 &#x3BC;m (HBNT-10), together with changes in nanoscale surface descriptors and a monotonic shift in water contact angle and surface free energy. Electrochemical evaluations verified the feasibility of the CNF-based membranes and showed composition-dependent performance trends within the present test window. At 0.1 &#xB0;C, HBNT-10 delivered a discharge capacity of 194.8 mAh g<sup>&#x2212;1</sup>, compared with 183.1 mAh g<sup>&#x2212;1</sup> for PE. During cycling at 0.2 &#xB0;C, HBNT-10 maintained 167.2 mAh g<sup>&#x2212;1</sup> at the 15th cycle, similar to 166.1 mAh g<sup>&#x2212;1</sup> for PE. In rate capability testing, HBNT-10 delivered 150.1 mAh g<sup>&#x2212;1</sup> at 3C, compared with 145.0 mAh g<sup>&#x2212;1</sup> for PE, and recovered to 176.0 mAh g<sup>&#x2212;1</sup> upon returning to 0.5 &#xB0;C. Overall, these results indicate that pretreatment-free BNNT incorporation provides a practical design lever to tune biomass-derived CNF membranes and yields measurable, composition-dependent electrochemical response trends under the present fabrication and test conditions, while maintaining a simple and scalable fabrication route. This CNF and BNNT composite membrane strategy provides a basis for further work aimed at linking composite architecture, performance-limiting factors at higher rates, and durability under extended cycling and practical operating conditions.</p>
+    </sec>
+  </body>
+  <back>
+    <notes>
+      <title>Author Contributions</title>
+      <p>Conceptualization, H.W.H. and K.S.L.; methodology, H.W.H.; validation, H.W.H., S.M. and K.S.L.; formal analysis, H.W.H.; investigation, H.W.H. and S.M.; resources, K.S.L.; data curation, H.W.H. and S.M.; writing&#x2014;original draft preparation, H.W.H.; writing&#x2014;review and editing, S.M. and K.S.L.; visualization, H.W.H.; supervision, K.S.L.; project administration, K.S.L.; funding acquisition, K.S.L. All authors have read and agreed to the published version of the manuscript.</p>
+    </notes>
+    <notes>
+      <title>Data Availability Statement</title>
+      <p>The data presented in this study are available on request from the corresponding author. The data are not publicly available due to institutional policy and ongoing related research.</p>
+    </notes>
+    <ack>
+      <title>Acknowledgments</title>
+      <p>The authors would like to thank all members of the research group for their helpful discussions and technical support during this work.</p>
+    </ack>
+    <notes notes-type="COI-statement">
+      <title>Conflicts of Interest</title>
+      <p>The authors declare no conflicts of interest.</p>
+    </notes>
+    <glossary>
+      <title>Abbreviations</title>
+      <p>The following abbreviations are used in this manuscript:
+      <array><tbody><tr><td align="left" valign="middle">CNF</td><td align="left" valign="middle">Cellulose nanofiber</td></tr><tr><td align="left" valign="middle">HwBKP</td><td align="left" valign="middle">Hardwood bleached kraft pulp</td></tr><tr><td align="left" valign="middle">BNNT</td><td align="left" valign="middle">Boron nitride nanotube</td></tr><tr><td align="left" valign="middle">IPA </td><td align="left" valign="middle">Isopropyl alcohol</td></tr><tr><td align="left" valign="middle">HCNF</td><td align="left" valign="middle">HwBKP-derived CNF separator</td></tr><tr><td align="left" valign="middle">HBNT</td><td align="left" valign="middle">HwBKP-derived CNF-BNNT composite separator</td></tr><tr><td align="left" valign="middle">HBNT-05</td><td align="left" valign="middle">HwBKP-derived CNF-BNNT composite separator containing 0.5wt% BNNT</td></tr><tr><td align="left" valign="middle">HBNT-10</td><td align="left" valign="middle">HwBKP-derived CNF-BNNT composite separator containing 1.0wt% BNNT</td></tr><tr><td align="left" valign="middle">AFM</td><td align="left" valign="middle">Atomic force microscopy</td></tr><tr><td align="left" valign="middle">RMS</td><td align="left" valign="middle">Root-mean-square</td></tr><tr><td align="left" valign="middle">SFE</td><td align="left" valign="middle">Surface free energy</td></tr><tr><td align="left" valign="middle">SEM</td><td align="left" valign="middle">Scanning electron microscopy</td></tr><tr><td align="left" valign="middle">FTIR</td><td align="left" valign="middle">Fourier-transform infrared spectroscopy</td></tr><tr><td align="left" valign="middle">XRD</td><td align="left" valign="middle">X-ray diffraction</td></tr><tr><td align="left" valign="middle">FWMH</td><td align="left" valign="middle">Full width at half maximum</td></tr><tr><td align="left" valign="middle">GCD</td><td align="left" valign="middle">Galvanostatic charge&#x2013;discharge</td></tr><tr><td align="left" valign="middle">CV</td><td align="left" valign="middle">Cyclic voltammetry</td></tr></tbody></array></p>
+    </glossary>
+    <ref-list>
+      <title>References</title>
+      <ref id="B1-energies-19-01600">
+        <label>1.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Zhang</surname>
+              <given-names>J.</given-names>
+            </name>
+            <name>
+              <surname>Liu</surname>
+              <given-names>Z.</given-names>
+            </name>
+            <name>
+              <surname>Kong</surname>
+              <given-names>Q.</given-names>
+            </name>
+            <name>
+              <surname>Zhang</surname>
+              <given-names>C.</given-names>
+            </name>
+            <name>
+              <surname>Pang</surname>
+              <given-names>S.</given-names>
+            </name>
+            <name>
+              <surname>Yue</surname>
+              <given-names>L.</given-names>
+            </name>
+            <name>
+              <surname>Wang</surname>
+              <given-names>X.</given-names>
+            </name>
+            <name>
+              <surname>Yao</surname>
+              <given-names>J.</given-names>
+            </name>
+            <name>
+              <surname>Cui</surname>
+              <given-names>G.</given-names>
+            </name>
+          </person-group>
+          <article-title>Renewable and Superior Thermal-Resistant Cellulose-Based Composite Nonwoven as Lithium-Ion Battery Separator</article-title>
+          <source>ACS Appl.</source>
+          <year>2013</year>
+          <volume>5</volume>
+          <fpage>128</fpage>
+          <lpage>134</lpage>
+          <pub-id pub-id-type="doi">10.1021/am302290n</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B2-energies-19-01600">
+        <label>2.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Cao</surname>
+              <given-names>M.</given-names>
+            </name>
+            <name>
+              <surname>Bu</surname>
+              <given-names>F.</given-names>
+            </name>
+            <name>
+              <surname>Liu</surname>
+              <given-names>X.</given-names>
+            </name>
+            <name>
+              <surname>Ng</surname>
+              <given-names>C.H.</given-names>
+            </name>
+            <name>
+              <surname>Guan</surname>
+              <given-names>G.</given-names>
+            </name>
+          </person-group>
+          <article-title>Beyond separation: Multifunctional separators in rechargeable batteries</article-title>
+          <source>Adv. Energy Mater.</source>
+          <year>2025</year>
+          <volume>15</volume>
+          <fpage>2502540</fpage>
+          <pub-id pub-id-type="doi">10.1002/aenm.202502540</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B3-energies-19-01600">
+        <label>3.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Lin</surname>
+              <given-names>W.</given-names>
+            </name>
+            <name>
+              <surname>Wang</surname>
+              <given-names>F.</given-names>
+            </name>
+            <name>
+              <surname>Wang</surname>
+              <given-names>H.</given-names>
+            </name>
+            <name>
+              <surname>Li</surname>
+              <given-names>H.</given-names>
+            </name>
+            <name>
+              <surname>Fan</surname>
+              <given-names>Y.</given-names>
+            </name>
+            <name>
+              <surname>Chan</surname>
+              <given-names>D.</given-names>
+            </name>
+            <name>
+              <surname>Chen</surname>
+              <given-names>S.</given-names>
+            </name>
+            <name>
+              <surname>Tang</surname>
+              <given-names>Y.</given-names>
+            </name>
+            <name>
+              <surname>Zhang</surname>
+              <given-names>Y.</given-names>
+            </name>
+          </person-group>
+          <article-title>Thermal-Stable Separators: Design Principles and Strategies Towards Safe Lithium-Ion Battery Operations</article-title>
+          <source>ChemSusChem</source>
+          <year>2022</year>
+          <volume>15</volume>
+          <fpage>e202201464</fpage>
+          <pub-id pub-id-type="doi">10.1002/cssc.202201464</pub-id>
+          <pub-id pub-id-type="pmid">36254787</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B4-energies-19-01600">
+        <label>4.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Song</surname>
+              <given-names>Y.</given-names>
+            </name>
+            <name>
+              <surname>Sheng</surname>
+              <given-names>L.</given-names>
+            </name>
+            <name>
+              <surname>Wang</surname>
+              <given-names>L.</given-names>
+            </name>
+            <name>
+              <surname>Xu</surname>
+              <given-names>H.</given-names>
+            </name>
+            <name>
+              <surname>He</surname>
+              <given-names>X.</given-names>
+            </name>
+          </person-group>
+          <article-title>From separator to membrane: Separators can function more in lithium ion batteries</article-title>
+          <source>Electrochem. Commun.</source>
+          <year>2021</year>
+          <volume>124</volume>
+          <fpage>106948</fpage>
+          <pub-id pub-id-type="doi">10.1016/j.elecom.2021.106948</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B5-energies-19-01600">
+        <label>5.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Lv</surname>
+              <given-names>D.</given-names>
+            </name>
+            <name>
+              <surname>Chai</surname>
+              <given-names>J.</given-names>
+            </name>
+            <name>
+              <surname>Wang</surname>
+              <given-names>P.</given-names>
+            </name>
+            <name>
+              <surname>Zhu</surname>
+              <given-names>L.</given-names>
+            </name>
+            <name>
+              <surname>Liu</surname>
+              <given-names>C.</given-names>
+            </name>
+            <name>
+              <surname>Nie</surname>
+              <given-names>S.</given-names>
+            </name>
+            <name>
+              <surname>Li</surname>
+              <given-names>B.</given-names>
+            </name>
+            <name>
+              <surname>Cui</surname>
+              <given-names>G.</given-names>
+            </name>
+          </person-group>
+          <article-title>Pure cellulose lithium-ion battery separator with tunable pore size and improved working stability by cellulose nanofibrils</article-title>
+          <source>Carbohydr. Polym.</source>
+          <year>2021</year>
+          <volume>251</volume>
+          <fpage>116975</fpage>
+          <pub-id pub-id-type="doi">10.1016/j.carbpol.2020.116975</pub-id>
+          <pub-id pub-id-type="pmid">33142552</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B6-energies-19-01600">
+        <label>6.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Zhang</surname>
+              <given-names>H.</given-names>
+            </name>
+            <name>
+              <surname>Wang</surname>
+              <given-names>X.</given-names>
+            </name>
+            <name>
+              <surname>Liang</surname>
+              <given-names>Y.</given-names>
+            </name>
+          </person-group>
+          <article-title>Preparation and characterization of a Lithium-ion battery separator from cellulose nanofibers</article-title>
+          <source>Heliyon</source>
+          <year>2015</year>
+          <volume>1</volume>
+          <fpage>e00032</fpage>
+          <pub-id pub-id-type="doi">10.1016/j.heliyon.2015.e00032</pub-id>
+          <pub-id pub-id-type="pmid">27441220</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B7-energies-19-01600">
+        <label>7.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Zhao</surname>
+              <given-names>T.</given-names>
+            </name>
+            <name>
+              <surname>Xiao</surname>
+              <given-names>P.</given-names>
+            </name>
+            <name>
+              <surname>Luo</surname>
+              <given-names>M.</given-names>
+            </name>
+            <name>
+              <surname>Nie</surname>
+              <given-names>S.</given-names>
+            </name>
+            <name>
+              <surname>Li</surname>
+              <given-names>F.</given-names>
+            </name>
+            <name>
+              <surname>Liu</surname>
+              <given-names>Y.</given-names>
+            </name>
+          </person-group>
+          <article-title>Eco-Friendly Lithium Separators: A Frontier Exploration of Cellulose-Based Materials</article-title>
+          <source>Int. J. Mol. Sci.</source>
+          <year>2024</year>
+          <volume>25</volume>
+          <elocation-id>6822</elocation-id>
+          <pub-id pub-id-type="doi">10.3390/ijms25136822</pub-id>
+          <pub-id pub-id-type="pmid">38999935</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B8-energies-19-01600">
+        <label>8.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Chen</surname>
+              <given-names>H.</given-names>
+            </name>
+            <name>
+              <surname>Wang</surname>
+              <given-names>Z.</given-names>
+            </name>
+            <name>
+              <surname>Feng</surname>
+              <given-names>Y.</given-names>
+            </name>
+            <name>
+              <surname>Cai</surname>
+              <given-names>S.</given-names>
+            </name>
+            <name>
+              <surname>Gao</surname>
+              <given-names>H.</given-names>
+            </name>
+            <name>
+              <surname>Wei</surname>
+              <given-names>Z.</given-names>
+            </name>
+            <name>
+              <surname>Zhao</surname>
+              <given-names>Y.</given-names>
+            </name>
+          </person-group>
+          <article-title>Cellulose-based separators for lithium batteries: Source, preparation and performance</article-title>
+          <source>Chem. Eng. J.</source>
+          <year>2023</year>
+          <volume>471</volume>
+          <fpage>144593</fpage>
+          <pub-id pub-id-type="doi">10.1016/j.cej.2023.144593</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B9-energies-19-01600">
+        <label>9.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Truossi</surname>
+              <given-names>T.C.</given-names>
+            </name>
+            <name>
+              <surname>J&#xFA;nior</surname>
+              <given-names>H.L.O.</given-names>
+            </name>
+            <name>
+              <surname>Monticeli</surname>
+              <given-names>F.M.</given-names>
+            </name>
+            <name>
+              <surname>Dias</surname>
+              <given-names>O.T.</given-names>
+            </name>
+            <name>
+              <surname>Zattera</surname>
+              <given-names>A.J.</given-names>
+            </name>
+          </person-group>
+          <article-title>Cellulose-Derived Battery Separators: A Minireview on Advances Towards Environmental Sustainability</article-title>
+          <source>Polymers</source>
+          <year>2025</year>
+          <volume>17</volume>
+          <elocation-id>456</elocation-id>
+          <pub-id pub-id-type="doi">10.3390/polym17040456</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B10-energies-19-01600">
+        <label>10.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Farooq</surname>
+              <given-names>A.</given-names>
+            </name>
+            <name>
+              <surname>Wanyan</surname>
+              <given-names>H.</given-names>
+            </name>
+            <name>
+              <surname>Lu</surname>
+              <given-names>S.</given-names>
+            </name>
+            <name>
+              <surname>Mosisa</surname>
+              <given-names>M.T.</given-names>
+            </name>
+            <name>
+              <surname>Zhou</surname>
+              <given-names>X.</given-names>
+            </name>
+            <name>
+              <surname>Xiao</surname>
+              <given-names>H.</given-names>
+            </name>
+            <name>
+              <surname>Liu</surname>
+              <given-names>K.</given-names>
+            </name>
+            <name>
+              <surname>Huang</surname>
+              <given-names>L.</given-names>
+            </name>
+            <name>
+              <surname>Chen</surname>
+              <given-names>L.</given-names>
+            </name>
+            <name>
+              <surname>Wu</surname>
+              <given-names>H.</given-names>
+            </name>
+          </person-group>
+          <article-title>A review on cellulose-based derivatives and composites for sustainable rechargeable batteries</article-title>
+          <source>Int. J. Biol. Macromol.</source>
+          <year>2025</year>
+          <volume>308</volume>
+          <fpage>142528</fpage>
+          <pub-id pub-id-type="doi">10.1016/j.ijbiomac.2025.142528</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B11-energies-19-01600">
+        <label>11.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Wang</surname>
+              <given-names>X.</given-names>
+            </name>
+            <name>
+              <surname>Zheng</surname>
+              <given-names>W.</given-names>
+            </name>
+            <name>
+              <surname>Zhao</surname>
+              <given-names>H.</given-names>
+            </name>
+            <name>
+              <surname>Li</surname>
+              <given-names>J.</given-names>
+            </name>
+            <name>
+              <surname>Chen</surname>
+              <given-names>S.</given-names>
+            </name>
+            <name>
+              <surname>Xu</surname>
+              <given-names>F.</given-names>
+            </name>
+          </person-group>
+          <article-title>Robust and High-Wettability Cellulose Separators with Molecule-Reassembled Nano-Cracked Structures for High-Performance Supercapacitors</article-title>
+          <source>Nanomicro Lett.</source>
+          <year>2025</year>
+          <volume>17</volume>
+          <fpage>153</fpage>
+          <pub-id pub-id-type="doi">10.1007/s40820-025-01650-2</pub-id>
+          <pub-id pub-id-type="pmid">39969701</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B12-energies-19-01600">
+        <label>12.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Li</surname>
+              <given-names>J.</given-names>
+            </name>
+            <name>
+              <surname>Dai</surname>
+              <given-names>L.</given-names>
+            </name>
+            <name>
+              <surname>Wang</surname>
+              <given-names>Z.</given-names>
+            </name>
+            <name>
+              <surname>Wang</surname>
+              <given-names>H.</given-names>
+            </name>
+            <name>
+              <surname>Xie</surname>
+              <given-names>L.</given-names>
+            </name>
+            <name>
+              <surname>Chen</surname>
+              <given-names>J.</given-names>
+            </name>
+            <name>
+              <surname>Yan</surname>
+              <given-names>C.</given-names>
+            </name>
+            <name>
+              <surname>Yuan</surname>
+              <given-names>H.</given-names>
+            </name>
+            <name>
+              <surname>Wang</surname>
+              <given-names>H.</given-names>
+            </name>
+            <name>
+              <surname>Chen</surname>
+              <given-names>C.</given-names>
+            </name>
+          </person-group>
+          <article-title>Cellulose nanofiber separator for suppressing shuttle effect and Li dendrite formation in lithium-sulfur batteries</article-title>
+          <source>J. Energy Chem.</source>
+          <year>2022</year>
+          <volume>67</volume>
+          <fpage>736</fpage>
+          <lpage>744</lpage>
+          <pub-id pub-id-type="doi">10.1016/j.jechem.2021.11.017</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B13-energies-19-01600">
+        <label>13.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Miao</surname>
+              <given-names>W.</given-names>
+            </name>
+            <name>
+              <surname>Wang</surname>
+              <given-names>J.</given-names>
+            </name>
+            <name>
+              <surname>Li</surname>
+              <given-names>G.</given-names>
+            </name>
+            <name>
+              <surname>Liu</surname>
+              <given-names>S.</given-names>
+            </name>
+            <name>
+              <surname>Luo</surname>
+              <given-names>X.</given-names>
+            </name>
+          </person-group>
+          <article-title>Superior thermal stability of PVA/cellulose composite membranes for lithium-ion battery separators prepared by impregnation method with noncovalent cross-linking of intermolecular multiple hydrogen-bonds</article-title>
+          <source>J. Energy Storage</source>
+          <year>2023</year>
+          <volume>66</volume>
+          <fpage>107353</fpage>
+          <pub-id pub-id-type="doi">10.1016/j.est.2023.107353</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B14-energies-19-01600">
+        <label>14.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Liu</surname>
+              <given-names>J.</given-names>
+            </name>
+            <name>
+              <surname>Cao</surname>
+              <given-names>D.</given-names>
+            </name>
+            <name>
+              <surname>Yao</surname>
+              <given-names>H.</given-names>
+            </name>
+            <name>
+              <surname>Liu</surname>
+              <given-names>D.</given-names>
+            </name>
+            <name>
+              <surname>Zhang</surname>
+              <given-names>X.</given-names>
+            </name>
+            <name>
+              <surname>Zhang</surname>
+              <given-names>Q.</given-names>
+            </name>
+            <name>
+              <surname>Chen</surname>
+              <given-names>L.</given-names>
+            </name>
+            <name>
+              <surname>Wu</surname>
+              <given-names>S.</given-names>
+            </name>
+            <name>
+              <surname>Sun</surname>
+              <given-names>Y.</given-names>
+            </name>
+            <name>
+              <surname>He</surname>
+              <given-names>D.</given-names>
+            </name>
+            <etal/>
+          </person-group>
+          <article-title>Hexagonal boron nitride-coated polyimide ion track etched separator with enhanced thermal conductivity and high-temperature stability for lithium-ion batteries</article-title>
+          <source>ACS Appl. Energy Mater.</source>
+          <year>2022</year>
+          <volume>5</volume>
+          <fpage>8639</fpage>
+          <lpage>8649</lpage>
+        </element-citation>
+      </ref>
+      <ref id="B15-energies-19-01600">
+        <label>15.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Jung</surname>
+              <given-names>J.H.</given-names>
+            </name>
+            <name>
+              <surname>Yanar</surname>
+              <given-names>N.</given-names>
+            </name>
+            <name>
+              <surname>Yang</surname>
+              <given-names>M.J.</given-names>
+            </name>
+            <name>
+              <surname>Kandula</surname>
+              <given-names>S.</given-names>
+            </name>
+            <name>
+              <surname>Yadav</surname>
+              <given-names>D.</given-names>
+            </name>
+            <name>
+              <surname>Kim</surname>
+              <given-names>T.Y.S.</given-names>
+            </name>
+            <name>
+              <surname>Shim</surname>
+              <given-names>J.H.</given-names>
+            </name>
+            <name>
+              <surname>Doo</surname>
+              <given-names>S.</given-names>
+            </name>
+            <name>
+              <surname>Kim</surname>
+              <given-names>J.</given-names>
+            </name>
+          </person-group>
+          <article-title>Improved electrochemical performance of Li-ion pouch cells with boron nitride nanotube-coated separators</article-title>
+          <source>J. Power Sources</source>
+          <year>2025</year>
+          <volume>628</volume>
+          <fpage>235938</fpage>
+          <pub-id pub-id-type="doi">10.1016/j.jpowsour.2024.235938</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B16-energies-19-01600">
+        <label>16.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Rahman</surname>
+              <given-names>M.M.</given-names>
+            </name>
+            <name>
+              <surname>Mateti</surname>
+              <given-names>S.</given-names>
+            </name>
+            <name>
+              <surname>Cai</surname>
+              <given-names>Q.</given-names>
+            </name>
+            <name>
+              <surname>Sultana</surname>
+              <given-names>I.</given-names>
+            </name>
+            <name>
+              <surname>Fan</surname>
+              <given-names>Y.</given-names>
+            </name>
+            <name>
+              <surname>Wang</surname>
+              <given-names>X.</given-names>
+            </name>
+            <name>
+              <surname>Hou</surname>
+              <given-names>C.</given-names>
+            </name>
+            <name>
+              <surname>Chen</surname>
+              <given-names>Y.</given-names>
+            </name>
+          </person-group>
+          <article-title>High temperature and high rate lithium-ion batteries with boron nitride nanotubes coated polypropylene separators</article-title>
+          <source>Energy Storage Mater.</source>
+          <year>2019</year>
+          <volume>19</volume>
+          <fpage>352</fpage>
+          <lpage>359</lpage>
+          <pub-id pub-id-type="doi">10.1016/j.ensm.2019.03.027</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B17-energies-19-01600">
+        <label>17.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Kim</surname>
+              <given-names>H.S.</given-names>
+            </name>
+            <name>
+              <surname>Kang</surname>
+              <given-names>H.J.</given-names>
+            </name>
+            <name>
+              <surname>Lim</surname>
+              <given-names>H.</given-names>
+            </name>
+            <name>
+              <surname>Hwang</surname>
+              <given-names>H.J.</given-names>
+            </name>
+            <name>
+              <surname>Park</surname>
+              <given-names>J.W.</given-names>
+            </name>
+            <name>
+              <surname>Lee</surname>
+              <given-names>T.G.</given-names>
+            </name>
+            <name>
+              <surname>Cho</surname>
+              <given-names>S.Y.</given-names>
+            </name>
+            <name>
+              <surname>Jang</surname>
+              <given-names>S.G.</given-names>
+            </name>
+            <name>
+              <surname>Jun</surname>
+              <given-names>Y.S.</given-names>
+            </name>
+          </person-group>
+          <article-title>Boron nitride nanotube-based separator for high-performance lithium-sulfur batteries</article-title>
+          <source>Nanomaterials</source>
+          <year>2021</year>
+          <volume>12</volume>
+          <elocation-id>11</elocation-id>
+          <pub-id pub-id-type="doi">10.3390/nano12010011</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B18-energies-19-01600">
+        <label>18.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Zeng</surname>
+              <given-names>X.</given-names>
+            </name>
+            <name>
+              <surname>Sun</surname>
+              <given-names>J.</given-names>
+            </name>
+            <name>
+              <surname>Yao</surname>
+              <given-names>Y.</given-names>
+            </name>
+            <name>
+              <surname>Sun</surname>
+              <given-names>R.</given-names>
+            </name>
+            <name>
+              <surname>Xu</surname>
+              <given-names>J.B.</given-names>
+            </name>
+            <name>
+              <surname>Wong</surname>
+              <given-names>C.P.</given-names>
+            </name>
+          </person-group>
+          <article-title>A combination of boron nitride nanotubes and cellulose nanofibers for the preparation of a nanocomposite with high thermal conductivity</article-title>
+          <source>ACS Nano</source>
+          <year>2017</year>
+          <volume>11</volume>
+          <fpage>5167</fpage>
+          <lpage>5178</lpage>
+          <pub-id pub-id-type="doi">10.1021/acsnano.7b02359</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B19-energies-19-01600">
+        <label>19.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>De Moraes</surname>
+              <given-names>A.C.M.</given-names>
+            </name>
+            <name>
+              <surname>Hyun</surname>
+              <given-names>W.J.</given-names>
+            </name>
+            <name>
+              <surname>Luu</surname>
+              <given-names>N.S.</given-names>
+            </name>
+            <name>
+              <surname>Lim</surname>
+              <given-names>J.M.</given-names>
+            </name>
+            <name>
+              <surname>Park</surname>
+              <given-names>K.Y.</given-names>
+            </name>
+            <name>
+              <surname>Hersam</surname>
+              <given-names>M.C.</given-names>
+            </name>
+          </person-group>
+          <article-title>Phase-inversion polymer composite separators based on hexagonal boron nitride nanosheets for high-temperature lithium-ion batteries</article-title>
+          <source>ACS Appl. Mater. Interfaces</source>
+          <year>2020</year>
+          <volume>12</volume>
+          <fpage>8107</fpage>
+          <lpage>8114</lpage>
+          <pub-id pub-id-type="doi">10.1021/acsami.9b18134</pub-id>
+          <pub-id pub-id-type="pmid">31973532</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B20-energies-19-01600">
+        <label>20.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Rodriguez</surname>
+              <given-names>J.R.</given-names>
+            </name>
+            <name>
+              <surname>Kim</surname>
+              <given-names>P.J.</given-names>
+            </name>
+            <name>
+              <surname>Kim</surname>
+              <given-names>K.</given-names>
+            </name>
+            <name>
+              <surname>Qi</surname>
+              <given-names>Z.</given-names>
+            </name>
+            <name>
+              <surname>Wang</surname>
+              <given-names>H.</given-names>
+            </name>
+            <name>
+              <surname>Pol</surname>
+              <given-names>V.G.</given-names>
+            </name>
+          </person-group>
+          <article-title>Engineered heat dissipation and current distribution boron nitride-graphene layer coated on polypropylene separator for high performance lithium metal battery</article-title>
+          <source>J. Colloid Interface Sci.</source>
+          <year>2021</year>
+          <volume>583</volume>
+          <fpage>362</fpage>
+          <lpage>370</lpage>
+          <pub-id pub-id-type="doi">10.1016/j.jcis.2020.09.009</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B21-energies-19-01600">
+        <label>21.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Zhang</surname>
+              <given-names>Q.</given-names>
+            </name>
+            <name>
+              <surname>Wang</surname>
+              <given-names>Z.</given-names>
+            </name>
+            <name>
+              <surname>Liu</surname>
+              <given-names>Y.G.</given-names>
+            </name>
+            <name>
+              <surname>Zhu</surname>
+              <given-names>B.</given-names>
+            </name>
+            <name>
+              <surname>Wu</surname>
+              <given-names>L.</given-names>
+            </name>
+            <name>
+              <surname>Mi</surname>
+              <given-names>R.</given-names>
+            </name>
+            <name>
+              <surname>Huang</surname>
+              <given-names>Z.</given-names>
+            </name>
+          </person-group>
+          <article-title>Homogeneous deposition of lithium ions enabled by BN coated separator for high-performance lithium-metal batteries</article-title>
+          <source>Surf. Interfaces</source>
+          <year>2023</year>
+          <volume>43</volume>
+          <fpage>103568</fpage>
+          <pub-id pub-id-type="doi">10.1016/j.surfin.2023.103568</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B22-energies-19-01600">
+        <label>22.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Lee</surname>
+              <given-names>J.</given-names>
+            </name>
+            <name>
+              <surname>Yoon</surname>
+              <given-names>J.</given-names>
+            </name>
+            <name>
+              <surname>Jeon</surname>
+              <given-names>M.</given-names>
+            </name>
+            <name>
+              <surname>Oh</surname>
+              <given-names>S.G.</given-names>
+            </name>
+          </person-group>
+          <article-title>Aramid-based composite nanofiber separator coated with thermal conductive layer containing hexagonal boron nitride for stable lithium metal batteries from dendritic Li growth</article-title>
+          <source>Chem. Eng. J.</source>
+          <year>2025</year>
+          <volume>510</volume>
+          <fpage>161692</fpage>
+          <pub-id pub-id-type="doi">10.1016/j.cej.2025.161692</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B23-energies-19-01600">
+        <label>23.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Hanif</surname>
+              <given-names>Z.</given-names>
+            </name>
+            <name>
+              <surname>Choi</surname>
+              <given-names>K.I.</given-names>
+            </name>
+            <name>
+              <surname>Jung</surname>
+              <given-names>J.H.</given-names>
+            </name>
+            <name>
+              <surname>Pornea</surname>
+              <given-names>A.G.M.</given-names>
+            </name>
+            <name>
+              <surname>Park</surname>
+              <given-names>E.</given-names>
+            </name>
+            <name>
+              <surname>Cha</surname>
+              <given-names>J.</given-names>
+            </name>
+            <name>
+              <surname>Kim</surname>
+              <given-names>H.R.</given-names>
+            </name>
+            <name>
+              <surname>Choi</surname>
+              <given-names>J.H.</given-names>
+            </name>
+            <name>
+              <surname>Kim</surname>
+              <given-names>J.</given-names>
+            </name>
+          </person-group>
+          <article-title>Dispersion enhancement of boron nitride nanotubes in a wide range of solvents using plant polyphenol-based surface modification</article-title>
+          <source>Ind. Eng. Chem. Res.</source>
+          <year>2023</year>
+          <volume>62</volume>
+          <fpage>2662</fpage>
+          <lpage>2670</lpage>
+          <pub-id pub-id-type="doi">10.1021/acs.iecr.2c03897</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B24-energies-19-01600">
+        <label>24.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Kang</surname>
+              <given-names>M.</given-names>
+            </name>
+            <name>
+              <surname>Kim</surname>
+              <given-names>J.</given-names>
+            </name>
+            <name>
+              <surname>Lim</surname>
+              <given-names>H.</given-names>
+            </name>
+            <name>
+              <surname>Ko</surname>
+              <given-names>J.</given-names>
+            </name>
+            <name>
+              <surname>Kim</surname>
+              <given-names>H.S.</given-names>
+            </name>
+            <name>
+              <surname>Joo</surname>
+              <given-names>Y.</given-names>
+            </name>
+            <name>
+              <surname>Moon</surname>
+              <given-names>S.Y.</given-names>
+            </name>
+            <name>
+              <surname>Jang</surname>
+              <given-names>S.G.</given-names>
+            </name>
+            <name>
+              <surname>Lee</surname>
+              <given-names>E.</given-names>
+            </name>
+            <name>
+              <surname>Ahn</surname>
+              <given-names>S.</given-names>
+            </name>
+          </person-group>
+          <article-title>Eco-Friendly Dispersant-Free Purification Method of Boron Nitride Nanotubes through Controlling Surface Tension and Steric Repulsion with Solvents</article-title>
+          <source>Nanomaterials</source>
+          <year>2023</year>
+          <volume>13</volume>
+          <elocation-id>2593</elocation-id>
+          <pub-id pub-id-type="doi">10.3390/nano13182593</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B25-energies-19-01600">
+        <label>25.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Petroudy</surname>
+              <given-names>S.R.D.</given-names>
+            </name>
+            <name>
+              <surname>Chabot</surname>
+              <given-names>B.</given-names>
+            </name>
+            <name>
+              <surname>Loranger</surname>
+              <given-names>E.</given-names>
+            </name>
+            <name>
+              <surname>Naebe</surname>
+              <given-names>M.</given-names>
+            </name>
+            <name>
+              <surname>Shojaeiarani</surname>
+              <given-names>S.</given-names>
+            </name>
+            <name>
+              <surname>Ahvazi</surname>
+              <given-names>B.</given-names>
+            </name>
+            <name>
+              <surname>Hu</surname>
+              <given-names>J.</given-names>
+            </name>
+            <name>
+              <surname>Thomas</surname>
+              <given-names>S.</given-names>
+            </name>
+          </person-group>
+          <article-title>Recent Advances in Cellulose Nanofibers Preparation through Energy-Efficient Approaches: A Review</article-title>
+          <source>Energies</source>
+          <year>2021</year>
+          <volume>14</volume>
+          <elocation-id>6792</elocation-id>
+          <pub-id pub-id-type="doi">10.3390/en14206792</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B26-energies-19-01600">
+        <label>26.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Yi</surname>
+              <given-names>T.</given-names>
+            </name>
+            <name>
+              <surname>Zhao</surname>
+              <given-names>H.</given-names>
+            </name>
+            <name>
+              <surname>Mo</surname>
+              <given-names>Q.</given-names>
+            </name>
+            <name>
+              <surname>Pan</surname>
+              <given-names>D.</given-names>
+            </name>
+            <name>
+              <surname>Liu</surname>
+              <given-names>Y.</given-names>
+            </name>
+            <name>
+              <surname>Huang</surname>
+              <given-names>L.</given-names>
+            </name>
+            <name>
+              <surname>Xu</surname>
+              <given-names>H.</given-names>
+            </name>
+            <name>
+              <surname>Hu</surname>
+              <given-names>B.</given-names>
+            </name>
+            <name>
+              <surname>Song</surname>
+              <given-names>H.</given-names>
+            </name>
+          </person-group>
+          <article-title>From Cellulose to Cellulose Nanofibrils&#x2014;A Comprehensive Review of the Preparation and Modification of Cellulose Nanofibrils</article-title>
+          <source>Materials</source>
+          <year>2020</year>
+          <volume>13</volume>
+          <elocation-id>5062</elocation-id>
+          <pub-id pub-id-type="doi">10.3390/ma13225062</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B27-energies-19-01600">
+        <label>27.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Yamamoto</surname>
+              <given-names>M.</given-names>
+            </name>
+            <name>
+              <surname>Iakovlev</surname>
+              <given-names>M.</given-names>
+            </name>
+            <name>
+              <surname>Bankar</surname>
+              <given-names>S.</given-names>
+            </name>
+            <name>
+              <surname>Tunc</surname>
+              <given-names>M.S.</given-names>
+            </name>
+            <name>
+              <surname>Heiningen</surname>
+              <given-names>A.V.</given-names>
+            </name>
+          </person-group>
+          <article-title>Enzymatic hydrolysis of hardwood and softwood harvest residue fibers released by sulfur dioxide&#x2013;ethanol&#x2013;water fractionation</article-title>
+          <source>Bioresour. Technol.</source>
+          <year>2014</year>
+          <volume>167</volume>
+          <fpage>530</fpage>
+          <lpage>538</lpage>
+          <pub-id pub-id-type="doi">10.1016/j.biortech.2014.06.054</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B28-energies-19-01600">
+        <label>28.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Cho</surname>
+              <given-names>H.W.</given-names>
+            </name>
+            <name>
+              <surname>Kim</surname>
+              <given-names>J.W.</given-names>
+            </name>
+            <name>
+              <surname>Mugobera</surname>
+              <given-names>S.</given-names>
+            </name>
+            <name>
+              <surname>Park</surname>
+              <given-names>R.</given-names>
+            </name>
+            <name>
+              <surname>Jung</surname>
+              <given-names>J.</given-names>
+            </name>
+            <name>
+              <surname>Ko</surname>
+              <given-names>J.M.</given-names>
+            </name>
+            <name>
+              <surname>Lee</surname>
+              <given-names>K.S.</given-names>
+            </name>
+          </person-group>
+          <article-title>Cellulose nanofibrils derived from pulp as a high-performance separator for lithium-ion batteries</article-title>
+          <source>J. Chin. Chem. Soc.</source>
+          <year>2023</year>
+          <volume>70</volume>
+          <fpage>1965</fpage>
+          <lpage>1971</lpage>
+          <pub-id pub-id-type="doi">10.1002/jccs.202300160</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B29-energies-19-01600">
+        <label>29.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Schomburg</surname>
+              <given-names>F.</given-names>
+            </name>
+            <name>
+              <surname>Heidrich</surname>
+              <given-names>B.</given-names>
+            </name>
+            <name>
+              <surname>Wennemar</surname>
+              <given-names>S.</given-names>
+            </name>
+            <name>
+              <surname>Drees</surname>
+              <given-names>R.</given-names>
+            </name>
+            <name>
+              <surname>Roth</surname>
+              <given-names>T.</given-names>
+            </name>
+            <name>
+              <surname>Kurrat</surname>
+              <given-names>M.</given-names>
+            </name>
+            <name>
+              <surname>Heimes</surname>
+              <given-names>H.</given-names>
+            </name>
+            <name>
+              <surname>Jossen</surname>
+              <given-names>A.</given-names>
+            </name>
+            <name>
+              <surname>Winter</surname>
+              <given-names>M.</given-names>
+            </name>
+            <name>
+              <surname>Cheong</surname>
+              <given-names>J.Y.</given-names>
+            </name>
+            <etal/>
+          </person-group>
+          <article-title>Lithium-ion battery cell formation: Status and future directions towards a knowledge-based process design</article-title>
+          <source>Energy Environ. Sci.</source>
+          <year>2024</year>
+          <volume>17</volume>
+          <fpage>2686</fpage>
+          <lpage>2733</lpage>
+          <pub-id pub-id-type="doi">10.1039/D3EE03559J</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B30-energies-19-01600">
+        <label>30.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Kampker</surname>
+              <given-names>A.</given-names>
+            </name>
+            <name>
+              <surname>Heimes</surname>
+              <given-names>H.</given-names>
+            </name>
+            <name>
+              <surname>Offermanns</surname>
+              <given-names>C.</given-names>
+            </name>
+            <name>
+              <surname>Wennemar</surname>
+              <given-names>S.</given-names>
+            </name>
+            <name>
+              <surname>Robben</surname>
+              <given-names>T.</given-names>
+            </name>
+            <name>
+              <surname>Lackner</surname>
+              <given-names>N.</given-names>
+            </name>
+          </person-group>
+          <article-title>Optimizing the Cell Finishing Process: An Overview of Steps, Technologies, and Trends</article-title>
+          <source>World Electr. Veh. J.</source>
+          <year>2023</year>
+          <volume>14</volume>
+          <elocation-id>96</elocation-id>
+          <pub-id pub-id-type="doi">10.3390/wevj14040096</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B31-energies-19-01600">
+        <label>31.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Huang</surname>
+              <given-names>C.</given-names>
+            </name>
+            <name>
+              <surname>Ji</surname>
+              <given-names>H.</given-names>
+            </name>
+            <name>
+              <surname>Yang</surname>
+              <given-names>Y.</given-names>
+            </name>
+            <name>
+              <surname>Guo</surname>
+              <given-names>B.</given-names>
+            </name>
+            <name>
+              <surname>Luo</surname>
+              <given-names>L.</given-names>
+            </name>
+            <name>
+              <surname>Meng</surname>
+              <given-names>Z.</given-names>
+            </name>
+            <name>
+              <surname>Fan</surname>
+              <given-names>L.</given-names>
+            </name>
+            <name>
+              <surname>Xu</surname>
+              <given-names>J.</given-names>
+            </name>
+          </person-group>
+          <article-title>TEMPO-oxidized bacterial cellulose nanofiber membranes as high-performance separators for lithium-ion batteries</article-title>
+          <source>Carbohydr. Polym.</source>
+          <year>2020</year>
+          <volume>230</volume>
+          <fpage>115570</fpage>
+          <pub-id pub-id-type="doi">10.1016/j.carbpol.2019.115570</pub-id>
+          <pub-id pub-id-type="pmid">31887969</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B32-energies-19-01600">
+        <label>32.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Wang</surname>
+              <given-names>N.</given-names>
+            </name>
+            <name>
+              <surname>Liu</surname>
+              <given-names>W.</given-names>
+            </name>
+            <name>
+              <surname>Liao</surname>
+              <given-names>H.</given-names>
+            </name>
+            <name>
+              <surname>Li</surname>
+              <given-names>Z.</given-names>
+            </name>
+            <name>
+              <surname>Chen</surname>
+              <given-names>Y.</given-names>
+            </name>
+            <name>
+              <surname>Zeng</surname>
+              <given-names>G.</given-names>
+            </name>
+          </person-group>
+          <article-title>Pure cellulose nanofiber separator with high ionic conductivity and cycling stability for lithium-ion batteries</article-title>
+          <source>Int. J. Biol. Macromol.</source>
+          <year>2023</year>
+          <volume>250</volume>
+          <fpage>126078</fpage>
+          <pub-id pub-id-type="doi">10.1016/j.ijbiomac.2023.126078</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B33-energies-19-01600">
+        <label>33.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Ahmed</surname>
+              <given-names>F.</given-names>
+            </name>
+            <name>
+              <surname>Kumar</surname>
+              <given-names>S.</given-names>
+            </name>
+            <name>
+              <surname>Shaalan</surname>
+              <given-names>N.M.</given-names>
+            </name>
+            <name>
+              <surname>Saber</surname>
+              <given-names>O.</given-names>
+            </name>
+            <name>
+              <surname>Rehman</surname>
+              <given-names>S.</given-names>
+            </name>
+            <name>
+              <surname>Aljaafari</surname>
+              <given-names>A.</given-names>
+            </name>
+            <name>
+              <surname>Abuhimd</surname>
+              <given-names>H.</given-names>
+            </name>
+            <name>
+              <surname>Alshahrani</surname>
+              <given-names>M.</given-names>
+            </name>
+          </person-group>
+          <article-title>Synergistic effect of hexagonal boron nitride-coated separators and multi-walled carbon nanotube anodes for thermally stable lithium-ion batteries</article-title>
+          <source>Crystals</source>
+          <year>2022</year>
+          <volume>12</volume>
+          <elocation-id>125</elocation-id>
+          <pub-id pub-id-type="doi">10.3390/cryst12020125</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B34-energies-19-01600">
+        <label>34.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Waqas</surname>
+              <given-names>M.</given-names>
+            </name>
+            <name>
+              <surname>Ali</surname>
+              <given-names>S.</given-names>
+            </name>
+            <name>
+              <surname>Lv</surname>
+              <given-names>W.</given-names>
+            </name>
+            <name>
+              <surname>Chen</surname>
+              <given-names>D.</given-names>
+            </name>
+            <name>
+              <surname>Boateng</surname>
+              <given-names>B.</given-names>
+            </name>
+            <name>
+              <surname>He</surname>
+              <given-names>W.</given-names>
+            </name>
+          </person-group>
+          <article-title>High-performance PE-BN/PVDF-HFP bilayer separator for lithium-ion batteries</article-title>
+          <source>Adv. Mater. Interfaces</source>
+          <year>2019</year>
+          <volume>6</volume>
+          <fpage>1801330</fpage>
+          <pub-id pub-id-type="doi">10.1002/admi.201801330</pub-id>
+        </element-citation>
+      </ref>
+    </ref-list>
+    <sec sec-type="display-objects">
+      <title>Figures and Tables</title>
+      <fig id="energies-19-01600-f001" position="float">
+        <label>Figure 1</label>
+        <caption>
+          <p>Length and Width distributions of HwBKP-derived CNF Suspension fibrils measured by fibril image analysis: (<bold>a</bold>) fiber length distribution and (<bold>b</bold>) fiber width distribution.</p>
+        </caption>
+        <graphic xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="energies-19-01600-g001.tif"/>
+      </fig>
+      <fig id="energies-19-01600-f002" position="float">
+        <label>Figure 2</label>
+        <caption>
+          <p>Photographs and AFM characterization of BNNT-loading-dependent surface evolution in CNF separators. (<bold>a</bold>&#x2013;<bold>c</bold>) Photographs and (<bold>d</bold>&#x2013;<bold>f</bold>) AFM 3D topography images of HCNF, HBNT-05, and HBNT-10.</p>
+        </caption>
+        <graphic xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="energies-19-01600-g002.tif"/>
+      </fig>
+      <fig id="energies-19-01600-f003" position="float">
+        <label>Figure 3</label>
+        <caption>
+          <p>SEM and wettability characterization of BNNT-incorporated CNF separators. (<bold>a</bold>&#x2013;<bold>c</bold>) SEM micrographs with corresponding higher-magnification inset images and (<bold>d</bold>&#x2013;<bold>f</bold>) static water contact angle images of HCNF, HBNT-05, and HBNT-10. Red boxes indicate the regions shown at higher magnification.</p>
+        </caption>
+        <graphic xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="energies-19-01600-g003.tif"/>
+      </fig>
+      <fig id="energies-19-01600-f004" position="float">
+        <label>Figure 4</label>
+        <caption>
+          <p>FTIR and XRD characterization of BNNT-incorporated CNF separators. (<bold>a</bold>) FTIR spectra and (<bold>b</bold>) XRD patterns of HCNF, HBNT-05, and HBNT-10.</p>
+        </caption>
+        <graphic xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="energies-19-01600-g004.tif"/>
+      </fig>
+      <fig id="energies-19-01600-f005" position="float">
+        <label>Figure 5</label>
+        <caption>
+          <p>Galvanostatic charge&#x2013;discharge (GCD) curves of NCM811/Li half-cells employing PE, HCNF, HBNT-05, and HBNT-10 separators. (<bold>a</bold>) Voltage profiles at 0.1 &#xB0;C, (<bold>b</bold>) Cycling performance at 0.2 &#xB0;C, and (<bold>c</bold>) Rate capability under stepwise C-rates.</p>
+        </caption>
+        <graphic xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="energies-19-01600-g005.tif"/>
+      </fig>
+      <fig id="energies-19-01600-f006" position="float">
+        <label>Figure 6</label>
+        <caption>
+          <p>Cyclic voltammetry (CV) curves of NCM811||Li half-cells employing PE, HCNF, HBNT-05, and HBNT-10 separators. (<bold>a</bold>) Schematic illustration of the NCM811||Li half-cell configuration. (<bold>b</bold>) CV comparison at a scan rate of 0.1 mV s<sup>&#x2212;1</sup>. (<bold>c</bold>) PE, (<bold>d</bold>) HCNF, (<bold>e</bold>) HBNT-05, and (<bold>f</bold>) HBNT-10 measured at scan rates of 0.1, 0.3, and 0.5 mV s<sup>&#x2212;1</sup>.</p>
+        </caption>
+        <graphic xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="energies-19-01600-g006.tif"/>
+      </fig>
+      <table-wrap id="energies-19-01600-t001" position="float">
+        <object-id pub-id-type="pii">energies-19-01600-t001_Table 1</object-id>
+        <label>Table 1</label>
+        <caption>
+          <p>Fibril morphology parameters of the HwBKP-derived CNF suspension, including average fibril length, average fibril width, and fine fraction content.</p>
+        </caption>
+        <table>
+          <thead>
+            <tr>
+              <th align="left" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Suspension</th>
+              <th align="left" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Fiber Length (mm)</th>
+              <th align="left" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Fiber Diameter (&#xB5;m)</th>
+              <th align="left" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Fine Fraction (%)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td align="left" valign="middle" style="border-bottom:solid thin">HwBKP CNF</td>
+              <td align="left" valign="middle" style="border-bottom:solid thin">0.314 <inline-formula><mml:math id="mm8"><mml:semantics><mml:mrow><mml:mo>&#xB1;</mml:mo></mml:mrow></mml:semantics></mml:math></inline-formula> 0.2</td>
+              <td align="left" valign="middle" style="border-bottom:solid thin">14.0 <inline-formula><mml:math id="mm9"><mml:semantics><mml:mrow><mml:mo>&#xB1;</mml:mo></mml:mrow></mml:semantics></mml:math></inline-formula> 0.32</td>
+              <td align="left" valign="middle" style="border-bottom:solid thin">92.01 <inline-formula><mml:math id="mm10"><mml:semantics><mml:mrow><mml:mo>&#xB1;</mml:mo></mml:mrow></mml:semantics></mml:math></inline-formula> 1.15</td>
+            </tr>
+          </tbody>
+        </table>
+      </table-wrap>
+      <table-wrap id="energies-19-01600-t002" position="float">
+        <object-id pub-id-type="pii">energies-19-01600-t002_Table 2</object-id>
+        <label>Table 2</label>
+        <caption>
+          <p>Comparison of thickness and surface properties of the separators.</p>
+        </caption>
+        <table>
+          <thead>
+            <tr>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Sample</th>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Thickness (&#xB5;m)</th>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">RMS (nm)</th>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Contact Angle (&#xB0;)</th>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">SFE (mJ m<sup>&#x2212;2</sup>)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td align="center" valign="middle">HCNF</td>
+              <td align="center" valign="middle">25</td>
+              <td align="center" valign="middle">31.91</td>
+              <td align="center" valign="middle"><inline-formula><mml:math id="mm12"><mml:semantics><mml:mrow><mml:mn>28.45</mml:mn><mml:mo>&#xA0;</mml:mo><mml:mo>&#xB1;</mml:mo></mml:mrow></mml:semantics></mml:math></inline-formula> 3.34</td>
+              <td align="center" valign="middle"><inline-formula><mml:math id="mm13"><mml:semantics><mml:mrow><mml:mn>72.25</mml:mn><mml:mo>&#xA0;</mml:mo><mml:mo>&#xB1;</mml:mo></mml:mrow></mml:semantics></mml:math></inline-formula> 1.87</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle">HBNT-05</td>
+              <td align="center" valign="middle">35</td>
+              <td align="center" valign="middle">49.314</td>
+              <td align="center" valign="middle"><inline-formula><mml:math id="mm14"><mml:semantics><mml:mrow><mml:mn>50.23</mml:mn><mml:mo>&#xA0;</mml:mo><mml:mo>&#xB1;</mml:mo></mml:mrow></mml:semantics></mml:math></inline-formula> 3.14</td>
+              <td align="left" valign="middle"><inline-formula><mml:math id="mm15"><mml:semantics><mml:mrow><mml:mn>61.75</mml:mn><mml:mo>&#xA0;</mml:mo><mml:mo>&#xB1;</mml:mo></mml:mrow></mml:semantics></mml:math></inline-formula> 1.88</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle" style="border-bottom:solid thin">HBNT-10</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">35</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">57.368</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin"><inline-formula><mml:math id="mm16"><mml:semantics><mml:mrow><mml:mn>68.54</mml:mn><mml:mo>&#xA0;</mml:mo><mml:mo>&#xB1;</mml:mo></mml:mrow></mml:semantics></mml:math></inline-formula> 1.55</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin"><inline-formula><mml:math id="mm17"><mml:semantics><mml:mrow><mml:mn>52.48</mml:mn><mml:mo>&#xA0;</mml:mo><mml:mo>&#xB1;</mml:mo></mml:mrow></mml:semantics></mml:math></inline-formula> 1.14</td>
+            </tr>
+          </tbody>
+        </table>
+      </table-wrap>
+      <table-wrap id="energies-19-01600-t003" position="float">
+        <object-id pub-id-type="pii">energies-19-01600-t003_Table 3</object-id>
+        <label>Table 3</label>
+        <caption>
+          <p>Comparison of BNNT incorporation strategies and fabrication routes for representative membranes and this work.</p>
+        </caption>
+        <table>
+          <thead>
+            <tr>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Membrane Type</th>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">BNNT Pretreatment or Surface Treatment</th>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Membrane Fabrication Route</th>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Ref.</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td align="center" valign="middle">BNNT-coated membrane</td>
+              <td align="center" valign="middle">BNNT introduced as a coating layer on a commercial membrane</td>
+              <td align="center" valign="middle">BNNT coating on a commercial separator membrane, adapted for pouch-cell evaluation</td>
+              <td align="center" valign="middle">[<xref ref-type="bibr" rid="B15-energies-19-01600">15</xref>]</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle">Polypropylene (PP) membrane with BNNT surface coating</td>
+              <td align="center" valign="middle">BNNT applied as a coating layer on a commercial PP membrane</td>
+              <td align="center" valign="middle">BNNT coating on the PP separator membrane, followed by drying/conditioning</td>
+              <td align="center" valign="middle">[<xref ref-type="bibr" rid="B16-energies-19-01600">16</xref>]</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle">CNF&#x2013;BNNT nanocomposite film</td>
+              <td align="center" valign="middle">BNNT incorporated as a reinforcing filler within a CNF network</td>
+              <td align="center" valign="middle">Composite formation of BNNT with CNF to produce a film/paper-like nanocomposite</td>
+              <td align="center" valign="middle">[<xref ref-type="bibr" rid="B18-energies-19-01600">18</xref>]</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle" style="border-bottom:solid thin">HwBKP-derived CNF&#x2013;BNNT composite</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">BNNT incorporated without pretreatment or functionalization</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">Simple route to form composite membranes</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">This work</td>
+            </tr>
+          </tbody>
+        </table>
+      </table-wrap>
+    </sec>
+    <fn-group>
+      <fn>
+        <p><bold>Disclaimer/Publisher&#x2019;s Note:</bold> The statements, opinions and data contained in all publications are solely those of the individual author(s) and contributor(s) and not of MDPI and/or the editor(s). MDPI and/or the editor(s) disclaim responsibility for any injury to people or property resulting from any ideas, methods, instructions or products referred to in the content.</p>
+      </fn>
+    </fn-group>
+  </back>
+</article>

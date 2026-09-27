@@ -13,4 +13,10 @@ The executable PoC covers dataset normalization, grouped evaluation, BN diagnost
 
 Use [TESTING.md](TESTING.md) and the emitted command index for a fresh check. Older test counts are historical evidence in Git, not proof for the current tree. The 2026-09-25 documentation audit preserves existing runtime implementation work separately; its final validation scope is recorded with the documentation commit.
 
-This file owns the short status view. [docs/HANDOFF.md](docs/HANDOFF.md) owns operational/scientific boundaries, [COMMON_FUNCTIONS.md](COMMON_FUNCTIONS.md) routes API use, and [SERVICES.md](SERVICES.md) describes the optional viewer and absence of project-owned daemons/MCP servers.
+This file owns the short status view. [docs/HANDOFF.md](docs/HANDOFF.md) owns operational/scientific boundaries, [COMMON_FUNCTIONS.md](COMMON_FUNCTIONS.md) routes API use, and [SERVICES.md](SERVICES.md) describes the optional viewer, separator web deployment and absence of a project-owned MCP server.
+
+## Separator partner prototype — 2026-09-28
+
+The first two phases now have an inspectable public-data prototype: 12 source leads, four full-text studies, 20 formulations and 18 observations; curated XML/JSON/CSV, SQLite export, source cards and a frozen Astra comparison. Entry: `src/ui/separator_app.py`; delivery: `docs/research/separator_prototype/`. The PP numeric task has only two train records and one held-out record from one study. Functional readiness does not establish predictive reliability or experimental savings. Public service state, temporary URL, expiry and private invitation live under ignored `.runtime/separator/`; lifecycle is in `SERVICES.md`.
+
+Pre-existing builtin-getattr alias changes in `src/runtime/agent_state.py`, its tests and existing documentation lines were present at takeover; preserve their ownership. This delivery changes only the UI module contract there. The old band-gap pipeline, protected human documents and historical research artifacts are separate. Next scientific work is independent compatible PP data and prospective workflow validation, as specified in `docs/research/separator_prototype/model_task.md`.

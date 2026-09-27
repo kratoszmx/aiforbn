@@ -182,12 +182,13 @@
     {
       "name": "ui",
       "path": "src/ui",
-      "role": "text_verifiable_streamlit_artifact_viewer",
+      "role": "artifact_viewer_and_public_separator_demonstration",
       "public_surface": "src/ui/PY_FILES_SUMMARY.md",
       "agent_rules": "src/ui/AGENTS.md",
       "local_utils": "src/ui/utils.py",
       "allowed_dependencies": [
-        "runtime"
+        "runtime",
+        "materials"
       ]
     },
     {
@@ -516,6 +517,52 @@
       "role": "test_tool",
       "import_kind": "direct",
       "required_for": "declared_validation_profiles"
+    },
+    {
+      "package": "fastapi",
+      "specifier": ">=0.139",
+      "module": "fastapi",
+      "role": "ui",
+      "import_kind": "direct",
+      "required_for": "separator_partner_demo",
+      "import_probe_targets": [
+        "fastapi.responses"
+      ],
+      "import_probe_symbols": {
+        "fastapi": [
+          "FastAPI",
+          "HTTPException",
+          "Request"
+        ],
+        "fastapi.responses": [
+          "FileResponse",
+          "JSONResponse"
+        ]
+      }
+    },
+    {
+      "package": "uvicorn",
+      "specifier": ">=0.49",
+      "module": "uvicorn",
+      "role": "ui",
+      "import_kind": "direct",
+      "required_for": "separator_partner_demo"
+    },
+    {
+      "package": "httpx",
+      "specifier": ">=0.28",
+      "module": "httpx",
+      "role": "test_tool",
+      "import_kind": "backend",
+      "required_for": "fastapi_testclient"
+    },
+    {
+      "package": "playwright",
+      "specifier": ">=1.50",
+      "module": "playwright",
+      "role": "test_tool",
+      "import_kind": "direct",
+      "required_for": "separator_text_browser_validation"
     }
   ],
   "local_shared_imports": [

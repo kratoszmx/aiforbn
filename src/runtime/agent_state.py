@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 import hashlib
 from importlib import metadata
 import json
+import importlib.machinery
 import importlib.util
 import keyword
 import os
@@ -264,11 +265,11 @@ REQUIRED_MODULE_CONTRACTS = {
     'ui': {
         'name': 'ui',
         'path': 'src/ui',
-        'role': 'text_verifiable_streamlit_artifact_viewer',
+        'role': 'artifact_viewer_and_public_separator_demonstration',
         'public_surface': 'src/ui/PY_FILES_SUMMARY.md',
         'agent_rules': 'src/ui/AGENTS.md',
         'local_utils': 'src/ui/utils.py',
-        'allowed_dependencies': ['runtime'],
+        'allowed_dependencies': ['runtime', 'materials'],
     },
     'tests': {
         'name': 'tests',
@@ -425,7 +426,19 @@ def _dependency_import_probe_context_digest(
         *import_probe_targets,
     ):
         try:
-            module_spec = importlib.util.find_spec(module_name)
+            # util.find_spec on a descendant executes its parent package. Keep
+            # discovery side-effect free; active imports belong in the bounded
+            # subprocess below, including when a package initializer is broken.
+            components = module_name.split('.')
+            module_spec = importlib.util.find_spec(components[0])
+            for depth in range(1, len(components)):
+                if module_spec is None or module_spec.submodule_search_locations is None:
+                    module_spec = None
+                    break
+                module_spec = importlib.machinery.PathFinder.find_spec(
+                    '.'.join(components[:depth + 1]),
+                    module_spec.submodule_search_locations,
+                )
         except (ImportError, AttributeError, ValueError):
             module_spec = None
         if module_spec is None:
