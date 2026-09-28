@@ -1,21 +1,21 @@
-"""Public separator demonstration with bounded, invitation-only Astra inference."""
+"""AI for Science: public formulation tables, numerical tasks and experiment planning."""
 from __future__ import annotations
 
 import argparse
 import asyncio
+import csv
 from datetime import datetime, timezone
 import hashlib
-import hmac
 import json
-import os
 from pathlib import Path
+import re
 import shutil
 import sqlite3
 import sys
 import threading
 import time
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 
 SRC_DIR=Path(__file__).resolve().parents[1]
@@ -23,23 +23,61 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0,str(SRC_DIR))
 
 from materials.separator_data import (
-    DATASET_PATH, SeparatorRecipe, assess_separator_recipe, build_separator_database,
-    load_separator_dataset, search_separator_records, separator_known_checks,
+    DATASET_PATH, CoatingRecipe, SeparatorRecipe, assess_separator_recipe,
+    build_separator_database, load_separator_dataset, predict_coating_thickness,
+    search_separator_records,
 )
-from materials.separator_model import MODEL, run_separator_model
+from materials.separator_model import MODEL, make_separator_prompt, run_separator_model
+from materials.experiment_planning import (
+    ElectrolyteRecipe, ExperimentPlan, load_electrolyte_records, predict_electrolyte,
+    suggest_experiments,
+)
 
 PROJECT_ROOT=SRC_DIR.parent
 WEB_DIR=Path(__file__).with_name('separator_web')
 
 
 def create_separator_app(data_path=DATASET_PATH, runtime_dir=None, model_executable=None):
-    """Construct an evidence-only public API plus a guarded model endpoint."""
+    """Serve anonymous bounded inference without exposing provider configuration."""
     runtime_dir=Path(runtime_dir or PROJECT_ROOT/'.runtime/separator')
     runtime_dir.mkdir(parents=True,exist_ok=True)
     data=load_separator_dataset(data_path)
+    electrolytes=load_electrolyte_records()
+    electrolyte_digest=hashlib.sha256(json.dumps(electrolytes,sort_keys=True).encode()).hexdigest()
+    electrolyte_inputs=[{k:r[k] for k in ('candidate_id','salt_molality','ec_fraction','dmc_ratio')}
+                        for r in electrolytes]
+    electrolyte_csv=runtime_dir/'electrolytes.csv'
+    with electrolyte_csv.open('w',newline='',encoding='utf-8-sig') as stream:
+        writer=csv.writer(stream,lineterminator='\n')
+        writer.writerow(['配方','LiPF6 mol/kg','EC 質量百分比','DMC 質量百分比','EMC 質量百分比',
+                         '文獻實測導電率 mS/cm','重複測量次數','最低溫度 C','最高溫度 C','來源'])
+        for r in electrolytes:
+            writer.writerow([r['candidate_id'],r['salt_molality'],100*r['ec_fraction'],
+                100*(1-r['ec_fraction'])*r['dmc_ratio'],100*(1-r['ec_fraction'])*(1-r['dmc_ratio']),
+                r['conductivity_mS_cm'],r['repeat_measurements'],r['temperature_min_c'],
+                r['temperature_max_c'],'https://doi.org/10.1038/s41467-022-32938-1'])
     db_path=build_separator_database(data,runtime_dir/'public.sqlite')
+    separator_csv=runtime_dir/'records.csv'
+    names={'PP':'PP 聚丙烯','PE':'PE 聚乙烯','calcium_alginate':'CA 海藻酸鈣',
+           'cellulose':'纖維素','solid_PEO_PVDF':'PEO / PVDF 固態電解質',
+           'raw_BNNT':'未純化 BNNT','purified_BNNT':'純化 BNNT',
+           'BN_nanopowder':'BN 奈米粉','BN_flakes':'BN 薄片','none':'無',
+           'failed_pore_clogging':'製備失敗：孔道堵塞'}
+    with separator_csv.open('w',newline='',encoding='utf-8-sig') as stream:
+        writer=csv.writer(stream,lineterminator='\n')
+        writer.writerow(['配方名稱','基材','BN 形態','BN 載量 mg/cm²','BN 含量 wt%',
+            '黏結劑','BN:黏結劑（x:1）','溶劑','乾燥溫度 °C','乾燥時間 h','塗布器間隙 μm',
+            '文獻離子導電率 mS/cm','文獻製備後膜厚 μm','文獻水接觸角 °','製備結果','原始研究'])
+        for record in data['records']:
+            inputs=record['inputs'];observations=record['observations']
+            values=[inputs.get(k) for k in ('substrate','bn_form','loading_mg_cm2','bn_weight_pct',
+                'binder','bn_binder_ratio','solvent','dry_temperature_c','dry_hours','applicator_gap_um')]
+            values.extend(observations.get(k,{}).get('value') for k in
+                ('ionic_conductivity','final_thickness','water_contact_angle','preparation_outcome'))
+            source=next(s['url'] for s in data['sources'] if s['source_id']==record['source_id'])
+            writer.writerow([record['sample'],*[names.get(v,v) for v in values],source])
     dataset_digest=hashlib.sha256(Path(data_path).read_bytes()).hexdigest()
-    app=FastAPI(title='BN 隔膜研究原型',docs_url=None,redoc_url=None,openapi_url=None)
+    app=FastAPI(title='AI for Science',docs_url=None,redoc_url=None,openapi_url=None)
     app.state.dataset=data
     app.state.runtime_dir=runtime_dir
     inference_lock=threading.Lock()
@@ -63,6 +101,10 @@ def create_separator_app(data_path=DATASET_PATH, runtime_dir=None, model_executa
                     return JSONResponse({'error':'request_too_large'},status_code=413)
                 chunks.append(chunk)
             request._body=b''.join(chunks)
+            try:
+                json.dumps(json.loads(request._body),allow_nan=False)
+            except (ValueError,RecursionError):
+                return JSONResponse({'detail':'請提供有效、有限的配方數值。'},status_code=422)
         response=await call_next(request)
         response.headers.update({
             'X-Content-Type-Options':'nosniff', 'Referrer-Policy':'no-referrer',
@@ -86,18 +128,20 @@ def create_separator_app(data_path=DATASET_PATH, runtime_dir=None, model_executa
     @app.get('/health')
     def health():
         return dict(status='ok',dataset_version=data['dataset_version'],dataset_sha256=dataset_digest,
-                    records=len(data['records']),model=MODEL,
-                    model_ready=bool((runtime_dir/'model_verified.json').is_file()),expires_at_utc=settings().get('expires_at_utc'))
+                    records=len(data['records']),electrolyte_formulations=len(electrolytes),
+                    expires_at_utc=settings().get('expires_at_utc'))
 
     @app.get('/api/overview')
     def overview():
         return dict(dataset_version=data['dataset_version'],dataset_sha256=dataset_digest,
                     source_count=len(data['sources']),study_count=sum(s['scope']=='primary_study_extracted' for s in data['sources']),
                     record_count=len(data['records']),observation_count=sum(len(r['observations']) for r in data['records']),
-                    model=MODEL,expires_at_utc=settings().get('expires_at_utc'),
-                    numeric_status='exploratory_only',test_records=1,training_records=2,
-                    limits='20 個配方分屬不同材料體系，不能當作 20 個可合併的訓練樣本。PP 導電率任務只有一篇研究的 3 個數值。',
-                    privacy='只輸入公開或已獲准提交的配方參數。模型請求送至 OpenAI；配方與回覆會保存在此原型的本機紀錄。')
+                    electrolyte_formulations=len(electrolytes),
+                    electrolyte_measurements=sum(r['repeat_measurements'] for r in electrolytes),
+                    expires_at_utc=settings().get('expires_at_utc'),
+                    daily_model_limit=int(settings().get('daily_model_limit',100)),
+                    catalogue_note='案例數是已完成原文核對的配方／樣本數，會隨資料擴充增加。',
+                    privacy='請只輸入公開或已獲准提供給線上研究服務的配方；輸入與分析結果會保存在服務紀錄。')
 
     @app.get('/api/sources')
     def sources():
@@ -119,19 +163,20 @@ def create_separator_app(data_path=DATASET_PATH, runtime_dir=None, model_executa
         result['source']=next(s['url'] for s in data['sources'] if s['source_id']==result['source_id'])
         return result
 
-    @app.get('/api/checks')
-    def checks():
-        return dict(checks=separator_known_checks(data),quarantined=data['quarantined'])
-
     @app.get('/api/evaluation')
     def evaluation():
-        path=PROJECT_ROOT/'docs/research/separator_prototype/evaluation.json'
+        path=PROJECT_ROOT/'docs/research/separator_prototype/workflow_evaluation.json'
         return json.loads(path.read_text()) if path.is_file() else {'status':'not_run'}
+
+    @app.get('/api/electrolytes')
+    def electrolyte_records():
+        return electrolytes
 
     @app.get('/api/download/{name}')
     def download(name: str):
         allowed={'sources.csv':Path(data_path).with_name('source_inventory.csv'),
-                 'records.csv':Path(data_path).with_name('pilot_records.csv'),
+                 'records.csv':separator_csv,
+                 'electrolytes.csv':electrolyte_csv,
                  'public.sqlite':db_path}
         if name not in allowed:
             raise HTTPException(404,'download_not_found')
@@ -139,40 +184,69 @@ def create_separator_app(data_path=DATASET_PATH, runtime_dir=None, model_executa
 
     @app.post('/api/assess')
     def assess(recipe: SeparatorRecipe):
-        return assess_separator_recipe(data,recipe)
+        result=assess_separator_recipe(data,recipe)
+        return dict(numeric_allowed=result['numeric_allowed'],reasons=result['reasons'])
 
     @app.post('/api/predict')
-    async def predict(recipe: SeparatorRecipe,request: Request):
-        token_file=runtime_dir/'access_token.txt'
-        expected=token_file.read_text().strip() if token_file.is_file() else ''
-        provided=request.headers.get('X-Demo-Token','')
-        if not expected or not hmac.compare_digest(provided.encode(),expected.encode()):
-            raise HTTPException(401,'需要合作方試用碼；公開資料庫不需要試用碼。')
-        assessment=assess_separator_recipe(data,recipe)
-        if not assessment['numeric_allowed']:
-            return dict(status='unsupported',assessment=assessment,model_called=False)
-        key=hashlib.sha256((dataset_digest+json.dumps(recipe.model_dump(),sort_keys=True)+MODEL).encode()).hexdigest()
+    async def predict(recipe: SeparatorRecipe | CoatingRecipe | ElectrolyteRecipe | ExperimentPlan):
+        configured=settings()
+        model_name=configured.get('model_name',MODEL)
+        assessment=None
+        if isinstance(recipe,ExperimentPlan) and not set(recipe.observations).issubset(
+                r['candidate_id'] for r in electrolytes):
+            raise HTTPException(422,'已測配方編號不在這個電解液資料集中。')
+        if isinstance(recipe,SeparatorRecipe):
+            assessment=assess_separator_recipe(data,recipe)
+            if not assessment['numeric_allowed']:
+                return dict(status='needs_data',reasons=assessment['reasons'],model_called=False)
+        identity=dict(api_version=2,recipe=recipe.model_dump(),dataset=dataset_digest,
+                      electrolyte_data=electrolyte_digest,
+                      engine=model_name if assessment else 'public_data_v1',
+                      prompt=make_separator_prompt(assessment) if assessment else None)
+        key=hashlib.sha256(json.dumps(identity,sort_keys=True,allow_nan=False).encode()).hexdigest()
         if not inference_lock.acquire(blocking=False):
-            raise HTTPException(429,'模型正在處理另一個配方，請稍後再試。')
+            raise HTTPException(429,'正在分析另一個配方，請稍後再試。')
         call_id=None
         try:
             with sqlite3.connect(runtime_dir/'usage.sqlite') as db:
                 hit=db.execute('SELECT result FROM calls WHERE request_hash=? AND status=? ORDER BY id DESC LIMIT 1',(key,'ok')).fetchone()
                 if hit:
-                    return dict(status='ok',cached=True,model_called=False,assessment=assessment,model_response=json.loads(hit[0]))
-                daily_limit=int(settings().get('daily_model_limit',20))
+                    return dict(status='ok',cached=True,model_called=False,**json.loads(hit[0])['public'])
+                daily_limit=int(configured.get('daily_model_limit',100))
                 count=db.execute('SELECT count(*) FROM calls WHERE time>?',(time.time()-86400,)).fetchone()[0]
                 if count>=daily_limit:
-                    raise HTTPException(429,'已達 24 小時試用上限；仍可查閱資料、示範及評測。')
+                    raise HTTPException(429,f'已達全站 24 小時 {daily_limit} 次新分析上限；仍可查看資料和已有結果。')
                 cursor=db.execute('INSERT INTO calls (time,request_hash,status) VALUES (?,?,?)',(time.time(),key,'started'))
                 call_id=cursor.lastrowid
-            executable=model_executable or shutil.which('codex')
-            if not executable:
-                raise RuntimeError('model_executable_missing')
-            response=await asyncio.to_thread(run_separator_model,assessment,executable,runtime_dir/'model')
+            private=None
+            if isinstance(recipe,ExperimentPlan):
+                recommendations=await asyncio.to_thread(suggest_experiments,electrolyte_inputs,
+                    recipe.observations,limit=3)
+                public=dict(recommendations=recommendations,observations_used=len(recipe.observations),
+                            explanation='依據已提供的實測值，兼顧預期導電率與尚待探索的配方。')
+            elif isinstance(recipe,CoatingRecipe):
+                prediction=predict_coating_thickness(data,recipe)
+                public=dict(prediction=prediction,explanation='根據同製程的已發表塗布設定與製備後膜厚，估算這個設定的膜厚。')
+            elif isinstance(recipe,ElectrolyteRecipe):
+                prediction=await asyncio.to_thread(predict_electrolyte,electrolytes,recipe)
+                public=dict(prediction=prediction,explanation='依據同一電解液體系的實測配方，估算指定溶劑比例與鹽濃度的導電率。')
+            else:
+                executable=model_executable or shutil.which('codex')
+                if not executable:
+                    raise RuntimeError('model_executable_missing')
+                private=await asyncio.to_thread(run_separator_model,assessment,executable,
+                                               runtime_dir/'model',model_name=model_name)
+                result=private['result']
+                explanation=re.sub(re.escape(model_name),'研究模型',result.get('preparation_hypothesis',''),flags=re.I)
+                explanation=re.sub(r'(?i)gpt[\s-]*6[\s-]*astra|astra|openai|codex','研究模型',explanation)
+                public=dict(prediction=dict(value=result['conductivity_mS_cm'],unit='mS/cm',
+                    property='離子導電率',kind='模型估算',
+                    supporting_records=result.get('supporting_record_ids',[]),
+                    source_url='https://doi.org/10.3390/nano12010011'),explanation=explanation)
+            response={'public':public,'provider_record':private}
             with sqlite3.connect(runtime_dir/'usage.sqlite') as db:
                 db.execute('UPDATE calls SET status=?,result=? WHERE id=?',('ok',json.dumps(response,ensure_ascii=False),call_id))
-            return dict(status='ok',cached=False,model_called=True,assessment=assessment,model_response=response)
+            return dict(status='ok',cached=False,model_called=private is not None,**public)
         except RuntimeError:
             if call_id is not None:
                 with sqlite3.connect(runtime_dir/'usage.sqlite') as db:

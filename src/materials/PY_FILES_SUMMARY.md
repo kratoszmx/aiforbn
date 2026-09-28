@@ -10,19 +10,31 @@ Anything underscore-prefixed or omitted here should be treated as internal imple
 - `DATASET_PATH`: pinned public separator dataset location.
 - `PRIMARY_COHORT`: PP/BNNT, LiTFSI/DOL/DME protocol identity.
 - `SeparatorRecipe`: strict, finite, structured recipe request; rejects arbitrary prompts and extra fields.
+- `CoatingRecipe`: bounded CA/BN coating-gap request with fixed source-matched chemistry and drying temperature.
+- `predict_coating_thickness(dataset, recipe)`: interpolate the three matched coating settings; return estimated thickness in μm and a separate observed value for an exact match.
 - `load_separator_dataset(path=DATASET_PATH)`: validate source hashes, original text, IDs, group splits and observations; return the public dataset.
 - `build_separator_database(dataset, path)`: transactionally write the three public SQLite tables; return the database path.
-- `search_separator_records(dataset, substrate=None, query='', limit=20)`: bounded literal search of public records.
+- `search_separator_records(dataset, substrate=None, query='', limit=100)`: bounded literal search of public records.
 - `assess_separator_recipe(dataset, recipe)`: gate protocol applicability, select training-only records, and compute simple comparison baselines. Numeric permission is exploratory, not a reliability claim.
 - `separator_known_checks(dataset)`: reconstruct two published comparisons and an arithmetic discrepancy.
 
 ## separator_model.py
 
-- `MODEL`: fixed requested model `gpt-6-astra`; no fallback.
+- `MODEL`: default requested model `gpt-6-astra`; trusted deployment configuration may select another model; no automatic fallback.
 - `SeparatorModelResult`: bounded numeric hypothesis, allowed record citations and limitations.
 - `make_separator_prompt(assessment)`: construct the exact answer-blind prompt from approved training examples.
-- `run_separator_model(assessment, executable, runtime_dir, timeout_seconds=120)`: one ephemeral read-only Codex CLI call with project/user configuration excluded, strict output validation, finite process timeout and sanitized outward errors. Public callers cannot supply commands or free-form prompts. Returned statistics are actual provider-call evidence, not materials validation.
+- `run_separator_model(assessment, executable, runtime_dir, timeout_seconds=120, *, model_name=MODEL)`: one ephemeral read-only Codex CLI call with project/user configuration excluded, strict output/citation/event validation, finite process timeout and sanitized outward errors. Reject raw-BNNT results above the published 0.71 mS/cm peak; its input domain ends at 0.3 mg/cm². Public callers cannot supply commands, model IDs or free-form prompts. Private provider statistics are call evidence, not materials validation.
 - `evaluate_separator_model(dataset, output_dir, executable=None)`: write frozen inputs before inference, compare one unused formulation against training mean and nearest formulation, and disclose the absence of independent-study/laboratory evaluation. Without an executable, mark the model not run.
+
+## experiment_planning.py
+
+- `ElectrolyteRecipe`: finite LiPF6/EC/DMC/EMC composition; salt molality 0.14–2, EC solvent mass fraction 0.3–0.5, DMC share of the remaining solvent 0–1; temperature restricted to the approximately 26–28°C study condition, not a learned temperature feature.
+- `ExperimentPlan`: 2–38 already measured candidate IDs and finite conductivity values, with no arbitrary prompt.
+- `SOURCE_DIR`, `PROTOCOL_PATH`, `FOREST_CONFIG`: public-source location, frozen evaluation protocol and fixed forest parameters.
+- `load_electrolyte_records(source_dir=SOURCE_DIR)`: verify pinned source bytes, group all repeated measurements by exact composition, retain mean/std, temperature bounds and source CSV line locators.
+- `suggest_experiments(candidates, observations, *, method='adaptive_forest', tie_order=None, limit=5)`: choose unseen recipes from composition-only candidates and explicitly supplied observed outcomes. Reject candidate labels, invalid identities/domains and invalid tie order. Reuse `materials.modeling.make_model`; acquisition is forest mean plus half the tree spread (a heuristic, not a calibrated uncertainty interval).
+- `predict_electrolyte(records, recipe)`: fit the public grouped data and estimate an in-domain composition, with an optional separately labelled exact literature measurement.
+- `evaluate_experiment_planner(records, protocol, output_dir)`: paired sequential replay and recipe-grouped leave-one-out MAE; write full query traces, all baselines/thresholds and conditional paired-start bootstrap intervals. Future outcomes remain in the evaluator; stopping counts every queried formulation, including early success during warm-up. No laboratory or calendar saving is fabricated.
 
 ## data.py
 

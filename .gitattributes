@@ -1,0 +1,2 @@
+# Keep the author's archived CSV bytes, including CRLF, identical to the pinned source hash.
+official_docs/experiment_planning/clio_2022_measurements.csv -text whitespace=cr-at-eol

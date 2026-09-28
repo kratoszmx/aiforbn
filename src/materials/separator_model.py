@@ -1,4 +1,4 @@
-"""Bounded GPT-6 Astra inference and a leakage-aware separator benchmark.
+"""Bounded configurable inference and a leakage-aware separator benchmark.
 
 The CLI is used with existing Codex authentication. Public callers supply a
 validated recipe, never commands, paths, model IDs, or arbitrary instructions.
@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import signal
 import subprocess
 import tempfile
@@ -46,18 +47,22 @@ def make_separator_prompt(assessment):
         'Fixed process: 1 hour sonication, overnight stirring, vacuum drying. '
         'Return only schema-compliant JSON with conductivity_mS_cm, preparation_hypothesis, '
         'supporting_record_ids, limitations. Cite only record IDs in training_examples. '
-        'Write explanatory strings in Traditional Chinese, under 200 words total.\n'
+        'Write explanatory strings in Traditional Chinese, under 200 words total. '
+        'Do not mention model names or providers. Keep preparation_hypothesis focused on '
+        'the material/process explanation; put data limitations only in limitations.\n'
         + json.dumps(context, ensure_ascii=False, allow_nan=False)
     )
 
 
-def run_separator_model(assessment, executable, runtime_dir, timeout_seconds=120):
+def run_separator_model(assessment, executable, runtime_dir, timeout_seconds=120, *, model_name=MODEL):
     """Run one isolated ephemeral CLI inference; validate output and citation IDs.
 
     No retries or provider/model fallback. A timed-out process group is terminated.
     Only sanitized statistics are returned; CLI diagnostics stay out of responses.
     """
     prompt = make_separator_prompt(assessment)
+    if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}',model_name):
+        raise ValueError('Invalid configured model identifier')
     runtime_dir = Path(runtime_dir).resolve()
     runtime_dir.mkdir(parents=True, exist_ok=True)
     if not 1 <= timeout_seconds <= 180:
@@ -69,7 +74,7 @@ def run_separator_model(assessment, executable, runtime_dir, timeout_seconds=120
         schema.write_text(json.dumps(SeparatorModelResult.model_json_schema()))
         output = work/'answer.json'
         cmd = [str(executable),'exec','--ignore-user-config','--ephemeral','--skip-git-repo-check',
-               '-C',str(work),'-m',MODEL,'-s','read-only','--color','never','--json',
+               '-C',str(work),'-m',model_name,'-s','read-only','--color','never','--json',
                '--output-schema',str(schema),'-o',str(output)]
         config = {
             'model_provider':'openai', 'model_reasoning_effort':'low', 'web_search':'disabled',
@@ -113,7 +118,12 @@ def run_separator_model(assessment, executable, runtime_dir, timeout_seconds=120
             usage={}
             completed=False
             for line in events:
-                event=json.loads(line)
+                try:
+                    event=json.loads(line)
+                    if not isinstance(event,dict) or not isinstance(event.get('item',{}),dict):
+                        raise ValueError('invalid event')
+                except ValueError:
+                    raise RuntimeError('model_event_invalid') from None
                 if event.get('type') == 'turn.completed':
                     completed=True
                     usage=event.get('usage',{})
@@ -129,7 +139,11 @@ def run_separator_model(assessment, executable, runtime_dir, timeout_seconds=120
     allowed={r['record_id'] for r in assessment['training_examples']}
     if not set(result.supporting_record_ids).issubset(allowed):
         raise RuntimeError('model_citation_invalid')
-    return dict(model=MODEL,requested_model=MODEL,transport='codex_exec',result=result.model_dump(),
+    if assessment['inputs']['bn_form']=='raw_BNNT' and result.conductivity_mS_cm is not None:
+        supported_peak=max(r['conductivity_mS_cm'] for r in assessment['training_examples'])
+        if result.conductivity_mS_cm>supported_peak+1e-9:
+            raise RuntimeError('model_exceeds_published_raw_bnnt_peak')
+    return dict(model=model_name,requested_model=model_name,transport='codex_exec',result=result.model_dump(),
                 elapsed_seconds=round(time.monotonic()-started,3),usage=usage,
                 prompt_sha256=hashlib.sha256(prompt.encode()).hexdigest(),
                 evidence_status='exploratory_unvalidated',warning=assessment['warning'])

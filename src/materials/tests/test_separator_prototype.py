@@ -90,7 +90,7 @@ def test_evaluation_baselines_are_train_only(dataset,tmp_path):
     assert result['experimental_time_saved'] is None
 
 
-def test_process_uses_fixed_model_and_rejects_invented_citations(dataset,tmp_path,monkeypatch):
+def test_process_uses_default_model_and_rejects_invented_citations(dataset,tmp_path,monkeypatch):
     def process(cmd,**kwargs):
         assert cmd[cmd.index('-m')+1]=='gpt-6-astra'
         assert '--ignore-user-config' in cmd and 'read-only' in cmd
@@ -108,3 +108,44 @@ def test_process_uses_fixed_model_and_rejects_invented_citations(dataset,tmp_pat
     monkeypatch.setattr('materials.separator_model.subprocess.Popen',process)
     with pytest.raises(RuntimeError,match='citation_invalid'):
         run_separator_model(assess_separator_recipe(dataset,SeparatorRecipe()),'/fake/codex',tmp_path)
+
+
+@pytest.mark.parametrize('form,loading,allowed',[
+    ('raw_BNNT',.01,True),('raw_BNNT',.1,True),('raw_BNNT',.2,True),
+    ('raw_BNNT',.3,True),('raw_BNNT',.31,False),('raw_BNNT',.4,False),
+    ('purified_BNNT',.01,True),('purified_BNNT',.3,True),
+    ('purified_BNNT',.4,True),('purified_BNNT',.5,True),('purified_BNNT',.51,False),
+    ('raw_BNNT',0,False),('purified_BNNT',0,False),
+])
+def test_loading_domain_respects_published_raw_peak(dataset,form,loading,allowed):
+    result=assess_separator_recipe(dataset,SeparatorRecipe(bn_form=form,loading_mg_cm2=loading))
+    assert result['numeric_allowed'] is allowed
+
+
+@pytest.mark.parametrize('mode',['success','above_peak','malformed_event','tool_activity','incomplete'])
+def test_configurable_provider_preserves_execution_and_result_boundaries(dataset,tmp_path,monkeypatch,mode):
+    def process(cmd,**kwargs):
+        assert cmd[cmd.index('-m')+1]=='future-model'
+        class Process:
+            returncode=0
+            def communicate(self,prompt,timeout):
+                Path(cmd[cmd.index('-o')+1]).write_text(json.dumps(dict(conductivity_mS_cm=.8 if mode=='above_peak' else .6,
+                    preparation_hypothesis='材料分析',supporting_record_ids=['kim_2022:BNNT-PP-0.3'],limitations=['limited'])))
+                event={'type':'turn.completed','usage':{}}
+                if mode=='tool_activity':
+                    event={'type':'item.completed','item':{'type':'command_execution'}}
+                if mode=='incomplete':
+                    event={'type':'turn.started'}
+                kwargs['stdout'].write('invalid\n' if mode=='malformed_event' else json.dumps(event)+'\n')
+                kwargs['stdout'].flush()
+        return Process()
+    monkeypatch.setattr('materials.separator_model.subprocess.Popen',process)
+    assessment=assess_separator_recipe(dataset,SeparatorRecipe())
+    if mode=='success':
+        result=run_separator_model(assessment,'/fake/codex',tmp_path,model_name='future-model')
+        assert result['requested_model']=='future-model' and result['result']['conductivity_mS_cm']==.6
+    else:
+        with pytest.raises(RuntimeError):
+            run_separator_model(assessment,'/fake/codex',tmp_path,model_name='future-model')
+    with pytest.raises(ValueError,match='identifier'):
+        run_separator_model(assessment,'/fake/codex',tmp_path,model_name='bad; shell')

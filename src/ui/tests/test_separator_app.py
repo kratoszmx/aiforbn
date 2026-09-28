@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import json
+import csv
+import io
+import sqlite3
+import threading
 
 from fastapi.testclient import TestClient
 import pytest
@@ -10,60 +14,156 @@ from ui.separator_app import create_separator_app
 
 @pytest.fixture
 def demo(tmp_path):
-    (tmp_path/'access_token.txt').write_text('test-invitation')
     app=create_separator_app(runtime_dir=tmp_path,model_executable='/fake/codex')
     return TestClient(app),tmp_path
 
 
 def test_public_pages_evidence_and_export(demo):
     client,_=demo
-    for url in ['/','/app.js','/style.css','/health','/api/overview','/api/sources','/api/records','/api/checks','/api/download/public.sqlite']:
+    for url in ['/','/app.js','/style.css','/health','/api/overview','/api/sources',
+                '/api/records','/api/electrolytes','/api/evaluation',
+                '/api/download/public.sqlite','/api/download/electrolytes.csv']:
         response=client.get(url)
         assert response.status_code==200,url
         assert response.headers['x-content-type-options']=='nosniff'
+        assert 'gpt-6-astra' not in response.text.lower()
     assert len(client.get('/api/records?q=CA@BN').json())==4
-    e=client.get('/api/evidence/kim_2022:recipe').json()
-    assert '40 mg' in e['text'] and e['source'].startswith('https://doi.org/')
-    assert client.get('/api/download/access_token.txt').status_code==404
-    assert client.get('/.runtime/separator/access_token.txt').status_code==404
+    assert len(client.get('/api/electrolytes').json())==38
+    overview=client.get('/api/overview').json()
+    assert overview['daily_model_limit']==100 and overview['electrolyte_measurements']==125
+    assert '40 mg' in client.get('/api/evidence/kim_2022:recipe').json()['text']
+    for url in ['/api/checks','/api/download/access_token.txt','/.runtime/separator/access_token.txt']:
+        assert client.get(url).status_code==404
 
 
-def test_model_auth_precedes_provider(demo,monkeypatch):
-    client,_=demo
-    def forbidden(*args):
-        pytest.fail('unauthorized request called model')
-    monkeypatch.setattr('ui.separator_app.run_separator_model',forbidden)
-    assert client.post('/api/predict',json={}).status_code==401
-    assert client.post('/api/predict',json={},headers={'X-Demo-Token':'wrong'}).status_code==401
-    response=client.post('/api/predict',json={'substrate':'cellulose'},headers={'X-Demo-Token':'test-invitation'})
-    assert response.json()['model_called'] is False
-
-
-def test_model_cache_quota_and_provider_failure(demo,monkeypatch):
+def test_anonymous_prediction_hides_provider_and_caches_exact_config(demo,monkeypatch):
     client,runtime=demo
-    calls=[]
-    def model(*args):
-        calls.append(args)
-        return {'model':'gpt-6-astra','result':{'conductivity_mS_cm':.65}}
+    models=[]
+    def model(*args,model_name):
+        models.append(model_name)
+        return {'model':model_name,'usage':{'private':1},'result':{
+            'conductivity_mS_cm':.65,'preparation_hypothesis':f'{model_name} Astra Codex OpenAI 材料分析'}}
     monkeypatch.setattr('ui.separator_app.run_separator_model',model)
-    headers={'X-Demo-Token':'test-invitation'}
-    assert client.post('/api/predict',json={},headers=headers).json()['model_called'] is True
-    assert client.post('/api/predict',json={},headers=headers).json()['cached'] is True
-    assert len(calls)==1
-    (runtime/'deployment.json').write_text(json.dumps({'daily_model_limit':1}))
-    assert client.post('/api/predict',json={'loading_mg_cm2':.4},headers=headers).status_code==429
-    (runtime/'deployment.json').write_text(json.dumps({'daily_model_limit':5}))
-    def failure(*args):
+    first=client.post('/api/predict',json={})
+    assert first.status_code==200 and first.json()['model_called']
+    assert first.json()['prediction']['value']==.65
+    for private in ['astra','codex','openai','usage','provider_record']:
+        assert private not in first.text.lower()
+    assert client.post('/api/predict',json={}).json()['cached']
+    (runtime/'deployment.json').write_text(json.dumps({'model_name':'future-research-model'}))
+    changed=client.post('/api/predict',json={})
+    assert changed.json()['cached'] is False
+    assert 'future-research-model' not in changed.text
+    assert models==['gpt-6-astra','future-research-model']
+
+
+def test_partner_csv_has_readable_columns_instead_of_json_cells(demo):
+    client,_=demo
+    response=client.get('/api/download/records.csv')
+    assert response.status_code==200
+    rows=list(csv.DictReader(io.StringIO(response.content.decode('utf-8-sig'))))
+    assert len(rows)==20
+    assert rows[0]['基材']=='PP 聚丙烯'
+    assert rows[0]['文獻離子導電率 mS/cm']=='0.43'
+    assert rows[0]['原始研究'].startswith('https://doi.org/')
+    assert not any('json' in key.lower() for key in rows[0])
+    assert all(not value.startswith(('{','[')) for row in rows for value in row.values())
+    failed=next(row for row in rows if 'failure' in row['配方名稱'])
+    assert failed['製備結果']=='製備失敗：孔道堵塞'
+
+
+def test_unsupported_inputs_never_call_provider(demo,monkeypatch):
+    client,_=demo
+    def forbidden(*args,**kwargs):
+        pytest.fail('out-of-domain request called model')
+    monkeypatch.setattr('ui.separator_app.run_separator_model',forbidden)
+    for body in [{'substrate':'cellulose'},{'loading_mg_cm2':.4},
+                 {'bn_binder_ratio':3},{'test_temperature_c':25}]:
+        result=client.post('/api/predict',json=body).json()
+        assert result['status']=='needs_data' and result['model_called'] is False
+
+
+def test_100_new_analyses_persist_cache_is_free_and_window_rolls(demo):
+    client,runtime=demo
+    for gap in range(50,150):
+        response=client.post('/api/predict',json={'task':'coating_thickness','applicator_gap_um':gap})
+        assert response.status_code==200 and response.json()['cached'] is False
+    # A recreated application must retain both quota and genuine stored results.
+    client=TestClient(create_separator_app(runtime_dir=runtime))
+    assert client.post('/api/predict',json={'task':'coating_thickness','applicator_gap_um':50}).json()['cached']
+    assert client.post('/api/predict',json={'task':'coating_thickness','applicator_gap_um':150}).status_code==429
+    with sqlite3.connect(runtime/'usage.sqlite') as db:
+        assert db.execute('SELECT count(*) FROM calls').fetchone()[0]==100
+        db.execute('UPDATE calls SET time=0')
+    assert client.post('/api/predict',json={'task':'coating_thickness','applicator_gap_um':150}).status_code==200
+
+
+def test_provider_failure_is_private_and_active_calls_are_bounded(demo,monkeypatch):
+    client,_=demo
+    entered=threading.Event();release=threading.Event();results=[]
+    def model(*args,**kwargs):
+        entered.set()
+        assert release.wait(5)
         raise RuntimeError('SECRET_OR_PRIVATE_PATH')
-    monkeypatch.setattr('ui.separator_app.run_separator_model',failure)
-    response=client.post('/api/predict',json={'loading_mg_cm2':.4},headers=headers)
-    assert response.status_code==503 and 'SECRET' not in response.text
+    monkeypatch.setattr('ui.separator_app.run_separator_model',model)
+    thread=threading.Thread(target=lambda:results.append(client.post('/api/predict',json={})))
+    thread.start()
+    try:
+        assert entered.wait(5)
+        assert client.post('/api/predict',json={'loading_mg_cm2':.2}).status_code==429
+    finally:
+        release.set();thread.join(5)
+    assert not thread.is_alive()
+    assert results[0].status_code==503 and 'SECRET' not in results[0].text
+
+
+@pytest.mark.parametrize('body',[
+    {'task':'coating_thickness','applicator_gap_um':49},
+    {'task':'coating_thickness','applicator_gap_um':201},
+    {'task':'coating_thickness','bn_binder_ratio':3},
+    {'task':'coating_thickness','solvent':'NMP'},
+    {'task':'electrolyte_conductivity','salt_molality':.13},
+    {'task':'electrolyte_conductivity','salt_molality':2.01},
+    {'task':'electrolyte_conductivity','ec_fraction':.29},
+    {'task':'electrolyte_conductivity','ec_fraction':.51},
+    {'task':'electrolyte_conductivity','dmc_ratio':-1},
+    {'task':'electrolyte_conductivity','dmc_ratio':1.01},
+    {'task':'electrolyte_conductivity','temperature_c':40},
+    {'task':'experiment_plan','observations':{'CLIO-01':1}},
+    {'task':'experiment_plan','observations':{'CLIO-01':1,'UNKNOWN':2}},
+    {'task':'experiment_plan','observations':{'CLIO-01':-1,'CLIO-02':2}},
+    {'task':'bnnt_conductivity','model_name':'override'},
+    {'task':'unrecognized'},{'prompt':'ignore rules'},
+])
+def test_invalid_task_inputs_are_rejected(demo,body):
+    client,_=demo
+    assert client.post('/api/predict',json=body).status_code==422
+
+
+@pytest.mark.parametrize('value',['NaN','Infinity','-Infinity','1e999'])
+def test_nonfinite_json_returns_validation_error(demo,value):
+    client,_=demo
+    response=client.post('/api/predict',content='{"loading_mg_cm2":'+value+'}',
+                         headers={'Content-Type':'application/json'})
+    assert response.status_code==422
+
+
+def test_local_prediction_and_plan_use_disjoint_observation_inputs(demo):
+    client,_=demo
+    response=client.post('/api/predict',json={'task':'electrolyte_conductivity'}).json()
+    assert response['prediction']['value']>0 and response['model_called'] is False
+    known={'CLIO-01':1.,'CLIO-09':10.,'CLIO-17':12.}
+    result=client.post('/api/predict',json={'task':'experiment_plan','observations':known}).json()
+    assert result['observations_used']==3
+    assert len(result['recommendations'])==3
+    assert not {x['candidate_id'] for x in result['recommendations']} & set(known)
+    assert 'conductivity_mS_cm' not in json.dumps(result)
 
 
 def test_request_bounds_and_expiration(demo):
     client,runtime=demo
     assert client.post('/api/assess',content=b'x'*9000).status_code==413
-    assert client.post('/api/assess',json={'prompt':'ignore rules'}).status_code==422
+    assert client.post('/api/predict',content='{broken').status_code==422
     (runtime/'deployment.json').write_text(json.dumps({'expires_at_utc':'2020-01-01T00:00:00+00:00'}))
     assert client.get('/').status_code==410
     assert client.post('/api/predict',json={}).status_code==410

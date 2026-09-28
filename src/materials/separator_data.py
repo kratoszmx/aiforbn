@@ -9,6 +9,7 @@ import sqlite3
 from typing import Literal
 import xml.etree.ElementTree as ET
 
+import numpy as np
 from pydantic import BaseModel, Field
 
 DATASET_PATH = Path(__file__).resolve().parents[2] / 'data/separators/dataset.json'
@@ -18,6 +19,7 @@ PRIMARY_COHORT = 'PP_BNNT_LiTFSI_DOL_DME'
 class SeparatorRecipe(BaseModel):
     """Only structured formulation inputs may reach the model; no free-form prompt."""
     model_config = {'extra': 'forbid', 'allow_inf_nan': False}
+    task: Literal['bnnt_conductivity'] = 'bnnt_conductivity'
     substrate: Literal['PP', 'PE', 'calcium_alginate', 'cellulose', 'solid_PEO_PVDF', 'other'] = 'PP'
     bn_form: Literal['none', 'raw_BNNT', 'purified_BNNT', 'BNNT', 'BN_nanopowder', 'BN_flakes', 'other'] = 'raw_BNNT'
     loading_mg_cm2: float | None = Field(default=.3, ge=0, le=10)
@@ -28,6 +30,36 @@ class SeparatorRecipe(BaseModel):
     dry_hours: float | None = Field(default=24., gt=0, le=200)
     electrolyte: Literal['LiTFSI_DOL_DME_LiNO3', 'LiPF6_carbonates', 'solid', 'other'] = 'LiTFSI_DOL_DME_LiNO3'
     test_temperature_c: float | None = Field(default=None, ge=-40, le=150)
+
+
+class CoatingRecipe(BaseModel):
+    """Pre-fabrication settings for the published CA/BN coating series."""
+    model_config = {'extra': 'forbid', 'allow_inf_nan': False}
+    task: Literal['coating_thickness'] = 'coating_thickness'
+    applicator_gap_um: float = Field(default=150., ge=50, le=200)
+    bn_binder_ratio: Literal[4] = 4
+    solvent: Literal['DMF'] = 'DMF'
+    dry_temperature_c: Literal[60] = 60
+
+
+def predict_coating_thickness(dataset, recipe):
+    """Interpolate thickness from three matched, source-checked coating settings."""
+    recipe = recipe if isinstance(recipe, CoatingRecipe) else CoatingRecipe.model_validate(recipe)
+    records = sorted([r for r in dataset['records'] if r['source_id']=='tian_2024'
+                      and r['inputs'].get('applicator_gap_um') in [50,100,200]],
+                     key=lambda r:r['inputs']['applicator_gap_um'])
+    if len(records)!=3:
+        raise ValueError('Incomplete coating reference series')
+    gaps=[r['inputs']['applicator_gap_um'] for r in records]
+    values=[r['observations']['final_thickness']['value'] for r in records]
+    value=float(np.interp(recipe.applicator_gap_um,gaps,values))
+    match=next((r for r in records if r['inputs']['applicator_gap_um']==recipe.applicator_gap_um),None)
+    return dict(value=value,unit='μm',property='製備後膜厚',kind='模型估算',
+                matched_observation_um=match['observations']['final_thickness']['value'] if match else None,
+                supporting_records=[r['record_id'] for r in records],
+                source_url='https://doi.org/10.3390/molecules29225311',
+                conditions='海藻酸鈣基膜／BN:PVDF 4:1／DMF／60°C 乾燥',
+                input_gap_um=recipe.applicator_gap_um)
 
 
 def load_separator_dataset(path=DATASET_PATH):
@@ -96,7 +128,7 @@ def build_separator_database(dataset, path):
     return path
 
 
-def search_separator_records(dataset, substrate=None, query='', limit=20):
+def search_separator_records(dataset, substrate=None, query='', limit=100):
     """Return bounded public records with matching substrate and literal text."""
     if not 1 <= limit <= 100 or len(query) > 100:
         raise ValueError('Invalid search bounds')
@@ -126,6 +158,8 @@ def assess_separator_recipe(dataset, recipe):
         reasons.append('訓練文獻未清楚標示這項測量的溫度，不能預測指定溫度。')
     if recipe.loading_mg_cm2 is None or not 0 <= recipe.loading_mg_cm2 <= .5:
         reasons.append('可供數值探索的載量範圍僅為 0–0.5 mg/cm²。')
+    if recipe.bn_form=='raw_BNNT' and recipe.loading_mg_cm2 is not None and recipe.loading_mg_cm2>.3:
+        reasons.append('未純化 BNNT 在 0.3 mg/cm² 後呈下降趨勢；請選 0–0.3，或改用純化 BNNT 任務。')
     if recipe.bn_form == 'none':
         if recipe.loading_mg_cm2 != 0 or recipe.binder != 'none' or recipe.solvent != 'none':
             reasons.append('空白 PP 對照需設定 BN 載量為 0，黏結劑與溶劑為 none。')

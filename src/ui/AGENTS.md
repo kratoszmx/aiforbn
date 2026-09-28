@@ -7,7 +7,7 @@ Owns the Streamlit artifact viewer and the separator partner web demonstration. 
 - `streamlit_app.py::render_streamlit_app` is the public entrypoint. Read artifacts here; scientific computation belongs to `materials`.
 - Validate persisted provenance, committed bytes and role/path identity before displaying report content. A writer preflight does not replace this check.
 - Use text-verifiable AppTest coverage; startup checks and process lifecycle are documented in root `SERVICES.md`.
-- `separator_app.py` serves only the curated public dataset and explicit downloads. Model calls accept bounded structured recipes, require an invitation, expire with the deployment, and enforce a persisted daily budget. Keep credentials and process diagnostics under ignored `.runtime/`.
+- `separator_app.py` serves the AI for Science partner site, curated public datasets and explicit downloads. Anonymous numerical analysis accepts bounded structured inputs, expires with the deployment, and enforces a persisted 100-new-analysis rolling daily budget. Keep provider identity, credentials and diagnostics private under ignored `.runtime/`; the public interface labels estimates and observations and uses readable tables.
 
 Public API: [PY_FILES_SUMMARY.md](PY_FILES_SUMMARY.md). Shared reuse and ownership guidance: [root AGENTS.md](../../AGENTS.md) and [COMMON_FUNCTIONS.md](../../COMMON_FUNCTIONS.md).
 

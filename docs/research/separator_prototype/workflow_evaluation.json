@@ -1,0 +1,241 @@
+{
+  "protocol_version": "experiment-replay-v1",
+  "evaluation": "measured_pool_sequential_replay",
+  "formulation_count": 38,
+  "raw_measurement_count": 125,
+  "independent_studies": 1,
+  "seeds": 100,
+  "initial_experiments": 5,
+  "primary_target_mS_cm": 13.0,
+  "summaries": [
+    {
+      "target_mS_cm": 13.0,
+      "target_hits": 3,
+      "eligible_formulations": 11,
+      "methods": [
+        {
+          "method": "random",
+          "mean_experiments": 9.32,
+          "median_experiments": 9.0,
+          "min_experiments": 4,
+          "max_experiments": 20
+        },
+        {
+          "method": "nearest",
+          "mean_experiments": 7.75,
+          "median_experiments": 7.0,
+          "min_experiments": 4,
+          "max_experiments": 17
+        },
+        {
+          "method": "linear",
+          "mean_experiments": 12.61,
+          "median_experiments": 13.0,
+          "min_experiments": 4,
+          "max_experiments": 24
+        },
+        {
+          "method": "adaptive_forest",
+          "mean_experiments": 7.69,
+          "median_experiments": 7.0,
+          "min_experiments": 4,
+          "max_experiments": 17
+        }
+      ],
+      "comparisons": [
+        {
+          "baseline": "random",
+          "saved_experiments": 1.63,
+          "reduction_pct": 17.4892703862661,
+          "paired_start_bootstrap_95_pct": [
+            11.195631578747912,
+            23.20365684913584
+          ],
+          "wins": 56,
+          "ties": 27,
+          "losses": 17
+        },
+        {
+          "baseline": "nearest",
+          "saved_experiments": 0.05999999999999961,
+          "reduction_pct": 0.7741935483870921,
+          "paired_start_bootstrap_95_pct": [
+            -4.63099815491013,
+            5.607629145213635
+          ],
+          "wins": 38,
+          "ties": 38,
+          "losses": 24
+        },
+        {
+          "baseline": "linear",
+          "saved_experiments": 4.919999999999999,
+          "reduction_pct": 39.01665344964314,
+          "paired_start_bootstrap_95_pct": [
+            34.79338340270657,
+            42.676619225473274
+          ],
+          "wins": 78,
+          "ties": 20,
+          "losses": 2
+        }
+      ]
+    },
+    {
+      "target_mS_cm": 10.0,
+      "target_hits": 3,
+      "eligible_formulations": 24,
+      "methods": [
+        {
+          "method": "random",
+          "mean_experiments": 4.92,
+          "median_experiments": 5.0,
+          "min_experiments": 3,
+          "max_experiments": 12
+        },
+        {
+          "method": "nearest",
+          "mean_experiments": 4.82,
+          "median_experiments": 5.0,
+          "min_experiments": 3,
+          "max_experiments": 11
+        },
+        {
+          "method": "linear",
+          "mean_experiments": 5.34,
+          "median_experiments": 5.0,
+          "min_experiments": 3,
+          "max_experiments": 14
+        },
+        {
+          "method": "adaptive_forest",
+          "mean_experiments": 4.81,
+          "median_experiments": 5.0,
+          "min_experiments": 3,
+          "max_experiments": 9
+        }
+      ],
+      "comparisons": [
+        {
+          "baseline": "random",
+          "saved_experiments": 0.11000000000000032,
+          "reduction_pct": 2.2357723577235866,
+          "paired_start_bootstrap_95_pct": [
+            -0.6073182449022951,
+            5.374385375962565
+          ],
+          "wins": 11,
+          "ties": 83,
+          "losses": 6
+        },
+        {
+          "baseline": "nearest",
+          "saved_experiments": 0.010000000000000675,
+          "reduction_pct": 0.20746887966806016,
+          "paired_start_bootstrap_95_pct": [
+            -1.279386036848712,
+            1.688304662988206
+          ],
+          "wins": 5,
+          "ties": 90,
+          "losses": 5
+        },
+        {
+          "baseline": "linear",
+          "saved_experiments": 0.5300000000000002,
+          "reduction_pct": 9.925093632958804,
+          "paired_start_bootstrap_95_pct": [
+            6.149773300358829,
+            13.692357358888076
+          ],
+          "wins": 24,
+          "ties": 75,
+          "losses": 1
+        }
+      ]
+    },
+    {
+      "target_mS_cm": 12.0,
+      "target_hits": 3,
+      "eligible_formulations": 17,
+      "methods": [
+        {
+          "method": "random",
+          "mean_experiments": 6.38,
+          "median_experiments": 6.0,
+          "min_experiments": 3,
+          "max_experiments": 13
+        },
+        {
+          "method": "nearest",
+          "mean_experiments": 6.0,
+          "median_experiments": 6.0,
+          "min_experiments": 3,
+          "max_experiments": 14
+        },
+        {
+          "method": "linear",
+          "mean_experiments": 9.16,
+          "median_experiments": 10.0,
+          "min_experiments": 3,
+          "max_experiments": 19
+        },
+        {
+          "method": "adaptive_forest",
+          "mean_experiments": 5.99,
+          "median_experiments": 6.0,
+          "min_experiments": 3,
+          "max_experiments": 12
+        }
+      ],
+      "comparisons": [
+        {
+          "baseline": "random",
+          "saved_experiments": 0.3899999999999997,
+          "reduction_pct": 6.1128526645767955,
+          "paired_start_bootstrap_95_pct": [
+            2.162914146684133,
+            9.98487140695915
+          ],
+          "wins": 24,
+          "ties": 63,
+          "losses": 13
+        },
+        {
+          "baseline": "nearest",
+          "saved_experiments": 0.009999999999999787,
+          "reduction_pct": 0.1666666666666594,
+          "paired_start_bootstrap_95_pct": [
+            -2.783246886136694,
+            3.1397585212095294
+          ],
+          "wins": 16,
+          "ties": 69,
+          "losses": 15
+        },
+        {
+          "baseline": "linear",
+          "saved_experiments": 3.17,
+          "reduction_pct": 34.60698689956332,
+          "paired_start_bootstrap_95_pct": [
+            30.144291309404743,
+            38.3882845398549
+          ],
+          "wins": 60,
+          "ties": 40,
+          "losses": 0
+        }
+      ]
+    }
+  ],
+  "grouped_leave_one_out_mae_mS_cm": {
+    "adaptive_forest": 0.83755165994353,
+    "nearest": 1.4712155274736838,
+    "linear": 2.310782460591204
+  },
+  "protocol_sha256": "6309958b5b3637ce5abd71a1dff6b49175ba5c587156a5fb12bc9864b4a6415d",
+  "source_sha256": "65ea81d54929304db82d0d44fcd64c4a84ab698571321790222413972fe3c0e0",
+  "scope": "公開液態電解液資料回放；不能換算為 BN 隔膜已節省的實驗。",
+  "actual_lab_experiments_saved": null,
+  "actual_calendar_time_saved": null
+}

@@ -8,7 +8,7 @@ Anything underscore-prefixed or omitted here should be treated as internal.
 ## separator_app.py
 
 - `create_separator_app(data_path=DATASET_PATH, runtime_dir=None, model_executable=None)`
-  - Construct the partner web app: source-verified data, public SQLite/CSV exports, source paragraphs, source checks and recorded evaluation. Strict recipe inputs reach documented materials APIs. Live model use requires an invitation and obeys expiry, one-call concurrency, caching and a persisted rolling daily limit; failures return no fabricated prediction.
+  - Construct the AI for Science partner web app: source-verified BN/electrolyte data, public tables and SQLite/CSV exports, source paragraphs and sequential-replay comparison. Four structured tasks cover BNNT conductivity, CA/BN thickness, liquid-electrolyte conductivity and next-experiment selection. Anonymous requests obey expiry, one-call concurrency, exact-input/configuration caching and a persisted default 100-new-analysis rolling 24-hour limit; failures return no fabricated prediction. The provider model is trusted local configuration and never public response metadata.
 
 ## streamlit_app.py
 

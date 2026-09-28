@@ -34,7 +34,7 @@ The guarded JSON writer lets myutils normalize, serialize and stage once;
 | `build_artifact_provenance` | Config, dataset manifest, successfully published paths → v2 source/config/dataset/output identity dict |
 | `assess_artifact_provenance` | Stored provenance plus current config/dataset/root → assessment dict (`current`, `stale`, `unverified`) |
 
-The project wrappers reuse `myutils/file_utils/filesystem.py` and `json_io.py`. Runtime locates an ancestor-adjacent `myutils` checkout or uses `MYUTILS_ROOT`. The shared API entrypoint is `/Users/zmx/Projects/myutils/docs/PUBLIC_API.md`; retain project path, human-document, and provenance guards when adopting shared functions.
+The project guard implementations reuse `myutils/file_utils/filesystem.py` and `json_io.py`. Runtime locates an ancestor-adjacent `myutils` checkout or uses `MYUTILS_ROOT`. The shared API entrypoint is `/Users/zmx/Projects/myutils/docs/PUBLIC_API.md`; retain project path, human-document, and provenance guards when adopting shared functions.
 
 ## Module API map
 
@@ -50,6 +50,6 @@ The project wrappers reuse `myutils/file_utils/filesystem.py` and `json_io.py`. 
 
 ## Separator prototype
 
-`materials.separator_data` owns source verification, transactional SQLite export, public-record search, recipe applicability and known-case checks. `materials.separator_model` owns answer-blind prompt construction, the fixed Astra invocation and the frozen comparison. `ui.separator_app.create_separator_app` consumes those documented APIs. Exact signatures are in `src/materials/PY_FILES_SUMMARY.md` and `src/ui/PY_FILES_SUMMARY.md`.
+`materials.separator_data` owns source verification, transactional SQLite export, public-record search, recipe applicability and known-case checks. `materials.separator_model` owns answer-blind prompt construction, a trusted configurable inference invocation and the frozen PP comparison. `materials.experiment_planning` owns source-grouped electrolyte data, numerical regression and answer-blind sequential planning; it reuses `materials.modeling.make_model`. `ui.separator_app.create_separator_app` consumes these documented APIs. Exact signatures are in `src/materials/PY_FILES_SUMMARY.md` and `src/ui/PY_FILES_SUMMARY.md`.
 
-The shared `myutils` Codex chat client was inspected: it inherits user/project configuration and exposes a generic conversation interface. The public demonstration needs a fixed model, restricted recipe schema, explicit execution policy, citation verification and evaluation provenance. These project policies remain local; no generic client shim or cross-repository extraction is added. Existing filesystem/JSON helpers elsewhere are unchanged.
+The shared `myutils` Codex chat client was inspected: it inherits user/project configuration and exposes a generic conversation interface. The public demonstration needs a locally configured model, restricted recipe schema, explicit execution policy, citation verification and evaluation provenance. These project policies remain local; no generic client shim or cross-repository extraction is added. Existing filesystem/JSON helpers elsewhere are unchanged.

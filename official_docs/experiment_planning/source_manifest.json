@@ -1,0 +1,12 @@
+{
+  "source_id": "clio_2022",
+  "doi": "10.1038/s41467-022-32938-1",
+  "paper_url": "https://doi.org/10.1038/s41467-022-32938-1",
+  "data_url": "https://raw.githubusercontent.com/BattModels/Clio-NatCommData/2ba755d87abf60ac00bc55e874ddd9c7f3d64bcb/ECDMCEMC_optimization_march2021.csv",
+  "data_commit": "2ba755d87abf60ac00bc55e874ddd9c7f3d64bcb",
+  "paper_license": "Open Access This article is licensed under a Creative Commons Attribution 4.0 International License, which permits use, sharing, adaptation, distribution and reproduction in any medium or format, as long as you give appropriate credit to the original author(s) and the source, provide a link to the Creative Commons license, and indicate if changes were made. The images or other third party material in this article are included in the article’s Creative Commons license, unless indicated otherwise in a credit line to the material. If material is not included in the article’s Creative Commons license and your intended use is not permitted by statutory regulation or exceeds the permitted use, you will need to obtain permission directly from the copyright holder. To view a copy of this license, visit http://creativecommons.org/licenses/by/4.0/.",
+  "data_license": "No separate licence file in author data repository; factual measurements used with attribution. Article is CC BY 4.0.",
+  "paper_sha256": "337108a03aecd52db4273953410c9f5de31596122f890fee3c4310c954803008",
+  "data_sha256": "65ea81d54929304db82d0d44fcd64c4a84ab698571321790222413972fe3c0e0",
+  "use": "Public experimental measurements; numeric facts normalized for independent workflow replay. No robot control code or pickle files executed."
+}

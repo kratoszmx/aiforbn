@@ -321,12 +321,26 @@ Load the pinned separator package, validate original-source checksums and eviden
 
 ## src/materials/separator_model.py
 
-### `run_separator_model(assessment, executable, runtime_dir, timeout_seconds=120)`
+### `run_separator_model(assessment, executable, runtime_dir, timeout_seconds=120, *, model_name=MODEL)`
 
-Run the fixed Astra model with bounded structured inputs and verify output/citations. Evaluation and applicability do not imply experimentally reliable predictions.
+Run the trusted configured model with bounded structured inputs and verify output/citations. Provider identity stays private; evaluation and applicability do not imply experimentally reliable predictions.
 
 ## src/ui/separator_app.py
 
 ### `create_separator_app(data_path=DATASET_PATH, runtime_dir=None, model_executable=None)`
 
-Serve the public separator evidence package and invitation-protected model requests. Service lifetime and health checks: [SERVICES.md](../SERVICES.md).
+Serve the AI for Science formulation tables and anonymous bounded numerical/planning requests, with private provider configuration and a persisted default 100-new-analysis rolling budget. Service lifetime and health checks: [SERVICES.md](../SERVICES.md).
+
+## src/materials/experiment_planning.py
+
+### `load_electrolyte_records(source_dir=SOURCE_DIR)`
+
+Verify original measured CSV bytes and group repeat measurements by composition. Source lineage, numerical inference and answer-blind planner APIs: [materials summary](../src/materials/PY_FILES_SUMMARY.md).
+
+### `suggest_experiments(candidates, observations, *, method='adaptive_forest', tie_order=None, limit=5)`
+
+Rank unmeasured composition-only candidates from explicitly observed outcomes; future labels are forbidden in the candidate surface.
+
+### `evaluate_experiment_planner(records, protocol, output_dir)`
+
+Replay paired experimental sequences against original measured answers, retaining every method, threshold and query trace. Reports conditional experiment counts and grouped numerical error, not actual lab savings.

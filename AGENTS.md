@@ -1,8 +1,8 @@
-# aiforbn — agent entrypoint
+# AI for Science — agent entrypoint
 
 `aiforbn` is a research PoC for boron-nitride (BN) themed materials screening. It loads 2D-material data, predicts band gaps, evaluates formula/family holdouts, ranks formula-only candidates, and builds deterministic unrelaxed structure prototypes for follow-up. Ranking and prototype generation do not establish discovery, stability, synthesizability, or a direct band gap.
 
-The separator partner prototype is a separate research flow: [delivery reports](docs/research/separator_prototype/phase_2_report.md), [public data](data/separators/dataset.json), and [service lifecycle](SERVICES.md). It retrieves source-backed formulations and runs bounded GPT-6 Astra hypotheses. Its twenty formulation records span incompatible cohorts; the current PP numerical comparison uses only one study and does not establish experimental savings. Do not feed historical band-gap labels into this task.
+The public-facing name is **AI for Science**; the local directory, repository and internal identifiers remain `aiforbn`. The partner prototype is a separate research flow: [current delivery](docs/research/separator_prototype/revision_2_report.md), [BN data](data/separators/dataset.json), [electrolyte measurements](official_docs/experiment_planning/source_manifest.json), and [service lifecycle](SERVICES.md). It supports BNNT conductivity hypotheses, coating-thickness interpolation, liquid-electrolyte regression and sequential experiment selection. The 20 BN records are separate from the 38 electrolyte compositions (125 measurements). Experiment savings are same-pool retrospective replay estimates, not prospective laboratory validation or BN gains. Do not feed historical band-gap labels into this task.
 
 ## First useful run
 
