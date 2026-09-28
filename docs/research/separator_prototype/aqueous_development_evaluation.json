@@ -1,0 +1,76 @@
+{
+  "protocol": "development_leave_one_formula_out_interior_only",
+  "cases": [
+    {
+      "record_id": "LG-04",
+      "train_ids": [
+        "LG-05",
+        "LG-01",
+        "LG-02",
+        "LG-03",
+        "LG-06"
+      ],
+      "truth_mPa_s": 6.2,
+      "predictions_mPa_s": {
+        "interpolation": 5.966666666666667,
+        "nearest": 5.4,
+        "linear": 3.1744131455399125
+      }
+    },
+    {
+      "record_id": "LG-01",
+      "train_ids": [
+        "LG-05",
+        "LG-04",
+        "LG-02",
+        "LG-03",
+        "LG-06"
+      ],
+      "truth_mPa_s": 7.1,
+      "predictions_mPa_s": {
+        "interpolation": 7.0,
+        "nearest": 6.2,
+        "linear": 8.246963562753042
+      }
+    },
+    {
+      "record_id": "LG-02",
+      "train_ids": [
+        "LG-05",
+        "LG-04",
+        "LG-01",
+        "LG-03",
+        "LG-06"
+      ],
+      "truth_mPa_s": 7.8,
+      "predictions_mPa_s": {
+        "interpolation": 8.9,
+        "nearest": 7.1,
+        "linear": 12.752334630350198
+      }
+    },
+    {
+      "record_id": "LG-03",
+      "train_ids": [
+        "LG-05",
+        "LG-04",
+        "LG-01",
+        "LG-02",
+        "LG-06"
+      ],
+      "truth_mPa_s": 11.6,
+      "predictions_mPa_s": {
+        "interpolation": 17.957142857142856,
+        "nearest": 7.8,
+        "linear": 20.007709251101332
+      }
+    }
+  ],
+  "independent_validation": false,
+  "experimental_savings_measured": false,
+  "mae_mPa_s": {
+    "interpolation": 1.9476190476190474,
+    "nearest": 1.5499999999999998,
+    "linear": 4.383148574666166
+  }
+}

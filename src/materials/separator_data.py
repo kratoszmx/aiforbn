@@ -91,6 +91,21 @@ def load_separator_dataset(path=DATASET_PATH):
         text = ' '.join(''.join(node.itertext()).split())
         if text != e['text'] or e['anchor'] not in text:
             raise ValueError(f'Evidence mismatch: {eid}')
+        parents = {child: parent for parent in tree.iter() for child in parent}
+        titles = []
+        current = node
+        while current is not None:
+            title = current.find('title') if current.tag == 'sec' else None
+            if title is not None and ''.join(title.itertext()).strip():
+                titles.append(''.join(title.itertext()).strip())
+            if current.tag == 'abstract':
+                titles.append('摘要')
+            if current.tag == 'table-wrap':
+                label = current.find('label')
+                if label is not None:
+                    titles.append(''.join(label.itertext()).replace('Table', '表'))
+            current = parents.get(current)
+        e['section_title'] = ' · '.join(reversed(titles)).replace('Figures and Tables','圖表') or '研究正文 · 離子導電率結果'
     ids = set()
     groups = {}
     for r in payload['records']:

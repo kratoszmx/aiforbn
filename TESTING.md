@@ -74,10 +74,10 @@ Test preparation stays beside its consumers: model integration cases share a pri
 Focused diagnostic command:
 
 ```sh
-conda run --no-capture-output -n quant python -m pytest -q -ra src/materials/tests/test_separator_prototype.py src/materials/tests/test_experiment_planning.py src/ui/tests/test_separator_app.py src/ui/tests/test_separator_browser.py src/ui/tests/test_separator_monitor.py
+conda run --no-capture-output -n quant python -m pytest -q -ra src/materials/tests/test_separator_prototype.py src/materials/tests/test_aqueous_slurry.py src/materials/tests/test_experiment_planning.py src/ui/tests/test_separator_app.py src/ui/tests/test_separator_browser.py src/ui/tests/test_separator_monitor.py
 ```
 
-Coverage includes source hashes and all 125 original readings, repeat grouping, 27 electrolyte domain combinations, five coating settings, raw/purified BNNT loading boundaries, held-out answer isolation, candidate-label rejection, unseen-outcome mutation, all 1,200 published replay traces, a reproduced seed and grouped numerical-error calculation. API tests exercise anonymous use, 100 fresh requests and the 101st refusal, cache persistence across restart, rolling expiry, concurrent requests, private provider failures, configurable provider selection, invalid task fields and non-finite JSON. Real headless Chrome tests cover three prediction forms, next-round recommendation, readable tables, source lookup, removal of the requested debug sections and both mobile/desktop widths using DOM text only. Provider calls are replaced by deterministic fixtures in automated tests; real provider/public-host verification is recorded separately.
+Coverage includes source hashes and all 125 original readings, repeat grouping, 27 electrolyte domain combinations, five coating settings, raw/purified BNNT loading boundaries, held-out answer isolation, candidate-label rejection, unseen-outcome mutation, all 1,200 published replay traces, a reproduced seed and grouped numerical-error calculation. API tests exercise anonymous use, 100 fresh requests and the 101st refusal, cache persistence across restart, rolling expiry, concurrent requests, private provider failures, configurable provider selection, invalid task fields and non-finite JSON. Real headless Chrome tests cover four prediction forms, next-round recommendation, readable tables, source lookup, removal of the requested debug sections and both mobile/desktop widths using DOM text only. Provider calls are replaced by deterministic fixtures in automated tests; real provider/public-host verification is recorded separately.
 
 To reproduce the research comparison (writes only the explicit comparison artifacts):
 
@@ -93,3 +93,12 @@ PP API tests verify that the displayed training-only numerical reference is
 independent of the language model's free numerical guess; these are software
 checks, not additional scientific holdouts. Model-response monitoring and
 Supervisor integration proof are recorded separately from fixture tests.
+
+The aqueous tests verify twelve source cases, all eleven numerical viscosity
+labels and the unmeasured coating failure; they reject mismatched materials,
+solids, particle sizes and measurement overrides. Eleven in-domain numerical
+checks and held-out-label mutation exercise interpolation and development
+comparison. These are software checks within two sources, not twelve independent
+validation studies. Browser checks now cover four prediction forms, theme/system
+preference/persistence, estimated waits, removed notices and human-readable
+paper/section locations at mobile and desktop widths. No screenshots are used.

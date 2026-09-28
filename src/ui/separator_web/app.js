@@ -1,6 +1,24 @@
 'use strict';
 const nodes = Object.fromEntries([...document.querySelectorAll('[id]')].map(el => [el.id, el]));
-const state = {records: [], electrolytes: [], sources: [], evaluation: null};
+const state = {records: [], aqueous: [], electrolytes: [], sources: [], evaluation: null};
+const colorPreference = window.matchMedia('(prefers-color-scheme: dark)');
+let chosenTheme;
+try { chosenTheme = localStorage.getItem('science-theme'); } catch { /* The switch also works without storage. */ }
+if (!['light','dark'].includes(chosenTheme)) chosenTheme = null;
+function renderTheme() {
+  const dark = (chosenTheme ?? (colorPreference.matches?'dark':'light')) === 'dark';
+  document.documentElement.dataset.theme = dark?'dark':'light';
+  nodes['theme-toggle'].textContent = dark?'亮色模式':'暗色模式';
+  nodes['theme-toggle'].setAttribute('aria-label', dark?'切換至亮色模式':'切換至暗色模式');
+  nodes['theme-toggle'].setAttribute('aria-pressed', String(dark));
+}
+nodes['theme-toggle'].addEventListener('click', () => {
+  chosenTheme = document.documentElement.dataset.theme === 'dark'?'light':'dark';
+  try { localStorage.setItem('science-theme',chosenTheme); } catch { /* Keep the current page usable. */ }
+  renderTheme();
+});
+colorPreference.addEventListener('change', renderTheme);
+renderTheme();
 const labels = {substrate:'基材',bn_form:'BN 形態',loading_mg_cm2:'BN 載量（mg/cm²）',loading_basis:'載量依據',bn_weight_pct:'BN 質量比例（%）',binder:'黏結劑',bn_binder_ratio:'BN:黏結劑（x:1）',ratio_basis:'配比依據',solvent:'溶劑',sonication_hours:'超聲時間（小時）',stirring:'攪拌方式',stirring_hours:'攪拌時間（小時）',dry_hours:'乾燥時間（小時）',dry_temperature_c:'乾燥溫度（°C）',applicator_gap_um:'塗布器間隙（μm）',coating_sides:'塗布面數',electrolyte:'電解液',polymer_salt_ratio:'聚合物與鹽比例',test_temperature_c:'測量溫度（°C）',final_thickness:'製備後膜厚',ionic_conductivity:'離子導電率',preparation_outcome:'製備結果',water_contact_angle:'水接觸角'};
 const words = {PP:'PP 聚丙烯',PE:'PE 聚乙烯',calcium_alginate:'CA 海藻酸鈣',cellulose:'纖維素',solid_PEO_PVDF:'PEO / PVDF 固態電解質',raw_BNNT:'未純化 BNNT',purified_BNNT:'純化 BNNT',BN_nanopowder:'BN 奈米粉',BN_flakes:'BN 薄片',hBN:'六方氮化硼',none:'無',overnight:'過夜',failed_pore_clogging:'製備失敗：孔道堵塞',LiTFSI_DOL_DME_LiNO3:'LiTFSI + LiNO₃ / DOL:DME',LiPF6_carbonates:'LiPF₆ / 碳酸酯'};
 const methods = {random:'隨機依序試驗',nearest:'參考相近配方',linear:'線性回歸推薦',adaptive_forest:'逐輪更新模型推薦'};
@@ -51,11 +69,25 @@ nodes['electrolyte-form'].addEventListener('input', () => {
   form.elements.dmc_percent.max = available;
   nodes['emc-percent'].textContent = numeric(available-Number(form.elements.dmc_percent.value))+'%';
 });
+nodes['aqueous-form'].addEventListener('input', () => {
+  nodes['filler-percent'].textContent = numeric(85-Number(nodes['aqueous-form'].elements.bn_volume_pct.value))+'%';
+});
 document.querySelectorAll('.prediction-form').forEach(form => form.addEventListener('submit', async event => {
   event.preventDefault();
   const button = form.querySelector('[type=submit]');
   button.disabled = true;
-  nodes.prediction.textContent = '正在分析配方，請稍候…';
+  nodes.task.disabled = true;
+  const remote = form.dataset.task === 'bnnt_conductivity';
+  const started = Date.now();
+  const waitingText = remote?'正在分析配方，通常約需 20–60 秒；已有結果會較快顯示。':'正在計算，通常約需 1–3 秒。';
+  nodes.prediction.textContent = waitingText;
+  nodes.prediction.setAttribute('aria-busy','true');
+  const timer = setInterval(() => {
+    const elapsed = Math.floor((Date.now()-started)/1000);
+    nodes.prediction.textContent = remote && elapsed>=60
+      ? `仍在分析，已等待 ${elapsed} 秒；本次分析最多約 2 分鐘。`
+      : `${waitingText} 已等待 ${elapsed} 秒。`;
+  },1000);
   try {
     const result = await api('/api/predict', recipeFromForm(form));
     if (result.status === 'needs_data') {
@@ -63,10 +95,11 @@ document.querySelectorAll('.prediction-form').forEach(form => form.addEventListe
       return;
     }
     const p = result.prediction;
-    const match = p.matched_observation_mS_cm ?? p.matched_observation_um;
-    nodes.prediction.innerHTML = `<span class="tag">${escapeHtml(p.kind)}${result.cached?' · 已有分析結果':''}</span><p>${escapeHtml(p.property)}</p><p class="metric">${p.value===null?'本次未提供數值':numeric(p.value,3)+' '+escapeHtml(p.unit)}</p><p>${escapeHtml(result.explanation)}</p>${p.conditions?`<p class="muted">${escapeHtml(p.conditions)}</p>`:''}${match!==null&&match!==undefined?`<p>同配方文獻實測：${numeric(match,3)} ${escapeHtml(p.unit)}</p>`:''}<a href="${escapeHtml(p.source_url)}" target="_blank" rel="noopener">查看依據的研究</a>`;
+    const match = p.matched_observation_mS_cm ?? p.matched_observation_um ?? p.matched_observation_mPa_s;
+    const neighbours = p.nearby_cases ? `<h3>相近配方的已發表結果</h3><div class="table-scroll"><table><thead><tr><th>BN 體積比例</th><th>黏度</th><th>塗布結果</th></tr></thead><tbody>${p.nearby_cases.map(r=>`<tr><td>${numeric(r.bn_volume_pct)}%</td><td>${numeric(r.viscosity_mPa_s)} mPa·s</td><td>${escapeHtml(r.coating_result)}</td></tr>`).join('')}</tbody></table></div>` : '';
+    nodes.prediction.innerHTML = `<span class="tag">${escapeHtml(p.kind)}${result.cached?' · 已有分析結果':''}</span><p>${escapeHtml(p.property)}</p><p class="metric">${p.value===null?'本次未提供數值':numeric(p.value,3)+' '+escapeHtml(p.unit)}</p><p>${escapeHtml(result.explanation)}</p>${p.conditions?`<p class="muted">${escapeHtml(p.conditions)}</p>`:''}${match!==null&&match!==undefined?`<p>同配方文獻實測：${numeric(match,3)} ${escapeHtml(p.unit)}</p>`:''}${neighbours}<a href="${escapeHtml(p.source_url)}" target="_blank" rel="noopener">查看配方出處</a>`;
   } catch (error) { nodes.prediction.textContent = error.message; }
-  finally { button.disabled = false; }
+  finally { clearInterval(timer); button.disabled = false; nodes.task.disabled = false; nodes.prediction.setAttribute('aria-busy','false'); }
 }));
 
 function renderWorkflow() {
@@ -84,16 +117,18 @@ for (const id of ['target-conductivity','baseline']) nodes[id].addEventListener(
 
 function renderCatalogue() {
   const electrolyte = nodes['catalogue-type'].value === 'electrolyte';
+  const aqueous = nodes['catalogue-type'].value === 'aqueous';
   const query = nodes['record-search'].value.trim().toLowerCase();
-  const all = electrolyte ? state.electrolytes : state.records;
-  const rows = all.filter(row => (electrolyte ? `${row.candidate_id} ${row.salt_molality} ${solventText(row)}` : `${row.sample} ${Object.values(row.inputs).map(readable).join(' ')} ${Object.keys(row.observations).map(k=>labels[k]).join(' ')}`).toLowerCase().includes(query));
+  const all = electrolyte ? state.electrolytes : aqueous ? state.aqueous : state.records;
+  const rows = all.filter(row => (electrolyte ? `${row.candidate_id} ${row.salt_molality} ${solventText(row)}` : aqueous ? `${row.sample} ${row.formulation} ${row.particle_size} ${row.process} ${row.coating_result}` : `${row.sample} ${Object.values(row.inputs).map(readable).join(' ')} ${Object.keys(row.observations).map(k=>labels[k]).join(' ')}`).toLowerCase().includes(query));
   nodes['record-count'].textContent = `顯示 ${rows.length} / ${all.length} 種配方`;
-  nodes['csv-download'].href = '/api/download/'+(electrolyte?'electrolytes.csv':'records.csv');
+  nodes['csv-download'].href = '/api/download/'+(electrolyte?'electrolytes.csv':aqueous?'aqueous.csv':'records.csv');
   nodes['record-details'].hidden = true;
   if (!rows.length) { nodes['record-table'].textContent = '沒有符合搜尋條件的配方。'; return; }
-  const headings = electrolyte ? ['配方編號','LiPF₆ 濃度','溶劑比例（質量）','文獻實測導電率','測量次數 / 溫度','來源'] : ['配方名稱','基材 / BN','BN 用量','黏結劑 / 溶劑','已發表結果','詳情'];
+  const headings = electrolyte ? ['配方編號','LiPF₆ 濃度','溶劑比例（質量）','文獻實測導電率','測量次數 / 溫度','來源'] : aqueous ? ['配方名稱','用料與配比','粒徑','文獻報告黏度','塗布結果','詳情'] : ['配方名稱','基材 / BN','BN 用量','黏結劑 / 溶劑','已發表結果','詳情'];
   const body = rows.map(row => {
     if (electrolyte) return `<tr><td>${escapeHtml(row.candidate_id)}</td><td>${numeric(row.salt_molality)} mol/kg</td><td>${solventText(row)}</td><td><strong>${numeric(row.conductivity_mS_cm,3)} mS/cm</strong></td><td>${row.repeat_measurements} 次<small>${numeric(row.temperature_min_c)}–${numeric(row.temperature_max_c)}°C</small></td><td><a href="https://doi.org/10.1038/s41467-022-32938-1" target="_blank" rel="noopener">原始研究</a></td></tr>`;
+    if (aqueous) return `<tr><td><strong>${escapeHtml(row.sample)}</strong><small>${escapeHtml(row.source_title)}</small></td><td>${escapeHtml(row.formulation)}</td><td>${escapeHtml(row.particle_size)}</td><td>${row.viscosity_mPa_s===null?'膏狀，未列數值':numeric(row.viscosity_mPa_s)+' mPa·s'}</td><td>${escapeHtml(row.coating_result)}</td><td><button type="button" data-aqueous="${escapeHtml(row.record_id)}">展開</button></td></tr>`;
     const loading = row.inputs.loading_mg_cm2 != null ? numeric(row.inputs.loading_mg_cm2)+' mg/cm²' : row.inputs.bn_weight_pct != null ? numeric(row.inputs.bn_weight_pct)+' wt%' : '未報告';
     const observations = Object.entries(row.observations).map(([k,v]) => `${escapeHtml(labels[k]??k)}：${escapeHtml(readable(v.value))} ${escapeHtml(v.unit??'')}`).join('<br>');
     return `<tr><td><strong>${escapeHtml(row.sample)}</strong></td><td>${escapeHtml(readable(row.inputs.substrate))}<small>${escapeHtml(readable(row.inputs.bn_form))}</small></td><td>${loading}</td><td>${escapeHtml(readable(row.inputs.binder))}<small>${escapeHtml(readable(row.inputs.solvent))}</small></td><td>${observations||'保留製備配方；原文未提供可抽取數值'}</td><td><button type="button" data-record="${escapeHtml(row.record_id)}">展開</button></td></tr>`;
@@ -102,6 +137,14 @@ function renderCatalogue() {
 }
 for (const id of ['catalogue-type','record-search']) nodes[id].addEventListener('input', renderCatalogue);
 nodes['record-table'].addEventListener('click', event => {
+  const aqueousButton = event.target.closest('[data-aqueous]');
+  if (aqueousButton) {
+    const row = state.aqueous.find(r=>r.record_id===aqueousButton.dataset.aqueous);
+    nodes['record-details'].hidden = false;
+    nodes['record-details'].innerHTML = `<h3>${escapeHtml(row.sample)}</h3><p>${escapeHtml(row.formulation)}</p><p>${escapeHtml(row.process)}</p><p>${escapeHtml(row.coating_result)}</p><p>出處：<a href="${escapeHtml(row.source_url)}" target="_blank" rel="noopener">${escapeHtml(row.source_title)}</a></p><p>${escapeHtml(row.section_title)}</p>`;
+    nodes['record-details'].scrollIntoView({block:'nearest',behavior:'smooth'});
+    return;
+  }
   const button = event.target.closest('[data-record]');
   if (!button) return;
   const row = state.records.find(x => x.record_id === button.dataset.record);
@@ -114,7 +157,7 @@ nodes['record-details'].addEventListener('click', async event => {
   const button = event.target.closest('[data-evidence]');
   if (!button) return;
   const output = document.getElementById('evidence-output');
-  try { const item = await api('/api/evidence/'+encodeURIComponent(button.dataset.evidence)); output.innerHTML = `<p>${escapeHtml(item.locator)}</p><div class="evidence">${escapeHtml(item.text)}</div>`; }
+  try { const item = await api('/api/evidence/'+encodeURIComponent(button.dataset.evidence)); output.innerHTML = `<p><strong>${escapeHtml(item.source_title)}</strong></p><p>${escapeHtml(item.section_title)}</p><div class="evidence">${escapeHtml(item.text)}</div>`; }
   catch (error) { output.textContent = error.message; }
 });
 
@@ -142,7 +185,7 @@ nodes['plan-form'].addEventListener('submit', async event => {
     const rows = [...nodes['observed-inputs'].querySelectorAll('.observed-row')];
     const entries = rows.map(row=>[row.querySelector('select').value,Number(row.querySelector('input').value)]);
     if (new Set(entries.map(x=>x[0])).size !== entries.length) throw Error('每個已測配方只需列出一次。');
-    nodes['plan-result'].textContent = '正在安排下一輪…';
+    nodes['plan-result'].textContent = '正在安排下一輪，通常約需 1–3 秒。';
     const result = await api('/api/predict', {task:'experiment_plan',observations:Object.fromEntries(entries)});
     const recommended = result.recommendations.map(item => {
       const row = state.electrolytes.find(r=>r.candidate_id===item.candidate_id);
@@ -154,13 +197,12 @@ nodes['plan-form'].addEventListener('submit', async event => {
 });
 
 async function load() {
-  const [overview,sources,records,electrolytes,evaluation] = await Promise.all([api('/api/overview'),api('/api/sources'),api('/api/records'),api('/api/electrolytes'),api('/api/evaluation')]);
-  Object.assign(state, {sources,records,electrolytes,evaluation});
-  nodes.summary.innerHTML = [[overview.record_count,'種 BN 相關配方'],[overview.electrolyte_formulations,'種液態電解液配方'],[overview.electrolyte_measurements,'筆電解液實測']].map(([n,t])=>`<div class="stat"><strong>${n}</strong>${t}</div>`).join('');
-  nodes['catalogue-note'].textContent = `目前收錄 ${overview.record_count} 種 BN 相關配方，來自 ${overview.study_count} 篇原文研究；另收錄 ${overview.electrolyte_formulations} 種液態電解液配方。${overview.catalogue_note}`;
+  const [overview,sources,records,aqueous,electrolytes,evaluation] = await Promise.all([api('/api/overview'),api('/api/sources'),api('/api/records'),api('/api/aqueous'),api('/api/electrolytes'),api('/api/evaluation')]);
+  Object.assign(state, {sources,records,aqueous,electrolytes,evaluation});
+  nodes.summary.innerHTML = [[overview.aqueous_formulations,'種水性漿料與對照'],[overview.record_count,'種 BN 相關配方'],[overview.electrolyte_formulations,'種液態電解液配方']].map(([n,t])=>`<div class="stat"><strong>${n}</strong>${t}</div>`).join('');
+  nodes['catalogue-note'].textContent = '按材料體系查找用料、製程及已發表結果；展開配方可查看對應文獻與章節。';
   nodes['usage-limit'].textContent = `全站每 24 小時接受 ${overview.daily_model_limit} 次新分析；查資料和讀取已有分析結果不佔額度。`;
   nodes.expiry.textContent = overview.expires_at_utc ? '公開試用預計至 '+new Date(overview.expires_at_utc).toLocaleString('zh-HK',{timeZone:'Asia/Hong_Kong'})+'（香港時間）。' : '本機試用。';
-  nodes['source-list'].innerHTML = sources.map(s=>`<div class="source"><a href="${escapeHtml(s.url)}" target="_blank" rel="noopener">${escapeHtml(s.title)}</a><p class="muted">${['full_text_xml','full_text_pdf'].includes(s.access)?'已核對全文':s.access==='abstract_only'?'摘要線索':'背景線索'}</p>${s.review_note?`<p>${escapeHtml(s.review_note)}</p>`:''}</div>`).join('')+'<div class="source"><a href="https://doi.org/10.1038/s41467-022-32938-1" target="_blank" rel="noopener">Clio：公開電解液實測研究</a><p><a href="https://github.com/BattModels/Clio-NatCommData" target="_blank" rel="noopener">作者提供的原始測量資料</a></p></div>';
   renderWorkflow();
   renderCatalogue();
   [0,8,16,24,32].forEach(addObservation);

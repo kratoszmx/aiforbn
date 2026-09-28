@@ -2,3 +2,4 @@
 official_docs/experiment_planning/clio_2022_measurements.csv -text whitespace=cr-at-eol
 # Preserve original source bytes and their pinned digest, including publisher whitespace.
 official_docs/dispersion/chen_2017.xml -text -whitespace
+official_docs/dispersion/pluronic_2019.xml -text -whitespace

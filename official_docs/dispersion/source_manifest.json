@@ -11,5 +11,18 @@
     "sha256": "38522bd3fa5235573e0ae0181095850b10e4b0a4b062f7354d313897e1096df8",
     "access": "full text XML",
     "scope": "PDA-modified BN/PP thermal composites; not aqueous separator slurry viscosity labels"
+  },
+  "pluronic_2019": {
+    "source_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC6523152/fullTextXML",
+    "doi": "10.3390/polym11040582",
+    "sha256": "6b8b6dcbdb021f1767ce3913010357291b8c16dfdb543e7faa44f276f22bd33e",
+    "access": "full text XML",
+    "scope": "BNNT/Pluronic aqueous dispersion; no high-solids separator viscosity training labels",
+    "reviewed_at": "2026-09-29"
+  },
+  "aqueous_patents": {
+    "manifest": "data/dispersion/aqueous_sources.json",
+    "scope": "Twelve reported recipe/control cases in two separate patent sources; six matched viscosity points for interpolation",
+    "extraction": "Text paragraphs and numeric table cells only; source extracts preserve paragraph IDs and original units. No images or graph digitization."
   }
 }

@@ -21,7 +21,7 @@ def demo(tmp_path):
 def test_public_pages_evidence_and_export(demo):
     client,_=demo
     for url in ['/','/app.js','/style.css','/health','/api/overview','/api/sources',
-                '/api/records','/api/electrolytes','/api/evaluation',
+                '/api/records','/api/electrolytes','/api/aqueous','/api/evaluation',
                 '/api/download/public.sqlite','/api/download/electrolytes.csv']:
         response=client.get(url)
         assert response.status_code==200,url
@@ -32,6 +32,9 @@ def test_public_pages_evidence_and_export(demo):
     overview=client.get('/api/overview').json()
     assert overview['daily_model_limit']==100 and overview['electrolyte_measurements']==125
     assert '40 mg' in client.get('/api/evidence/kim_2022:recipe').json()['text']
+    evidence=client.get('/api/evidence/kim_2022:recipe').json()
+    assert '2.3.' in evidence['section_title'] and 'Boron Nitride' in evidence['source_title']
+    assert not {'xml_id','locator','paragraph'} & evidence.keys()
     for url in ['/api/checks','/api/download/access_token.txt','/.runtime/separator/access_token.txt']:
         assert client.get(url).status_code==404
 
@@ -102,6 +105,30 @@ def test_dispersion_reviews_do_not_become_compatible_training_formulations(demo)
     assert len(client.get('/api/records').json())==20
 
 
+def test_aqueous_task_uses_local_data_and_exports_readable_cases(demo,monkeypatch):
+    client,_=demo
+    monkeypatch.setattr('ui.separator_app.run_separator_model',lambda *a,**kw:pytest.fail('local calculation called provider'))
+    request={'task':'aqueous_viscosity','bn_volume_pct':4}
+    result=client.post('/api/predict',json=request).json()
+    assert result['prediction']['value']==pytest.approx(7.45)
+    assert not result['model_called'] and not result['cached']
+    assert client.post('/api/predict',json=request).json()['cached']
+    assert len(client.get('/api/aqueous').json())==12
+    rows=list(csv.DictReader(io.StringIO(client.get('/api/download/aqueous.csv').content.decode('utf-8-sig'))))
+    assert len(rows)==12 and rows[6]['文獻黏度 mPa·s']==''
+    assert rows[6]['塗布結果']=='膏狀，無法塗布'
+
+
+def test_explanations_drop_notices_but_retain_uncertainty_and_material_failures(demo,monkeypatch):
+    client,_=demo
+    monkeypatch.setattr('ui.separator_app.run_separator_model',lambda *a,**kw:{'result':{
+        'preparation_hypothesis':'此為機制假說，非觀察結果。BNNT 可能改善浸潤。高載量可能導致孔道堵塞。這只是研究原型，尚未驗證。',
+        'conductivity_mS_cm':.65}})
+    text=client.post('/api/predict',json={}).json()['explanation']
+    assert text=='BNNT 可能改善浸潤。高載量可能導致孔道堵塞。'
+    assert client.post('/api/predict',json={}).json()['explanation']==text
+
+
 def test_unsupported_inputs_never_call_provider(demo,monkeypatch):
     client,_=demo
     def forbidden(*args,**kwargs):
@@ -148,6 +175,9 @@ def test_provider_failure_is_private_and_active_calls_are_bounded(demo,monkeypat
 
 
 @pytest.mark.parametrize('body',[
+    {'task':'aqueous_viscosity','bn_volume_pct':12.01},
+    {'task':'aqueous_viscosity','solids_weight_pct':20},
+    {'task':'aqueous_viscosity','filler':'Al2O3'},
     {'task':'coating_thickness','applicator_gap_um':49},
     {'task':'coating_thickness','applicator_gap_um':201},
     {'task':'coating_thickness','bn_binder_ratio':3},

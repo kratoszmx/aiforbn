@@ -8,7 +8,7 @@ Anything underscore-prefixed or omitted here should be treated as internal.
 ## separator_app.py
 
 - `create_separator_app(data_path=DATASET_PATH, runtime_dir=None, model_executable=None)`
-  - Construct the AI for Science partner web app: source-verified BN/electrolyte data, public tables and SQLite/CSV exports, source paragraphs and sequential-replay comparison. Four structured tasks cover BNNT conductivity, CA/BN thickness, liquid-electrolyte conductivity and next-experiment selection. Anonymous requests obey expiry, one-call concurrency, exact-input/configuration caching and a persisted default 100-new-analysis rolling 24-hour limit; failures return no fabricated prediction. The provider model is trusted local configuration and never public response metadata.
+  - Construct the AI for Science partner web app: source-verified BN, aqueous-slurry and electrolyte data, public tables/CSV exports, readable source locations and sequential-replay comparison. Five structured tasks cover water-based slurry viscosity, BNNT conductivity, CA/BN thickness, liquid-electrolyte conductivity and next-experiment selection. Anonymous requests obey expiry, one-call concurrency, exact-input/configuration caching and a persisted default 100-new-analysis rolling 24-hour limit; failures return no fabricated prediction. The provider model is trusted local configuration and never public response metadata. The public page supports persisted light/dark preference, task-specific estimated waits and three user-facing sections.
 
 ## streamlit_app.py
 
@@ -38,7 +38,11 @@ Anything underscore-prefixed or omitted here should be treated as internal.
 - `check_separator_service(runtime_dir=RUNTIME, *, client=None, now=None)`: lock one monitor, check both origins/page, periodically make an uncached public numerical call, and atomically persist private minimal evidence. Uses the same public quota and inference lock; no repair or messages.
 - CLI adds result-v1 `schema_version=1`; `--status` is Supervisor's read-only entry. Tests cover cached/malformed/failed responses, timing, changed configuration, in-progress/interrupted calls and verified expiry.
 
-API v3 uses the PP linear reference for the displayed number with a separate
+API v4 uses the PP linear reference for the displayed number with a separate
 language-model explanation; private receipts retain the model's raw guess. The
 planner returns one next recipe to match sequential replay. Dispersion literature
-reviews enrich source descriptions without becoming PP training labels.
+reviews enrich source descriptions without becoming PP training labels. New
+aqueous numeric inference uses six matched patent cases; the other aqueous
+cases remain separately identified references. Public evidence contains a paper
+title and section instead of an XML locator. Model notice sentences are removed
+from explanations without deleting tentative scientific wording or failure cases.

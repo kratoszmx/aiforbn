@@ -59,3 +59,22 @@ were read as text without images or graph digitization. Chen's PMC HTML challeng
 was resolved using Europe PMC XML. Their reviewed public summaries live in
 `data/dispersion/literature.json`; they are not additional compatible PP labels.
 See [meeting/literature audit](../docs/research/separator_prototype/revision_3_report.md).
+
+## Aqueous formulation review — 2026-09-29
+
+The [revision 4 audit](../docs/research/separator_prototype/revision_4_report.md)
+records targeted reading, meeting coverage, inclusion/exclusion and stopping
+criteria. Two public patent excerpts retain literal numbered paragraphs and
+numeric table cells under `dispersion/*_excerpt.xml`; the
+[source manifest](../data/dispersion/aqueous_sources.json) pins their hashes.
+US20260121222A1 supplies eight cases, of which six form a matched viscosity
+series. CN105206783A supplies four separate aqueous BN/PI recipe references.
+These are patent-reported results, not newly reproduced experiments. Missing
+measurement temperature/shear rate stays missing; a paste failure has no
+invented numerical viscosity.
+
+The additional Pluronic/BNNT article (DOI 10.3390/polym11040582) is retained as
+CC BY XML, including its licence. Its dry-powder TGA fraction is not treated as
+an aqueous solids fraction. Full downloaded patent/publisher pages are cached
+locally in ignored `dispersion/local_cache/`; public exports contain attributed
+recipe facts. No figures, screenshots or multimodal processing were used.

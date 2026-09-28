@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "sources": [
+    {
+      "source_id": "lg_2026",
+      "title": "BN／鈦酸鋇水性隔膜塗層",
+      "publication_number": "US20260121222A1",
+      "url": "https://patents.google.com/patent/US20260121222A1/en",
+      "source_file": "official_docs/dispersion/lg_2026_excerpt.xml",
+      "sha256": "004b1fa4ab91c86880b63a438406c9e15cb39ca5ea387597d1fcf9c438de72ad",
+      "kind": "公開專利實施例",
+      "access": "full_text_patent",
+      "measurement_temperature_c": null,
+      "shear_rate_s_inv": null
+    },
+    {
+      "source_id": "cn105206783",
+      "title": "BN／聚醯亞胺複合隔膜水性漿料",
+      "publication_number": "CN105206783A",
+      "url": "https://patents.google.com/patent/CN105206783A/zh",
+      "source_file": "official_docs/dispersion/cn105206783_excerpt.xml",
+      "sha256": "356398944bbc78cb5ae38baf50e2cd04522ad62cadf581830ac594f09f40c6f7",
+      "kind": "公開專利實施例",
+      "access": "full_text_patent",
+      "measurement_temperature_c": null,
+      "shear_rate_s_inv": null
+    }
+  ]
+}

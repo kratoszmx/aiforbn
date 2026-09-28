@@ -28,6 +28,9 @@ from materials.separator_data import (
     search_separator_records,
 )
 from materials.separator_model import MODEL, make_separator_prompt, run_separator_model
+from materials.aqueous_slurry import (
+    AqueousSlurryRecipe, load_aqueous_slurries, predict_aqueous_viscosity,
+)
 from materials.experiment_planning import (
     ElectrolyteRecipe, ExperimentPlan, load_electrolyte_records, predict_electrolyte,
     suggest_experiments,
@@ -37,12 +40,36 @@ PROJECT_ROOT=SRC_DIR.parent
 WEB_DIR=Path(__file__).with_name('separator_web')
 
 
+def _public_explanation(text, model_name):
+    """Remove model identity and boilerplate while preserving material-specific uncertainty."""
+    text=re.sub(re.escape(model_name),'研究模型',text,flags=re.I)
+    text=re.sub(r'(?i)gpt[\s-]*6[\s-]*astra|astra|openai|codex','研究模型',text)
+    sentences=re.findall(r'[^。！？\n]+[。！？]?|\n',text)
+    boilerplate=re.compile(
+        r'(?:此|這|上述|以上|以下|本次|本)[^。！？]{0,24}'
+        r'(?:機制假[說说]|非觀察|非观察|非實測|非实测|僅供|仅供|未經驗證|尚未驗證|不代表|不構成)|'
+        r'^(?:僅供|仅供|免責|免责声明|注意[:：]|聲明[:：]|声明[:：])|'
+        r'(?:不能|無法|不可)(?:代替|取代)實驗|'
+        r'(?:非觀察結果|非观察结果|不是實驗結果|並非實測結果)')
+    result=''.join(s for s in sentences if not boilerplate.search(s)).strip()
+    return result or '依照這組用料、載量與製程條件，整理可能影響離子傳輸的因素。'
+
+
 def create_separator_app(data_path=DATASET_PATH, runtime_dir=None, model_executable=None):
     """Serve anonymous bounded inference without exposing provider configuration."""
     runtime_dir=Path(runtime_dir or PROJECT_ROOT/'.runtime/separator')
     runtime_dir.mkdir(parents=True,exist_ok=True)
     data=load_separator_dataset(data_path)
     literature=json.loads((PROJECT_ROOT/'data/dispersion/literature.json').read_text())
+    aqueous=load_aqueous_slurries()
+    aqueous_digest=hashlib.sha256(json.dumps(aqueous,sort_keys=True).encode()).hexdigest()
+    aqueous_csv=runtime_dir/'aqueous.csv'
+    with aqueous_csv.open('w',newline='',encoding='utf-8-sig') as stream:
+        writer=csv.writer(stream,lineterminator='\n')
+        writer.writerow(['配方名稱','用料與配比','粒徑','文獻黏度 mPa·s','製程','塗布結果','原文位置','出處'])
+        for row in aqueous['records']:
+            writer.writerow([row[k] for k in ('sample','formulation','particle_size','viscosity_mPa_s',
+                'process','coating_result','section_title','source_url')])
     electrolytes=load_electrolyte_records()
     electrolyte_digest=hashlib.sha256(json.dumps(electrolytes,sort_keys=True).encode()).hexdigest()
     electrolyte_inputs=[{k:r[k] for k in ('candidate_id','salt_molality','ec_fraction','dmc_ratio')}
@@ -130,6 +157,7 @@ def create_separator_app(data_path=DATASET_PATH, runtime_dir=None, model_executa
     def health():
         return dict(status='ok',dataset_version=data['dataset_version'],dataset_sha256=dataset_digest,
                     records=len(data['records']),electrolyte_formulations=len(electrolytes),
+                    aqueous_formulations=len(aqueous['records']),aqueous_sha256=aqueous_digest,
                     expires_at_utc=settings().get('expires_at_utc'))
 
     @app.get('/api/overview')
@@ -138,6 +166,7 @@ def create_separator_app(data_path=DATASET_PATH, runtime_dir=None, model_executa
                     source_count=len(data['sources']),study_count=sum(s['scope']=='primary_study_extracted' for s in data['sources']),
                     record_count=len(data['records']),observation_count=sum(len(r['observations']) for r in data['records']),
                     electrolyte_formulations=len(electrolytes),
+                    aqueous_formulations=len(aqueous['records']),
                     electrolyte_measurements=sum(r['repeat_measurements'] for r in electrolytes),
                     expires_at_utc=settings().get('expires_at_utc'),
                     daily_model_limit=int(settings().get('daily_model_limit',100)),
@@ -161,9 +190,10 @@ def create_separator_app(data_path=DATASET_PATH, runtime_dir=None, model_executa
     def evidence(evidence_id: str):
         if evidence_id not in data['evidence']:
             raise HTTPException(404,'evidence_not_found')
-        result=dict(data['evidence'][evidence_id])
-        result['source']=next(s['url'] for s in data['sources'] if s['source_id']==result['source_id'])
-        return result
+        entry=data['evidence'][evidence_id]
+        source=next(s for s in data['sources'] if s['source_id']==entry['source_id'])
+        return dict(text=entry['text'],source=source['url'],source_title=source['title'],
+                    section_title=entry['section_title'])
 
     @app.get('/api/evaluation')
     def evaluation():
@@ -174,11 +204,16 @@ def create_separator_app(data_path=DATASET_PATH, runtime_dir=None, model_executa
     def electrolyte_records():
         return electrolytes
 
+    @app.get('/api/aqueous')
+    def aqueous_records():
+        return aqueous['records']
+
     @app.get('/api/download/{name}')
     def download(name: str):
         allowed={'sources.csv':Path(data_path).with_name('source_inventory.csv'),
                  'records.csv':separator_csv,
                  'electrolytes.csv':electrolyte_csv,
+                 'aqueous.csv':aqueous_csv,
                  'public.sqlite':db_path}
         if name not in allowed:
             raise HTTPException(404,'download_not_found')
@@ -190,7 +225,7 @@ def create_separator_app(data_path=DATASET_PATH, runtime_dir=None, model_executa
         return dict(numeric_allowed=result['numeric_allowed'],reasons=result['reasons'])
 
     @app.post('/api/predict')
-    async def predict(recipe: SeparatorRecipe | CoatingRecipe | ElectrolyteRecipe | ExperimentPlan):
+    async def predict(recipe: SeparatorRecipe | CoatingRecipe | ElectrolyteRecipe | ExperimentPlan | AqueousSlurryRecipe):
         configured=settings()
         model_name=configured.get('model_name',MODEL)
         assessment=None
@@ -201,8 +236,8 @@ def create_separator_app(data_path=DATASET_PATH, runtime_dir=None, model_executa
             assessment=assess_separator_recipe(data,recipe)
             if not assessment['numeric_allowed']:
                 return dict(status='needs_data',reasons=assessment['reasons'],model_called=False)
-        identity=dict(api_version=3,recipe=recipe.model_dump(),dataset=dataset_digest,
-                      electrolyte_data=electrolyte_digest,
+        identity=dict(api_version=4,recipe=recipe.model_dump(),dataset=dataset_digest,
+                      electrolyte_data=electrolyte_digest,aqueous_data=aqueous_digest,
                       engine=model_name if assessment else 'public_data_v1',
                       prompt=make_separator_prompt(assessment) if assessment else None)
         key=hashlib.sha256(json.dumps(identity,sort_keys=True,allow_nan=False).encode()).hexdigest()
@@ -221,7 +256,10 @@ def create_separator_app(data_path=DATASET_PATH, runtime_dir=None, model_executa
                 cursor=db.execute('INSERT INTO calls (time,request_hash,status) VALUES (?,?,?)',(time.time(),key,'started'))
                 call_id=cursor.lastrowid
             private=None
-            if isinstance(recipe,ExperimentPlan):
+            if isinstance(recipe,AqueousSlurryRecipe):
+                prediction=predict_aqueous_viscosity(aqueous,recipe)
+                public=dict(prediction=prediction,explanation='依同一製程的公開漿料數據，估算 BN 比例改變時的黏度；下方列出相近配方的塗布結果。')
+            elif isinstance(recipe,ExperimentPlan):
                 recommendations=await asyncio.to_thread(suggest_experiments,electrolyte_inputs,
                     recipe.observations,limit=1)
                 public=dict(recommendations=recommendations,observations_used=len(recipe.observations),
@@ -239,8 +277,7 @@ def create_separator_app(data_path=DATASET_PATH, runtime_dir=None, model_executa
                 private=await asyncio.to_thread(run_separator_model,assessment,executable,
                                                runtime_dir/'model',model_name=model_name)
                 result=private['result']
-                explanation=re.sub(re.escape(model_name),'研究模型',result.get('preparation_hypothesis',''),flags=re.I)
-                explanation=re.sub(r'(?i)gpt[\s-]*6[\s-]*astra|astra|openai|codex','研究模型',explanation)
+                explanation=_public_explanation(result.get('preparation_hypothesis',''),model_name)
                 # The language model explains the recipe. Its free numerical guess
                 # has not beaten the simple reference; publish that reference
                 # without fitting a correction to the already known holdout.

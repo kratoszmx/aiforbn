@@ -37,3 +37,20 @@ A per-user monitor checks HTTP every five minutes and fresh public model respons
 every six hours; Supervisor reads its bounded evidence in daily reports. Initial
 real response took 21.275 seconds. Monitor installation/stop and scope are in
 SERVICES.md. No partner message was sent.
+
+## September 29 revision 4
+
+See [current audit](docs/research/separator_prototype/revision_4_report.md) and
+the updated weekly draft above. Targeted reading added two aqueous patent
+sources and twelve recipe/control cases. Six matched BaTiO3/BN/binder cases
+support bounded viscosity interpolation; controls and the separate BN/PI system
+stay distinct. Unknown measurement settings remain unknown. Four interior
+development cases show interpolation better than global linear regression but
+worse than nearest-reference; no independent accuracy or laboratory savings
+claim follows. Partner bimodal packing and timed shrinkage remain gaps.
+
+The site has four numerical forms plus next-experiment selection, readable
+source locations, light/dark preference and task-specific waits. A fresh public
+model request returned in 21.625 seconds. Existing monitoring/expiry are retained.
+Only public naming changes; repository name is unchanged. Candidate validation
+and deployment proof are under ignored `.runtime/separator/revision4/`.

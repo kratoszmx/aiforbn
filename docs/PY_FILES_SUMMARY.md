@@ -352,3 +352,9 @@ Replay paired experimental sequences against original measured answers, retainin
 - `check_separator_service(runtime_dir=RUNTIME, *, client=None, now=None)`: periodic
   public/loopback checks and uncached end-to-end model canary under the public quota.
 - CLI `--status` supplies Supervisor result-v1; no repairs or message sending.
+
+## src/materials/aqueous_slurry.py
+
+- `load_aqueous_slurries(path=AQUEOUS_DATA_PATH)`: verify two public patent sources and extract twelve aqueous recipes without pooling incompatible cohorts.
+- `predict_aqueous_viscosity(dataset, recipe)`: within-series interpolation with separate exact observations and nearby coating outcomes.
+- `evaluate_aqueous_viscosity(dataset)`: four interior leave-one-formula-out development cases; retains all three baselines. Full request schema and scientific limits: [materials summary](../src/materials/PY_FILES_SUMMARY.md).

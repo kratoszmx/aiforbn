@@ -60,3 +60,9 @@ without network calls, for Supervisor's result-v1 collector. See
 [src/ui/PY_FILES_SUMMARY.md](src/ui/PY_FILES_SUMMARY.md). Private atomic receipt
 publication remains local; existing myutils JSON writers do not provide this
 monitor's lock/deployment/freshness policy. No shared wrapper was introduced.
+
+`materials.aqueous_slurry` extracts twelve water-based recipes from two pinned
+public patents and interpolates viscosity within one six-point series. This
+materials-specific method and source normalization stay local; NumPy/Pydantic
+already provide the numerical and validation primitives. No generic wrapper or
+new shared-library dependency is needed.

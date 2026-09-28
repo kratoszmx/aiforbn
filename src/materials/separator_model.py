@@ -49,7 +49,9 @@ def make_separator_prompt(assessment):
         'supporting_record_ids, limitations. Cite only record IDs in training_examples. '
         'Write explanatory strings in Traditional Chinese, under 200 words total. '
         'Do not mention model names or providers. Keep preparation_hypothesis focused on '
-        'the material/process explanation; put data limitations only in limitations.\n'
+        'the material/process explanation, using tentative wording for inferred effects. '
+        'Do not add disclaimer sentences, hypothesis-versus-observation notices, or generic '
+        'validation warnings to preparation_hypothesis; put those only in limitations.\n'
         + json.dumps(context, ensure_ascii=False, allow_nan=False)
     )
 

@@ -5,6 +5,14 @@
 This file lists the documented public functions that other modules or top-level entrypoints may call from `materials`.
 Anything underscore-prefixed or omitted here should be treated as internal implementation detail.
 
+## aqueous_slurry.py
+
+- `AQUEOUS_DATA_PATH`: pinned manifest for two public aqueous-slurry patent sources.
+- `AqueousSlurryRecipe`: finite, bounded BN-volume request; locks solids, particle sizes, binder, co-filler, solvent and preparation settings to one matched series. Measurement temperature and shear rate are not invented.
+- `load_aqueous_slurries(path=AQUEOUS_DATA_PATH)`: verify archive paths and hashes; extract 8 table cases and 4 paragraph cases, preserving missing labels, mass/volume bases and distinct cohorts.
+- `predict_aqueous_viscosity(dataset, recipe)`: interpolate the six matched BaTiO3/BN/SBA points; return mPa·s, separate exact observations and neighbouring coating outcomes. Excludes the alumina control, PI recipes and unmeasured paste from the numeric fit.
+- `evaluate_aqueous_viscosity(dataset)`: label-blind development leave-one-formula-out comparison on the four interior points; retain interpolation, nearest and linear estimates. This is not independent validation or measured experimental savings.
+
 ## separator_data.py
 
 - `DATASET_PATH`: pinned public separator dataset location.
@@ -12,7 +20,7 @@ Anything underscore-prefixed or omitted here should be treated as internal imple
 - `SeparatorRecipe`: strict, finite, structured recipe request; rejects arbitrary prompts and extra fields.
 - `CoatingRecipe`: bounded CA/BN coating-gap request with fixed source-matched chemistry and drying temperature.
 - `predict_coating_thickness(dataset, recipe)`: interpolate the three matched coating settings; return estimated thickness in μm and a separate observed value for an exact match.
-- `load_separator_dataset(path=DATASET_PATH)`: validate source hashes, original text, IDs, group splits and observations; return the public dataset.
+- `load_separator_dataset(path=DATASET_PATH)`: validate source hashes, original text, IDs, group splits and observations; derive readable section locations from source ancestry and return the public dataset.
 - `build_separator_database(dataset, path)`: transactionally write the three public SQLite tables; return the database path.
 - `search_separator_records(dataset, substrate=None, query='', limit=100)`: bounded literal search of public records.
 - `assess_separator_recipe(dataset, recipe)`: gate protocol applicability, select training-only records, and compute simple comparison baselines. Numeric permission is exploratory, not a reliability claim.
