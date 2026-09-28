@@ -1,0 +1,18 @@
+[
+  {
+    "source_id": "bouville_2014",
+    "title": "Dispersion of Boron Nitride Powders in Aqueous Suspensions with Cellulose",
+    "url": "https://doi.org/10.1111/jace.12653",
+    "access": "full_text_pdf",
+    "scope": "reviewed_for_dispersion_not_training",
+    "review_note": "水性 BN 分散：比較 HEC／MC、粒徑及添加比例。適合參考分散方向；不是隔膜製成品性能數據。"
+  },
+  {
+    "source_id": "chen_2017",
+    "title": "Thermal Conductivity Performance of Polypropylene Composites Filled with Polydopamine-Functionalized Hexagonal Boron Nitride",
+    "url": "https://doi.org/10.1371/journal.pone.0170523",
+    "access": "full_text_xml",
+    "scope": "reviewed_for_dispersion_not_training",
+    "review_note": "PDA 改性提高 BN 親水性；但在疏水 PP 中可能更易團聚，需依基材選擇處理方式。研究對象是複合材料。"
+  }
+]

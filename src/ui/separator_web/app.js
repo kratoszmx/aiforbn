@@ -77,15 +77,10 @@ function renderWorkflow() {
   const before = selected.methods.find(x => x.method === baseline);
   const after = selected.methods.find(x => x.method === 'adaptive_forest');
   const comparison = selected.comparisons.find(x => x.baseline === baseline);
-  nodes['workflow-result'].innerHTML = `<span class="tag">公開資料回放 · 找到 ${selected.target_hits} 個達標配方</span><div class="comparison"><div><p>${methods[baseline]}</p><p class="metric">${numeric(before.mean_experiments)} 次</p></div><div><p>逐輪更新模型推薦</p><p class="metric">${numeric(after.mean_experiments)} 次</p></div></div><p class="gain">平均少做 <strong>${numeric(comparison.saved_experiments)} 次</strong>，實驗次數減少 <strong>${numeric(comparison.reduction_pct,1)}%</strong></p>`;
-  nodes['workflow-context'].textContent = `${report.raw_measurement_count} 筆測量合併成 ${report.formulation_count} 種配方；${report.seeds} 種起始次序。每組方法共用前 ${report.initial_experiments} 個起始配方，達標即可提前結束；全部已做實驗都計入次數。這個目標共有 ${selected.eligible_formulations} 種達標配方。`;
-  nodes['workflow-methods'].innerHTML = selected.methods.map(x => `<tr><td>${methods[x.method]}</td><td>${numeric(x.mean_experiments)} 次</td><td>${x.min_experiments}–${x.max_experiments} 次</td></tr>`).join('');
-  const [lo,hi] = comparison.paired_start_bootstrap_95_pct;
-  nodes['workflow-interval'].textContent = `按起始次序重抽樣的 95% 節省比例區間：${numeric(lo,1)}% 至 ${numeric(hi,1)}%。${lo<=0?'這項比較仍未顯示明確優勢。':'這組資料中，改善在不同起始次序下仍可見。'}區間只反映此資料池的起始次序差異。`;
-  const hours = nodes['hours-per-experiment'].value;
-  nodes['time-saved'].textContent = hours !== '' && nodes['hours-per-experiment'].validity.valid ? `若每次實驗投入 ${numeric(Number(hours))} 工時，這組回放差異相當於平均少 ${numeric(comparison.saved_experiments*Number(hours))} 工時的實驗工作量。日曆天數另受並行設備與等待時間影響。` : '填入工時後，可換算這組回放結果對應的工作量。';
+  nodes['workflow-result'].innerHTML = `<span class="tag">公開資料回放 · 找到 ${selected.target_hits} 個達標配方</span><div class="comparison"><div><p>${methods[baseline]}</p><p class="metric">${numeric(before.mean_experiments)} 次</p></div><div><p>逐輪更新模型推薦</p><p class="metric">${numeric(after.mean_experiments)} 次</p></div></div><p class="gain">回放中平均少做 <strong>${numeric(comparison.saved_experiments)} 次</strong>，實驗次數減少 <strong>${numeric(comparison.reduction_pct,1)}%</strong></p>`;
+
 }
-for (const id of ['target-conductivity','baseline','hours-per-experiment']) nodes[id].addEventListener('input', renderWorkflow);
+for (const id of ['target-conductivity','baseline']) nodes[id].addEventListener('input', renderWorkflow);
 
 function renderCatalogue() {
   const electrolyte = nodes['catalogue-type'].value === 'electrolyte';
@@ -162,11 +157,10 @@ async function load() {
   const [overview,sources,records,electrolytes,evaluation] = await Promise.all([api('/api/overview'),api('/api/sources'),api('/api/records'),api('/api/electrolytes'),api('/api/evaluation')]);
   Object.assign(state, {sources,records,electrolytes,evaluation});
   nodes.summary.innerHTML = [[overview.record_count,'種 BN 相關配方'],[overview.electrolyte_formulations,'種液態電解液配方'],[overview.electrolyte_measurements,'筆電解液實測']].map(([n,t])=>`<div class="stat"><strong>${n}</strong>${t}</div>`).join('');
-  nodes.privacy.textContent = overview.privacy;
   nodes['catalogue-note'].textContent = `目前收錄 ${overview.record_count} 種 BN 相關配方，來自 ${overview.study_count} 篇原文研究；另收錄 ${overview.electrolyte_formulations} 種液態電解液配方。${overview.catalogue_note}`;
   nodes['usage-limit'].textContent = `全站每 24 小時接受 ${overview.daily_model_limit} 次新分析；查資料和讀取已有分析結果不佔額度。`;
   nodes.expiry.textContent = overview.expires_at_utc ? '公開試用預計至 '+new Date(overview.expires_at_utc).toLocaleString('zh-HK',{timeZone:'Asia/Hong_Kong'})+'（香港時間）。' : '本機試用。';
-  nodes['source-list'].innerHTML = sources.map(s=>`<div class="source"><a href="${escapeHtml(s.url)}" target="_blank" rel="noopener">${escapeHtml(s.title)}</a><p class="muted">${s.access==='full_text_xml'?'已核對全文':s.access==='abstract_only'?'摘要線索':'背景線索'}</p></div>`).join('')+'<div class="source"><a href="https://doi.org/10.1038/s41467-022-32938-1" target="_blank" rel="noopener">Clio：公開電解液實測研究</a><p><a href="https://github.com/BattModels/Clio-NatCommData" target="_blank" rel="noopener">作者提供的原始測量資料</a></p></div>';
+  nodes['source-list'].innerHTML = sources.map(s=>`<div class="source"><a href="${escapeHtml(s.url)}" target="_blank" rel="noopener">${escapeHtml(s.title)}</a><p class="muted">${['full_text_xml','full_text_pdf'].includes(s.access)?'已核對全文':s.access==='abstract_only'?'摘要線索':'背景線索'}</p>${s.review_note?`<p>${escapeHtml(s.review_note)}</p>`:''}</div>`).join('')+'<div class="source"><a href="https://doi.org/10.1038/s41467-022-32938-1" target="_blank" rel="noopener">Clio：公開電解液實測研究</a><p><a href="https://github.com/BattModels/Clio-NatCommData" target="_blank" rel="noopener">作者提供的原始測量資料</a></p></div>';
   renderWorkflow();
   renderCatalogue();
   [0,8,16,24,32].forEach(addObservation);

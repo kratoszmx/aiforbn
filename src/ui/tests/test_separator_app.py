@@ -46,7 +46,8 @@ def test_anonymous_prediction_hides_provider_and_caches_exact_config(demo,monkey
     monkeypatch.setattr('ui.separator_app.run_separator_model',model)
     first=client.post('/api/predict',json={})
     assert first.status_code==200 and first.json()['model_called']
-    assert first.json()['prediction']['value']==.65
+    assert first.json()['prediction']['value']==pytest.approx(.71)
+    assert first.json()['prediction']['numerical_method']=='loading_linear_reference_v1'
     for private in ['astra','codex','openai','usage','provider_record']:
         assert private not in first.text.lower()
     assert client.post('/api/predict',json={}).json()['cached']
@@ -70,6 +71,35 @@ def test_partner_csv_has_readable_columns_instead_of_json_cells(demo):
     assert all(not value.startswith(('{','[')) for row in rows for value in row.values())
     failed=next(row for row in rows if 'failure' in row['配方名稱'])
     assert failed['製備結果']=='製備失敗：孔道堵塞'
+
+
+@pytest.mark.parametrize('form,loading,expected', [
+    ('raw_BNNT', .05, .4766666667), ('raw_BNNT', .1, .5233333333),
+    ('raw_BNNT', .2, .6166666667), ('raw_BNNT', .3, .71),
+    ('purified_BNNT', .1, .5233333333), ('purified_BNNT', .3, .71),
+    ('purified_BNNT', .4, .8033333333), ('purified_BNNT', .5, .8966666667),
+])
+def test_numeric_reference_does_not_use_language_guess_or_held_out_answer(demo, monkeypatch, form, loading, expected):
+    client, runtime = demo
+    def explain(assessment, *args, **kwargs):
+        assert all(r['conductivity_mS_cm'] != .84 for r in assessment['training_examples'])
+        return {'result':{'conductivity_mS_cm':.5, 'preparation_hypothesis':'依條件分析'}}
+    monkeypatch.setattr('ui.separator_app.run_separator_model', explain)
+    result=client.post('/api/predict',json={'bn_form':form,'loading_mg_cm2':loading}).json()
+    assert result['prediction']['value']==pytest.approx(expected)
+    assert result['model_called'] and not result['cached']
+    with sqlite3.connect(runtime/'usage.sqlite') as db:
+        private=json.loads(db.execute('SELECT result FROM calls').fetchone()[0])
+    assert private['provider_record']['result']['conductivity_mS_cm']==.5
+
+
+def test_dispersion_reviews_do_not_become_compatible_training_formulations(demo):
+    client, _=demo
+    sources={r['source_id']:r for r in client.get('/api/sources').json()}
+    for key in ('bouville_2014','chen_2017'):
+        assert sources[key]['access'].startswith('full_text_')
+        assert sources[key]['scope']=='reviewed_for_dispersion_not_training'
+    assert len(client.get('/api/records').json())==20
 
 
 def test_unsupported_inputs_never_call_provider(demo,monkeypatch):
@@ -155,7 +185,7 @@ def test_local_prediction_and_plan_use_disjoint_observation_inputs(demo):
     known={'CLIO-01':1.,'CLIO-09':10.,'CLIO-17':12.}
     result=client.post('/api/predict',json={'task':'experiment_plan','observations':known}).json()
     assert result['observations_used']==3
-    assert len(result['recommendations'])==3
+    assert len(result['recommendations'])==1
     assert not {x['candidate_id'] for x in result['recommendations']} & set(known)
     assert 'conductivity_mS_cm' not in json.dumps(result)
 

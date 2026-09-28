@@ -9,3 +9,7 @@ claw_memory/
 /official_docs/meetings/*/audio/
 /official_docs/meetings/*/transcripts/
 /official_docs/meetings/*/evidence/
+
+# Author manuscript archived locally for research; not redistributed.
+/official_docs/dispersion/bouville_2014.pdf
+/official_docs/dispersion/bouville_2014.txt

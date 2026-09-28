@@ -42,6 +42,7 @@ def create_separator_app(data_path=DATASET_PATH, runtime_dir=None, model_executa
     runtime_dir=Path(runtime_dir or PROJECT_ROOT/'.runtime/separator')
     runtime_dir.mkdir(parents=True,exist_ok=True)
     data=load_separator_dataset(data_path)
+    literature=json.loads((PROJECT_ROOT/'data/dispersion/literature.json').read_text())
     electrolytes=load_electrolyte_records()
     electrolyte_digest=hashlib.sha256(json.dumps(electrolytes,sort_keys=True).encode()).hexdigest()
     electrolyte_inputs=[{k:r[k] for k in ('candidate_id','salt_molality','ec_fraction','dmc_ratio')}
@@ -140,13 +141,14 @@ def create_separator_app(data_path=DATASET_PATH, runtime_dir=None, model_executa
                     electrolyte_measurements=sum(r['repeat_measurements'] for r in electrolytes),
                     expires_at_utc=settings().get('expires_at_utc'),
                     daily_model_limit=int(settings().get('daily_model_limit',100)),
-                    catalogue_note='案例數是已完成原文核對的配方／樣本數，會隨資料擴充增加。',
-                    privacy='請只輸入公開或已獲准提供給線上研究服務的配方；輸入與分析結果會保存在服務紀錄。')
+                    catalogue_note='案例數是已完成原文核對的配方／樣本數，會隨資料擴充增加。')
 
     @app.get('/api/sources')
     def sources():
         # Internal archival paths are not useful to the partner.
-        return [{k:v for k,v in s.items() if k not in ['source_file']} for s in data['sources']]
+        reviewed={s['source_id']:s for s in literature}
+        return [{**{k:v for k,v in s.items() if k!='source_file'},
+                 **reviewed.get(s['source_id'],{})} for s in data['sources']]
 
     @app.get('/api/records')
     def records(substrate: str='', q: str=''):
@@ -199,7 +201,7 @@ def create_separator_app(data_path=DATASET_PATH, runtime_dir=None, model_executa
             assessment=assess_separator_recipe(data,recipe)
             if not assessment['numeric_allowed']:
                 return dict(status='needs_data',reasons=assessment['reasons'],model_called=False)
-        identity=dict(api_version=2,recipe=recipe.model_dump(),dataset=dataset_digest,
+        identity=dict(api_version=3,recipe=recipe.model_dump(),dataset=dataset_digest,
                       electrolyte_data=electrolyte_digest,
                       engine=model_name if assessment else 'public_data_v1',
                       prompt=make_separator_prompt(assessment) if assessment else None)
@@ -221,7 +223,7 @@ def create_separator_app(data_path=DATASET_PATH, runtime_dir=None, model_executa
             private=None
             if isinstance(recipe,ExperimentPlan):
                 recommendations=await asyncio.to_thread(suggest_experiments,electrolyte_inputs,
-                    recipe.observations,limit=3)
+                    recipe.observations,limit=1)
                 public=dict(recommendations=recommendations,observations_used=len(recipe.observations),
                             explanation='依據已提供的實測值，兼顧預期導電率與尚待探索的配方。')
             elif isinstance(recipe,CoatingRecipe):
@@ -239,8 +241,12 @@ def create_separator_app(data_path=DATASET_PATH, runtime_dir=None, model_executa
                 result=private['result']
                 explanation=re.sub(re.escape(model_name),'研究模型',result.get('preparation_hypothesis',''),flags=re.I)
                 explanation=re.sub(r'(?i)gpt[\s-]*6[\s-]*astra|astra|openai|codex','研究模型',explanation)
-                public=dict(prediction=dict(value=result['conductivity_mS_cm'],unit='mS/cm',
+                # The language model explains the recipe. Its free numerical guess
+                # has not beaten the simple reference; publish that reference
+                # without fitting a correction to the already known holdout.
+                public=dict(prediction=dict(value=assessment['baseline_linear_mS_cm'],unit='mS/cm',
                     property='離子導電率',kind='模型估算',
+                    numerical_method='loading_linear_reference_v1',
                     supporting_records=result.get('supporting_record_ids',[]),
                     source_url='https://doi.org/10.3390/nano12010011'),explanation=explanation)
             response={'public':public,'provider_record':private}

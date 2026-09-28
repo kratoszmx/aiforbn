@@ -344,3 +344,11 @@ Rank unmeasured composition-only candidates from explicitly observed outcomes; f
 ### `evaluate_experiment_planner(records, protocol, output_dir)`
 
 Replay paired experimental sequences against original measured answers, retaining every method, threshold and query trace. Reports conditional experiment counts and grouped numerical error, not actual lab savings.
+
+## src/ui/separator_monitor.py
+
+- `monitor_status(runtime_dir=RUNTIME, *, now=None)`: read-only projection of
+  deployment-bound HTTP/model receipts, enforcing separate freshness windows.
+- `check_separator_service(runtime_dir=RUNTIME, *, client=None, now=None)`: periodic
+  public/loopback checks and uncached end-to-end model canary under the public quota.
+- CLI `--status` supplies Supervisor result-v1; no repairs or message sending.

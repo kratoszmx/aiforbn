@@ -552,9 +552,9 @@
       "package": "httpx",
       "specifier": ">=0.28",
       "module": "httpx",
-      "role": "test_tool",
-      "import_kind": "backend",
-      "required_for": "fastapi_testclient"
+      "role": "ui",
+      "import_kind": "direct",
+      "required_for": "separator_live_response_monitor_and_fastapi_testclient"
     },
     {
       "package": "playwright",

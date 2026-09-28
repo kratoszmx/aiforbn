@@ -47,3 +47,15 @@ Four CC BY 4.0 primary-study XML documents are retained under `separators/`: Kim
 ## Liquid-electrolyte experiment planning — 2026-09-28
 
 [Dave et al., Nature Communications 2022](https://doi.org/10.1038/s41467-022-32938-1) supplies a separate LiPF6/EC/DMC/EMC numerical task. The author repository [Clio-NatCommData](https://github.com/BattModels/Clio-NatCommData), pinned commit `2ba755d87abf60ac00bc55e874ddd9c7f3d64bcb`, provides the raw experimental CSV. The local [source manifest](experiment_planning/source_manifest.json) records original URLs, hashes, field units and licence distinctions. The article XML is CC BY 4.0; the data repository has no separately identified licence. Numeric measurements are retained with attribution; no author code or pickled executable object is used. There are 125 readings and 38 distinct compositions after grouping repeats. Raw temperatures range 25.775–27.969°C; the paper describes approximately 26–28°C. This corpus is not BN separator training data. The local replay results belong to our frozen protocol; the paper's own acceleration result is not claimed as ours.
+
+## Dispersion relevance review — 2026-09-28
+
+[Source manifest](dispersion/source_manifest.json) records the downloaded
+Bouville–Deville author manuscript (arXiv 1710.04239, DOI 10.1111/jace.12653) and
+Chen et al. PDA/BN full text (DOI 10.1371/journal.pone.0170523, CC BY). The former
+PDF and its PyMuPDF text extraction are archived locally and excluded from Git
+and public downloads; the latter XML retains article attribution/licence. Both
+were read as text without images or graph digitization. Chen's PMC HTML challenge
+was resolved using Europe PMC XML. Their reviewed public summaries live in
+`data/dispersion/literature.json`; they are not additional compatible PP labels.
+See [meeting/literature audit](../docs/research/separator_prototype/revision_3_report.md).

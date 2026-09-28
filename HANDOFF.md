@@ -22,3 +22,18 @@ Public branding is AI for Science; repository and folder names remain aiforbn. A
 In the frozen measured-pool replay, finding three formulations at ≥13 mS/cm takes 9.32 experiments with random selection versus 7.69 with the adaptive forest, a 17.5% conditional reduction over 100 paired starts. The nearest-formulation method takes 7.75; its difference is not clear. This is one electrolyte study, not prospective lab savings or a BN result. The old one-case PP/Astra benchmark remains historical; raw BNNT inference is now capped at 0.3 mg/cm² because the paper reports a decrease beyond that loading.
 
 The pre-existing builtin-getattr alias changes in five runtime/documentation paths remain separately owned. Historical band-gap artifacts and human_docs are untouched. Deployment URL, expiry, private provider evidence and old invitation backup live under ignored `.runtime/separator/`. Next scientific work is compatible independent BN measurements and a prospective same-budget comparison with the partner's actual decision workflow.
+
+## September 28 revision 3
+
+See [current audit](docs/research/separator_prototype/revision_3_report.md) and
+[weekly draft](docs/research/separator_prototype/weekly_update_draft_zh.md). The
+website is simplified; the selector returns one next recipe, matching replay.
+PP values use the linear reference plus model explanation; this matches, does
+not beat, linear regression. Two additional full-text dispersion reviews improve
+meeting relevance but provide no new matched PP validation. The actual meeting
+focus remains aqueous BN dispersion, viscosity and coating performance.
+
+A per-user monitor checks HTTP every five minutes and fresh public model response
+every six hours; Supervisor reads its bounded evidence in daily reports. Initial
+real response took 21.275 seconds. Monitor installation/stop and scope are in
+SERVICES.md. No partner message was sent.

@@ -1,4 +1,9 @@
-# Frozen initial task
+# Frozen initial task (historical)
+
+September 28 update: the text below records the initial scope. The current API
+uses the linear numerical reference plus model explanation, supports CA thickness
+and electrolyte tasks, and limits raw BNNT to ≤0.3 mg/cm². See
+[revision 3](revision_3_report.md) for current behavior and unresolved validation.
 
 Working application: a BN separator formulation assistant. The public component
 accepts structured ingredients, BN loading, binder ratio, drying conditions and

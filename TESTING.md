@@ -74,10 +74,10 @@ Test preparation stays beside its consumers: model integration cases share a pri
 Focused diagnostic command:
 
 ```sh
-conda run --no-capture-output -n quant python -m pytest -q -ra src/materials/tests/test_separator_prototype.py src/materials/tests/test_experiment_planning.py src/ui/tests/test_separator_app.py src/ui/tests/test_separator_browser.py
+conda run --no-capture-output -n quant python -m pytest -q -ra src/materials/tests/test_separator_prototype.py src/materials/tests/test_experiment_planning.py src/ui/tests/test_separator_app.py src/ui/tests/test_separator_browser.py src/ui/tests/test_separator_monitor.py
 ```
 
-Coverage includes source hashes and all 125 original readings, repeat grouping, 27 electrolyte domain combinations, five coating settings, raw/purified BNNT loading boundaries, held-out answer isolation, candidate-label rejection, unseen-outcome mutation, all 1,200 published replay traces, a reproduced seed and grouped numerical-error calculation. API tests exercise anonymous use, 100 fresh requests and the 101st refusal, cache persistence across restart, rolling expiry, concurrent requests, private provider failures, configurable provider selection, invalid task fields and non-finite JSON. Real headless Chrome tests cover three prediction forms, next-round recommendation, readable tables, source lookup, the savings calculator and both mobile/desktop widths using DOM text only. Provider calls are replaced by deterministic fixtures in automated tests; real provider/public-host verification is recorded separately.
+Coverage includes source hashes and all 125 original readings, repeat grouping, 27 electrolyte domain combinations, five coating settings, raw/purified BNNT loading boundaries, held-out answer isolation, candidate-label rejection, unseen-outcome mutation, all 1,200 published replay traces, a reproduced seed and grouped numerical-error calculation. API tests exercise anonymous use, 100 fresh requests and the 101st refusal, cache persistence across restart, rolling expiry, concurrent requests, private provider failures, configurable provider selection, invalid task fields and non-finite JSON. Real headless Chrome tests cover three prediction forms, next-round recommendation, readable tables, source lookup, removal of the requested debug sections and both mobile/desktop widths using DOM text only. Provider calls are replaced by deterministic fixtures in automated tests; real provider/public-host verification is recorded separately.
 
 To reproduce the research comparison (writes only the explicit comparison artifacts):
 
@@ -86,3 +86,10 @@ PYTHONPATH=src conda run --no-capture-output -n quant python -m materials.experi
 ```
 
 The frozen protocol precedes comparison; all seeds, methods and thresholds are retained. Software test counts are not independent research cases. The 100 starts are repetitions within one measured pool; their bootstrap intervals do not establish cross-study reliability or actual laboratory time saved.
+
+Response-monitor tests distinguish cached output, missing model calls, failures,
+busy state, stale receipts, configuration changes and verified HTTP 410 expiry.
+PP API tests verify that the displayed training-only numerical reference is
+independent of the language model's free numerical guess; these are software
+checks, not additional scientific holdouts. Model-response monitoring and
+Supervisor integration proof are recorded separately from fixture tests.

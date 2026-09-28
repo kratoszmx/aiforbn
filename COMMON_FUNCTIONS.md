@@ -53,3 +53,10 @@ The project guard implementations reuse `myutils/file_utils/filesystem.py` and `
 `materials.separator_data` owns source verification, transactional SQLite export, public-record search, recipe applicability and known-case checks. `materials.separator_model` owns answer-blind prompt construction, a trusted configurable inference invocation and the frozen PP comparison. `materials.experiment_planning` owns source-grouped electrolyte data, numerical regression and answer-blind sequential planning; it reuses `materials.modeling.make_model`. `ui.separator_app.create_separator_app` consumes these documented APIs. Exact signatures are in `src/materials/PY_FILES_SUMMARY.md` and `src/ui/PY_FILES_SUMMARY.md`.
 
 The shared `myutils` Codex chat client was inspected: it inherits user/project configuration and exposes a generic conversation interface. The public demonstration needs a locally configured model, restricted recipe schema, explicit execution policy, citation verification and evaluation provenance. These project policies remain local; no generic client shim or cross-repository extraction is added. Existing filesystem/JSON helpers elsewhere are unchanged.
+
+The UI-owned `separator_monitor.check_separator_service` probes deployed HTTP
+origins and bounded new inference. `monitor_status` validates receipt freshness
+without network calls, for Supervisor's result-v1 collector. See
+[src/ui/PY_FILES_SUMMARY.md](src/ui/PY_FILES_SUMMARY.md). Private atomic receipt
+publication remains local; existing myutils JSON writers do not provide this
+monitor's lock/deployment/freshness policy. No shared wrapper was introduced.

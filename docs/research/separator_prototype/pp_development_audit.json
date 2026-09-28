@@ -1,0 +1,23 @@
+{
+  "date": "2026-09-28",
+  "evaluation": "development_policy_audit_not_new_validation",
+  "policy": "loading_linear_reference_v1",
+  "frozen_original_report": "evaluation.json",
+  "training_labels_only": [
+    {
+      "loading_mg_cm2": 0,
+      "conductivity_mS_cm": 0.43
+    },
+    {
+      "loading_mg_cm2": 0.3,
+      "conductivity_mS_cm": 0.71
+    }
+  ],
+  "policy_selected_because": "Free language-model numerics did not outperform the linear reference. Preserve that reference, retain language-model explanation separately, learn no purification correction.",
+  "held_out_answer_already_known": true,
+  "prediction_mS_cm": 0.8966666666666666,
+  "comparison": "Exactly equals linear baseline; does not beat it. Do not count this audit as independent testing.",
+  "independent_new_tests": 0,
+  "prospective_experiments_saved": null,
+  "known_case_absolute_error_mS_cm": 0.05666666666666664
+}

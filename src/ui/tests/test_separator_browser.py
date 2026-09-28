@@ -40,12 +40,12 @@ def test_partner_predictions_planning_and_tables_in_text_browser(tmp_path,monkey
                     assert '#' not in page.url
                     assert 'Astra' not in page.locator('body').inner_text()
                     assert '17.5%' in page.locator('#workflow-result').inner_text()
-                    page.locator('#hours-per-experiment').fill('8')
-                    assert '13.04 工時' in page.locator('#time-saved').inner_text()
+                    assert page.locator('#privacy, #hours-per-experiment, #time-saved, #workflow-context, #workflow-methods, #workflow-interval, #glossary').count()==0
+                    assert '下一個配方，先試哪一個？' in page.locator('#planning').inner_text()
                     page.locator('#baseline').select_option('nearest')
-                    assert '仍未顯示明確優勢' in page.locator('#workflow-interval').text_content()
+                    assert '0.8%' in page.locator('#workflow-result').inner_text()
                     page.locator('#bnnt-form button').click()
-                    expect(page.locator('#prediction')).to_contain_text('0.7 mS/cm')
+                    expect(page.locator('#prediction')).to_contain_text('0.803 mS/cm')
                     page.locator('#task').select_option('coating_thickness')
                     page.locator('#coating-form button').click()
                     expect(page.locator('#prediction')).to_contain_text('119.5 μm')
@@ -55,7 +55,7 @@ def test_partner_predictions_planning_and_tables_in_text_browser(tmp_path,monkey
                     assert page.locator('#emc-percent').inner_text()=='10%'
                     page.locator('#plan-form button[type=submit]').click()
                     page.locator('#plan-result tbody tr').first.wait_for()
-                    assert page.locator('#plan-result tbody tr').count()==3
+                    assert page.locator('#plan-result tbody tr').count()==1
                     page.locator('#record-search').fill('CA@BN-3:1-failure')
                     assert page.locator('#record-table tbody tr').count()==1
                     assert '孔道堵塞' in page.locator('#record-table').inner_text()

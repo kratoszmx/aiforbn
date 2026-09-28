@@ -30,3 +30,15 @@ Anything underscore-prefixed or omitted here should be treated as internal.
 - `test_streamlit_app.py`
   - Covers the source-derived fixed/dynamic render inventory, completion/provenance/content-mutation states, configured/nested path transitions, nested object-shape matrices, guarded file-identity and role matching, unrelated-extra tolerance, and malformed JSON/CSV handling while verifying the supported `width='stretch'` dataframe contract.
   - Runs the app through Streamlit's real `AppTest` renderer, including asymmetric BN slice/family prediction states and malformed/legacy/non-current provenance suppression, so import and render failures remain text-verifiable.
+
+## separator_monitor.py
+
+- `HTTP_INTERVAL = 300`, `MODEL_INTERVAL = 21600`: HTTP / new-provider-call cadence.
+- `monitor_status(runtime_dir=RUNTIME, *, now=None)`: project a deployment-bound, fresh receipt to status/code/evidence fields; no network or model access. Unknown, failed and scheduled-expiry states remain distinct.
+- `check_separator_service(runtime_dir=RUNTIME, *, client=None, now=None)`: lock one monitor, check both origins/page, periodically make an uncached public numerical call, and atomically persist private minimal evidence. Uses the same public quota and inference lock; no repair or messages.
+- CLI adds result-v1 `schema_version=1`; `--status` is Supervisor's read-only entry. Tests cover cached/malformed/failed responses, timing, changed configuration, in-progress/interrupted calls and verified expiry.
+
+API v3 uses the PP linear reference for the displayed number with a separate
+language-model explanation; private receipts retain the model's raw guess. The
+planner returns one next recipe to match sequential replay. Dispersion literature
+reviews enrich source descriptions without becoming PP training labels.

@@ -1,0 +1,15 @@
+{
+  "source_url": "https://arxiv.org/pdf/1710.04239",
+  "doi": "10.1111/jace.12653",
+  "downloaded_at": "2026-09-28",
+  "sha256": "6b2e39719bae0d74c628f90a87cf97fea0ff40cb50a60678802df3892dc65218",
+  "extraction": "PyMuPDF text only; no images, no graph digitization",
+  "copyright": "Author-deposited manuscript; archive for internal research, not a public app download.",
+  "chen_2017": {
+    "source_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC5249180/fullTextXML",
+    "doi": "10.1371/journal.pone.0170523",
+    "sha256": "38522bd3fa5235573e0ae0181095850b10e4b0a4b062f7354d313897e1096df8",
+    "access": "full text XML",
+    "scope": "PDA-modified BN/PP thermal composites; not aqueous separator slurry viscosity labels"
+  }
+}

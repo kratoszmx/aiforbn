@@ -43,3 +43,31 @@ launchctl bootout gui/$(id -u)/com.zmx.aiforbn-separator-web
 ```
 
 To restart after an intentional stop, bootstrap each existing plist with `launchctl bootstrap gui/$(id -u) /absolute/path/to/plist`. Read the new tunnel hostname from its log, update the saved public URL and partner link, and reverify externally before claiming availability. Keep old invitation backups and logs out of Git. Restart only the web job with `launchctl kickstart -k gui/$(id -u)/com.zmx.aiforbn-separator-web` for code updates; this preserves the running tunnel hostname. No global Codex settings or network routing are modified.
+
+## Scheduled response monitor
+
+`src/ui/separator_monitor.py` is installed as the per-user job
+`com.zmx.aiforbn-separator-monitor`, with its plist in
+`~/Library/LaunchAgents/`. It checks loopback health, public health/data identity
+and the actual page every 300 seconds. Every six hours it calls the public
+`/api/predict` with a fresh bounded recipe and requires uncached model completion.
+Normal use consumes four of the shared 100 daily slots. HTTP 429 defers; failures
+and stale evidence never pass. At planned expiry it verifies HTTP 410 without
+calling the model. It does not restart services or send notifications itself.
+
+Private, atomic evidence is `.runtime/separator/monitor.json`; logs are
+`monitor.log` / `monitor-error.log`. Supervisor's
+`service.ai-for-science-response` runs the following receipt-only command and
+includes failures in the existing daily report, not an immediate push alert:
+
+```sh
+conda run -n quant python src/ui/separator_monitor.py --status
+launchctl print gui/$(id -u)/com.zmx.aiforbn-separator-monitor
+```
+
+Evidence expires after 15 minutes for HTTP and 6 hours plus 15 minutes for model
+completion; changing deployment configuration invalidates the old receipt.
+To stop: `launchctl bootout gui/$(id -u)/com.zmx.aiforbn-separator-monitor`.
+The daemon can then be restored by bootstrapping its existing plist. Do not
+delete receipts to force repeat paid calls. A monitor success is response proof,
+not scientific validation. Full behavior: [revision 3](docs/research/separator_prototype/revision_3_report.md).
