@@ -26,10 +26,13 @@ Anything underscore-prefixed or omitted here should be treated as internal.
 
 ## tests/
 
-- Run `conda run -n quant python -m pytest -q src/ui/tests/test_streamlit_app.py` from the repository root. [TESTING.md](../../TESTING.md) covers prerequisites/profiles; [SERVICES.md](../../SERVICES.md) covers optional loopback startup, health and shutdown.
+- Run `conda run -n quant python -m pytest -q src/ui/tests` from the repository root. [TESTING.md](../../TESTING.md) covers prerequisites/profiles; [SERVICES.md](../../SERVICES.md) covers live startup, health and shutdown. The emitted `ui_render_smoke` target covers only Streamlit.
 - `test_streamlit_app.py`
   - Covers the source-derived fixed/dynamic render inventory, completion/provenance/content-mutation states, configured/nested path transitions, nested object-shape matrices, guarded file-identity and role matching, unrelated-extra tolerance, and malformed JSON/CSV handling while verifying the supported `width='stretch'` dataframe contract.
   - Runs the app through Streamlit's real `AppTest` renderer, including asymmetric BN slice/family prediction states and malformed/legacy/non-current provenance suppression, so import and render failures remain text-verifiable.
+- `test_separator_app.py` covers curated public exports, structured task inputs, training-only numerical references, quota/expiry, cache identity/persistence, concurrency and private provider failures with temporary runtime state.
+- `test_separator_browser.py` runs real headless Chrome against a temporary loopback server with a fake provider; DOM checks cover forms, sequential selection, languages, themes, sources and mobile/desktop layout without screenshots.
+- `test_separator_monitor.py` uses deterministic HTTP fixtures to cover fresh model evidence, cached/malformed/busy/failed responses, receipt timing/privacy, configuration changes and expiry. It does not make paid provider calls.
 
 ## separator_monitor.py
 

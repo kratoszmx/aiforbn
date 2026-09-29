@@ -234,6 +234,9 @@ These files currently expose no supported external call surface:
 - `test_diagnostic_edge_cases.py` locks disabled and insufficient-data status semantics for BN diagnostics and alternative screening selection.
 - `test_reporting.py` locks artifact publication, provenance, finite candidate/variant structure-execution status vocabularies, exact builder-selected seed/raw-formula/source-atom and record-level normalized evidence identity, raw-source/edit-plan/final-structure identity, atom/metadata/CIF identity, evidence-compatible variant states, role-schema preflight, repeat-run cleanup, and failure-order behavior.
 - `test_structure_execution_contracts.py` locks relabel, vacancy, unsupported edit, and structure-aware proxy execution behavior.
+- `test_separator_prototype.py` covers BN source/database identity, training-only prompts/evaluation, recipe boundaries and the isolated provider wrapper. One local fake process exercises result/citation validation, private diagnostics and timeout/interruption cleanup without real inference.
+- `test_aqueous_slurry.py` covers literal source anchors, cohort identity, bounded viscosity interpolation, incompatible recipes and held-out-label isolation.
+- `test_experiment_planning.py` covers electrolyte measurement grouping, domain/coating estimates, unseen-outcome isolation, the published replay traces and a temporary reproduced comparison.
 
 ## separator_ingest.py
 

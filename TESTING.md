@@ -4,23 +4,21 @@
 
 ## Run all tests
 
-Run from the repository root. Use the existing Conda `quant` environment; dependency declarations are in [requirements.txt](requirements.txt) and [docs/AGENT_MANIFEST.json](docs/AGENT_MANIFEST.json). Runtime also needs a local `myutils` checkout containing `file_utils/filesystem.py` and `file_utils/json_io.py`. If it is not ancestor-adjacent, set `MYUTILS_ROOT` to that checkout's root.
+Run from the repository root (the directory containing `main.py`). Use the existing Conda `quant` environment; dependencies are declared in [requirements.txt](requirements.txt) and [docs/AGENT_MANIFEST.json](docs/AGENT_MANIFEST.json). Runtime also needs a local `myutils` checkout containing `file_utils/filesystem.py` and `file_utils/json_io.py`. If it is not ancestor-adjacent, set its root explicitly, for example `export MYUTILS_ROOT=/Users/zmx/Projects/myutils` on this host.
+
+The browser suite uses installed Google Chrome through Playwright's `chrome` channel, with headless DOM/text checks and no screenshots. It starts its own temporary loopback server. Automated tests replace provider calls with fixtures; they need neither a live deployment nor model authentication.
 
 ```sh
 conda run -n quant python -c 'import sys; print(sys.executable)'
 conda run -n quant python main.py --verify-agent-contract
 conda run -n quant python main.py --emit-agent-commands
 conda run -n quant python main.py --dry-run
-conda run -n quant python -m pytest -q -ra src
+conda run --no-capture-output -n quant python -m pytest -q -ra src
 ```
 
 The interpreter should be inside `envs/quant`. On this host, PATH ordering can make `conda run -n quant python3` resolve to Homebrew Python even though `CONDA_PREFIX` says `quant`. Use the verified `python` executable above or its absolute path. In emitted commands, `python3` means that same environment's interpreter; retain the command's arguments and pytest targets when substituting it. Missing imports under the wrong interpreter do not justify installing packages.
 
-For long full-suite runs, use `conda run --no-capture-output -n quant python -m pytest -q -ra src`
-to stream progress; default Conda capture hides it until completion. Agent-state
-parameterized cases repeatedly analyze production source, so a full run can take
-tens of minutes. Give large fixture parameters explicit short pytest IDs so
-individual-case selection does not exceed command-line size limits.
+`--no-capture-output` streams progress; default Conda capture hides it until completion. Agent-state cases repeatedly analyze production source, so a full run can take tens of minutes. Give large fixture parameters short explicit pytest IDs so individual-case selection stays within command-line limits.
 
 Contract success is exit 0 with `validation.status == "ok"` and no errors. Inspect warnings separately. Dependency probes run isolated imports with per-probe and aggregate time bounds; missing modules, import failure, timeout and exhausted probe budget describe different failures. The command index is the authority for exact targets and each profile's `requires`/`provides` coverage.
 
@@ -29,11 +27,11 @@ Contract success is exit 0 with `validation.status == "ok"` and no errors. Inspe
 | Change | Emitted profile | Checks |
 | --- | --- | --- |
 | Docs, project skills, handoff, manifest | `architecture_doc_skill_edit` | Contract, dry-run, focused regression |
-| Public functions, dependencies, module/model/artifact logic | `module_logic_edit` | Contract, dry-run, focused regression, full `src` suite |
+| Public functions, dependencies, module/model/artifact logic, separator partner workflow | `module_logic_edit` | Contract, dry-run, focused regression, full `src` suite |
 | Scientific pipeline or generated output behavior | `scientific_pipeline_edit` | Contract, dry-run, full `src` suite; full pipeline only when fresh research outputs are required |
-| UI imports, rendering or artifact display | `ui_edit` | Contract, focused regression, real Streamlit AppTest |
+| Streamlit imports, rendering or artifact display | `ui_edit` | Contract, focused regression, real Streamlit AppTest |
 
-The commands above cover all profiles. For a smaller change, use the emitted profile's commands with the verified interpreter. The full `src` suite includes the focused regression and UI targets; when running it, there is no need to execute those same pytest targets separately.
+The commands above cover all profiles. For a smaller change, use the emitted profile's commands with the verified interpreter. The full `src` suite includes the focused regression and UI targets; do not repeat them separately. `ui_edit` / `ui_render_smoke` cover Streamlit only; separator API, browser and monitor changes need the partner tests below and the `module_logic_edit` profile.
 
 Dry-run uses tiny in-memory data, checks candidate generation and feature/model compatibility, and constructs models. It clears project caches and may create runtime directories; it does not train models, download the real dataset, or republish research artifacts. `conftest.py` already clears project caches before pytest, so a separate pre-test cleanup is normally redundant.
 
@@ -45,19 +43,14 @@ These are diagnostic/focused commands; use the full emitted profile for a change
 | --- | --- |
 | `src/tests` | Config defaults, main orchestration/control flags, public API signatures/import boundaries, validation-command non-vacuity |
 | `src/runtime/tests` | Schemas, guarded config/IO/cache paths, provenance, manifest/skills/dependency inspection |
-| `src/materials/tests` | Dataset/cache/download-failure fixtures, features and splits, model selection, BN diagnostics, ranking, publication and structure contracts |
+| `src/materials/tests` | Dataset/cache/download fixtures, features/splits/models, BN diagnostics, publication/structure contracts, separator/aqueous/electrolyte evidence and experiment selection |
 | `src/torch_models/tests` | Invalid-input, fit-state, device-policy and ensemble-seed contracts; actual fit/predict integration is in `src/materials/tests` |
-| `src/ui/tests/test_streamlit_app.py` | Real Streamlit AppTest, provenance suppression, artifact roles, malformed/missing content |
+| `src/ui/tests` | Streamlit AppTest; separator API/quota/cache/expiry; headless Chrome forms/languages/themes; response-monitor state and receipt privacy |
 | `src` | All of the above; `src/template` has no separate test suite |
 
-Materials coverage is split across `test_data.py`, `test_bn_filter.py`, `test_features_pipeline.py`, `test_diagnostic_edge_cases.py`, `test_reporting.py`, and `test_structure_execution_contracts.py`. Data tests stub download responses; a pass is not a live JARVIS availability check. Model tests do not establish scientific quality or GPU success. UI tests prove renderer behavior, while a startup-wiring change can additionally use the bounded loopback procedure in [SERVICES.md](SERVICES.md).
+File-level maps: [materials](src/materials/PY_FILES_SUMMARY.md#tests), [runtime](src/runtime/PY_FILES_SUMMARY.md), [UI](src/ui/PY_FILES_SUMMARY.md#tests). Data tests stub download responses; a pass is not a live JARVIS availability check. Model tests do not establish scientific quality or GPU success. Live service checks and lifecycle are separate procedures in [SERVICES.md](SERVICES.md).
 
-`src/runtime/tests/test_io_utils.py::test_shared_digests_preserve_normalized_provenance`
-compares config/dataset digests with the previous JSON byte format, including
-Unicode, Paths, NumPy/pandas missing values and non-finite numbers. It verifies
-empty, text and multi-chunk file hashes and assesses the resulting provenance.
-
-Test preparation stays beside its consumers: model integration cases share a private tiny CPU configuration helper, and each model has its own pytest case. Keep writer, provenance and viewer rejection tests separate because they guard different entrypoints. No additional shared-helper package or test runner is needed.
+Test preparation stays beside its consumers: tiny CPU model configuration and the fake separator process are local fixtures/helpers. Keep writer, provenance and viewer rejection tests separate because they guard different entrypoints. No additional shared-helper package or test runner is needed.
 
 ## Read results and avoid false proof
 
@@ -68,37 +61,37 @@ Test preparation stays beside its consumers: model integration cases share a pri
 - `python main.py` is a research run, not a routine test: it can download data, train the configured model grid, and replace data/artifact outputs. Use it only for the task's required recomputation.
 - For worktrees with unrelated edits, validate a candidate containing exactly the intended committed bytes, then preserve unrelated changes during staging.
 
-
-## AI for Science numerical and partner workflow tests
+## Separator partner workflow
 
 Focused diagnostic command:
 
 ```sh
-conda run --no-capture-output -n quant python -m pytest -q -ra src/materials/tests/test_separator_prototype.py src/materials/tests/test_aqueous_slurry.py src/materials/tests/test_experiment_planning.py src/ui/tests/test_separator_app.py src/ui/tests/test_separator_browser.py src/ui/tests/test_separator_monitor.py
+conda run --no-capture-output -n quant python -m pytest -q -ra \
+  src/materials/tests/test_separator_prototype.py \
+  src/materials/tests/test_aqueous_slurry.py \
+  src/materials/tests/test_experiment_planning.py \
+  src/ui/tests/test_separator_app.py \
+  src/ui/tests/test_separator_browser.py \
+  src/ui/tests/test_separator_monitor.py
 ```
 
-Coverage includes source hashes and all 125 original readings, repeat grouping, 27 electrolyte domain combinations, five coating settings, raw/purified BNNT loading boundaries, held-out answer isolation, candidate-label rejection, unseen-outcome mutation, all 1,200 published replay traces, a reproduced seed and grouped numerical-error calculation. API tests exercise anonymous use, 100 fresh requests and the 101st refusal, cache persistence across restart, rolling expiry, concurrent requests, private provider failures, configurable provider selection, invalid task fields and non-finite JSON. Real headless Chrome tests cover four prediction forms, next-round recommendation, readable tables, source lookup, removal of the requested debug sections and both mobile/desktop widths using DOM text only. The three-language checks cover a Simplified default regardless of browser locale, persistence and input preservation, dynamic result/catalogue translations, source passages left intact, language-specific model prompts/cache entries, and shared local numerical caches. Provider calls are replaced by deterministic fixtures in automated tests; real provider/public-host verification is recorded separately.
+The full `src` command already includes these six files:
 
-To reproduce the research comparison (writes only the explicit comparison artifacts):
+| Area | Important coverage |
+| --- | --- |
+| Evidence and numerical estimates | Source hashes/literal readings, 20 BN records, 12 aqueous cases, 38 electrolyte compositions / 125 readings; loading/domain limits, held-out-label isolation, five coating settings |
+| Experiment selection | Candidate-label rejection, unseen-outcome mutation, all 1,200 published replay traces, one reproduced seed and grouped numerical errors |
+| Provider process | Default/configurable model, answer schema/citations, forbidden tool events, private bounded diagnostics, timeout/interruption cleanup and no retries |
+| API | Anonymous structured inputs, independent training-only PP reference, 100-request quota and refusal, persisted caches, expiry, concurrency, invalid/non-finite requests and private provider failures |
+| Browser | Four forms and next-round selection at mobile/desktop widths; three languages, input persistence, themes, readable tables and original source excerpts |
+| Monitor | Fresh versus cached/model-free output, failure/busy/stale/configuration-change receipts and verified HTTP 410 expiry |
+
+These remain separate evidence cohorts: only six aqueous cases support the viscosity series; PP uses one study. Fixture success does not prove live model responses, public-host health or Supervisor integration. Software test counts are not independent scientific cases.
+
+Only when a research-artifact refresh is explicitly required, reproduce the experiment-selection comparison with:
 
 ```sh
 PYTHONPATH=src conda run --no-capture-output -n quant python -m materials.experiment_planning
 ```
 
-The frozen protocol precedes comparison; all seeds, methods and thresholds are retained. Software test counts are not independent research cases. The 100 starts are repetitions within one measured pool; their bootstrap intervals do not establish cross-study reliability or actual laboratory time saved.
-
-Response-monitor tests distinguish cached output, missing model calls, failures,
-busy state, stale receipts, configuration changes and verified HTTP 410 expiry.
-PP API tests verify that the displayed training-only numerical reference is
-independent of the language model's free numerical guess; these are software
-checks, not additional scientific holdouts. Model-response monitoring and
-Supervisor integration proof are recorded separately from fixture tests.
-
-The aqueous tests verify twelve source cases, all eleven numerical viscosity
-labels and the unmeasured coating failure; they reject mismatched materials,
-solids, particle sizes and measurement overrides. Eleven in-domain numerical
-checks and held-out-label mutation exercise interpolation and development
-comparison. These are software checks within two sources, not twelve independent
-validation studies. Browser checks now cover four prediction forms, theme/system
-preference/persistence, estimated waits, removed notices and human-readable
-paper/section locations at mobile and desktop widths. No screenshots are used.
+This writes comparison artifacts after freezing the protocol. The 100 starts repeat one measured pool; bootstrap intervals do not establish cross-study reliability or actual laboratory time saved.

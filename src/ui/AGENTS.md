@@ -11,4 +11,4 @@ Owns the Streamlit artifact viewer and the separator partner web demonstration. 
 
 Public API: [PY_FILES_SUMMARY.md](PY_FILES_SUMMARY.md). Shared reuse and ownership guidance: [root AGENTS.md](../../AGENTS.md) and [COMMON_FUNCTIONS.md](../../COMMON_FUNCTIONS.md).
 
-Validation: [TESTING.md](../../TESTING.md); focused target from the repository root: `conda run -n quant python -m pytest -q src/ui/tests/test_streamlit_app.py`.
+Validation: [TESTING.md](../../TESTING.md); focused target from the repository root: `conda run -n quant python -m pytest -q src/ui/tests`. This includes Streamlit, the separator API/browser and the response monitor; the emitted `ui_render_smoke` command covers only Streamlit.

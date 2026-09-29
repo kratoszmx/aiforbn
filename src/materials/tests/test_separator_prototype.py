@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import signal
 import sqlite3
+import subprocess
+from types import SimpleNamespace
+from unittest.mock import Mock, call
 
 import pytest
 
@@ -16,6 +20,34 @@ from materials.separator_model import make_separator_prompt, evaluate_separator_
 @pytest.fixture(scope='module')
 def dataset():
     return load_separator_dataset()
+
+
+@pytest.fixture
+def model_process(monkeypatch):
+    """Exercise the real CLI wrapper without starting a provider or process."""
+    fake = SimpleNamespace(
+        answer=dict(conductivity_mS_cm=.6, preparation_hypothesis='材料分析',
+                    supporting_record_ids=['kim_2022:BNNT-PP-0.3'], limitations=['limited']),
+        events=json.dumps({'type': 'turn.completed', 'usage': {}}) + '\n',
+        stderr='test-only private diagnostic\n',
+        process=Mock(returncode=0, pid=987654321),
+    )
+    fake.spawn = Mock(return_value=fake.process)
+
+    def communicate(prompt, timeout):
+        command = fake.spawn.call_args.args[0]
+        options = fake.spawn.call_args.kwargs
+        assert '0.84' not in prompt
+        if fake.answer is not None:
+            Path(command[command.index('-o') + 1]).write_text(json.dumps(fake.answer))
+        options['stdout'].write(fake.events)
+        options['stdout'].flush()
+        options['stderr'].write(fake.stderr)
+        options['stderr'].flush()
+
+    fake.process.communicate.side_effect = communicate
+    monkeypatch.setattr('materials.separator_model.subprocess.Popen', fake.spawn)
+    return fake
 
 
 def test_source_chain_and_database_roundtrip(dataset,tmp_path):
@@ -96,24 +128,19 @@ def test_evaluation_baselines_are_train_only(dataset,tmp_path):
     assert result['experimental_time_saved'] is None
 
 
-def test_process_uses_default_model_and_rejects_invented_citations(dataset,tmp_path,monkeypatch):
-    def process(cmd,**kwargs):
-        assert cmd[cmd.index('-m')+1]=='gpt-6-astra'
-        assert '--ignore-user-config' in cmd and 'read-only' in cmd
-        assert 'agents.enabled=false' in cmd and 'features.shell_tool=false' in cmd
-        assert 'OPENAI_API_KEY' not in kwargs['env']
-        class Process:
-            returncode=0
-            def communicate(self,prompt,timeout):
-                assert '0.84' not in prompt
-                Path(cmd[cmd.index('-o')+1]).write_text(json.dumps(dict(conductivity_mS_cm=.6,
-                    preparation_hypothesis='hypothesis',supporting_record_ids=['invented'],limitations=['limited'])))
-                kwargs['stdout'].write(json.dumps({'type':'turn.completed','usage':{}})+'\n')
-                kwargs['stdout'].flush()
-        return Process()
-    monkeypatch.setattr('materials.separator_model.subprocess.Popen',process)
+def test_process_uses_default_model_and_rejects_invented_citations(dataset,tmp_path,monkeypatch,model_process):
+    monkeypatch.setenv('OPENAI_API_KEY', 'test-only-key')
+    monkeypatch.setenv('AIFORBN_DEMO_TOKEN', 'test-only-token')
+    model_process.answer['supporting_record_ids'] = ['invented']
     with pytest.raises(RuntimeError,match='citation_invalid'):
         run_separator_model(assess_separator_recipe(dataset,SeparatorRecipe()),'/fake/codex',tmp_path)
+    command = model_process.spawn.call_args.args[0]
+    options = model_process.spawn.call_args.kwargs
+    assert command[command.index('-m') + 1] == 'gpt-6-astra'
+    assert '--ignore-user-config' in command and 'read-only' in command
+    assert 'agents.enabled=false' in command and 'features.shell_tool=false' in command
+    assert not {'OPENAI_API_KEY', 'AIFORBN_DEMO_TOKEN'} & options['env'].keys()
+    assert not list(tmp_path.glob('inference-*'))
 
 
 @pytest.mark.parametrize('form,loading,allowed',[
@@ -128,30 +155,107 @@ def test_loading_domain_respects_published_raw_peak(dataset,form,loading,allowed
     assert result['numeric_allowed'] is allowed
 
 
-@pytest.mark.parametrize('mode',['success','above_peak','malformed_event','tool_activity','incomplete'])
-def test_configurable_provider_preserves_execution_and_result_boundaries(dataset,tmp_path,monkeypatch,mode):
-    def process(cmd,**kwargs):
-        assert cmd[cmd.index('-m')+1]=='future-model'
-        class Process:
-            returncode=0
-            def communicate(self,prompt,timeout):
-                Path(cmd[cmd.index('-o')+1]).write_text(json.dumps(dict(conductivity_mS_cm=.8 if mode=='above_peak' else .6,
-                    preparation_hypothesis='材料分析',supporting_record_ids=['kim_2022:BNNT-PP-0.3'],limitations=['limited'])))
-                event={'type':'turn.completed','usage':{}}
-                if mode=='tool_activity':
-                    event={'type':'item.completed','item':{'type':'command_execution'}}
-                if mode=='incomplete':
-                    event={'type':'turn.started'}
-                kwargs['stdout'].write('invalid\n' if mode=='malformed_event' else json.dumps(event)+'\n')
-                kwargs['stdout'].flush()
-        return Process()
-    monkeypatch.setattr('materials.separator_model.subprocess.Popen',process)
+@pytest.mark.parametrize('mode,error', [
+    ('success', None),
+    ('above_peak', 'model_exceeds_published_raw_bnnt_peak'),
+    ('malformed_event', 'model_event_invalid'),
+    ('tool_activity', 'unexpected_model_tool_activity'),
+    ('incomplete', 'model_turn_incomplete'),
+    ('invalid_output', 'model_output_invalid'),
+    ('nonfinite_output', 'model_output_invalid'),
+])
+def test_configurable_provider_preserves_execution_and_result_boundaries(dataset,tmp_path,model_process,mode,error):
+    if mode == 'above_peak':
+        model_process.answer['conductivity_mS_cm'] = .8
+    elif mode == 'malformed_event':
+        model_process.events = 'invalid\n'
+    elif mode == 'tool_activity':
+        model_process.events = json.dumps({'type': 'item.completed', 'item': {'type': 'command_execution'}}) + '\n'
+    elif mode == 'incomplete':
+        model_process.events = json.dumps({'type': 'turn.started'}) + '\n'
+    elif mode == 'invalid_output':
+        del model_process.answer['limitations']
+    elif mode == 'nonfinite_output':
+        model_process.answer['conductivity_mS_cm'] = float('nan')
     assessment=assess_separator_recipe(dataset,SeparatorRecipe())
-    if mode=='success':
+    if error is None:
         result=run_separator_model(assessment,'/fake/codex',tmp_path,model_name='future-model')
         assert result['requested_model']=='future-model' and result['result']['conductivity_mS_cm']==.6
     else:
-        with pytest.raises(RuntimeError):
+        with pytest.raises(RuntimeError, match=f'^{error}$'):
             run_separator_model(assessment,'/fake/codex',tmp_path,model_name='future-model')
-    with pytest.raises(ValueError,match='identifier'):
-        run_separator_model(assessment,'/fake/codex',tmp_path,model_name='bad; shell')
+    command = model_process.spawn.call_args.args[0]
+    assert command[command.index('-m') + 1] == 'future-model'
+    assert model_process.spawn.call_count == 1
+    assert not list(tmp_path.glob('inference-*'))
+
+
+@pytest.mark.parametrize('settings,error', [
+    ({'model_name': 'bad; shell'}, 'identifier'),
+    ({'timeout_seconds': 0}, 'timeout'),
+    ({'timeout_seconds': 181}, 'timeout'),
+])
+def test_invalid_provider_settings_never_start_a_process(dataset,tmp_path,model_process,settings,error):
+    with pytest.raises(ValueError, match=error):
+        run_separator_model(assess_separator_recipe(dataset,SeparatorRecipe()), '/fake/codex', tmp_path, **settings)
+    model_process.spawn.assert_not_called()
+
+
+def test_provider_start_failure_is_sanitized(dataset,tmp_path,model_process):
+    model_process.spawn.side_effect = OSError('test-only private executable path')
+    with pytest.raises(RuntimeError, match='^model_start_failed$'):
+        run_separator_model(assess_separator_recipe(dataset,SeparatorRecipe()), '/fake/codex', tmp_path)
+    assert model_process.spawn.call_count == 1
+    assert not list(tmp_path.iterdir())
+
+
+@pytest.mark.parametrize('mode', ['nonzero_exit', 'missing_output', 'oversized_output'])
+def test_provider_failure_keeps_bounded_private_diagnostics(dataset,tmp_path,model_process,mode):
+    if mode == 'nonzero_exit':
+        model_process.process.returncode = 1
+    elif mode == 'missing_output':
+        model_process.answer = None
+    else:
+        model_process.answer['preparation_hypothesis'] = 'x' * 16001
+    model_process.stderr *= 1000
+    with pytest.raises(RuntimeError, match='^model_failed$'):
+        run_separator_model(assess_separator_recipe(dataset,SeparatorRecipe()), '/fake/codex', tmp_path)
+    diagnostic = tmp_path / 'last_error.log'
+    assert diagnostic.read_text() == model_process.stderr[-12000:]
+    assert diagnostic.stat().st_mode & 0o777 == 0o600
+    assert model_process.spawn.call_count == 1
+    assert sorted(path.name for path in tmp_path.iterdir()) == ['last_error.log']
+
+
+@pytest.mark.parametrize('mode', ['timeout', 'force_kill', 'already_exited', 'interrupt'])
+def test_interrupted_provider_cleans_process_group_and_scratch(dataset,tmp_path,monkeypatch,model_process,mode):
+    process = model_process.process
+    cause = KeyboardInterrupt() if mode == 'interrupt' else subprocess.TimeoutExpired('/fake/codex', 7)
+    process.communicate.side_effect = cause
+    killpg = Mock()
+    monkeypatch.setattr('materials.separator_model.os.killpg', killpg)
+    if mode == 'force_kill':
+        process.wait.side_effect = [subprocess.TimeoutExpired('/fake/codex', 3), None]
+        process.poll.return_value = None
+    elif mode == 'already_exited':
+        killpg.side_effect = ProcessLookupError()
+        process.poll.return_value = 0
+    error = KeyboardInterrupt if mode == 'interrupt' else RuntimeError
+    match = None if mode == 'interrupt' else '^model_timeout$'
+    with pytest.raises(error, match=match) as caught:
+        run_separator_model(assess_separator_recipe(dataset,SeparatorRecipe()), '/fake/codex', tmp_path, timeout_seconds=7)
+    if mode == 'interrupt':
+        assert caught.value is cause
+    signals = [call(process.pid, signal.SIGTERM)]
+    if mode == 'force_kill':
+        signals.append(call(process.pid, signal.SIGKILL))
+        assert process.wait.call_args_list == [call(timeout=3), call()]
+    elif mode == 'already_exited':
+        process.wait.assert_not_called()
+    else:
+        process.wait.assert_called_once_with(timeout=3)
+    assert killpg.call_args_list == signals
+    assert model_process.spawn.call_count == 1
+    assert model_process.spawn.call_args.kwargs['start_new_session'] is True
+    assert process.communicate.call_args.kwargs['timeout'] == 7
+    assert not list(tmp_path.iterdir())
