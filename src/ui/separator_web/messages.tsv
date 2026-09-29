@@ -1,0 +1,239 @@
+AI for Science · 配方與實驗規劃	AI for Science · 配方与实验规划	AI for Science · Formulation and experiment planning
+材料 · 實驗規劃	材料 · 实验规划	MATERIALS · EXPERIMENT PLANNING
+01 / 性能估算	01 / 性能估算	01 / PREDICT
+02 / 下一輪實驗	02 / 下一轮实验	02 / PLAN THE NEXT EXPERIMENT
+03 / 公開配方	03 / 公开配方	03 / PUBLIC FORMULATIONS
+BN 隔膜配方	BN 隔膜配方	BN separator formulations
+與實驗輔助工具	与实验辅助工具	and experiment assistant
+查找公開配方、估算材料性能，安排下一輪實驗。	查找公开配方、估算材料性能，安排下一轮实验。	Find published formulations, estimate material properties and plan the next experiment.
+正在載入公開資料…	正在载入公开数据…	Loading public data…
+頁面導覽	页面导航	Page navigation
+性能估算	性能估算	Property estimates
+實驗規劃	实验规划	Experiment planning
+配方資料	配方数据	Formulation catalogue
+配方性能估算	配方性能估算	Estimate formulation properties
+選擇研究任務	选择研究任务	Choose a research task
+水性 BN／鈦酸鋇漿料：黏度	水性 BN／钛酸钡浆料：黏度	Aqueous BN / barium titanate slurry: viscosity
+BNNT / PP 隔膜：離子導電率	BNNT / PP 隔膜：离子电导率	BNNT / PP separator: ionic conductivity
+BN / 海藻酸鈣隔膜：製備後膜厚	BN / 海藻酸钙隔膜：制备后膜厚	BN / calcium alginate separator: final thickness
+液態電解液：離子導電率	液态电解液：离子电导率	Liquid electrolyte: ionic conductivity
+水性 BN／鈦酸鋇漿料 · 總固含量 30 wt% · 固體中黏結劑佔 15 vol% · BN 粒徑 150 nm、鈦酸鋇 500 nm · 25°C 混合 60 分鐘	水性 BN／钛酸钡浆料 · 总固含量 30 wt% · 固体中黏结剂占 15 vol% · BN 粒径 150 nm、钛酸钡 500 nm · 25°C 混合 60 分钟	Aqueous BN / barium titanate slurry · 30 wt% total solids · 15 vol% binder in solids · 150 nm BN and 500 nm barium titanate · mixed at 25°C for 60 minutes
+BN 佔固體的體積比例（%）	BN 占固体的体积比例（%）	BN volume fraction in solids (%)
+其餘固體為鈦酸鋇	其余固体为钛酸钡	The remaining solids are barium titanate
+與苯乙烯－丙烯酸丁酯黏結劑 15%。	与苯乙烯－丙烯酸丁酯黏结剂 15%。	and 15% styrene–butyl acrylate binder.
+估算漿料黏度	估算浆料黏度	Estimate slurry viscosity
+PP 基材 · BN:PVDF = 4:1 · NMP 溶劑 · 超聲 1 小時、攪拌過夜、50°C 真空乾燥 24 小時	PP 基材 · BN:PVDF = 4:1 · NMP 溶剂 · 超声 1 小时、搅拌过夜、50°C 真空干燥 24 小时	PP substrate · BN:PVDF = 4:1 · NMP solvent · sonication for 1 hour, overnight stirring and vacuum drying at 50°C for 24 hours
+BNNT 種類	BNNT 种类	BNNT type
+純化 BNNT	纯化 BNNT	Purified BNNT
+未純化 BNNT	未纯化 BNNT	Raw BNNT
+BN 載量（mg/cm²）	BN 载量（mg/cm²）	BN loading (mg/cm²)
+可估算載量：純化 BNNT 0.01–{max} mg/cm²。	可估算载量：纯化 BNNT 0.01–{max} mg/cm²。	Supported loading: purified BNNT, 0.01–{max} mg/cm².
+可估算載量：未純化 BNNT 0.01–{max} mg/cm²。	可估算载量：未纯化 BNNT 0.01–{max} mg/cm²。	Supported loading: raw BNNT, 0.01–{max} mg/cm².
+估算離子導電率	估算离子电导率	Estimate ionic conductivity
+海藻酸鈣基材 · BN:PVDF = 4:1 · DMF 溶劑 · 60°C 乾燥	海藻酸钙基材 · BN:PVDF = 4:1 · DMF 溶剂 · 60°C 干燥	Calcium alginate substrate · BN:PVDF = 4:1 · DMF solvent · drying at 60°C
+塗布器設定間隙（μm）	涂布器设定间隙（μm）	Applicator gap (μm)
+設定間隙與製備後膜厚是兩件事；本任務估算後者。	设定间隙与制备后膜厚是两件事；本任务估算后者。	The applicator gap differs from the final membrane thickness; this task estimates the final thickness.
+估算製備後膜厚	估算制备后膜厚	Estimate final thickness
+LiPF₆ / EC / DMC / EMC 液態電解液 · 約 26–28°C · 下方比例按溶劑質量計	LiPF₆ / EC / DMC / EMC 液态电解液 · 约 26–28°C · 下方比例按溶剂质量计	LiPF₆ / EC / DMC / EMC liquid electrolyte · about 26–28°C · fractions below are solvent mass fractions
+LiPF₆ 濃度（mol/kg 溶劑）	LiPF₆ 浓度（mol/kg 溶剂）	LiPF₆ concentration (mol/kg solvent)
+EC 比例（%）	EC 比例（%）	EC fraction (%)
+DMC 比例（%）	DMC 比例（%）	DMC fraction (%)
+其餘為 EMC：	其余为 EMC：	Remaining EMC:
+選擇任務並輸入參數，即可開始估算。	选择任务并输入参数，即可开始估算。	Choose a task and enter the parameters to start an estimate.
+輸入參數，開始這個任務的數值估算。	输入参数，开始这个任务的数值估算。	Enter the parameters to estimate this property.
+下一輪實驗推薦	下一轮实验推荐	Plan the next experiment
+以公開液態電解液為示範，輸入已測結果，選出下一個值得測試的配方；完成實驗後再更新推薦。	以公开液态电解液为示范，输入已测结果，选出下一个值得测试的配方；完成实验后再更新推荐。	Using published liquid electrolytes as an example, enter measured results to select the next formulation to test, then update the recommendation after measurement.
+導電率目標	电导率目标	Conductivity target
+至少 {n} mS/cm	至少 {n} mS/cm	At least {n} mS/cm
+與哪一種方法比較	与哪一种方法比较	Comparison method
+隨機依序試驗	随机依次试验	Random selection
+參考相近配方	参考相近配方	Nearest-formulation selection
+線性回歸推薦	线性回归推荐	Linear regression
+逐輪更新模型推薦	逐轮更新模型推荐	Model updated after each experiment
+推薦下一個配方	推荐下一个配方	Recommend the next formulation
+可先用下方預填的文獻結果試用，也可以修改實測值，查看推薦如何改變。	可先用下方预填的文献结果试用，也可以修改实测值，查看推荐如何改变。	Try the prefilled published measurements, or edit the measured values to see how the recommendation changes.
+增加已測配方	增加已测配方	Add a measured formulation
+公開配方與實測結果	公开配方与实测结果	Published formulations and measurements
+資料類型	数据类型	Dataset
+水性 BN 漿料與對照	水性 BN 浆料与对照	Aqueous BN slurries and controls
+BN 隔膜／固態電解質	BN 隔膜／固态电解质	BN separators / solid electrolytes
+液態電解液	液态电解液	Liquid electrolytes
+搜尋配方	搜索配方	Search formulations
+例如 BN、鈦酸鋇、PP	例如 BN、钛酸钡、PP	For example: BN, barium titanate, PP
+下載表格 CSV	下载表格 CSV	Download table (CSV)
+全站每 24 小時接受 {n} 次新分析；查資料和讀取已有分析結果不佔額度。	全站每 24 小时接受 {n} 次新分析；查数据和读取已有分析结果不占额度。	The site accepts {n} new analyses per 24 hours; browsing data and reading saved analyses do not use this allowance.
+亮色模式	亮色模式	Light mode
+暗色模式	暗色模式	Dark mode
+切換至亮色模式	切换至亮色模式	Switch to light mode
+切換至暗色模式	切换至暗色模式	Switch to dark mode
+語言	语言	Language
+基材	基材	Substrate
+BN 形態	BN 形态	BN form
+載量依據	载量依据	Loading basis
+BN 質量比例（%）	BN 质量比例（%）	BN mass fraction (%)
+黏結劑	黏结剂	Binder
+BN:黏結劑（x:1）	BN:黏结剂（x:1）	BN:binder (x:1)
+配比依據	配比依据	Ratio basis
+溶劑	溶剂	Solvent
+超聲時間（小時）	超声时间（小时）	Sonication (hours)
+攪拌方式	搅拌方式	Stirring method
+攪拌時間（小時）	搅拌时间（小时）	Stirring (hours)
+乾燥時間（小時）	干燥时间（小时）	Drying (hours)
+乾燥溫度（°C）	干燥温度（°C）	Drying temperature (°C)
+塗布器間隙（μm）	涂布器间隙（μm）	Applicator gap (μm)
+塗布面數	涂布面数	Coated sides
+電解液	电解液	Electrolyte
+聚合物與鹽比例	聚合物与盐比例	Polymer:salt ratio
+測量溫度（°C）	测量温度（°C）	Measurement temperature (°C)
+製備後膜厚	制备后膜厚	Final membrane thickness
+離子導電率	离子电导率	Ionic conductivity
+製備結果	制备结果	Preparation outcome
+水接觸角	水接触角	Water contact angle
+PP 聚丙烯	PP 聚丙烯	PP (polypropylene)
+PE 聚乙烯	PE 聚乙烯	PE (polyethylene)
+CA 海藻酸鈣	CA 海藻酸钙	CA (calcium alginate)
+纖維素	纤维素	Cellulose
+PEO / PVDF 固態電解質	PEO / PVDF 固态电解质	PEO / PVDF solid electrolyte
+BN 奈米粉	BN 纳米粉	BN nanopowder
+BN 薄片	BN 薄片	BN flakes
+六方氮化硼	六方氮化硼	Hexagonal boron nitride
+無	无	None
+過夜	过夜	Overnight
+製備失敗：孔道堵塞	制备失败：孔道堵塞	Preparation failed: blocked pores
+LiPF₆ / 碳酸酯	LiPF₆ / 碳酸酯	LiPF₆ / carbonates
+未報告	未报告	Not reported
+是	是	Yes
+否	否	No
+服務暫未回應，請稍後重試。	服务暂未响应，请稍后重试。	The service has not responded. Please try again shortly.
+本次公開試用已結束。	本次公开试用已结束。	This public trial has ended.
+參數不在目前任務範圍，請核對數值與條件。	参数不在目前任务范围，请核对数值与条件。	These parameters are outside this task. Please check the values and conditions.
+服務未完成請求，請稍後重試。	服务未完成请求，请稍后重试。	The request did not complete. Please try again shortly.
+正在分析另一個配方，請稍後再試。	正在分析另一个配方，请稍后再试。	Another formulation is being analysed. Please try again shortly.
+已達全站 24 小時 {n} 次新分析上限；仍可查看資料和已有結果。	已达全站 24 小时 {n} 次新分析上限；仍可查看数据和已有结果。	The site has reached {n} new analyses in 24 hours. You can still browse data and saved results.
+模型本次未完成，沒有產生預測；請稍後重試。	模型本次未完成，没有生成预测；请稍后重试。	The model did not complete this analysis. Please try again shortly.
+請提供有效、有限的配方數值。	请提供有效、有限的配方数值。	Please enter valid, finite formulation values.
+已測配方編號不在這個電解液資料集中。	已测配方编号不在这个电解液数据集中。	A measured formulation ID is not in this electrolyte dataset.
+正在分析配方，通常約需 20–60 秒；已有結果會較快顯示。	正在分析配方，通常约需 20–60 秒；已有结果会较快显示。	Analysing the formulation, usually 20–60 seconds. Saved results appear sooner.
+正在計算，通常約需 1–3 秒。	正在计算，通常约需 1–3 秒。	Calculating, usually 1–3 seconds.
+已等待 {n} 秒。	已等待 {n} 秒。	Waiting for {n} seconds.
+仍在分析，已等待 {n} 秒；本次分析最多約 2 分鐘。	仍在分析，已等待 {n} 秒；本次分析最多约 2 分钟。	Still analysing after {n} seconds. This may take up to about 2 minutes.
+需要補充這組條件的資料	需要补充这组条件的数据	Additional data are needed for these conditions
+相近配方的已發表結果	相近配方的已发表结果	Published results for nearby formulations
+BN 體積比例	BN 体积比例	BN volume fraction
+黏度	黏度	Viscosity
+塗布結果	涂布结果	Coating outcome
+已有分析結果	已有分析结果	Saved analysis
+本次未提供數值	本次未提供数值	No numerical estimate returned
+同配方文獻實測：{value}	同配方文献实测：{value}	Published measurement for this formulation: {value}
+查看配方出處	查看配方出处	View formulation source
+比較資料尚未載入。	比较数据尚未载入。	Comparison data are loading.
+公開資料回放 · 找到 {n} 個達標配方	公开数据回放 · 找到 {n} 个达标配方	Public-data replay · find {n} qualifying formulations
+{n} 次	{n} 次	{n} experiments
+次	次	experiments
+回放中平均少做	回放中平均少做	Fewer experiments on average in this replay:
+，實驗次數減少	，实验次数减少	; reduction in experiment count:
+顯示 {n} / {total} 種配方	显示 {n} / {total} 种配方	Showing {n} / {total} formulations
+沒有符合搜尋條件的配方。	没有符合搜索条件的配方。	No formulations match your search.
+配方編號	配方编号	Formulation ID
+LiPF₆ 濃度	LiPF₆ 浓度	LiPF₆ concentration
+溶劑比例（質量）	溶剂比例（质量）	Solvent mass fractions
+文獻實測導電率	文献实测电导率	Published conductivity
+測量次數 / 溫度	测量次数 / 温度	Measurements / temperature
+來源	来源	Source
+配方名稱	配方名称	Formulation
+用料與配比	用料与配比	Ingredients and proportions
+粒徑	粒径	Particle size
+文獻報告黏度	文献报告黏度	Published viscosity
+詳情	详情	Details
+基材 / BN	基材 / BN	Substrate / BN
+BN 用量	BN 用量	BN amount
+黏結劑 / 溶劑	黏结剂 / 溶剂	Binder / solvent
+已發表結果	已发表结果	Published results
+原始研究	原始研究	Original study
+膏狀，未列數值	膏状，未列数值	Paste; no numerical value reported
+展開	展开	Open
+保留製備配方；原文未提供可抽取數值	保留制备配方；原文未提供可用数值	Preparation recipe available; no numerical measurement reported
+出處：	出处：	Source:
+查看研究原文	查看研究原文	Read the original study
+核對原文段落	核对原文段落	Read the source passage
+原文 {n}	原文 {n}	Passage {n}
+已測配方	已测配方	Measured formulation
+實測 mS/cm	实测 mS/cm	Measured mS/cm
+移除已測配方	移除已测配方	Remove measured formulation
+移除	移除	Remove
+每個已測配方只需列出一次。	每个已测配方只需列出一次。	List each measured formulation only once.
+正在安排下一輪，通常約需 1–3 秒。	正在安排下一轮，通常约需 1–3 秒。	Selecting the next experiment, usually 1–3 seconds.
+使用 {n} 個已測配方。	使用 {n} 个已测配方。	Using {n} measured formulations.
+推薦配方	推荐配方	Recommended formulation
+溶劑比例	溶剂比例	Solvent fractions
+模型估算導電率	模型估算电导率	Estimated conductivity
+所有候選配方都已有測量結果。	所有候选配方都已有测量结果。	All candidate formulations have measured results.
+種水性漿料與對照	种水性浆料与对照	Aqueous slurries and controls
+種 BN 相關配方	种 BN 相关配方	BN formulations
+種液態電解液配方	种液态电解液配方	Liquid electrolyte formulations
+按材料體系查找用料、製程及已發表結果；展開配方可查看對應文獻與章節。	按材料体系查找用料、工艺及已发表结果；展开配方可查看对应文献与章节。	Browse ingredients, processes and published results by material system. Open a formulation for its source and section.
+公開試用預計至 {date}（香港時間）。	公开试用预计至 {date}（北京时间）。	Public trial scheduled until {date} (Hong Kong time).
+本機試用。	本机试用。	Local trial.
+資料載入未完成：{error}	数据载入未完成：{error}	Data loading did not complete: {error}
+重新執行估算，可取得目前語言的配方分析。	重新执行估算，可获得当前语言的配方分析。	Run the estimate again to read the formulation analysis in this language.
+水性漿料黏度	水性浆料黏度	Aqueous slurry viscosity
+同體系插值估算	同体系插值估算	Within-system interpolation
+模型估算	模型估算	Model estimate
+依同一製程的公開漿料數據，估算 BN 比例改變時的黏度；下方列出相近配方的塗布結果。	依同一工艺的公开浆料数据，估算 BN 比例改变时的黏度；下方列出相近配方的涂布结果。	Estimate viscosity as the BN fraction changes using published slurries made by the same process. Coating outcomes for nearby formulations are listed below.
+依據已提供的實測值，兼顧預期導電率與尚待探索的配方。	依据已提供的实测值，兼顾预期电导率与尚待探索的配方。	Use the supplied measurements to balance expected conductivity with exploration of untested formulations.
+根據同製程的已發表塗布設定與製備後膜厚，估算這個設定的膜厚。	根据同一工艺的已发表涂布设置与制备后膜厚，估算这个设置的膜厚。	Estimate final thickness from published applicator settings and final thicknesses obtained with the same process.
+依據同一電解液體系的實測配方，估算指定溶劑比例與鹽濃度的導電率。	依据同一电解液体系的实测配方，估算指定溶剂比例与盐浓度的电导率。	Estimate conductivity for the selected solvent fractions and salt concentration using measured formulations from the same electrolyte system.
+BN {bn} vol%／鈦酸鋇 {filler} vol%／黏結劑 15 vol%；總固含量 30 wt%；TV-22 測法	BN {bn} vol%／钛酸钡 {filler} vol%／黏结剂 15 vol%；总固含量 30 wt%；TV-22 测法	BN {bn} vol% / barium titanate {filler} vol% / binder 15 vol%; 30 wt% total solids; TV-22 method
+LiPF₆／EC／DMC／EMC 液態電解液，26–28°C	LiPF₆／EC／DMC／EMC 液态电解液，26–28°C	LiPF₆ / EC / DMC / EMC liquid electrolyte, 26–28°C
+海藻酸鈣基膜／BN:PVDF 4:1／DMF／60°C 乾燥	海藻酸钙基膜／BN:PVDF 4:1／DMF／60°C 干燥	Calcium alginate membrane / BN:PVDF 4:1 / DMF / drying at 60°C
+實施例 {n}	实施例 {n}	Example {n}
+比較例 {n}	比较例 {n}	Comparative example {n}
+未達到 1.5 μm 塗層	未达到 1.5 μm 涂层	Did not achieve a 1.5 μm coating
+膏狀，無法塗布	膏状，无法涂布	Paste; could not be coated
+雙面各 1.5 μm 塗層	双面各 1.5 μm 涂层	1.5 μm coating on each side
+鈦酸鋇 / BN / 黏結劑 = {ratio}（固體體積比）	钛酸钡 / BN / 黏结剂 = {ratio}（固体体积比）	Barium titanate / BN / binder = {ratio} (solid volume ratio)
+氧化鋁 / BN / 黏結劑 = {ratio}（固體體積比）	氧化铝 / BN / 黏结剂 = {ratio}（固体体积比）	Alumina / BN / binder = {ratio} (solid volume ratio)
+BN 150 nm；共填料 500 nm	BN 150 nm；共填料 500 nm	BN 150 nm; co-filler 500 nm
+氧化鋁 500 nm	氧化铝 500 nm	Alumina 500 nm
+總固含量 30 wt%；水；25°C 振盪混合 60 分鐘；苯乙烯－丙烯酸丁酯黏結劑	总固含量 30 wt%；水；25°C 振荡混合 60 分钟；苯乙烯－丙烯酸丁酯黏结剂	30 wt% total solids; water; shaking at 25°C for 60 minutes; styrene–butyl acrylate binder
+實施例與比較例；實驗例 1「漿料物性評估」、表 1	实施例与比较例；实验例 1“浆料物性评估”、表 1	Examples and comparative examples; Experimental example 1, evaluation of slurry properties, results table 1
+BN／鈦酸鋇水性隔膜塗層	BN／钛酸钡水性隔膜涂层	Aqueous BN / barium titanate separator coating
+BN／聚醯亞胺複合隔膜水性漿料	BN／聚酰亚胺复合隔膜水性浆料	Aqueous BN / polyimide composite separator slurry
+BN {bn} g；聚丙烯酸銨 {dispersant} g；黏結劑 {binder} g；水 {water} g	BN {bn} g；聚丙烯酸铵 {dispersant} g；黏结剂 {binder} g；水 {water} g	BN {bn} g; ammonium polyacrylate {dispersant} g; binder {binder} g; water {water} g
+水；聚丙烯酸丁酯－異辛酯黏結劑；{rpm} rpm 乳化	水；聚丙烯酸丁酯－异辛酯黏结剂；{rpm} rpm 乳化	Water; butyl acrylate–isooctyl acrylate binder; emulsification at {rpm} rpm
+浸潤 PI 纖維基膜；100°C 乾燥後 200°C 熱處理	浸润 PI 纤维基膜；100°C 干燥后 200°C 热处理	PI fibre membrane impregnation; drying at 100°C, then heat treatment at 200°C
+具體實施方式 · 實施例 {n} · 水基懸浮液配製	具体实施方式 · 实施例 {n} · 水基悬浮液配制	Detailed embodiments · Example {n} · Aqueous suspension preparation
+圖表 · 表 2	图表 · 表 2	Results, table 2
+研究正文 · 離子導電率結果	研究正文 · 离子电导率结果	Main text · Ionic conductivity results
+原文（保留文獻語言）	原文（保留文献语言）	Original passage (source language)
+目前數值任務只涵蓋 PP 基材；其他基材只能查文獻。	目前数值任务只涵盖 PP 基材；其他基材可查阅文献。	Numerical estimates currently cover PP substrates; other substrates are available in the catalogue.
+BN 形態超出目前 PP/BNNT 任務。	BN 形态超出目前 PP/BNNT 任务。	This BN form is outside the current PP/BNNT task.
+電解液不匹配；不同電解液的導電率不能直接套用。	电解液不匹配；不同电解液的电导率不能直接套用。	The electrolyte does not match this task. Conductivity cannot be transferred directly between electrolytes.
+訓練文獻未清楚標示這項測量的溫度，不能預測指定溫度。	训练文献未明确标示这项测量的温度，无法估算指定温度。	The source does not specify the measurement temperature, so a temperature-specific estimate is unavailable.
+可供數值探索的載量範圍僅為 0–0.5 mg/cm²。	可供数值探索的载量范围为 0–0.5 mg/cm²。	Supported loading range: 0–0.5 mg/cm².
+未純化 BNNT 在 0.3 mg/cm² 後呈下降趨勢；請選 0–0.3，或改用純化 BNNT 任務。	未纯化 BNNT 在 0.3 mg/cm² 后呈下降趋势；请选择 0–0.3，或改用纯化 BNNT 任务。	Raw BNNT conductivity declines beyond 0.3 mg/cm². Choose 0–0.3 or the purified BNNT task.
+空白 PP 對照需設定 BN 載量為 0，黏結劑與溶劑為 none。	空白 PP 对照需将 BN 载量设为 0，黏结剂与溶剂设为 none。	For the blank PP control, set BN loading to 0 and binder and solvent to none.
+含 BN 配方的載量必須大於 0。	含 BN 配方的载量必须大于 0。	BN-containing formulations require a loading greater than 0.
+比例或製程超出文獻條件：BN:PVDF 4:1、NMP、50°C 真空乾燥 24 h。	比例或工艺超出文献条件：BN:PVDF 4:1、NMP、50°C 真空干燥 24 h。	The ratio or process differs from the source: BN:PVDF 4:1, NMP, vacuum drying at 50°C for 24 h.
+可用訓練標籤不足。	可用训练数据不足。	Insufficient compatible training measurements.
+粉末配比；原文未明示質量依據	粉末配比；原文未明示质量依据	Powder ratio; mass basis not specified
+wt%；原文未明示分母	wt%；原文未明示分母	wt%; denominator not specified
+未添加 BN	未添加 BN	No BN added
+水	水	Water
+固態 PEO-PVDF-LiTFSI	固态 PEO-PVDF-LiTFSI	Solid PEO-PVDF-LiTFSI
+2. 材料與方法 · 2.2. HCNF 與 BNNT 複合膜製備	2. 材料与方法 · 2.2. HCNF 与 BNNT 复合膜制备	2. Materials and Methods · 2.2. Fabrication of HCNF and BNNT-Incorporated Composite Membranes
+2. 材料與方法 · 2.3. BNNT／純化 BNNT 隔膜製備	2. 材料与方法 · 2.3. BNNT／纯化 BNNT 隔膜制备	2. Materials and Methods · 2.3. Fabrication of BNNT (or p−BNNT) Loaded Separator
+2. 材料與方法 · 2.4. 電池組裝	2. 材料与方法 · 2.4. 电池组装	2. Materials and Methods · 2.4. Cell Assembly
+2. 材料與方法 · 2.4. CNF 隔膜的電化學性能	2. 材料与方法 · 2.4. CNF 隔膜的电化学性能	2. Materials and Methods · 2.4. Electrochemical Performance of CNF Separators
+2. 結果與討論 · 2.1. 結構與性能	2. 结果与讨论 · 2.1. 结构与性能	2. Results and Discussion · 2.1. Structure and Properties
+2. 結果與討論 · 2.2. 電化學性能	2. 结果与讨论 · 2.2. 电化学性能	2. Results and Discussion · 2.2. Electrochemical Performance
+3. 結論	3. 结论	3. Conclusions
+3. 結果	3. 结果	3. Results
+3. 結果與討論	3. 结果与讨论	3. Results and Discussion
+4. 結論	4. 结论	4. Conclusions
+4. 實驗部分 · 4.1. 材料與表徵	4. 实验部分 · 4.1. 材料与表征	4. Experimental Section · 4.1. Materials and Characterization
+4. 實驗部分 · 4.2. 製備方法 · 4.2.1. CA 隔膜製備	4. 实验部分 · 4.2. 制备方法 · 4.2.1. CA 隔膜制备	4. Experimental Section · 4.2. Preparation Method · 4.2.1. Fabrication of CA Separator
+4. 實驗部分 · 4.2. 製備方法 · 4.2.2. CA@BN 隔膜製備	4. 实验部分 · 4.2. 制备方法 · 4.2.2. CA@BN 隔膜制备	4. Experimental Section · 4.2. Preparation Method · 4.2.2. Preparation of the CA@BN Separator
+實驗部分 · 固態電解質膜製備	实验部分 · 固态电解质膜制备	Experimental Section · Solid Electrolyte Membrane Preparation
+資料載入未完成：	数据载入未完成：	Data loading did not complete:
+服務連線中斷，請稍後重試。	服务连接中断，请稍后重试。	Failed to fetch

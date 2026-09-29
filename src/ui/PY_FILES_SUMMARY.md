@@ -38,7 +38,7 @@ Anything underscore-prefixed or omitted here should be treated as internal.
 - `check_separator_service(runtime_dir=RUNTIME, *, client=None, now=None)`: lock one monitor, check both origins/page, periodically make an uncached public numerical call, and atomically persist private minimal evidence. Uses the same public quota and inference lock; no repair or messages.
 - CLI adds result-v1 `schema_version=1`; `--status` is Supervisor's read-only entry. Tests cover cached/malformed/failed responses, timing, changed configuration, in-progress/interrupted calls and verified expiry.
 
-API v4 uses the PP linear reference for the displayed number with a separate
+API v5 uses the PP linear reference for the displayed number with a separate
 language-model explanation; private receipts retain the model's raw guess. The
 planner returns one next recipe to match sequential replay. Dispersion literature
 reviews enrich source descriptions without becoming PP training labels. New
@@ -46,3 +46,10 @@ aqueous numeric inference uses six matched patent cases; the other aqueous
 cases remain separately identified references. Public evidence contains a paper
 title and section instead of an XML locator. Model notice sentences are removed
 from explanations without deleting tentative scientific wording or failure cases.
+
+The website defaults to Simplified Chinese. `separator_web/messages.tsv` owns
+Traditional/Simplified/English presentation strings and bounded templates;
+`i18n.js` changes DOM text and accessible labels without touching inputs or
+original excerpts. `/api/predict?language=zh-CN|zh-TW|en` validates the language
+and includes it in remote prompt/cache identity; local numeric caches remain
+language-independent. Internal curation notes are excluded from public records.

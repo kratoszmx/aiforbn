@@ -20,7 +20,7 @@ def demo(tmp_path):
 
 def test_public_pages_evidence_and_export(demo):
     client,_=demo
-    for url in ['/','/app.js','/style.css','/health','/api/overview','/api/sources',
+    for url in ['/','/app.js','/i18n.js','/messages.tsv','/style.css','/health','/api/overview','/api/sources',
                 '/api/records','/api/electrolytes','/api/aqueous','/api/evaluation',
                 '/api/download/public.sqlite','/api/download/electrolytes.csv']:
         response=client.get(url)
@@ -28,6 +28,7 @@ def test_public_pages_evidence_and_export(demo):
         assert response.headers['x-content-type-options']=='nosniff'
         assert 'gpt-6-astra' not in response.text.lower()
     assert len(client.get('/api/records?q=CA@BN').json())==4
+    assert all('notes' not in r for r in client.get('/api/records').json())
     assert len(client.get('/api/electrolytes').json())==38
     overview=client.get('/api/overview').json()
     assert overview['daily_model_limit']==100 and overview['electrolyte_measurements']==125
@@ -42,7 +43,7 @@ def test_public_pages_evidence_and_export(demo):
 def test_anonymous_prediction_hides_provider_and_caches_exact_config(demo,monkeypatch):
     client,runtime=demo
     models=[]
-    def model(*args,model_name):
+    def model(*args,model_name,language):
         models.append(model_name)
         return {'model':model_name,'usage':{'private':1},'result':{
             'conductivity_mS_cm':.65,'preparation_hypothesis':f'{model_name} Astra Codex OpenAI 材料分析'}}
@@ -59,6 +60,31 @@ def test_anonymous_prediction_hides_provider_and_caches_exact_config(demo,monkey
     assert changed.json()['cached'] is False
     assert 'future-research-model' not in changed.text
     assert models==['gpt-6-astra','future-research-model']
+
+
+def test_response_language_selects_prompt_and_separates_only_model_cache(demo,monkeypatch):
+    client,runtime=demo
+    requested=[]
+    def model(*args,language,**kwargs):
+        requested.append(language)
+        return {'result':{'preparation_hypothesis':{'zh-CN':'可能改善浸润。',
+            'zh-TW':'可能改善浸潤。','en':'It may improve wetting.'}[language]}}
+    monkeypatch.setattr('ui.separator_app.run_separator_model',model)
+    default=client.post('/api/predict',json={}).json()
+    assert default['explanation']=='可能改善浸润。'
+    for lang,text in [('en','It may improve wetting.'),('zh-TW','可能改善浸潤。'),('zh-CN','可能改善浸润。')]:
+        url='/api/predict?language='+lang
+        result=client.post(url,json={}).json()
+        assert result['explanation']==text
+        assert client.post(url,json={}).json()['cached']
+        local=client.post(url,json={'task':'aqueous_viscosity'}).json()
+        assert local['prediction']['value']==pytest.approx(7.45)
+        assert local['cached']==(lang!='en')
+    assert requested==['zh-CN','en','zh-TW']
+    with sqlite3.connect(runtime/'usage.sqlite') as db:
+        assert db.execute('SELECT count(*) FROM calls').fetchone()[0]==4
+    assert client.post('/api/predict?language=arbitrary-prompt',json={}).status_code==422
+    assert len(requested)==3
 
 
 def test_partner_csv_has_readable_columns_instead_of_json_cells(demo):

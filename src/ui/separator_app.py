@@ -14,6 +14,7 @@ import sqlite3
 import sys
 import threading
 import time
+from typing import Literal
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
@@ -40,19 +41,25 @@ PROJECT_ROOT=SRC_DIR.parent
 WEB_DIR=Path(__file__).with_name('separator_web')
 
 
-def _public_explanation(text, model_name):
+def _public_explanation(text, model_name, language='zh-TW'):
     """Remove model identity and boilerplate while preserving material-specific uncertainty."""
-    text=re.sub(re.escape(model_name),'研究模型',text,flags=re.I)
-    text=re.sub(r'(?i)gpt[\s-]*6[\s-]*astra|astra|openai|codex','研究模型',text)
-    sentences=re.findall(r'[^。！？\n]+[。！？]?|\n',text)
+    label='research model' if language=='en' else '研究模型'
+    text=re.sub(re.escape(model_name),label,text,flags=re.I)
+    text=re.sub(r'(?i)gpt[\s-]*6[\s-]*astra|astra|openai|codex',label,text)
+    sentences=re.split(r'(?<=[。！？])|(?<=[.!?])\s+|\n',text)
     boilerplate=re.compile(
         r'(?:此|這|上述|以上|以下|本次|本)[^。！？]{0,24}'
         r'(?:機制假[說说]|非觀察|非观察|非實測|非实测|僅供|仅供|未經驗證|尚未驗證|不代表|不構成)|'
         r'^(?:僅供|仅供|免責|免责声明|注意[:：]|聲明[:：]|声明[:：])|'
         r'(?:不能|無法|不可)(?:代替|取代)實驗|'
-        r'(?:非觀察結果|非观察结果|不是實驗結果|並非實測結果)')
-    result=''.join(s for s in sentences if not boilerplate.search(s)).strip()
-    return result or '依照這組用料、載量與製程條件，整理可能影響離子傳輸的因素。'
+        r'(?:非觀察結果|非观察结果|不是實驗結果|並非實測結果)|'
+        r'(?i:this is (?:only )?(?:an? )?(?:unvalidated |mechanistic )?hypothesis|'
+        r'not (?:an? )?(?:observed result|observation)|disclaimer|for research purposes only)')
+    result=(' ' if language=='en' else '').join(s for s in sentences if not boilerplate.search(s)).strip()
+    fallback={'en':'The ingredients, loading and process can influence ion transport.',
+        'zh-CN':'根据这组用料、载量与工艺条件，整理可能影响离子传输的因素。',
+        'zh-TW':'依照這組用料、載量與製程條件，整理可能影響離子傳輸的因素。'}
+    return result or fallback[language]
 
 
 def create_separator_app(data_path=DATASET_PATH, runtime_dir=None, model_executable=None):
@@ -153,6 +160,14 @@ def create_separator_app(data_path=DATASET_PATH, runtime_dir=None, model_executa
     def stylesheet():
         return FileResponse(WEB_DIR/'style.css',media_type='text/css')
 
+    @app.get('/i18n.js')
+    def localization():
+        return FileResponse(WEB_DIR/'i18n.js',media_type='application/javascript')
+
+    @app.get('/messages.tsv')
+    def messages():
+        return FileResponse(WEB_DIR/'messages.tsv',media_type='text/tab-separated-values')
+
     @app.get('/health')
     def health():
         return dict(status='ok',dataset_version=data['dataset_version'],dataset_sha256=dataset_digest,
@@ -182,7 +197,8 @@ def create_separator_app(data_path=DATASET_PATH, runtime_dir=None, model_executa
     @app.get('/api/records')
     def records(substrate: str='', q: str=''):
         try:
-            return search_separator_records(data,substrate or None,q)
+            return [{k:v for k,v in record.items() if k!='notes'}
+                    for record in search_separator_records(data,substrate or None,q)]
         except ValueError:
             raise HTTPException(422,'invalid_search') from None
 
@@ -225,7 +241,8 @@ def create_separator_app(data_path=DATASET_PATH, runtime_dir=None, model_executa
         return dict(numeric_allowed=result['numeric_allowed'],reasons=result['reasons'])
 
     @app.post('/api/predict')
-    async def predict(recipe: SeparatorRecipe | CoatingRecipe | ElectrolyteRecipe | ExperimentPlan | AqueousSlurryRecipe):
+    async def predict(recipe: SeparatorRecipe | CoatingRecipe | ElectrolyteRecipe | ExperimentPlan | AqueousSlurryRecipe,
+                      language: Literal['zh-CN','zh-TW','en']='zh-CN'):
         configured=settings()
         model_name=configured.get('model_name',MODEL)
         assessment=None
@@ -236,10 +253,10 @@ def create_separator_app(data_path=DATASET_PATH, runtime_dir=None, model_executa
             assessment=assess_separator_recipe(data,recipe)
             if not assessment['numeric_allowed']:
                 return dict(status='needs_data',reasons=assessment['reasons'],model_called=False)
-        identity=dict(api_version=4,recipe=recipe.model_dump(),dataset=dataset_digest,
+        identity=dict(api_version=5,recipe=recipe.model_dump(),dataset=dataset_digest,
                       electrolyte_data=electrolyte_digest,aqueous_data=aqueous_digest,
                       engine=model_name if assessment else 'public_data_v1',
-                      prompt=make_separator_prompt(assessment) if assessment else None)
+                      prompt=make_separator_prompt(assessment,language=language) if assessment else None)
         key=hashlib.sha256(json.dumps(identity,sort_keys=True,allow_nan=False).encode()).hexdigest()
         if not inference_lock.acquire(blocking=False):
             raise HTTPException(429,'正在分析另一個配方，請稍後再試。')
@@ -275,9 +292,9 @@ def create_separator_app(data_path=DATASET_PATH, runtime_dir=None, model_executa
                 if not executable:
                     raise RuntimeError('model_executable_missing')
                 private=await asyncio.to_thread(run_separator_model,assessment,executable,
-                                               runtime_dir/'model',model_name=model_name)
+                                               runtime_dir/'model',model_name=model_name,language=language)
                 result=private['result']
-                explanation=_public_explanation(result.get('preparation_hypothesis',''),model_name)
+                explanation=_public_explanation(result.get('preparation_hypothesis',''),model_name,language)
                 # The language model explains the recipe. Its free numerical guess
                 # has not beaten the simple reference; publish that reference
                 # without fitting a correction to the already known holdout.

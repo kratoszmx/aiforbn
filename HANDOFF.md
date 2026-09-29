@@ -54,3 +54,15 @@ source locations, light/dark preference and task-specific waits. A fresh public
 model request returned in 21.625 seconds. Existing monitoring/expiry are retained.
 Only public naming changes; repository name is unchanged. Candidate validation
 and deployment proof are under ignored `.runtime/separator/revision4/`.
+
+## September 29 revision 5
+
+[Current language/architecture audit](docs/research/separator_prototype/revision_5_report.md):
+the public site defaults to Simplified Chinese with persistent English and
+Traditional Chinese choices, including model explanation language. Internal
+curation notes are excluded from the public record view. Numerical methods and
+source cohorts are unchanged. The weekly draft now follows the meeting's data,
+model, simple interface and iterative-feedback architecture; unimplemented
+partner-data import/retraining remains explicitly future work. Visible Chrome
+via isolated ATT returned 404 for CN122338356A; direct Chrome timed out.
+Validation/deployment evidence is under ignored `.runtime/separator/revision5/`.

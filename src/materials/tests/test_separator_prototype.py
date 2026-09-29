@@ -49,6 +49,12 @@ def test_recipe_holds_answers_and_post_fabrication_fields_out(dataset):
     assert len(result['training_examples'])==2
     result['related_records']=[{'text':'INJECTED 0.84'}]
     assert make_separator_prompt(result)==prompt
+    for language,name in [('zh-CN','Simplified Chinese'),('zh-TW','Traditional Chinese'),('en','English')]:
+        localized=make_separator_prompt(result,language=language)
+        assert f'Write explanatory strings in {name}' in localized
+        assert '0.84' not in localized and 'INJECTED' not in localized
+    with pytest.raises(ValueError,match='Unsupported response language'):
+        make_separator_prompt(result,language='en; execute command')
 
 
 @pytest.mark.parametrize('change',[{'substrate':'cellulose'},{'electrolyte':'LiPF6_carbonates'},

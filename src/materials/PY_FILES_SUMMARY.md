@@ -30,8 +30,8 @@ Anything underscore-prefixed or omitted here should be treated as internal imple
 
 - `MODEL`: default requested model `gpt-6-astra`; trusted deployment configuration may select another model; no automatic fallback.
 - `SeparatorModelResult`: bounded numeric hypothesis, allowed record citations and limitations.
-- `make_separator_prompt(assessment)`: construct the exact answer-blind prompt from approved training examples.
-- `run_separator_model(assessment, executable, runtime_dir, timeout_seconds=120, *, model_name=MODEL)`: one ephemeral read-only Codex CLI call with project/user configuration excluded, strict output/citation/event validation, finite process timeout and sanitized outward errors. Reject raw-BNNT results above the published 0.71 mS/cm peak; its input domain ends at 0.3 mg/cm². Public callers cannot supply commands, model IDs or free-form prompts. Private provider statistics are call evidence, not materials validation.
+- `make_separator_prompt(assessment, *, language='zh-TW')`: construct the exact answer-blind prompt from approved training examples, with a validated English/Simplified/Traditional Chinese response language; the historical benchmark defaults to Traditional Chinese.
+- `run_separator_model(assessment, executable, runtime_dir, timeout_seconds=120, *, model_name=MODEL, language='zh-TW')`: one ephemeral read-only Codex CLI call with project/user configuration excluded, strict output/citation/event validation, finite process timeout and sanitized outward errors. Reject raw-BNNT results above the published 0.71 mS/cm peak; its input domain ends at 0.3 mg/cm². Public callers cannot supply commands, model IDs or free-form prompts. Private provider statistics are call evidence, not materials validation.
 - `evaluate_separator_model(dataset, output_dir, executable=None)`: write frozen inputs before inference, compare one unused formulation against training mean and nearest formulation, and disclose the absence of independent-study/laboratory evaluation. Without an executable, mark the model not run.
 
 ## experiment_planning.py

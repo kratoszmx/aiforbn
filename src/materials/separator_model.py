@@ -31,10 +31,13 @@ class SeparatorModelResult(BaseModel):
     limitations: list[str] = Field(min_length=1, max_length=5)
 
 
-def make_separator_prompt(assessment):
+def make_separator_prompt(assessment, *, language='zh-TW'):
     """Create an answer-blind prompt using only approved training input/labels."""
     if not assessment['numeric_allowed']:
         raise ValueError('Unsupported recipes cannot be sent for quantitative inference')
+    languages={'zh-CN':'Simplified Chinese','zh-TW':'Traditional Chinese','en':'English'}
+    if language not in languages:
+        raise ValueError('Unsupported response language')
     context = dict(recipe=assessment['inputs'],training_examples=assessment['training_examples'])
     return (
         'You are a materials formulation research assistant. Use only the supplied data. '
@@ -47,7 +50,7 @@ def make_separator_prompt(assessment):
         'Fixed process: 1 hour sonication, overnight stirring, vacuum drying. '
         'Return only schema-compliant JSON with conductivity_mS_cm, preparation_hypothesis, '
         'supporting_record_ids, limitations. Cite only record IDs in training_examples. '
-        'Write explanatory strings in Traditional Chinese, under 200 words total. '
+        f'Write explanatory strings in {languages[language]}, under 200 words total. '
         'Do not mention model names or providers. Keep preparation_hypothesis focused on '
         'the material/process explanation, using tentative wording for inferred effects. '
         'Do not add disclaimer sentences, hypothesis-versus-observation notices, or generic '
@@ -56,13 +59,13 @@ def make_separator_prompt(assessment):
     )
 
 
-def run_separator_model(assessment, executable, runtime_dir, timeout_seconds=120, *, model_name=MODEL):
+def run_separator_model(assessment, executable, runtime_dir, timeout_seconds=120, *, model_name=MODEL, language='zh-TW'):
     """Run one isolated ephemeral CLI inference; validate output and citation IDs.
 
     No retries or provider/model fallback. A timed-out process group is terminated.
     Only sanitized statistics are returned; CLI diagnostics stay out of responses.
     """
-    prompt = make_separator_prompt(assessment)
+    prompt = make_separator_prompt(assessment,language=language)
     if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}',model_name):
         raise ValueError('Invalid configured model identifier')
     runtime_dir = Path(runtime_dir).resolve()

@@ -321,7 +321,7 @@ Load the pinned separator package, validate original-source checksums and eviden
 
 ## src/materials/separator_model.py
 
-### `run_separator_model(assessment, executable, runtime_dir, timeout_seconds=120, *, model_name=MODEL)`
+### `run_separator_model(assessment, executable, runtime_dir, timeout_seconds=120, *, model_name=MODEL, language='zh-TW')`
 
 Run the trusted configured model with bounded structured inputs and verify output/citations. Provider identity stays private; evaluation and applicability do not imply experimentally reliable predictions.
 
