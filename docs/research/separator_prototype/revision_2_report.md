@@ -1,5 +1,7 @@
 # AI for Science：第二版原型交付與研究驗證
 
+Dated delivery record; current usage and subsequent changes are in the [prototype index](INDEX.md).
+
 日期：2026-09-28。對外名稱改為 AI for Science；依使用者確認，本機 aiforbn 資料夾、Git 倉庫和內部識別碼不改。這是既有 materials/ui 模組的擴充，沒有新增子專案或套件安裝。
 
 ## 合作方可以操作的功能

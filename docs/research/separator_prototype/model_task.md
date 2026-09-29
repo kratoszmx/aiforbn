@@ -1,9 +1,6 @@
 # Frozen initial task (historical)
 
-September 28 update: the text below records the initial scope. The current API
-uses the linear numerical reference plus model explanation, supports CA thickness
-and electrolyte tasks, and limits raw BNNT to ≤0.3 mg/cm². See
-[revision 3](revision_3_report.md) for current behavior and unresolved validation.
+The text below preserves the initial frozen PP task and evaluation. Current task domains, numerical methods, languages and operating limits are in the [prototype index](INDEX.md). In particular, the current raw-BNNT range is ≤0.3 mg/cm²; the historical exploratory range below is not the live API contract.
 
 Working application: a BN separator formulation assistant. The public component
 accepts structured ingredients, BN loading, binder ratio, drying conditions and

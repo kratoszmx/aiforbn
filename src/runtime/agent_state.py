@@ -192,20 +192,22 @@ REQUIRED_VALIDATION_PROFILES = {
     },
 }
 
+_WORKFLOW_SKILL_PATH = '.agents/skills/aiforbn-workflow/SKILL.md'
+
+
 REQUIRED_SOURCE_OF_TRUTH_FILES = {
     'AGENTS.md',
-    '.agents/skills/aiforbn-workflow/SKILL.md',
+    _WORKFLOW_SKILL_PATH,
     '.agents/skills/aiforbn-overleaf-proposal/SKILL.md',
     'docs/AGENT_MANIFEST.json',
     'docs/HANDOFF.md',
     'docs/PY_FILES_SUMMARY.md',
-    'skills/ai_native_workflow.txt',
 }
 
 REQUIRED_PROJECT_SKILLS = [
     {
         'name': 'aiforbn-workflow',
-        'path': '.agents/skills/aiforbn-workflow/SKILL.md',
+        'path': _WORKFLOW_SKILL_PATH,
         'scope': 'repo_scoped_codex_skill',
         'status': 'active',
     },
@@ -215,23 +217,9 @@ REQUIRED_PROJECT_SKILLS = [
         'scope': 'repo_scoped_codex_skill',
         'status': 'active',
     },
-    {
-        'name': 'ai_native_workflow',
-        'path': 'skills/ai_native_workflow.txt',
-        'scope': 'plain_text_agent_runtime_guidance',
-        'status': 'active',
-    },
 ]
 
-REQUIRED_RETIRED_GUIDANCE_FILES = [
-    'skills/codex_skill.txt',
-    'skills/coding_skill.txt',
-    'skills/docs_skill.txt',
-    'skills/model_skill.txt',
-    'skills/python_skill.txt',
-    'skills/template.txt',
-    'skills/workflow.txt',
-]
+REQUIRED_RETIRED_GUIDANCE_FILES = ['skills']
 
 
 REQUIRED_MODULE_CONTRACTS = {
@@ -4316,7 +4304,7 @@ def validate_agent_layout(
                     ),
                 })
 
-        workflow_guidance_path = root / 'skills/ai_native_workflow.txt'
+        workflow_guidance_path = root / _WORKFLOW_SKILL_PATH
         workflow_guidance = _read_text_if_present(workflow_guidance_path)
         missing_guidance_profiles = sorted(
             profile_name
@@ -4325,15 +4313,15 @@ def validate_agent_layout(
         )
         checks.append({
             'kind': 'validation_profile_guidance',
-            'path': 'skills/ai_native_workflow.txt',
+            'path': _WORKFLOW_SKILL_PATH,
             'missing_profiles': missing_guidance_profiles,
         })
         if missing_guidance_profiles:
             errors.append({
                 'code': 'missing_validation_profile_guidance',
-                'path': 'skills/ai_native_workflow.txt',
+                'path': _WORKFLOW_SKILL_PATH,
                 'message': (
-                    'Active compact guidance must route through every emitted '
+                    'The project workflow skill must route through every emitted '
                     f'validation profile name; missing: {missing_guidance_profiles}'
                 ),
             })
@@ -4563,7 +4551,7 @@ def validate_agent_layout(
             'code': 'unexpected_retired_guidance_files',
             'path': 'docs/AGENT_MANIFEST.json:retired_guidance_files',
             'message': (
-                'Retired guidance paths must match the required stale-shard '
+                'Retired guidance paths must match the required legacy-directory '
                 'detection contract.'
             ),
         })
@@ -4576,7 +4564,7 @@ def validate_agent_layout(
                 'code': 'retired_guidance_file_present',
                 'path': relative_path,
                 'message': (
-                    f'Retired guidance file `{relative_path}` is present; consolidate into '
+                    f'Retired guidance path `{relative_path}` is present; consolidate into '
                     'AGENTS.md, project skills, or docs/AGENT_MANIFEST.json.'
                 ),
             })

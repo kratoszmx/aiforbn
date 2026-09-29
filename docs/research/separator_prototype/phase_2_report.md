@@ -1,5 +1,7 @@
 # Phase 2 delivery — 2026-09-28
 
+Dated delivery record; current usage and subsequent changes are in the [prototype index](INDEX.md).
+
 Delivered: a text-verifiable web prototype, public evidence database, structured
 recipe applicability checks, an invitation-protected real GPT-6 Astra integration,
 three reproducible demonstration types and a frozen comparison. No extra Python

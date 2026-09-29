@@ -1,8 +1,13 @@
 # AI for Science — agent entrypoint
 
-`aiforbn` is a research PoC for boron-nitride (BN) themed materials screening. It loads 2D-material data, predicts band gaps, evaluates formula/family holdouts, ranks formula-only candidates, and builds deterministic unrelaxed structure prototypes for follow-up. Ranking and prototype generation do not establish discovery, stability, synthesizability, or a direct band gap.
+The public-facing name is **AI for Science**; the local directory, repository and internal identifiers remain `aiforbn`. Choose the flow before running commands:
 
-The public-facing name is **AI for Science**; the local directory, repository and internal identifiers remain `aiforbn`. The partner prototype is a separate research flow: [current delivery](docs/research/separator_prototype/revision_4_report.md), [BN data](data/separators/dataset.json), [aqueous source manifest](data/dispersion/aqueous_sources.json), [electrolyte measurements](official_docs/experiment_planning/source_manifest.json), and [service lifecycle](SERVICES.md). It supports bounded viscosity/conductivity/thickness estimates, configurable model explanations and sequential experiment selection. The 20 BN records, 12 aqueous patent cases and 38 electrolyte compositions (125 measurements) stay separate. Only six aqueous cases form the viscosity series; the PP comparison still uses one study. Experiment savings are same-pool retrospective replay estimates, not prospective laboratory validation or BN gains. Do not feed historical band-gap labels into this task.
+| Flow | Purpose and entry |
+| --- | --- |
+| Partner separator/dispersion prototype | Source-backed formulation lookup, four bounded numerical tasks, model explanation and next-experiment selection. Start at the [prototype index](docs/research/separator_prototype/INDEX.md); service lifecycle is in [SERVICES.md](SERVICES.md). |
+| Historical BN band-gap PoC | `main.py` loads 2D-material data, evaluates formula/family holdouts, ranks formula-only candidates and builds unrelaxed prototypes. Ranking/prototypes do not establish discovery, stability, synthesizability or a direct gap. |
+
+Keep BN separator, aqueous and electrolyte cohorts separate. Historical band-gap labels do not enter partner tasks; replay savings are conditional retrospective estimates, not prospective laboratory validation or BN gains.
 
 ## First useful run
 
@@ -15,7 +20,7 @@ conda run -n quant python main.py --emit-agent-commands
 conda run -n quant python main.py --dry-run
 ```
 
-The first command should resolve inside `envs/quant`. [TESTING.md](TESTING.md) explains interpreter/PATH diagnosis, the `MYUTILS_ROOT` override, validation profiles, and results. Inspection emits JSON; dry-run checks config, candidate features, and model construction without training or rewriting research outputs. It can clear caches and create configured runtime directories.
+The first command should resolve inside `envs/quant`. [TESTING.md](TESTING.md) explains interpreter/PATH diagnosis, the `MYUTILS_ROOT` override, validation profiles, and results. Inspection emits JSON; the band-gap dry-run checks config, candidate features, and model construction without training or rewriting research outputs. It can clear caches and create configured runtime directories. Partner API, browser and monitor checks are listed separately in `TESTING.md`.
 
 For an authorized artifact refresh, `conda run -n quant python main.py` runs the complete pipeline using [src/config.py](src/config.py). A raw-cache miss can download the dataset; the run writes data caches and `artifacts/`. Inspect provenance before interpreting existing results.
 
@@ -34,7 +39,6 @@ For an authorized artifact refresh, `conda run -n quant python main.py` runs the
 | Services, optional viewer, MCP ownership | [SERVICES.md](SERVICES.md) |
 | Maintenance decisions | [.agents/skills/aiforbn-workflow/SKILL.md](.agents/skills/aiforbn-workflow/SKILL.md) |
 | Authorized proposal/Overleaf work | [.agents/skills/aiforbn-overleaf-proposal/SKILL.md](.agents/skills/aiforbn-overleaf-proposal/SKILL.md) |
-| Compact runtime routing | [skills/ai_native_workflow.txt](skills/ai_native_workflow.txt) |
 
 The two `docs/` index paths remain because runtime validation and public-surface tests consume them. Root documents provide short task-oriented entrypoints; module summaries own detailed API behavior. Git history holds completed maintenance chronology.
 

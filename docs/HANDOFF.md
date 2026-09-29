@@ -10,6 +10,8 @@
 
 ## Scientific contract
 
+This section covers the historical band-gap flow. The separate partner prototype has its current methods and evidence boundaries in [its index](research/separator_prototype/INDEX.md); its data cohorts do not inherit band-gap labels or validation.
+
 - The design space is bounded and BN-centered. Candidate ranking is low-confidence formula-level follow-up prioritization, not open-ended material discovery.
 - Stage 1 screening must use candidate-compatible formula-only features. The overall evaluation model may use lightweight structure-aware features and may differ from the screening model.
 - Formula-stage stability, application relevance, and directness are conservative proxies. Structure-dependent claims begin only after a structure hypothesis exists and passes the applicable checks.
@@ -25,7 +27,7 @@ The machine-readable v18 anchors, non-claims, and deliverable chain are canonica
 |---|---|
 | Repository entry, ownership, safety | `AGENTS.md` |
 | Entrypoints, modules, dependencies, profiles, v18 boundaries | `docs/AGENT_MANIFEST.json` |
-| Routine execution and profile selection | `.agents/skills/aiforbn-workflow/SKILL.md` and `skills/ai_native_workflow.txt` |
+| Routine execution and profile selection | `.agents/skills/aiforbn-workflow/SKILL.md` |
 | Proposal/Overleaf delivery | `.agents/skills/aiforbn-overleaf-proposal/SKILL.md` |
 | Public Python callables and signatures | `COMMON_FUNCTIONS.md`, `docs/PY_FILES_SUMMARY.md`, then the nearest module summary |
 | Environment, profiles and child test commands | `TESTING.md` |

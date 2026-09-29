@@ -1,5 +1,7 @@
 # AI for Science — aqueous data and partner usability, 2026-09-29
 
+Dated delivery record; current usage and subsequent changes are in the [prototype index](INDEX.md).
+
 The demo now starts with aqueous BN slurry viscosity, supports persistent
 light/dark preference, shows task-specific estimated waits, and locates evidence
 by paper title and section. The standalone sources section, database link and

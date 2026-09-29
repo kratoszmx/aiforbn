@@ -12,8 +12,8 @@
   explicit limitations rather than numeric predictions.
 - Even within the request range, purified-BNNT and new loadings are hypotheses.
   The two training points do not establish a response curve or prediction interval.
-- An invalid citation, malformed response, provider failure, timeout, missing
-  invitation, quota exhaustion or expired deployment produces an explicit failure;
+- An invalid citation, malformed response, provider failure, timeout,
+  quota exhaustion or expired deployment produces an explicit failure;
   cached real output is labelled separately from a new provider call.
 - Source-ID membership checks do not independently prove every generated sentence.
   Generated preparation descriptions are displayed as hypotheses; retained source

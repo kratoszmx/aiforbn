@@ -1,4 +1,4 @@
 interface:
-  display_name: "AI-for-BN Overleaf"
-  short_description: "处理 aiforbn proposal 交付。"
+  display_name: "AI for Science Overleaf"
+  short_description: "处理 aiforbn 已获授权的研究计划、LaTeX 编译与 Overleaf 交付。"
   default_prompt: "使用 $aiforbn-overleaf-proposal 处理这个 aiforbn Overleaf 或 research-plan 任务。"

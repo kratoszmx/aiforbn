@@ -1,4 +1,4 @@
 interface:
-  display_name: "AI-for-BN 工作流"
-  short_description: "调度 aiforbn 的 AI-native 工作。"
+  display_name: "AI for Science 工作流"
+  short_description: "维护 AI for Science 文档、代码、验证与合作方原型工作流。"
   default_prompt: "使用 $aiforbn-workflow 检查 aiforbn 命令索引，选择最小验证档位，并完成这个仓库任务。"

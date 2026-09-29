@@ -110,12 +110,11 @@ def test_agent_manifest_loads_machine_readable_contract():
         'torch_models',
         'ui',
     }
-    assert {skill['name'] for skill in manifest['project_skills']} >= {
+    assert {skill['name'] for skill in manifest['project_skills']} == {
         'aiforbn-workflow',
         'aiforbn-overleaf-proposal',
-        'ai_native_workflow',
     }
-    assert 'skills/codex_skill.txt' in manifest['retired_guidance_files']
+    assert manifest['retired_guidance_files'] == ['skills']
     assert any(entry['name'] == 'verify_agent_contract' for entry in manifest['entrypoints'])
     assert any(entry['name'] == 'emit_agent_commands' for entry in manifest['entrypoints'])
     assert any(entry['name'] == 'write_agent_state' for entry in manifest['entrypoints'])
@@ -153,7 +152,14 @@ def test_validate_agent_layout_accepts_current_repo_contract():
     assert '.agents/skills/aiforbn-workflow/SKILL.md' in checked_paths
     assert '.agents/skills/aiforbn-overleaf-proposal/SKILL.md' in checked_paths
     assert 'src/runtime/PY_FILES_SUMMARY.md' in checked_paths
-    assert 'skills/ai_native_workflow.txt' in checked_paths
+    assert 'skills/ai_native_workflow.txt' not in checked_paths
+    profile_guidance_paths = [
+        check['path'] for check in validation['checks']
+        if check['kind'] == 'validation_profile_guidance'
+    ]
+    assert profile_guidance_paths == [
+        '.agents/skills/aiforbn-workflow/SKILL.md',
+    ]
     assert 'human_docs/research_plan/ai_for_bn_research_plan_v18.tex' in checked_paths
     assert 'human_docs/research_plan/ai_for_bn_research_plan_v18.bib' in checked_paths
     research_source_checks = {
@@ -198,7 +204,6 @@ def test_validate_agent_layout_accepts_current_repo_contract():
         '.agents/skills/aiforbn-overleaf-proposal/SKILL.md',
         'docs/HANDOFF.md',
         'docs/PY_FILES_SUMMARY.md',
-        'skills/ai_native_workflow.txt',
         'src/runtime/AGENTS.md',
         'src/materials/AGENTS.md',
         'src/torch_models/AGENTS.md',
@@ -250,6 +255,35 @@ def test_validate_agent_layout_accepts_current_repo_contract():
     assert all(
         not check['unresolved_references']
         for check in skill_reference_checks.values()
+    )
+
+
+@pytest.mark.parametrize(
+    'legacy_file',
+    [None, 'ai_native_workflow.txt', 'unlisted_note.md'],
+    ids=['empty-directory', 'old-workflow', 'unlisted-guidance'],
+)
+def test_validate_agent_layout_rejects_reintroduced_legacy_skill_directory(
+    tmp_path, monkeypatch, legacy_file,
+):
+    legacy_directory = tmp_path / 'skills'
+    legacy_directory.mkdir()
+    if legacy_file is not None:
+        (legacy_directory / legacy_file).write_text('retired guidance\n')
+    original_check = agent_state._path_check
+
+    def check_with_legacy_directory(root, relative_path):
+        # Keep real project dependencies; isolate only the legacy directory probe.
+        checked_root = tmp_path if relative_path == 'skills' else root
+        return original_check(checked_root, relative_path)
+
+    monkeypatch.setattr(agent_state, '_path_check', check_with_legacy_directory)
+    validation = validate_agent_layout(ROOT)
+
+    assert validation['status'] == 'error'
+    assert any(
+        error['code'] == 'retired_guidance_file_present' and error['path'] == 'skills'
+        for error in validation['errors']
     )
 
 
@@ -7397,7 +7431,7 @@ def test_validate_agent_layout_pins_skills_and_retired_guidance(
             'missing_dependency_requirement',
         ),
         (
-            'skills/ai_native_workflow.txt',
+            '.agents/skills/aiforbn-workflow/SKILL.md',
             lambda text: text.replace('`ui_edit`', '`renamed_ui_profile`'),
             'missing_validation_profile_guidance',
         ),

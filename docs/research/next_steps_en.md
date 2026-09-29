@@ -4,6 +4,8 @@ Updated: 2026-09-27. [User-facing Chinese plan](../../human_docs/next_steps_zh.m
 
 Objective: ingredients/formulation/process → material outcome and property prediction → candidate selection → validation, with experimental-efficiency claims tested against evidence. Every phase produces something the partner can inspect, check or operate. A phase ends on inspectable deliverables, not a promised week number.
 
+Current implementation and completed deliveries: [prototype index](separator_prototype/INDEX.md). This document retains the staged research plan; phase targets and reporting examples below are planning guidance, not a claim that work is still pending or a fixed weekly schedule.
+
 ## Phase overview
 
 | Phase | Partner-visible delivery | Review question |
@@ -38,7 +40,7 @@ Acceptance: fixed cases are reproducible, outputs distinguish evidence from pred
 
 ## First four weekly reports
 
-Prepare one report per reporting week in this content sequence. Phase completion depends on actual deliverables; these are not promises to finish whole phases within a fixed number of weeks. Each report includes an inspectable partial result even if an anticipated model/data task is incomplete.
+Use the following sequence as a reporting outline, adapting order and emphasis to actual progress. Phase completion depends on actual deliverables; these are not promises to finish whole phases within a fixed number of weeks. Each report includes an inspectable partial result even if an anticipated model/data task is incomplete.
 
 | Report | Work focus | Concrete partner-visible material | Verification and review |
 | --- | --- | --- | --- |
@@ -47,7 +49,7 @@ Prepare one report per reporting week in this content sequence. Phase completion
 | R3: third weekly report | Minimum prototype and examples | Runnable prototype or complete operation record, three demonstration types and supported/unsupported feature list | Which outputs are retrieved facts versus predictions, and can the example be checked again? |
 | R4: fourth weekly report | Independent comparison and feedback | Prediction/measurement comparison, baselines, failure cases and feedback/decision log; include Phase 2 review when acceptance is met | What improved, what failed, what remains unevaluable and which issue deserves the next phase? |
 
-Every weekly report contains: linked versioned delivery, actual counts, at least one evidence example, problems and attempted remedies, next concrete delivery, and one focused request for partner feedback. Separate sources, independent formulations/samples and measurement counts. Record unreceived feedback as pending, not agreement. Feedback informs work progressively rather than becoming a blanket stop condition.
+Useful weekly-report contents include: linked versioned delivery, actual counts, at least one evidence example, problems and attempted remedies, next concrete delivery, and one focused request for partner feedback. Separate sources, independent formulations/samples and measurement counts. Record unreceived feedback as pending, not agreement. Feedback informs work progressively rather than becoming a blanket stop condition.
 
 Every phase report follows: problem addressed → artifact demonstration → data provenance → validation method/results → remaining limitations → proposed next work and specific partner feedback. Keep reports and artifacts together so progress remains inspectable after a meeting. R1–R4 are planned reporting contents, not completed reports or invented results.
 

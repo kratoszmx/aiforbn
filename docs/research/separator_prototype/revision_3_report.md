@@ -1,5 +1,7 @@
 # September 28: partner alignment and response monitoring
 
+Dated delivery record; current usage and subsequent changes are in the [prototype index](INDEX.md).
+
 ## Meeting fit
 
 The reviewed machine transcript supports starting with separators (01:13:38),

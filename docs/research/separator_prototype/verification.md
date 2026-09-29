@@ -1,4 +1,6 @@
-# Delivery verification — 2026-09-28
+# Initial delivery verification — 2026-09-28 (historical)
+
+This is evidence for the initial version, including its invitation gate, quota and exploratory recipes. Current operation and later delivery evidence are routed through the [prototype index](INDEX.md).
 
 The prototype is functional; numerical reliability and experimental savings remain
 unproven. See the [partner walkthrough](partner_demo_zh.md) and
@@ -46,7 +48,7 @@ the full run and the one-case rerun; this is not described as a single all-green
 invocation. The four warnings concern Starlette/HTTPX, legacy WebSocket APIs and
 PyTorch nested tensors. Private complete logs remain under `.runtime/separator/`.
 
-## Public operation
+## Historical public-operation evidence
 
 Verified URL: <https://digital-plus-craps-chambers.trycloudflare.com>.
 Application expiry: **2026-10-05 01:38 Asia/Shanghai / Hong Kong**

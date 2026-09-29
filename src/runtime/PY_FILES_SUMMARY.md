@@ -32,6 +32,8 @@ Anything underscore-prefixed or omitted here should be treated as internal.
 
 ## agent_state.py
 
+Profile guidance comes from `.agents/skills/aiforbn-workflow/SKILL.md`; the retired root `skills/` directory is rejected even when it contains an unlisted file.
+
 - `load_agent_manifest(project_root_path='.', manifest_path='docs/AGENT_MANIFEST.json')`
   - Load the checked-in machine-readable AI-native manifest.
 - `validate_agent_layout(project_root_path='.', manifest=None)`

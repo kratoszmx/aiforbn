@@ -42,7 +42,7 @@ These are diagnostic/focused commands; use the full emitted profile for a change
 | Target after `conda run -n quant python -m pytest -q` | Coverage |
 | --- | --- |
 | `src/tests` | Config defaults, main orchestration/control flags, public API signatures/import boundaries, validation-command non-vacuity |
-| `src/runtime/tests` | Schemas, guarded config/IO/cache paths, provenance, manifest/skills/dependency inspection |
+| `src/runtime/tests` | Schemas, guarded config/IO/cache paths, provenance, manifest/skills/dependency inspection, active-skill profile routing and retired-directory rejection |
 | `src/materials/tests` | Dataset/cache/download fixtures, features/splits/models, BN diagnostics, publication/structure contracts, separator/aqueous/electrolyte evidence and experiment selection |
 | `src/torch_models/tests` | Invalid-input, fit-state, device-policy and ensemble-seed contracts; actual fit/predict integration is in `src/materials/tests` |
 | `src/ui/tests` | Streamlit AppTest; separator API/quota/cache/expiry; headless Chrome forms/languages/themes; response-monitor state and receipt privacy |

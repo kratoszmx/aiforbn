@@ -47,8 +47,7 @@
     ".agents/skills/aiforbn-overleaf-proposal/SKILL.md",
     "docs/AGENT_MANIFEST.json",
     "docs/HANDOFF.md",
-    "docs/PY_FILES_SUMMARY.md",
-    "skills/ai_native_workflow.txt"
+    "docs/PY_FILES_SUMMARY.md"
   ],
   "project_skills": [
     {
@@ -62,22 +61,10 @@
       "path": ".agents/skills/aiforbn-overleaf-proposal/SKILL.md",
       "scope": "repo_scoped_codex_skill",
       "status": "active"
-    },
-    {
-      "name": "ai_native_workflow",
-      "path": "skills/ai_native_workflow.txt",
-      "scope": "plain_text_agent_runtime_guidance",
-      "status": "active"
     }
   ],
   "retired_guidance_files": [
-    "skills/codex_skill.txt",
-    "skills/coding_skill.txt",
-    "skills/docs_skill.txt",
-    "skills/model_skill.txt",
-    "skills/python_skill.txt",
-    "skills/template.txt",
-    "skills/workflow.txt"
+    "skills"
   ],
   "research_plan_alignment": {
     "status": "v18_alignment_contract",
